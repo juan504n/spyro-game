@@ -1,0 +1,20 @@
+{
+  "name": "spyro-gloaming-vale",
+  "version": "1.0.0",
+  "description": "Gloaming Vale — a fan-made Spyro-style DLC realm rendered in a pixel-accurate PlayStation 1 look with three.js",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "build:single": "node tools/build-single.mjs"
+  },
+  "dependencies": {
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "vite": "^8.3.1"
+  }
+}

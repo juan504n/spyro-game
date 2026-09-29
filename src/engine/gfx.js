@@ -1,0 +1,228 @@
+// Renderer: scene -> low-res target -> 15-bit dither + HUD composite -> crisp upscale to the canvas.
+import * as THREE from 'three';
+import { U } from './materials.js';
+import { QUANT_FRAG, OUT_FRAG, FULLSCREEN_VERT } from './shaders.js';
+import { Pix } from './textures/pix.js';
+
+const STORE_KEY = 'gloaming-vale/settings/v1';
+
+export const DEFAULT_SETTINGS = {
+  display: '4:3',     // '4:3' (authentic 320x240) | 'wide' (240 lines, as many columns as fit)
+  scaling: 'auto',    // 'auto' | 'integer' | 'fill'
+  height: 240,        // internal vertical resolution (240 = PS1)
+  crt: 0,             // 0..1 scanlines/mask/vignette
+  dither: 1,          // 15-bit colour + ordered dither
+  snap: 1,            // vertex snapping
+  affine: 1,          // affine texture warping (0..1)
+  fps30: false,       // lock rendering to 30 fps like the original
+  music: 0.8,
+  sfx: 1,
+  invertY: false,
+};
+
+export function loadSettings() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch (e) { /* storage unavailable (private mode / sandboxed frame) */ }
+  return { ...DEFAULT_SETTINGS };
+}
+
+export function saveSettings(s) {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); } catch (e) { /* ignore */ }
+}
+
+export class Gfx {
+  constructor(canvas, { preserve = false } = {}) {
+    this.canvas = canvas;
+    this.settings = loadSettings();
+    const r = (this.renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: false,
+      alpha: false,
+      depth: false,
+      stencil: false,
+      powerPreference: 'high-performance',
+      preserveDrawingBuffer: preserve,
+    }));
+    r.setPixelRatio(1);
+    r.autoClear = false;
+    r.info.autoReset = true;
+
+    this.W = 320;
+    this.H = 240;
+    this.devW = 640;
+    this.devH = 480;
+    this.rect = [0, 0, 640, 480];
+    this.onInternalResize = null;
+
+    // full-screen triangle-pair used by both post passes
+    this.quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const quadGeo = new THREE.PlaneGeometry(2, 2);
+
+    this.quantMat = new THREE.ShaderMaterial({
+      vertexShader: FULLSCREEN_VERT,
+      fragmentShader: QUANT_FRAG,
+      uniforms: {
+        uScene: { value: null },
+        uHud: { value: null },
+        uDither: { value: 1 },
+        uFade: { value: new THREE.Vector4(0, 0, 0, 0) },
+      },
+      depthTest: false, depthWrite: false,
+    });
+    this.outMat = new THREE.ShaderMaterial({
+      vertexShader: FULLSCREEN_VERT,
+      fragmentShader: OUT_FRAG,
+      uniforms: {
+        uTex: { value: null },
+        uInRes: { value: new THREE.Vector2(320, 240) },
+        uRect: { value: new THREE.Vector4(0, 0, 640, 480) },
+        uCRT: { value: 0 },
+      },
+      depthTest: false, depthWrite: false,
+    });
+    this.quantScene = new THREE.Scene();
+    this.quantQuad = new THREE.Mesh(quadGeo, this.quantMat);
+    this.quantQuad.frustumCulled = false;
+    this.quantScene.add(this.quantQuad);
+    this.outScene = new THREE.Scene();
+    this.outQuad = new THREE.Mesh(quadGeo, this.outMat);
+    this.outQuad.frustumCulled = false;
+    this.outScene.add(this.outQuad);
+
+    this.fade = this.quantMat.uniforms.uFade.value;
+    this.hud = null;
+    this._allocTargets(this.W, this.H);
+    this.applySettings();
+    this.resize();
+  }
+
+  _allocTargets(W, H) {
+    if (this.rtScene) { this.rtScene.dispose(); this.rtFinal.dispose(); this.hudTex?.dispose(); }
+    this.rtScene = new THREE.WebGLRenderTarget(W, H, {
+      minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter,
+      format: THREE.RGBAFormat, type: THREE.UnsignedByteType,
+      depthBuffer: true, stencilBuffer: false, generateMipmaps: false,
+    });
+    this.rtScene.texture.colorSpace = THREE.NoColorSpace;
+    this.rtFinal = new THREE.WebGLRenderTarget(W, H, {
+      minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat, type: THREE.UnsignedByteType,
+      depthBuffer: false, stencilBuffer: false, generateMipmaps: false,
+    });
+    this.rtFinal.texture.colorSpace = THREE.NoColorSpace;
+    this.hud = new Pix(W, H);
+    this.hudTex = new THREE.DataTexture(new Uint8Array(this.hud.data.buffer), W, H, THREE.RGBAFormat);
+    this.hudTex.magFilter = this.hudTex.minFilter = THREE.NearestFilter;
+    this.hudTex.flipY = true;
+    this.hudTex.generateMipmaps = false;
+    this.hudTex.needsUpdate = true;
+    this.quantMat.uniforms.uScene.value = this.rtScene.texture;
+    this.quantMat.uniforms.uHud.value = this.hudTex;
+    this.outMat.uniforms.uTex.value = this.rtFinal.texture;
+    this.outMat.uniforms.uInRes.value.set(W, H);
+    U.uRes.value.set(W, H);
+  }
+
+  set(key, value) {
+    this.settings[key] = value;
+    saveSettings(this.settings);
+    this.applySettings();
+    if (key === 'display' || key === 'scaling' || key === 'height') this.resize(true);
+  }
+
+  applySettings() {
+    const s = this.settings;
+    U.uSnap.value = s.snap ? 1 : 0;
+    U.uAffine.value = s.affine;
+    this.quantMat.uniforms.uDither.value = s.dither ? 1 : 0;
+    this.outMat.uniforms.uCRT.value = s.crt;
+  }
+
+  /** Recompute internal + output sizes from the window. */
+  resize(force = false) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const devW = Math.max(2, Math.round(window.innerWidth * dpr));
+    const devH = Math.max(2, Math.round(window.innerHeight * dpr));
+    const s = this.settings;
+    const H = s.height;
+    let W, scale, rect;
+    const wide = s.display === 'wide';
+    if (wide) {
+      const sInt = Math.max(1, Math.floor(devH / H));
+      const useInt = s.scaling === 'integer' || (s.scaling === 'auto' && (sInt * H) / devH >= 0.82);
+      if (useInt) {
+        scale = sInt;
+        W = THREE.MathUtils.clamp(Math.floor(devW / scale), (H * 4) / 3, H * 2.4);
+        W = Math.floor(W / 2) * 2;
+        const rw = W * scale, rh = H * scale;
+        rect = [Math.floor((devW - rw) / 2), Math.floor((devH - rh) / 2), rw, rh];
+      } else {
+        scale = devH / H;
+        W = THREE.MathUtils.clamp(Math.round(devW / scale), (H * 4) / 3, H * 2.4);
+        W = Math.floor(W / 2) * 2;
+        rect = [0, 0, devW, devH];
+      }
+    } else {
+      W = Math.round((H * 4) / 3);
+      const sMax = Math.min(devW / W, devH / H);
+      const sInt = Math.max(1, Math.floor(sMax));
+      const useInt = s.scaling === 'integer' || (s.scaling === 'auto' && sInt / sMax >= 0.85);
+      scale = useInt ? sInt : sMax;
+      const rw = Math.round(W * scale), rh = Math.round(H * scale);
+      rect = [Math.floor((devW - rw) / 2), Math.floor((devH - rh) / 2), rw, rh];
+    }
+    this.scale = scale;
+    if (devW !== this.devW || devH !== this.devH || force) {
+      this.devW = devW; this.devH = devH;
+      this.renderer.setSize(devW, devH, false);
+      this.canvas.style.width = '100vw';
+      this.canvas.style.height = '100vh';
+    }
+    this.rect = rect;
+    this.outMat.uniforms.uRect.value.set(rect[0], rect[1], rect[2], rect[3]);
+    if (W !== this.W || H !== this.H) {
+      this.W = W; this.H = H;
+      this._allocTargets(W, H);
+      if (this.onInternalResize) this.onInternalResize(W, H);
+    }
+  }
+
+  clearHud() { this.hud.data.fill(0); }
+
+  /** Render `scene` from `camera` through the whole PS1 pipeline to the canvas. */
+  render(scene, camera) {
+    const r = this.renderer;
+    // pass 1: the 3D scene at internal resolution
+    r.setRenderTarget(this.rtScene);
+    r.setViewport(0, 0, this.W, this.H);
+    r.setScissorTest(false);
+    r.setClearColor(U.uFogColor.value, 1);
+    r.clear(true, true, false);
+    r.render(scene, camera);
+    // pass 2: dither/quantise + HUD
+    this.hudTex.needsUpdate = true;
+    r.setRenderTarget(this.rtFinal);
+    r.setViewport(0, 0, this.W, this.H);
+    r.render(this.quantScene, this.quadCam);
+    // pass 3: upscale to the canvas
+    r.setRenderTarget(null);
+    r.setViewport(0, 0, this.devW, this.devH);
+    r.setClearColor(0x000000, 1);
+    r.clear(true, false, false);
+    r.render(this.outScene, this.quadCam);
+  }
+
+  /** Exact internal-resolution frame (post-dither, HUD included) as RGBA rows top-to-bottom. */
+  readInternal() {
+    const { W, H } = this;
+    const buf = new Uint8Array(W * H * 4);
+    this.renderer.readRenderTargetPixels(this.rtFinal, 0, 0, W, H, buf);
+    const out = new Uint8ClampedArray(W * H * 4);
+    for (let y = 0; y < H; y++) {
+      out.set(buf.subarray((H - 1 - y) * W * 4, (H - y) * W * 4), y * W * 4);
+    }
+    return { w: W, h: H, data: out };
+  }
+}
