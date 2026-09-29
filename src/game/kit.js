@@ -144,7 +144,9 @@ export class Kit {
       if (builder.triangleCount === 0) continue;
       const mat = this.assets.mat(tex, o);
       const mesh = new THREE.Mesh(builder.build(), mat);
+      builder.release();
       mesh.name = 'prop:' + (tex || 'vertex') + (o.mode ? ':' + o.mode : '');
+      mesh.matrixAutoUpdate = false;                 // static world geometry: never moves, skip per-frame matrix work
       if (o.mode === 'half' || o.mode === 'add') mesh.renderOrder = 8;
       group.add(mesh);
     }

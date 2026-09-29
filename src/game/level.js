@@ -7,6 +7,8 @@
 // Observatory where the Great Beacon V waits. Lighting it raises the sun.
 
 export const WORLD = { size: 384, cell: 2.4 };
+/** Radius around the summit of the ward that keeps the hero out of the mountain until the Dawn Gate opens (it passes through the gate). */
+export const WARD_RADIUS = 42;
 export const WATER_LEVEL = 0;
 
 /** Points on a spiral: returns [[x, z, y], ...] */
@@ -30,7 +32,7 @@ export const LEVEL = {
 
   lake: { x: -4, z: 30, rx: 60, rz: 42, bed: -4.4 },
   island: { x: -4, z: 27, r: 12, top: 2.5 },
-  ponds: [{ x: 74, z: 62, rx: 15, rz: 11, bed: -1.9 }],           // Mill Pond, beside the east trail's stone bridge
+  ponds: [],                                                        // (a pond here sat on the east trail / ring road junction)
 
   village: { x: 0, z: 138, r: 30, fall: 16, h: 3.2 },
   portal: { x: 0, z: 172, r: 9.5, fall: 6, h: 3.4 },               // level pad under the realm portal arch (cut into the south rim)
@@ -81,6 +83,7 @@ export const LEVEL = {
     { id: 'meadow', surface: 'dirt', width: 3.6, pts: [[30, 86], [50, 98], [72, 102]] },
     { id: 'hollow', surface: 'dirt', width: 3.6, pts: [[-50, -36], [-60, -50], [-66, -58]] },
     { id: 'landing', surface: 'cobble', width: 4.2, pts: [[-3, 76], [-4, 68]] },
+    { id: 'heron', surface: 'dirt', width: 3.8, pts: [[48.3, -27.8, 3.0], [40, -24, 2.8], ...spiral(12, -12, 21, 9, -0.35, -0.6, 3.2, 15, 26)] },     // ramp up Heron Point (branches off ringE's west bank; pinned to its height at the junction)
   ],
 
   // streams: surfaceY pinned; carved bed sits below the surface

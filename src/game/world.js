@@ -15,14 +15,17 @@ const _dl = {};
  * @param {import('./assets.js').Assets} assets
  * @param {(kit: Kit, world: object) => void} [populate] level population. It runs TWICE (a dry pass that registers
  *   shadow casters / colliders / lights, then a wet pass that emits geometry) so it must be deterministic.
+ * A generator: it yields [progress 0..1, label] between phases so an async caller can repaint a loading bar; the world is
+ * its return value. Use buildWorld() (synchronous) or buildWorldAsync().
  */
-export function buildWorld(assets, populate) {
+export function* buildWorldSteps(assets, populate) {
   const t0 = performance.now();
   const grid = generateTerrain();
   const lighting = new Lighting();
   lighting.attach(grid);
   const world = { grid, lighting, scene: new THREE.Scene(), timings: {} };
   world.timings.terrain = performance.now() - t0;
+  yield [0.12, 'SCULPTING VALE'];
 
   // dry pass: props register shadow casters, colliders, glow lights and emitters
   const kit = new Kit({ assets, lighting, grid });
@@ -32,10 +35,12 @@ export function buildWorld(assets, populate) {
   world.emitters = kit.emitters;
   kit.setPass('dry');
   if (populate) populate(kit, world);
+  yield [0.2, 'PLANTING TREES'];
 
   let t = performance.now();
   lighting.bake();
   world.timings.bake = performance.now() - t;
+  yield [0.27, 'PAINTING THE GLOAMING'];
 
   t = performance.now();
   const terr = buildTerrainMeshes(grid, lighting, assets);
@@ -43,6 +48,7 @@ export function buildWorld(assets, populate) {
   world.terrainStats = terr.stats;
   world.scene.add(terr.group);
   world.timings.terrainMesh = performance.now() - t;
+  yield [0.33, 'RAISING HILLS'];
 
   t = performance.now();
   world.water = buildWater(grid, lighting, assets);
@@ -68,6 +74,7 @@ export function buildWorld(assets, populate) {
   }
   world.scene.add(world.roads);
   world.timings.roads = performance.now() - t;
+  yield [0.36, 'FILLING MIRRORMERE'];
 
   // wet pass: props emit lit geometry using the baked shadow maps
   t = performance.now();
@@ -91,6 +98,7 @@ export function buildWorld(assets, populate) {
     const atm = atmosphere(day);
     world.atm = atm;
     U.uDay.value = day;
+    U.uBlend.value = atm.ease;
     U.uFogColor.value.setRGB(atm.fog[0], atm.fog[1], atm.fog[2]);
     U.uFogRange.value.set(130 + 30 * day, 400 + 30 * day);
     dynamicLight(day, _dl);
@@ -100,4 +108,21 @@ export function buildWorld(assets, populate) {
     world.sky.update(camera, atm, time, dt);
   };
   return world;
+}
+
+/** Synchronous build (dev scenes). */
+export function buildWorld(assets, populate) {
+  const it = buildWorldSteps(assets, populate);
+  for (;;) { const r = it.next(); if (r.done) return r.value; }
+}
+
+/** Build with a chance to repaint between phases: `progress(frac, label)` may return a promise. */
+export async function buildWorldAsync(assets, populate, progress = () => {}) {
+  const it = buildWorldSteps(assets, populate);
+  for (;;) {
+    const r = it.next();
+    if (r.done) return r.value;
+    await progress(r.value[0], r.value[1]);
+    await new Promise((res) => setTimeout(res, 0));
+  }
 }

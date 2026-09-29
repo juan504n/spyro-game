@@ -3,8 +3,30 @@ import { U } from './engine/materials.js';
 
 const params = new URLSearchParams(location.search);
 const canvas = document.getElementById('screen');
-const gfx = new Gfx(canvas, { preserve: params.has('preserve') });
-window.addEventListener('resize', () => gfx.resize());
+
+/** A visible message instead of a silent black page (no WebGL2, a crash while building the world, ...). */
+function fatal(headline, detail) {
+  try {
+    let d = document.getElementById('fatal');
+    if (!d) {
+      d = document.createElement('div');
+      d.id = 'fatal';
+      d.style.cssText = 'position:fixed;inset:0;display:grid;place-items:center;padding:24px;box-sizing:border-box;text-align:center;background:#000;color:#c8bce8;font:16px/1.6 monospace;z-index:20;white-space:pre-wrap;overflow:auto';
+      document.body.appendChild(d);
+    }
+    d.textContent = `${headline}\n\n${detail}`;
+  } catch (e) { /* nothing more we can do */ }
+}
+const explain = (e) => String((e && (e.message || e)) || e).slice(0, 300);
+
+let gfx = null;
+try {
+  gfx = new Gfx(canvas, { preserve: params.has('preserve') });
+} catch (e) {
+  console.error(e);
+  window.__error = String((e && e.stack) || e);
+  fatal('GLOAMING VALE COULD NOT START', `It needs a browser with WebGL2 enabled.\n\n${explain(e)}`);
+}
 
 let scene = null; // { scene, camera, update(dt, t), frameStart?() }
 const clock = { t: 0 };
@@ -26,8 +48,14 @@ async function boot() {
 
   let last = performance.now();
   let acc30 = 0;
+  // window.resize does not fire when only the pixel ratio changes (a window dragged between displays): watch for it
+  let seenDpr = window.devicePixelRatio, seenW = window.innerWidth, seenH = window.innerHeight;
   const frame = (now) => {
     requestAnimationFrame(frame);
+    if (window.devicePixelRatio !== seenDpr || window.innerWidth !== seenW || window.innerHeight !== seenH) {
+      seenDpr = window.devicePixelRatio; seenW = window.innerWidth; seenH = window.innerHeight;
+      gfx.resize();
+    }
     let dt = Math.min((now - last) / 1000, 0.1);
     last = now;
     clock.t += dt;
@@ -57,4 +85,12 @@ async function boot() {
   };
   if (!scene.deferReady) window.__ready = true;
 }
-boot().catch((e) => { console.error(e); window.__error = String((e && e.stack) || e); });
+
+if (gfx) {
+  window.addEventListener('resize', () => gfx.resize());
+  boot().catch((e) => {
+    console.error(e);
+    window.__error = String((e && e.stack) || e);
+    fatal('GLOAMING VALE HIT A SNAG WHILE LOADING', `${explain(e)}\n\nReloading the page usually fixes it.`);
+  });
+}

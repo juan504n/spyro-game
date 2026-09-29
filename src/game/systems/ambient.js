@@ -1,6 +1,6 @@
 // Ambient life: halos + light pools for every lamp/window/crystal, prop emitters (chimney smoke, sparkles, mist),
 // dusk fireflies and daytime pollen motes around the player.
-import { WATER_LEVEL } from '../level.js';
+import { WATER_LEVEL, WARD_RADIUS } from '../level.js';
 
 const rnd = (a, b) => a + (b - a) * Math.random();
 
@@ -24,6 +24,7 @@ export class Ambient {
     this.stepAcc = 0;
     // positional loops (waterfall roar, windmill creak, portal hum): started lazily once the audio context is running
     this.sources = (game.gameplay?.soundSources || []).map((s) => ({ ...s, loop: null }));
+    this.wardAcc = 0;
   }
 
   /** Distance-attenuated, camera-panned looping beds. */
@@ -44,8 +45,25 @@ export class Ambient {
     }
   }
 
+  /** The ward around the summit while the Dawn Gate is sealed: a curtain of drifting violet motes near the hero. */
+  _ward(dt, game) {
+    const bar = game.objects?.barrier, p = game.player;
+    if (!bar || !bar.c.solid || p.dead) return;
+    const S = game.level.summit, wx = p.x - S.x, wz = p.z - S.z;
+    const near = Math.hypot(wx, wz) - WARD_RADIUS;                   // > 0 outside the ward
+    if (near < -1 || near > 18) return;
+    this.wardAcc += dt * 26 * (1 - Math.max(0, near) / 18);
+    while (this.wardAcc >= 1) {
+      this.wardAcc -= 1;
+      const th = Math.atan2(wx, wz) + rnd(-0.24, 0.24);
+      const x = S.x + Math.sin(th) * WARD_RADIUS, z = S.z + Math.cos(th) * WARD_RADIUS;
+      game.fx.spawn({ pool: 'add', sprite: 'spark_small', x, y: game.collision.heightAt(x, z) + rnd(0.3, 7), z, vy: rnd(0.4, 1.4), life: rnd(1.2, 2.2), size: [0.3, 0.3], c0: [0.75, 0.55, 1, 0.8], c1: [0.75, 0.55, 1, 0.8], pulse: true });
+    }
+  }
+
   update(dt, game) {
     this._soundscape(game);
+    this._ward(dt, game);
     const p = game.player;
     const cam = game.camera.position;
     const day = game.day;
@@ -102,7 +120,7 @@ export class Ambient {
       const a = Math.random() * 6.28, r = rnd(3, 20);
       const x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r;
       const gy = game.collision.heightAt(x, z);
-      game.fx.spawn({ pool: 'add', sprite: 'spark_small', x, y: gy + rnd(0.8, 3), z, vx: rnd(0.2, 0.7), vy: rnd(0.05, 0.3), vz: rnd(-0.3, 0.3), life: rnd(2.5, 4.5), size: [0.22, 0.22], c0: [1, 0.95, 0.7, 0], c1: [1, 0.95, 0.7, 0.7] });
+      game.fx.spawn({ pool: 'add', sprite: 'spark_small', x, y: gy + rnd(0.8, 3), z, vx: rnd(0.2, 0.7), vy: rnd(0.05, 0.3), vz: rnd(-0.3, 0.3), life: rnd(2.5, 4.5), size: [0.22, 0.22], c0: [1, 0.95, 0.7, 0.7], c1: [1, 0.95, 0.7, 0.7], pulse: true });
     }
     // ---- player footsteps / wading ---------------------------------------------------------------------------------------
     if (p.grounded && !p.dead) {

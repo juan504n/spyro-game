@@ -71,7 +71,14 @@ export class Builder {
   }
 
   get vertexCount() { return this.pos.length / 3; }
-  get triangleCount() { return this.pos.length / 9; }
+  get triangleCount() { return this._tris !== undefined ? this._tris : this.pos.length / 9; }
+
+  /** Drop the JS build-time arrays once the geometry owns typed copies (static world meshes: tens of MB for the props). */
+  release() {
+    this._tris = this.pos.length / 9;
+    this.pos = []; this.uvs = []; this.colA = []; this.colB = []; this.nrm = [];
+    return this;
+  }
 
   // ---- transform stack (delegates to the shared Xf) ----------------------------------------------------------
   push() { this.xf.push(); return this; }
@@ -132,7 +139,8 @@ export class Builder {
   _tint(o, x, y, z) {
     const c = o.color === undefined ? this.defaults.color : o.color;
     if (typeof c === 'function') return c(x, y, z);
-    return c.length ? (typeof c[0] === 'number' ? c : col(c)) : c;
+    if (typeof c === 'number' || typeof c === 'string') return col(c);       // 0xff8800 / '#ff8800'
+    return c.length && typeof c[0] !== 'number' ? col(c) : c;
   }
 
   /** Emit one triangle. p* = [x,y,z]; n = face normal (or per-vertex normals array of 3); uv* = [u,v]. */
@@ -416,7 +424,10 @@ export class Builder {
         const BL = lane(i, k0), BR = lane(i, k1), TR = lane(i + 1, k1), TL = lane(i + 1, k0);
         const tin = (k) => (k === 0 ? cT : eT), aln = (k) => (k === 0 ? 1 : eA);
         const u0 = (k0 + 1) / 2 * uw, u1 = (k1 + 1) / 2 * uw;
-        this.quad(BL, BR, TR, TL, { ...o, uv: [u0, v0, u1, v1], tints: [tin(k0), tin(k1), tin(k1), tin(k0)], alphas: [aln(k0), aln(k1), aln(k1), aln(k0)] });
+        // where the path folds back on itself a quad can come out inside-out (culled): wind those the other way
+        const ny = (BR[2] - BL[2]) * (TL[0] - BL[0]) - (BR[0] - BL[0]) * (TL[2] - BL[2]);
+        if (ny >= 0) this.quad(BL, BR, TR, TL, { ...o, uv: [u0, v0, u1, v1], tints: [tin(k0), tin(k1), tin(k1), tin(k0)], alphas: [aln(k0), aln(k1), aln(k1), aln(k0)] });
+        else this.quad(BR, BL, TL, TR, { ...o, uv: [u1, v0, u0, v1], tints: [tin(k1), tin(k0), tin(k0), tin(k1)], alphas: [aln(k1), aln(k0), aln(k0), aln(k1)] });
       }
     }
     return this;

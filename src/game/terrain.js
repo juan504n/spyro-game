@@ -101,9 +101,13 @@ export function baseHeight(x, z, L = LEVEL) {
   }
   // no accidental puddles: outside the lake/ponds keep the ground above the waterline
   const dLake = Math.hypot((x - L.lake.x) / L.lake.rx, (z - L.lake.z) / L.lake.rz);
-  let wet = dLake < 1.4;
-  for (const p of L.ponds) if (Math.hypot((x - p.x) / p.rx, (z - p.z) / p.rz) < 1.4) wet = true;
-  if (!wet) h = Math.max(h, 0.75);
+  let dWet = dLake;
+  for (const p of L.ponds) dWet = Math.min(dWet, Math.hypot((x - p.x) / p.rx, (z - p.z) / p.rz));
+  {
+    // eased in (a hard switch made a ledge along the shores): 0 inside the basins, 1 well outside them
+    const k = smooth(1.12, 1.42, dWet);            // (the lake's water disc ends at d = 1.12)
+    if (k > 0) h = lerp(h, Math.max(h, 0.75), k);
+  }
   return h;
 }
 

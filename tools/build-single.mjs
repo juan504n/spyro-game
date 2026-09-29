@@ -41,7 +41,7 @@ const t0 = Date.now();
 const res = await esbuild.build({
   entryPoints: [path.join(root, 'src/main.js')],
   bundle: true, write: false, format: 'iife', minify: true, target: 'es2022', legalComments: 'none',
-  plugins: [singleFile], logLevel: 'warning', charset: 'utf8',
+  plugins: [singleFile], logLevel: 'warning', charset: 'ascii',
   define: { 'process.env.NODE_ENV': '"production"' },
 });
 let js = res.outputFiles[0].text;
@@ -52,7 +52,7 @@ const artifactHtml = `<title>Gloaming Vale</title>
 <style>
   :root { color-scheme: dark; --bg: #000; --ink: #c8bce8; }
   html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; overscroll-behavior: none; touch-action: none; -webkit-user-select: none; user-select: none; }
-  canvas#screen { position: fixed; inset: 0; display: block; width: 100vw; height: 100vh; image-rendering: pixelated; outline: none; background: var(--bg); }
+  canvas#screen { position: fixed; inset: 0; display: block; width: 100%; height: 100%; image-rendering: pixelated; outline: none; background: var(--bg); }
   noscript { position: fixed; inset: 0; display: grid; place-items: center; color: var(--ink); font: 16px monospace; }
 </style>
 <canvas id="screen" tabindex="0"></canvas>
@@ -73,7 +73,7 @@ const html = artifact ? artifactHtml : `<!doctype html>
 <style>
   :root { color-scheme: dark; --bg: #000; }
   html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; overscroll-behavior: none; touch-action: none; -webkit-user-select: none; user-select: none; }
-  canvas#screen { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; outline: none; }
+  canvas#screen { position: fixed; inset: 0; display: block; width: 100%; height: 100%; image-rendering: pixelated; outline: none; background: #000; }
   noscript { position: fixed; inset: 0; display: grid; place-items: center; color: #c8bce8; font: 16px monospace; }
 </style>
 </head>

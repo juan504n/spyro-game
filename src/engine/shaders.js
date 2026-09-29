@@ -21,6 +21,7 @@ export const PS1_VERT = /* glsl */ `
 uniform vec2 uRes;
 uniform float uSnap;
 uniform float uDay;
+uniform float uBlend;
 uniform vec2 uFogRange;
 uniform vec3 uSunDir;
 uniform vec3 uSunCol;
@@ -72,12 +73,15 @@ void main() {
     vUvP = uv;
     vUvA = uv * clip.w;
     #ifdef DAY
-      vec4 col = mix(aCol, aColB, uDay);
+      vec4 col = mix(aCol, aColB, uBlend);
     #else
       vec4 col = aCol;
     #endif
     #ifdef LIT
-      vec3 n = normalize(mat3(mm) * normal);
+      // inverse-transpose of the model matrix (the rigs squash and stretch, i.e. scale non-uniformly)
+      mat3 m3 = mat3(mm);
+      vec3 s2 = max(vec3(dot(m3[0], m3[0]), dot(m3[1], m3[1]), dot(m3[2], m3[2])), vec3(1e-6));
+      vec3 n = normalize(m3 * (normal / s2));
       float ndl = max(dot(n, uSunDir), 0.0);
       col.rgb *= (uAmb + uSunCol * ndl) * 0.5;
     #endif
@@ -150,7 +154,8 @@ void main() {
   c = mix(c, uFade.rgb, uFade.a);
   if (uDither > 0.5) {
     ivec2 p = ivec2(gl_FragCoord.xy);
-    float d = M[(p.y & 3) * 4 + (p.x & 3)];
+    // the PS1 matrix is indexed from the top-left of the screen; gl_FragCoord counts from the bottom (H is a multiple of 4)
+    float d = M[(3 - (p.y & 3)) * 4 + (p.x & 3)];
     vec3 c8 = clamp(floor(c * 255.0 + 0.5) + d, 0.0, 255.0);
     vec3 c5 = floor(c8 / 8.0);
     c = (c5 * 8.0 + floor(c5 / 4.0)) / 255.0;
@@ -175,7 +180,7 @@ void main() {
   if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) { gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); return; }
   vec2 px = uv * uInRes;
   vec2 seam = floor(px + 0.5);
-  vec2 dudv = max(fwidth(px), vec2(1e-5));
+  vec2 dudv = uInRes / uRect.zw;      // internal pixels per device pixel (constant: no derivatives needed)
   vec2 spx = seam + clamp((px - seam) / dudv, -0.5, 0.5);
   vec3 c = texture2D(uTex, spx / uInRes).rgb;
   if (uCRT > 0.0) {

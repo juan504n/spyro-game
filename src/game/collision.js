@@ -24,7 +24,9 @@ export class Collision {
   add(c) {
     if (c.solid === undefined) c.solid = true;
     this.colliders.push(c);
-    const ext = c.type === 'cyl' ? c.r : Math.hypot(c.hx, c.hz);
+    // (+ the largest entity radius: near() only looks at the entity's own cell, so a collider must also be listed in the
+    // neighbouring cells an entity touching it can stand in)
+    const ext = (c.type === 'cyl' ? c.r : Math.hypot(c.hx, c.hz)) + 0.75;
     const i0 = Math.floor((c.x - ext) / this.cell), i1 = Math.floor((c.x + ext) / this.cell);
     const j0 = Math.floor((c.z - ext) / this.cell), j1 = Math.floor((c.z + ext) / this.cell);
     for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {

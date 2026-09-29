@@ -61,8 +61,8 @@ export function layoutVillage(ctx) {
 
   // gameplay: the elder, tutorial nooks, the hearth beacon
   gp.npcs.push({ id: 'elder', name: 'ELDER WICK', model: 'elder', x: -5, z: 136, yaw: Math.PI * 0.75 });
-  gp.hints.push({ x: 0, z: 154, r: 7, text: 'PRESS SPACE TO JUMP  -  HOLD IT IN THE AIR TO GLIDE', dur: 7 });
-  gp.hints.push({ x: 0, z: 136, r: 8, text: 'J OR CLICK: BREATHE FIRE   K OR SHIFT: CHARGE', dur: 7 });
+  gp.hints.push({ x: 0, z: 154, r: 7, text: 'PRESS SPACE TO JUMP  -  HOLD IT IN THE AIR TO GLIDE', touch: 'TAP JUMP  -  HOLD IT IN THE AIR TO GLIDE', pad: 'PRESS A TO JUMP  -  HOLD IT IN THE AIR TO GLIDE', dur: 7 });
+  gp.hints.push({ x: 0, z: 136, r: 8, text: 'J OR CLICK: BREATHE FIRE   K OR SHIFT: CHARGE', touch: 'FIRE: BREATHE FIRE   RAM: CHARGE', pad: 'X: BREATHE FIRE   B: CHARGE', dur: 7 });
   ctx.addVase(-14, 116, [1, 1, 2]); ctx.addVase(16, 112, [1, 2]); ctx.addVase(26, 128, [2, 2]); ctx.addVase(-28, 146, [1, 1, 1]);
   ctx.addVase(-3, 160, [1, 1]); ctx.addVase(3, 161, [1, 1]);
   ctx.addBunnies(-22, 158, 3, 4); ctx.addBunnies(24, 154, 2, 4);
@@ -110,12 +110,9 @@ export function layoutLake(ctx) {
   put('tree_pine', L.heron.x, L.heron.z, { size: 'm' }, 3);
   ctx.addVase(L.heron.x + 2, L.heron.z + 4, [5]);
   ctx.gemArc([[L.heron.x, h(L.heron.x, L.heron.z) + 1.4, L.heron.z + 4], [L.heron.x - 10, h(L.heron.x, L.heron.z) + 3.4, L.heron.z + 18], [I.x + 2, I.top + 3.2 + 6, I.z - 10]], 9, 1);
-  // Mill Pond and bridge
-  const pd = L.ponds[0];
-  put('reeds', pd.x - 12, pd.z + 4, { r: 3, count: 10 }, 2);
-  put('reeds', pd.x + 10, pd.z - 6, { r: 3, count: 10 }, 2);
-  put('lilypads', pd.x, pd.z, { r: 5, count: 9, y: WATER_LEVEL + 0.04 }, 2);
-  ctx.addBunnies(pd.x - 10, pd.z + 14, 3, 5);
+  // the ramp road climbs Heron Point from the north (ringE branches off it): hint at the foot, a chest-high reward on top
+  gp.hints.push({ x: 44, z: -26, r: 8, text: 'A TRAIL CLIMBS HERON POINT. GLIDE FROM THE TOP!', dur: 5 });
+  ctx.addBunnies(64, 76, 3, 5);
 }
 
 export function layoutRiver(ctx) {
@@ -260,7 +257,9 @@ export function layoutHollow(ctx) {
   ctx.addVase(K.x - 4, K.z - 3, [5]); ctx.addVase(K.x + 5, K.z - 2, [2, 5]);
   ctx.addEnemy(K.x - 4, K.z + 4, 'basic', 4); ctx.addEnemy(K.x + 5, K.z + 6, 'bell', 4);
   ctx.gp.purple = ctx.gp.purple || [];
-  ctx.gp.purple.push([K.x + 1, h(K.x + 1, K.z - 14) + 1.3, K.z - 14]);
+  // (found by asking for a free spot: the crystal spires' colliders would put a gem out of the hero's reach)
+  const [gx, gz] = ctx.spot(K.x + 1, K.z - 3, { r: 2.6, clear: 1, maxR: 10 });
+  ctx.gp.purple.push([gx, h(gx, gz) + 1.3, gz]);
 }
 
 export function layoutNorth(ctx) {

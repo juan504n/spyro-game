@@ -110,12 +110,12 @@ export class GameCamera {
     let cx = ax - fx * d * cp, cy = ay + sp * d, cz = az - fz * d * cp;
     const col = this.game.collision;
     const f = col.rayFraction(ax, ay, az, cx, cy, cz, 0.45);
-    if (f < 1) { d = Math.max(1.8, d * f); cx = ax - fx * d * cp; cy = ay + sp * d; cz = az - fz * d * cp; }
+    if (f < 1) { d = Math.max(1.4, d * f); cx = ax - fx * d * cp; cy = ay + sp * d; cz = az - fz * d * cp; }
     const gh = col.heightAt(cx, cz) + 0.85;
     if (cy < gh) cy = gh;
     if (this.snapNext) this.pos.set(cx, cy, cz);
     else {
-      const k = f < 1 ? 1 : 1 - Math.exp(-13 * dt);
+      const k = 1 - Math.exp(-(f < 1 ? 42 : 13) * dt);            // pull in fast (but not in one pop), ease back out gently
       this.pos.x = lerp(this.pos.x, cx, k); this.pos.y = lerp(this.pos.y, cy, k); this.pos.z = lerp(this.pos.z, cz, k);
       if (this.pos.y < gh) this.pos.y = gh;
     }

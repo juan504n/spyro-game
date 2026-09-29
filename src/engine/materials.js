@@ -11,6 +11,7 @@ export const U = {
   uSnap: { value: 1 },
   uAffine: { value: 1 },
   uDay: { value: 0 },
+  uBlend: { value: 0 },       // eased day: weight of the baked daybreak lighting (sky/fog/dynamic lights use the same curve)
   uTime: { value: 0 },
   uWind: { value: 1 },
   uFogColor: { value: new THREE.Color(0.55, 0.36, 0.55) },
@@ -79,7 +80,7 @@ export function makeMaterial(o = {}) {
     defines,
     uniforms: {
       map: { value: o.map || whiteTexture() },
-      uRes: U.uRes, uSnap: U.uSnap, uAffine: U.uAffine, uDay: U.uDay, uTime: U.uTime, uWind: U.uWind,
+      uRes: U.uRes, uSnap: U.uSnap, uAffine: U.uAffine, uDay: U.uDay, uBlend: U.uBlend, uTime: U.uTime, uWind: U.uWind,
       uFogColor: U.uFogColor, uFogRange: U.uFogRange, uSunDir: U.uSunDir, uSunCol: U.uSunCol, uAmb: U.uAmb,
       uScroll: { value: new THREE.Vector2(...(o.scroll || [0, 0])) },
       uAlpha: { value: o.alpha ?? 1 },

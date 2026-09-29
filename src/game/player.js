@@ -1,13 +1,13 @@
 // The dragon: kinematic character controller + ability state machine (run, jump, glide, charge, flame, hurt, death).
 // Tuning constants live in P so game feel can be adjusted in one place.
 import { SLOPE_WALK } from './collision.js';
-import { WATER_LEVEL } from './level.js';
+import { WATER_LEVEL, WARD_RADIUS } from './level.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
 const angDiff = (a, b) => { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; };
 
-export const P = {
+const P = {
   radius: 0.55, height: 1.05, stepUp: 0.62,
   runSpeed: 11.5, accel: 62, brake: 75, airAccel: 34, airDrag: 1.6,
   gravity: 40, jumpV: 15.2, maxFall: 42, coyote: 0.11, jumpBuffer: 0.13,
@@ -125,8 +125,9 @@ export class Player {
     if (ctl && input.pressed('jump')) this.bufferT = P.jumpBuffer;
 
     if (ctl) {
-      // start glide: press jump while airborne
-      if (input.pressed('jump') && !this.grounded && this.coyoteT <= 0 && this.jumpsUsed >= 1 && !this.gliding && this.chargeT <= 0) {
+      // start glide: press jump while airborne — but a press just above the ground is a buffered jump, not a glide
+      const nearGround = this.vy < 0 && (this.y - col.support(this.x, this.z, this.y, P.stepUp).y) < -this.vy * P.jumpBuffer;
+      if (input.pressed('jump') && !this.grounded && this.coyoteT <= 0 && this.jumpsUsed >= 1 && !this.gliding && this.chargeT <= 0 && !nearGround) {
         this.gliding = true; this.bufferT = 0; this.emit('glide');
       }
       if (this.gliding && !input.down('jump')) this.gliding = false;
@@ -211,7 +212,7 @@ export class Player {
       this.x += this.vx * dt2; this.z += this.vz * dt2;
       // terrain steepness: block moving uphill into a steep face
       const n = col.normalAt(this.x, this.z);
-      if (n[1] < SLOPE_WALK && this.groundKind === 'terrain') {
+      if (n[1] < SLOPE_WALK) {            // (also while gliding: otherwise a glide into a cliff rides up its face)
         const hNew = col.heightAt(this.x, this.z), hOld = col.heightAt(ox, oz);
         if (hNew > hOld + 0.001 && hNew > this.y - 0.2) {
           const ul = Math.hypot(n[0], n[2]) || 1;
@@ -326,6 +327,19 @@ export class Player {
       const nx = dx / r, nz = dz / r;
       const vn = this.vx * nx + this.vz * nz;
       if (vn > 0) { this.vx -= nx * vn; this.vz -= nz * vn; }
+    }
+    // The Dawn Gate stands in open ground: while its barrier holds, a ward seals the whole summit precinct for the hero.
+    const barrier = this.game.objects?.barrier;
+    if (barrier && barrier.c.solid) {
+      const S = this.game.level.summit, R = WARD_RADIUS;
+      const wx = this.x - S.x, wz = this.z - S.z, wd = Math.hypot(wx, wz) || 1e-4;
+      if (wd < R) {
+        const nx = wx / wd, nz = wz / wd;
+        this.x = S.x + nx * R; this.z = S.z + nz * R;
+        const vn = this.vx * nx + this.vz * nz;
+        if (vn < 0) { this.vx -= nx * vn; this.vz -= nz * vn; }
+        if (!this._wardShown) { this._wardShown = true; this.game.hud?.hint('AN ANCIENT WARD SEALS THE MOUNTAIN. RELIGHT FOUR BEACONS!', 5); }
+      }
     }
   }
 

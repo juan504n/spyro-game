@@ -180,6 +180,7 @@ export class Fx {
     p.s0 = o.size ? o.size[0] : 1; p.s1 = o.size ? o.size[1] : p.s0;
     p.c0 = o.c0 || [1, 1, 1, 1]; p.c1 = o.c1 || p.c0;
     p.rot = o.rot || 0; p.spin = o.spin || 0;
+    p.pulse = !!o.pulse;             // fade in and out over the life (sin envelope) instead of a one-way ramp
     p.delay = o.delay || 0;
     this.p.push(p);
     return p;
@@ -215,7 +216,7 @@ export class Fx {
       let fi = 0;
       if (n > 1) fi = p.overLife ? Math.min(n - 1, Math.floor(t * n)) : p.loop ? Math.floor(p.age * p.fps) % n : Math.min(n - 1, Math.floor(p.age * p.fps));
       const c0 = p.c0, c1 = p.c1;
-      this.bufs[p.pool].push(p.x, p.y, p.z, lerp(p.s0, p.s1, t), p.ids[fi], lerp(c0[0], c1[0], t), lerp(c0[1], c1[1], t), lerp(c0[2], c1[2], t), lerp(c0[3], c1[3], t), p.rot);
+      this.bufs[p.pool].push(p.x, p.y, p.z, lerp(p.s0, p.s1, t), p.ids[fi], lerp(c0[0], c1[0], t), lerp(c0[1], c1[1], t), lerp(c0[2], c1[2], t), lerp(c0[3], c1[3], t) * (p.pulse ? Math.sin(Math.PI * t) : 1), p.rot);
     }
     const hs = this.handles;
     for (let i = hs.length - 1; i >= 0; i--) {
@@ -319,7 +320,7 @@ export class Fx {
   }
 
   firefly(x, y, z) {
-    this.spawn({ pool: 'add', sprite: 'firefly', x, y, z, vx: this.rnd(-0.5, 0.5), vy: this.rnd(-0.1, 0.4), vz: this.rnd(-0.5, 0.5), life: this.rnd(3, 6), size: [0.3, 0.3], c0: [0.9, 1, 0.4, 0], c1: [0.9, 1, 0.4, 0.9], overLife: false });
+    this.spawn({ pool: 'add', sprite: 'firefly', x, y, z, vx: this.rnd(-0.5, 0.5), vy: this.rnd(-0.1, 0.4), vz: this.rnd(-0.5, 0.5), life: this.rnd(3, 6), size: [0.3, 0.3], c0: [0.9, 1, 0.4, 0.9], c1: [0.9, 1, 0.4, 0.9], overLife: false, pulse: true });
   }
 
   leaf(x, y, z, color = [1, 0.7, 0.3]) {

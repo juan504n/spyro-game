@@ -33,6 +33,14 @@ export class SpriteAtlas {
       x += p.w + 1;
       rowH = Math.max(rowH, p.h);
     }
+    if (!this.rects.length) {
+      // sprite generation failed: keep one white texel so every billboard lookup (id 0) still resolves
+      const d = (1 * size + 1) * 4;
+      atlas.data[d] = atlas.data[d + 1] = atlas.data[d + 2] = atlas.data[d + 3] = 255;
+      this.rects.push([1.5 / size, 1 - 1.5 / size, 1.5 / size, 1 - 1.5 / size]);
+      this.dims.push([1, 1]);
+      this.names.push('_blank');
+    }
     this.pix = atlas;
     this.texture = texFromPix(atlas, { tile: false });
   }

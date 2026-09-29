@@ -20,15 +20,37 @@ export const DEFAULT_SETTINGS = {
   invertY: false,
 };
 
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+
+/** Stored settings are untrusted JSON: coerce every field into its valid range (a bad value must never blank the screen). */
+function sanitize(s) {
+  const num = (v, d) => (Number.isFinite(+v) && v !== null && v !== '' ? clamp01(+v) : d);
+  s.height = [240, 360, 480].includes(s.height) ? s.height : 240;
+  if (s.display !== 'wide') s.display = '4:3';
+  if (!['auto', 'integer', 'fill'].includes(s.scaling)) s.scaling = 'auto';
+  s.crt = num(s.crt, 0);
+  s.affine = num(s.affine, 1);
+  s.music = num(s.music, DEFAULT_SETTINGS.music);
+  s.sfx = num(s.sfx, DEFAULT_SETTINGS.sfx);
+  s.dither = s.dither ? 1 : 0;
+  s.snap = s.snap ? 1 : 0;
+  s.fps30 = !!s.fps30;
+  s.invertY = !!s.invertY;
+  return s;
+}
+
 export function loadSettings() {
   const base = { ...DEFAULT_SETTINGS };
   // phones are wider than 4:3 and have no room to waste: start in widescreen (players can still pick 4:3 in the options)
   try { if ('ontouchstart' in window || navigator.maxTouchPoints > 0) base.display = 'wide'; } catch (e) { /* no window (headless) */ }
   try {
     const raw = localStorage.getItem(STORE_KEY);
-    if (raw) return { ...base, ...JSON.parse(raw) };
-  } catch (e) { /* storage unavailable (private mode / sandboxed frame) */ }
-  return base;
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (saved && typeof saved === 'object') return sanitize({ ...base, ...saved });
+    }
+  } catch (e) { /* storage unavailable (private mode / sandboxed frame) or corrupt JSON */ }
+  return sanitize(base);
 }
 
 export function saveSettings(s) {
@@ -50,12 +72,12 @@ export class Gfx {
     }));
     r.setPixelRatio(1);
     r.autoClear = false;
-    r.info.autoReset = true;
+    r.info.autoReset = false;      // three passes per frame: reset once per frame (in render) so the counters cover all of them
 
     this.W = 320;
     this.H = 240;
-    this.devW = 640;
-    this.devH = 480;
+    this.devW = 0;                 // (0 = "canvas not sized yet": resize() must always set the drawing buffer on first call)
+    this.devH = 0;
     this.rect = [0, 0, 640, 480];
     this.onInternalResize = null;
 
@@ -153,8 +175,8 @@ export class Gfx {
     let W, scale, rect;
     const wide = s.display === 'wide' && devW / devH > 4 / 3;      // (a portrait window falls back to the letterboxed 4:3 frame)
     if (wide) {
-      const sInt = Math.max(1, Math.floor(devH / H));
-      const useInt = s.scaling === 'integer' || (s.scaling === 'auto' && (sInt * H) / devH >= 0.82);
+      const sInt = Math.floor(devH / H);          // 0 when the window is shorter than one internal frame: then just fit
+      const useInt = sInt >= 1 && (s.scaling === 'integer' || (s.scaling === 'auto' && (sInt * H) / devH >= 0.82));
       if (useInt) {
         scale = sInt;
         W = THREE.MathUtils.clamp(Math.floor(devW / scale), (H * 4) / 3, H * 2.4);
@@ -170,8 +192,8 @@ export class Gfx {
     } else {
       W = Math.round((H * 4) / 3);
       const sMax = Math.min(devW / W, devH / H);
-      const sInt = Math.max(1, Math.floor(sMax));
-      const useInt = s.scaling === 'integer' || (s.scaling === 'auto' && sInt / sMax >= 0.85);
+      const sInt = Math.floor(sMax);              // 0 in a window smaller than one internal frame: then just fit
+      const useInt = sInt >= 1 && (s.scaling === 'integer' || (s.scaling === 'auto' && sInt / sMax >= 0.85));
       scale = useInt ? sInt : sMax;
       const rw = Math.round(W * scale), rh = Math.round(H * scale);
       rect = [Math.floor((devW - rw) / 2), Math.floor((devH - rh) / 2), rw, rh];
@@ -179,9 +201,7 @@ export class Gfx {
     this.scale = scale;
     if (devW !== this.devW || devH !== this.devH || force) {
       this.devW = devW; this.devH = devH;
-      this.renderer.setSize(devW, devH, false);
-      this.canvas.style.width = '100vw';
-      this.canvas.style.height = '100vh';
+      this.renderer.setSize(devW, devH, false);      // (the canvas' CSS box is sized by the page: fixed, inset 0, 100% x 100%)
     }
     this.rect = rect;
     this.outMat.uniforms.uRect.value.set(rect[0], rect[1], rect[2], rect[3]);
@@ -197,6 +217,7 @@ export class Gfx {
   /** Render `scene` from `camera` through the whole PS1 pipeline to the canvas. */
   render(scene, camera) {
     const r = this.renderer;
+    r.info.reset();
     // pass 1: the 3D scene at internal resolution
     r.setRenderTarget(this.rtScene);
     r.setViewport(0, 0, this.W, this.H);

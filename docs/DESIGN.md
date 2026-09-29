@@ -35,10 +35,11 @@ flowchart LR
 | II | Isle | jumping | a reef of stepping stones across the lake (or glide from Heron Point) |
 | III | Mill | fire on a target, stairs | three braziers along the spiral road raise the portcullis to the tower stair |
 | IV | Sky | bounce, glide | a launch mushroom on the mesa, then a chain of floating isles that bob |
-| V | Dawn | endurance | the Dawn Gate stays sealed until four lanterns burn, then a cobbled road spirals up the mountain to the observatory |
+| V | Dawn | endurance | the Dawn Gate stays sealed until four lanterns burn (a ward around the mountain, shown by drifting violet motes, stops anyone walking or gliding round the arch), then a cobbled road spirals up to the observatory |
 
 The two long trails leave the village on opposite sides of the lake and meet again at the Dawn Gate, so the valley is a loop
-and no route is a dead end.
+and no route is a dead end. Heron Point, a red-rock headland on the lake's north shore, has its own trail: it is the launch
+pad for the long glide out to the island shrine.
 
 ## Enemies
 

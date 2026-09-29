@@ -60,21 +60,30 @@ export class NpcSystem {
       n.marker.visible = n.near && !n.talking && !game.hud.talking;
       if (n.near && !game.hud.talking && !p.dead && !game.locked) {
         prompt = n;
-        if (game.input.pressed('confirm')) this.talk(n);
+        if (game.input.pressed('talk')) this.talk(n);
       }
       // greet the hero the first time they wander close
       if (!n.greeted && d < 9 && !game.hud.talking && !p.dead && !game.locked && game.mode === 'play' && game.hud.visible) { n.greeted = true; this.talk(n); }
     }
     this.prompt = prompt;
     // hint zones
+    const playing = game.hud.visible && game.mode === 'play';      // (not while the title / intro / finale own the screen)
     for (const h of this.hints) {
-      if (h.done) continue;
+      if (h.done || !playing) continue;
       if (Math.hypot(p.x - h.x, p.z - h.z) < h.r && !game.hud.talking) {
         h.done = h.once !== false;
-        game.hud.hint(h.text, h.dur || 6);
+        const dev = game.input.lastDevice;
+        game.hud.hint((dev === 'touch' && h.touch) || (dev === 'pad' && h.pad) || h.text, h.dur || 6);
       }
     }
-    if (prompt && !game.hud.talking && !game.hud.hintState) game.hud.hint('PRESS ENTER TO TALK', 0.25);
+    const inp = game.input;
+    inp.setTalkVisible?.(!!prompt && !game.hud.talking);
+    if (prompt && !game.hud.talking) {
+      const text = inp.lastDevice === 'touch' ? 'TAP TALK TO SPEAK' : inp.lastDevice === 'pad' ? 'PRESS RT TO TALK' : 'PRESS ENTER TO TALK';
+      const hs = game.hud.hintState;
+      if (hs && hs.text === text) hs.t = 0.2;                 // keep it up while the hero stays close (no slide-in restart)
+      else if (!hs) game.hud.hint(text, 0.25);
+    }
   }
 
   talk(n) {

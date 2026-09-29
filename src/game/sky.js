@@ -42,7 +42,10 @@ export class Sky {
   }
 
   _skyMat(o = {}) {
-    return makeMaterial({ fog: false, day: false, double: true, depthWrite: false, depthTest: o.depthTest ?? false, ...o });
+    const m = makeMaterial({ fog: false, day: false, double: true, depthWrite: false, depthTest: o.depthTest ?? false, ...o });
+    // additive celestials sort with the opaque sky layers (by renderOrder) so the ridge lines and clouds occlude them
+    if (o.mode === 'add') m.transparent = false;
+    return m;
   }
 
   _dynGeo(pos, uv, idx) {

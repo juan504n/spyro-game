@@ -14,11 +14,13 @@ await page.waitForFunction(() => window.__ready || window.__error, null, { timeo
 await page.addScriptTag({ path: path.join(here, 'bot-inject.js') });
 await page.waitForTimeout(1500);
 
+let failed = 0;
 const run = async (name, fn) => {
   if (want.length && !want.includes(name)) return;
   const t0 = Date.now();
   let r;
   try { r = await page.evaluate(fn); } catch (e) { r = { ok: false, reason: 'exception ' + e.message.slice(0, 200) }; }
+  if (!(r && r.ok)) failed++;
   console.log((r && r.ok ? 'PASS' : 'FAIL').padEnd(5), name.padEnd(16), JSON.stringify(r), `(${((Date.now() - t0) / 1000).toFixed(1)}s)`);
 };
 
@@ -51,6 +53,46 @@ await run('mesa-launch', () => {
   const s = __bot.state();
   return { ok: maxY > M.h + 5, maxY: +maxY.toFixed(1), pad: [+mx.toFixed(1), +mz.toFixed(1)], at: s };
 });
+await run('heron-point', () => {
+  const G = __game, H = G.level.heron;
+  const q = G.grid.paths.find((p) => p.id === 'heron');
+  if (!q) return { ok: false, reason: 'no heron path' };
+  __bot.place(q.pts[0][0], q.pts[0][2], 0);
+  const r = __bot.follow('heron', 0, 1, 3);
+  if (!r.ok) return r;
+  const y = G.player.y;
+  return { ok: y > H.h - 3, y: +y.toFixed(1), plateau: H.h };
+});
+await run('ward-holds', () => {
+  // with the Dawn Gate sealed nobody may get into the summit precinct: not through the arch, not around it
+  const G = __game, S = G.level.summit, p = G.player;
+  G.objects.barrier.c.solid = true;                     // (an earlier scenario opened it artificially)
+  const minR = { v: 1e9 };
+  const trials = [[-8, -80, -8, -100], [0, -80, 0, -120], [-30, -100, 0, -125], [30, -100, 0, -125], [-50, -110, 0, -132]];
+  const log = [];
+  for (const [sx, sz, tx, tz] of trials) {
+    __bot.place(sx, sz, 0);
+    __bot.goto(tx, tz, { tol: 1.5, timeout: 8, auto: true, glide: true });
+    for (let i = 0; i < 60; i++) __bot.tick();
+    const r = Math.hypot(p.x - S.x, p.z - S.z);
+    minR.v = Math.min(minR.v, r);
+    log.push(+r.toFixed(1));
+  }
+  return { ok: minR.v >= 41.5, minDistToSummit: +minR.v.toFixed(1), log };
+});
+await run('glide-climb', () => {
+  // gliding into a cliff face must not carry the hero up it (the cascade plateau is 27 m above this spot)
+  const G = __game, p = G.player;
+  let maxY = -1e9;
+  const attempts = [[72, -58, 72, -100], [40, -60, 40, -110], [-104, 60, -130, 60]];
+  for (const [sx, sz, tx, tz] of attempts) {
+    __bot.place(sx, sz, 0);
+    __bot.goto(tx, tz, { tol: 2, timeout: 7, auto: false, glide: true });
+    for (let i = 0; i < 120; i++) { __bot.ctl.jump = true; __bot.tick(); maxY = Math.max(maxY, p.y - G.grid.heightAt(sx, sz)); }
+    __bot.ctl.jump = false;
+  }
+  return { ok: maxY < 12, maxRiseAboveStart: +maxY.toFixed(1) };
+});
 await run('sky-route', () => {
   // bounce off the mesa mushroom, glide to isle 1, then mushroom + glide island to island up to the Sky Beacon isle
   const G = __game, L = G.level, p = G.player;
@@ -79,3 +121,4 @@ await run('sky-route', () => {
   return { ok: true, log, end: __bot.state() };
 });
 await browser.close();
+process.exit(failed ? 1 : 0);

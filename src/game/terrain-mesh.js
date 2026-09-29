@@ -133,8 +133,10 @@ export function buildTerrainMeshes(grid, lighting, assets) {
     const geo = b.build();
     const mesh = new THREE.Mesh(geo, assets.mat(name));
     mesh.name = 'terrain:' + name;
+    mesh.matrixAutoUpdate = false;
     group.add(mesh);
     stats[name] = b.triangleCount;
+    b.release();
   }
   return { group, stats };
 }

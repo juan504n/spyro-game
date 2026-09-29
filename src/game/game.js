@@ -7,7 +7,7 @@ import { Collision } from './collision.js';
 import { GameCamera } from './camera.js';
 import { Player } from './player.js';
 import { LEVEL } from './level.js';
-import { buildWorld } from './world.js';
+import { buildWorldAsync } from './world.js';
 import { makeModel } from './models/fallback.js';
 import { SpriteAtlas } from './sprites.js';
 import { Fx } from './fx.js';
@@ -65,10 +65,10 @@ export class Game {
     const t0 = performance.now();
     await progress(0.05, 'SCULPTING VALE');
     await tick();
-    this.world = buildWorld(this.assets, this.populate);
+    this.world = await buildWorldAsync(this.assets, this.populate, progress);
     this.grid = this.world.grid;
     this.gameplay = this.world.gameplay || {};
-    await progress(0.45, 'PLANTING TREES');
+    await progress(0.45, 'RAISING THE VILLAGE');
     await tick();
     this.collision = new Collision(this.grid, this.world.colliders);
     this.scene = this.world.scene;
@@ -132,7 +132,11 @@ export class Game {
     p.on.hurt = () => { sfx('hurt', { vol: 1 }); this.cam.shake(0.35, 0.3); fx.hitSpark(p.x, p.y + 0.6, p.z, 1); };
     p.on.die = () => { sfx('die', { vol: 1 }); this.stats.deaths++; this.deathT = 0; this.audio?.duck?.(0.6, 2.2); };
     p.on.splash = (depth) => { fx.splash(p.x, 0, p.z, depth > 0.9 ? 1.5 : 0.8); sfx('splash', { vol: depth > 0.9 ? 1 : 0.5 }); };
-    p.on.drown = () => { fx.splash(p.x, 0, p.z, 1.8); sfx('splash', { vol: 1 }); this.hud.hint('MIRRORMERE IS TOO DEEP! FIND THE STONES OR GLIDE', 4); };
+    p.on.drown = () => {
+      fx.splash(p.x, 0, p.z, 1.8); sfx('splash', { vol: 1 });
+      const k = this.level.lake, inLake = Math.hypot((p.x - k.x) / k.rx, (p.z - k.z) / k.rz) < 1.25;
+      this.hud.hint(inLake ? 'MIRRORMERE IS TOO DEEP! FIND THE STONES OR GLIDE' : 'THE WATER IS TOO DEEP HERE. FIND ANOTHER WAY', 4);
+    };
     p.on.respawn = () => { sfx('respawn', { vol: 0.8 }); fx.puff(p.x, p.y + 0.5, p.z, 0.8); };
     p.on.wall = (c) => { sfx('charge_hit', { vol: 1 }); this.cam.shake(0.35, 0.25); fx.hitSpark(p.x + p.dirx, p.y + 0.6, p.z + p.dirz, 1.3); fx.puff(p.x + p.dirx * 1.2, p.y + 0.6, p.z + p.dirz * 1.2, 0.6); void c; };
     p.on.bounce = () => {};

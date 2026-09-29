@@ -51,6 +51,7 @@ export function atmosphere(day) {
   const sunEl = lerp(-9, 32, t);
   return {
     dayKey: t,
+    ease: e,
     sky,
     fog: sky.fog,
     sunDir: dirAzEl(12, sunEl),

@@ -12,6 +12,8 @@ import { U } from '../engine/materials.js';
 const GOLD = ['#fff4b0', '#ffc03c', '#e07818'];
 const LILAC = ['#f4eeff', '#b8a8e8'];
 const INK = '#120c1c';
+/** the confirm control's name for whatever the player is using right now */
+const confirmName = (input) => (input.lastDevice === 'touch' ? 'TAP' : input.lastDevice === 'pad' ? 'A' : 'ENTER');
 const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 /** Unlit copy of an icon (empty star slots on the results screen). */
@@ -92,16 +94,18 @@ class App {
     this.audioReady = true;
     const s = this.gfx.settings;
     this.audio.init?.((f) => { this.audioProgress = f; }).then(() => {
+      if (!this.audio.ready) { this.audioReady = false; return; }         // failed quietly: the next gesture tries again
       this.audio.setVolumes?.({ master: 1, music: s.music, sfx: s.sfx });
       this.audio.startMusic?.();
       this.audio.setDay?.(this.game.day);
-    }).catch((e) => console.warn('audio init failed', e));
+    }).catch((e) => { this.audioReady = false; console.warn('audio init failed', e); });
   }
 
   // ---- states ------------------------------------------------------------------------------------------------------------
   enterTitle() {
     const g = this.game;
     this.state = 'title';
+    g.mode = 'title';                 // (the results timer and hint zones only run in 'play')
     g.hud.visible = false;
     g.player.locked = true;
     g.cam.playCinematic(titleShot(g), 1e9);
@@ -113,6 +117,7 @@ class App {
     this.unlockAudio();
     this.audio?.sfx('ui_start', { vol: 0.9 });
     this.state = 'intro';
+    g.mode = 'intro';
     this.introT = 0;
     g.cam.playCinematic(introShot(g), 16, () => this.beginPlay());
   }
@@ -129,7 +134,8 @@ class App {
     g.fade.a = instant ? 0 : 1;
     g.fadeTo(0, 1.6);
     if (!instant) g.hud.banner('GLOAMING VALE', 'LANTERN KEEPERS REALM', 4.2);
-    g.hud.hint('WASD MOVE   SPACE JUMP / GLIDE   J FIRE   K CHARGE', 7);
+    const dev = g.input.lastDevice;
+    g.hud.hint(dev === 'touch' ? 'STICK MOVES   JUMP / GLIDE   FIRE   RAM' : dev === 'pad' ? 'STICK MOVE   A JUMP / GLIDE   X FIRE   B CHARGE' : 'WASD MOVE   SPACE JUMP / GLIDE   J FIRE   K CHARGE', 7);
   }
 
   startFinale() {
@@ -159,9 +165,9 @@ class App {
     const st = g.stats;
     const pct = st.gems / st.gemsTotal;
     this.results = { pct, stars: pct >= 0.95 ? 3 : pct >= 0.6 ? 2 : 1 };
-    g.cam.playCinematic(finaleShot(g, g.beacons.list[g.beacons.list.length - 1]), 1e9);
-    // hold the final wide shot
-    g.cam.cine.t = 13;
+    // hold the final wide shot of the sunrise sweep
+    const shot = finaleShot(g, g.beacons.list[g.beacons.list.length - 1]);
+    g.cam.playCinematic((t) => shot(t, 1), 1e9);
   }
 
   resumeFromResults() {
@@ -183,6 +189,7 @@ class App {
     this.audio?.setMuffled?.(true);
     this.audio?.sfx('pause', { vol: 0.7 });
     g.input.releasePointer?.();
+    for (const k of Object.keys(g.loops)) { g.loops[k]?.stop?.(0.08); g.loops[k] = null; }     // glide / flame / charge hums
     this.menu.open(this.pausePage());
   }
 
@@ -193,6 +200,7 @@ class App {
     this.state = 'play';
     this.audio?.setMuffled?.(false);
     this.audio?.sfx('unpause', { vol: 0.7 });
+    g.input.relock?.();
   }
 
   pausePage() {
@@ -209,7 +217,12 @@ class App {
   }
 
   controlsPage() {
-    const lines = ['MOVE ........ WASD / ARROWS / STICK', 'JUMP ........ SPACE  (PRESS AGAIN TO GLIDE)', 'FIRE ........ J / F / LEFT CLICK', 'CHARGE ...... K / SHIFT / RIGHT CLICK', 'CAMERA ...... MOUSE / Q E / RIGHT STICK', 'TALK ........ ENTER   PAUSE ... ESC'];
+    const dev = this.game.input.lastDevice;
+    const lines = dev === 'touch'
+      ? ['MOVE ........ LEFT THUMB', 'JUMP ........ JUMP  (HOLD IN AIR: GLIDE)', 'FIRE ........ FIRE BUTTON', 'CHARGE ...... RAM BUTTON', 'CAMERA ...... DRAG THE RIGHT SIDE', 'TALK ........ TALK BUTTON   PAUSE ... II']
+      : dev === 'pad'
+        ? ['MOVE ........ LEFT STICK / D-PAD', 'JUMP ........ A  (HOLD IN AIR: GLIDE)', 'FIRE ........ X', 'CHARGE ...... B', 'CAMERA ...... RIGHT STICK / BUMPERS', 'TALK ........ RT   PAUSE ... START']
+        : ['MOVE ........ WASD / ARROWS', 'JUMP ........ SPACE  (HOLD IN AIR: GLIDE)', 'FIRE ........ J / F / LEFT CLICK', 'CHARGE ...... K / SHIFT / RIGHT CLICK', 'CAMERA ...... MOUSE / Q E   R: RESET', 'TALK ........ ENTER   PAUSE ... ESC'];
     return {
       title: 'CONTROLS', width: 280, items: [{ type: 'action', label: 'BACK', action: (m) => m.close() }], footer: '',
       extra: lines,
@@ -306,12 +319,8 @@ class App {
     this.menu.draw(pix);
     const page = this.menu.stack[this.menu.stack.length - 1];
     if (page && page.draw) {
-      const W = pix.w, H = pix.h;
-      const w = Math.min(W - 24, page.width || 230);
-      const x = (W - w) >> 1;
-      const h = 34 + page.items.length * 13;
-      const y = Math.max(8, (H - h) >> 1);
-      page.draw(pix, x + 12, y + 24);
+      const L = this.menu.layout(pix.w, pix.h, page, page.items);
+      page.draw(pix, L.x + 12, L.y + 24);
     }
   }
 
@@ -325,8 +334,9 @@ class App {
     drawText(pix, 'A LANTERN KEEPERS DLC REALM', W >> 1, Math.round(H * 0.08) + (this.logo ? this.logo.h + 2 : 60), { style: 'grad', align: 'center', colors: LILAC, outlineColor: INK });
     if (!dim && Math.floor(this.t * 2) % 2 === 0) {
       const touch = !!this.game.input.touch || this.game.input.lastDevice === 'touch';
-      drawText(pix, touch ? 'TAP TO START' : 'PRESS ENTER', W >> 1, Math.round(H * 0.74), { style: 'grad', scale: 2, align: 'center', colors: GOLD, outlineColor: INK });
-      if (!touch) drawText(pix, 'OR CLICK', W >> 1, Math.round(H * 0.74) + 24, { style: 'outline', align: 'center', color: '#c8bce8', outlineColor: INK });
+      const pad = this.game.input.lastDevice === 'pad';
+      drawText(pix, touch ? 'TAP TO START' : pad ? 'PRESS A' : 'PRESS ENTER', W >> 1, Math.round(H * 0.74), { style: 'grad', scale: 2, align: 'center', colors: GOLD, outlineColor: INK });
+      if (!touch && !pad) drawText(pix, 'OR CLICK', W >> 1, Math.round(H * 0.74) + 24, { style: 'outline', align: 'center', color: '#c8bce8', outlineColor: INK });
     }
     drawText(pix, this.game.input.touch ? 'II: OPTIONS' : 'ESC: OPTIONS', W >> 1, H - 24, { style: 'outline', align: 'center', color: '#c8bce8', outlineColor: INK });
     drawText(pix, 'FAN-MADE TRIBUTE  -  NOT AFFILIATED WITH ACTIVISION', W >> 1, H - 12, { style: 'outline', align: 'center', color: '#8a7cb8', outlineColor: INK });
@@ -343,7 +353,7 @@ class App {
     else if (t >= 4.6 && t < 8.6) drawText(pix, 'THE SNUFFERS HAVE STOLEN THE SUNRISE', W >> 1, y0 + 10, { style: 'outline', align: 'center', color: '#f4eeff', outlineColor: INK });
     else if (t >= 8.6 && t < 12.6) drawText(pix, 'RELIGHT THE FIVE BEACON LANTERNS', W >> 1, y0 + 10, { style: 'outline', align: 'center', color: '#ffe27a', outlineColor: INK });
     else if (t >= 12.6) drawText(pix, 'FOLLOW THE BEAMS OF LIGHT', W >> 1, y0 + 10, { style: 'outline', align: 'center', color: '#f4eeff', outlineColor: INK });
-    if (t > 1.5) drawText(pix, 'PRESS ENTER TO SKIP', W - 6, 5, { style: 'outline', align: 'right', color: '#c8bce8', outlineColor: INK });
+    if (t > 1.5) drawText(pix, `${this.game.input.lastDevice === 'touch' ? 'TAP' : this.game.input.lastDevice === 'pad' ? 'PRESS A' : 'PRESS ENTER'} TO SKIP`, W - 6, 5, { style: 'outline', align: 'right', color: '#c8bce8', outlineColor: INK });
   }
 
   _drawResults() {
@@ -373,7 +383,7 @@ class App {
         pix.blit(on ? ic : this._dimStar, W / 2 - 24 + i * 16, y + h - 26);
       }
     }
-    if (this.resultsT > 1.2 && Math.floor(this.t * 2) % 2 === 0) drawText(pix, 'ENTER: KEEP EXPLORING', W >> 1, y + h - 10, { style: 'outline', align: 'center', color: '#ffe27a', outlineColor: INK });
+    if (this.resultsT > 1.2 && Math.floor(this.t * 2) % 2 === 0) drawText(pix, `${confirmName(this.game.input)}: KEEP EXPLORING`, W >> 1, y + h - 10, { style: 'outline', align: 'center', color: '#ffe27a', outlineColor: INK });
   }
 }
 

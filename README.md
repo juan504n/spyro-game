@@ -90,7 +90,8 @@ the whole valley is lit twice (dusk and daybreak) and the world cross-fades betw
 | 30 fps | Optional lock: simulation keeps running while every second frame is presented. |
 
 Honest caveat: the *rendering artefacts* are faithful, the *budgets* are not — the terrain is a ~52 k-triangle heightfield,
-far more than a PS1 could push. Draw calls stay around 35–100 and it runs comfortably on integrated graphics.
+far more than a PS1 could push. A frame submits roughly 200 k triangles and 250–300 draw calls (the static world meshes are
+not frustum-culled), which integrated graphics and recent phones handle at 320×240; **Options → 30 FPS lock** helps older devices.
 
 ## Repository tour
 
@@ -99,7 +100,7 @@ src/engine/          renderer + PS1 pipeline (shaders, materials, gfx, builder, 
   textures/          procedural pixel-art toolkit: 62 world textures, sprites, bitmap font, UI atlas
   audio/             procedural PS1-SPU-style synth: music (dusk + daybreak variants), ambience, stingers, ~60 sound assets
 src/game/
-  level.js           the design source of truth: landmarks, roads, ponds, hills, beacon order
+  level.js           the design source of truth: landmarks, roads, hills, beacon order
   terrain*.js        analytic heightfield, road/river carving, per-triangle texturing, water
   props/  models/    procedural scenery, architecture, hero, creatures and interactive objects
   levelgen/          deterministic placement of props, enemies, gems, hints
