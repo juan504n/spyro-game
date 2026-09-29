@@ -116,6 +116,7 @@ docs/index.html      the built single-file game
 npm run qa                    # prop lint + reachability bot + full story playthrough (needs the dev server running)
 node tools/bot.mjs            # headless reachability bot: drives the real controller along every road/route
 node tools/playthrough.mjs    # every beacon, the brazier puzzle, sky-isle glide chain, Dawn Gate, finale
+node tools/monkey.mjs [runs] [secs]   # random-input soak test: exceptions, NaNs, players escaping the world
 node tools/terrain-map.mjs    # top-down map of the realm with slopes and paths -> terrain-map.png
 node tools/prop-lint.mjs      # builds every prop, fails on NaN / degenerate geometry
 node tools/shot.mjs / play.mjs / probe.mjs   # Playwright screenshots, scripted play-throughs, state probes
