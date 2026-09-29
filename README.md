@@ -125,6 +125,10 @@ node tools/build-single.mjs   # esbuild -> one HTML file
 
 The bot scripts need the dev server (`GV_HMR=0 npm run dev`) and Playwright with Chromium.
 
+Dev-only scenes (not in the single-file build) are reachable through `?test=`: `props` (scenery gallery), `models`
+(hero, enemies and objects with their test poses), `world` (the realm with a scripted camera), `pipeline-test` (every PS1
+effect on a test scene) and `play` (bare world plus controller, for tuning movement). Example: `http://127.0.0.1:5173/?test=models&only=spyro&pose=run`.
+
 ## Credits
 
 Design, code and procedural art/audio: written for this project. three.js is © its authors (MIT).

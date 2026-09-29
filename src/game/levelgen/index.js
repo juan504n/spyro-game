@@ -35,7 +35,7 @@ export function populate(kit, world) {
   ctx.gp.counts = ctx.counts;
 
   if (kit.pass === 'dry') world.gameplay = ctx.gp;
-  else world.gameplay.islands = buildIslands(ctx, world);
+  else world.gameplay.islands = kit.assets ? buildIslands(ctx, world) : [];      // (no GPU assets in the headless level check)
   return ctx;
 }
 
