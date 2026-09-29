@@ -64,6 +64,9 @@ Sparx, the dragonfly, is the health bar: three hits, shown by his colour. Scorch
 * **Textures:** 62 tiny tiles (16–64 px), drawn in code from a limited palette, sampled with nearest filtering.
 * **Geometry:** hand-built from primitives in code. Chunky silhouettes, few vertices per model, texture detail does the work.
 * **Camera:** chase camera at a fixed distance that pulls in when something blocks it, plus authored cinematic shots for the title, intro and finale.
+* **The hero:** readable at 33 pixels tall, so the design is silhouette and colour blocks first: a gold crest and ringed brown horns on a big
+  purple head, maroon wings with gold bones, a pale gold banded chest and an orange tail tip. The neck is thick and upright with the head
+  carried high, the front legs are longer than the hind legs, and the horns and wings stay readable from the chase camera behind him.
 
 ## Audio direction
 

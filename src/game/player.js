@@ -293,6 +293,8 @@ export class Player {
     this.mouth.x = this.x + this.dirx * 0.95; this.mouth.z = this.z + this.dirz * 0.95; this.mouth.y = this.y + 0.62;
 
     this._pose(dt, this.turnRate);
+    // the flame starts at the model's actual mouth (it sits higher, and lifts further while breathing fire)
+    if (this.flameT > 0 && this.model && this.model.mouthWorld) this.model.mouthWorld(this.x, this.y, this.z, this.yaw, this.mouth);
   }
 
   /** Is a target at (x,y,z) with horizontal radius r inside the current fire breath? */

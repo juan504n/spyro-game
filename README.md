@@ -74,6 +74,19 @@ the whole valley is lit twice (dusk and daybreak) and the world cross-fades betw
   them, plus hand-placed trails and a few well-hidden treasures. Total: **700**.
 * Ending the level shows a results screen (three stars) and drops you back into free roam.
 
+## The hero
+
+Spyro is built in code like everything else (`src/game/models/creatures/spyro.js`): about 1.5 k vertex-coloured, Gouraud-lit
+triangles on a pivot rig (no skinning). The design follows the classic PS1 look — a big blocky head with large eyes and a short
+muzzle, long ringed horns, a gold crest, maroon wings with golden finger bones that stand up like sails (and spread flat for the
+glide), a thick upright neck with a banded gold chest, stubby paws with pale claws and a thin tail with a small orange tip.
+It is drawn by eye as original geometry: no ripped model, texture or animation data is used.
+
+<p align="center">
+  <img src="docs/shots/10-hero.png" width="80%" alt="The hero from four angles, rendered at 240p through the PS1 pipeline">
+</p>
+<p align="center"><sub>The four camera angles of <code>node tools/model-sheet.mjs</code>, rendered at the game's 240 lines (nearest-neighbour ×2).</sub></p>
+
 ## How the PS1 look is made
 
 | Hardware trait | How it is reproduced here |
@@ -121,6 +134,7 @@ node tools/monkey.mjs [runs] [secs]   # random-input soak test: exceptions, NaNs
 node tools/terrain-map.mjs    # top-down map of the realm with slopes and paths -> terrain-map.png
 node tools/prop-lint.mjs      # builds every prop, fails on NaN / degenerate geometry
 node tools/shot.mjs / play.mjs / probe.mjs   # Playwright screenshots, scripted play-throughs, state probes
+node tools/model-sheet.mjs out.png --only spyro --poses idle,run,glide --views side   # contact sheets of an actor from any angle / pose
 node tools/audio-render.mjs   # renders every sound to WAV and prints diagnostics
 node tools/build-single.mjs   # esbuild -> one HTML file
 ```

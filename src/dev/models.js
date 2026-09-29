@@ -1,4 +1,5 @@
-// Dev turntable for actors.  URL: ?test=models&only=name[&pose=run][&cam=x,y,z,tx,ty,tz][&day=0..1][&orbit=1][&opts=json]
+// Dev turntable for actors.  URL: ?test=models&only=name[&pose=run][&cam=x,y,z,tx,ty,tz][&day=0..1][&orbit=1][&opts=json][&res=240|360|480]
+// (the page API window.__dev.state.cam = [x,y,z,tx,ty,tz] | null overrides the camera at runtime; tools/model-sheet.mjs uses it)
 import * as THREE from 'three';
 import { Assets } from '../game/assets.js';
 import { Lighting, atmosphere, dynamicLight } from '../engine/lighting.js';
@@ -40,6 +41,8 @@ export function create(gfx) {
   const size = models.length ? models[0].size : 4;
   const camera = new THREE.PerspectiveCamera(50, 4 / 3, 0.1, 1600);
   const camP = (params.get('cam') || '').split(',').map(Number);
+  state.cam = camP.length >= 6 ? camP : null;
+  if ([240, 360, 480].includes(+params.get('res'))) gfx.set('height', +params.get('res'));
   console.log('models', names.join(','), 'missing textures:', [...assets.missing].join(','));
   const api = {
     scene, camera, models, state, assets,
@@ -50,7 +53,8 @@ export function create(gfx) {
         m.update(dt, typeof pose === 'function' ? pose(state.t) : { ...pose, t: state.t });
       }
       const c = models[0]?.m.root.position || new THREE.Vector3();
-      if (camP.length >= 6 && !state.orbit) { camera.position.set(camP[0], camP[1], camP[2]); camera.lookAt(camP[3], camP[4], camP[5]); }
+      const cp = state.cam;
+      if (cp && !state.orbit) { camera.position.set(cp[0], cp[1], cp[2]); camera.lookAt(cp[3], cp[4], cp[5]); }
       else {
         const a = state.orbit ? t * 0.6 : state.yaw;
         const r = size * 2.4 * (models.length > 1 ? 1.4 + models.length * 0.25 : 1);
