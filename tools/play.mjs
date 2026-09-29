@@ -40,7 +40,7 @@ for (const step of script) {
   else if (cmd === 'wait') await page.waitForTimeout(+a);
   else if (cmd === 'shot') {
     const snap = await page.evaluate(() => window.__gv.snapshot());
-    const up = upscale(new Uint8ClampedArray(Buffer.from(snap.b64, 'base64')), snap.w, snap.h, 3);
+    const up = upscale(new Uint8ClampedArray(Buffer.from(snap.b64, 'base64')), snap.w, snap.h, +opt('scale', 3));
     writePNG(path.join(outDir, a + '.png'), up.w, up.h, up.data);
     console.log('shot', a);
   } else if (cmd === 'full') { await page.screenshot({ path: path.join(outDir, a + '.png') }); console.log('full', a); }

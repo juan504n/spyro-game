@@ -4,11 +4,12 @@
 //   thorn — spiked: ramming hurts YOU, fire is the answer
 import { makeModel } from '../models/fallback.js';
 import { WATER_LEVEL } from '../level.js';
+import { ENEMY_DROPS } from '../economy.js';
 
 const VARIANTS = {
-  basic: { hp: 2, speed: 5.4, notice: 15, reach: 2.7, drops: [1, 1, 2], flameDmg: 1, chargeDmg: 2 },
-  bell: { hp: 2, speed: 4.3, notice: 13, reach: 2.9, drops: [5, 2], flameDmg: 0, chargeDmg: 1 },
-  thorn: { hp: 2, speed: 5.8, notice: 14, reach: 2.5, drops: [2, 2, 5], flameDmg: 1, chargeDmg: 0, spiked: true },
+  basic: { hp: 2, speed: 5.4, notice: 15, reach: 2.7, drops: ENEMY_DROPS.basic, flameDmg: 1, chargeDmg: 2 },
+  bell: { hp: 2, speed: 4.3, notice: 13, reach: 2.9, drops: ENEMY_DROPS.bell, flameDmg: 0, chargeDmg: 1 },
+  thorn: { hp: 2, speed: 5.8, notice: 14, reach: 2.5, drops: ENEMY_DROPS.thorn, flameDmg: 1, chargeDmg: 0, spiked: true },
 };
 
 const wrap = (a) => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };

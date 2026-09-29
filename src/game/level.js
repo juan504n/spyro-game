@@ -33,6 +33,7 @@ export const LEVEL = {
   ponds: [{ x: 74, z: 62, rx: 15, rz: 11, bed: -1.9 }],           // Mill Pond, beside the east trail's stone bridge
 
   village: { x: 0, z: 138, r: 30, fall: 16, h: 3.2 },
+  portal: { x: 0, z: 172, r: 9.5, fall: 6, h: 3.4 },               // level pad under the realm portal arch (cut into the south rim)
   mesa: { x: -112, z: 42, r: 20, fall: 20, h: 26 },                // launch cliff for the sky isles
   windHill: { x: 112, z: 26, r: 50, h: 21, topR: 9, topH: 21.5 },
   summit: { x: 0, z: -132, r: 66, h: 58, topR: 12, topH: 61 },
@@ -75,7 +76,7 @@ export const LEVEL = {
     { id: 'mill', surface: 'dirt', width: 4.2, pts: spiral(112, 26, 40, 11, Math.PI * 0.62, 1.45, 3.2, 20.2, 44) },
     { id: 'ringW', surface: 'dirt', width: 4.4, pts: [[-80, 62], [-72, 34], [-70, 6], [-58, -24], [-40, -50], [-28, -68], [-15, -76], [-5, -82], [0, -86], [0, -91, 4.4]] },
     { id: 'ringE', surface: 'dirt', width: 4.4, pts: [[76, 58], [70, 28], [62, 4], [52, -16], [44, -40], [30, -64], [14, -74], [5, -81], [0, -86], [0, -91, 4.4]] },
-    { id: 'summit', surface: 'cobble', width: 6, pts: [[0, -91, 4.4], ...spiral(0, -132, 37, 9, Math.PI * 0.5, 1.85, 5.0, 59.5, 54)] },
+    { id: 'summit', surface: 'cobble', width: 6, pts: [[0, -91, 4.4], ...spiral(0, -132, 37, 15.5, Math.PI * 0.5, 1.85, 5.0, 61.0, 54), [9.7, -124.9, 61.05]] },   // last stretch runs level onto the observatory's base ring (r 13.4, top y ~60.7)
     { id: 'ruins', surface: 'dirt', width: 3.6, pts: [[-58, 74], [-66, 90], [-76, 100]] },
     { id: 'meadow', surface: 'dirt', width: 3.6, pts: [[30, 86], [50, 98], [72, 102]] },
     { id: 'hollow', surface: 'dirt', width: 3.6, pts: [[-50, -36], [-60, -50], [-66, -58]] },

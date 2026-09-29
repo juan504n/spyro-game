@@ -166,7 +166,6 @@ export class CritterSystem {
     g.fx.puff(b.x, b.y + 0.5, b.z, 0.6);
     g.audio?.sfx('bunny_poof', { vol: 0.9 });
     this.releaseButterfly(b.x, b.y + 0.6, b.z);
-    if (Math.random() < 0.25) g.gems.burst(b.x, b.y + 0.6, b.z, [1], 0.7);
     b.model.root.parent?.remove(b.model.root);
     b.model.dispose?.();
     b.shadow.dead = true;

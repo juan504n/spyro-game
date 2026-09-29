@@ -1,7 +1,7 @@
 // Gameplay placement helpers (enemies, vases, chests, gems…) and the final gem-budget pass.
 import { WATER_LEVEL } from '../level.js';
+import { ENEMY_DROPS as DROPS } from '../economy.js';
 
-const DROPS = { basic: [1, 2], bell: [5], thorn: [5] };
 const sum = (a) => a.reduce((s, v) => s + v, 0);
 
 export function attachGameplay(ctx) {
@@ -69,17 +69,17 @@ export function finalizeGems(ctx) {
   // hand-placed specials: purple (25) and gold (10) rewards for exploring
   for (const [x, y, z] of gp.purple || []) gp.gems.push({ x, y, z, value: 25 });
   const golds = [[-4, 2.5 + 1.2, 27 + 3], [L.mesa.x + 3, L.mesa.h + 1.2, L.mesa.z - 6], [L.windHill.x + 10, h(L.windHill.x + 10, L.windHill.z + 4) + 1.2, L.windHill.z + 4],
-    [L.cascade.x - 8, h(L.cascade.x - 8, L.cascade.z + 20) + 1.2, L.cascade.z + 20], [0, h(0, L.summit.z + 22) + 1.2, L.summit.z + 22], [-92, h(-92, 10) + 1.2, 10]];
+    [L.cascade.x - 8, h(L.cascade.x - 8, L.cascade.z + 20) + 1.2, L.cascade.z + 20], [0, h(0, L.summit.z + 22) + 1.2, L.summit.z + 22]];
   for (const [x, y, z] of golds) gp.gems.push({ x, y, z, value: 10 });
 
   // roads: the classic trail of gems that leads you along
-  ctx.roadGems('main', 0.0, 1.0, 8.0, [1, 1, 2], 2.2);
-  ctx.roadGems('west', 0.05, 0.9, 7.0, [1, 1, 1, 2], 0);
-  ctx.roadGems('east', 0.05, 1.0, 7.0, [1, 1, 1, 2], 0);
-  ctx.roadGems('mill', 0.05, 0.95, 9.0, [1, 2], -1.4);
-  ctx.roadGems('ringW', 0.05, 0.95, 9.0, [1, 1, 2], 1.2);
-  ctx.roadGems('ringE', 0.05, 0.95, 9.0, [1, 1, 2], -1.2);
-  ctx.roadGems('summit', 0.03, 0.97, 10.0, [1, 2, 1, 5], 0);
+  ctx.roadGems('main', 0.0, 1.0, 10.0, [1, 1, 2], 2.2);
+  ctx.roadGems('west', 0.05, 0.9, 9.0, [1, 1, 1, 2], 0);
+  ctx.roadGems('east', 0.05, 1.0, 9.0, [1, 1, 1, 2], 0);
+  ctx.roadGems('mill', 0.05, 0.95, 11.0, [1, 2], -1.4);
+  ctx.roadGems('ringW', 0.05, 0.95, 12.0, [1, 1, 2], 1.2);
+  ctx.roadGems('ringE', 0.05, 0.95, 12.0, [1, 1, 2], -1.2);
+  ctx.roadGems('summit', 0.03, 0.97, 13.0, [1, 2, 1, 5], 0);
 
   let dyn = 0;
   for (const e of gp.enemies) dyn += sum(DROPS[e.variant] || DROPS.basic);

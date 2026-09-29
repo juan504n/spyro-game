@@ -7,7 +7,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const out = path.resolve(root, process.argv[2] || 'docs/index.html');
+const argv = process.argv.slice(2);
+const artifact = argv.includes('--artifact');      // fragment for a host that supplies its own <!doctype>/<head>/<body> wrapper
+const outArg = argv.find((a) => !a.startsWith('--'));
+const out = path.resolve(root, outArg || (artifact ? 'dist/artifact.html' : 'docs/index.html'));
 
 /** exact-string source patch that fails loudly when the source drifts */
 function patch(src, from, to, file) {
@@ -45,7 +48,20 @@ let js = res.outputFiles[0].text;
 js = js.replace(/<\/script/gi, '<\\/script').replace(/<!--/g, '<\\!--');
 
 const favicon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23241a3c'/%3E%3Cpath d='M7 1h2v2h2v2H5V3h2zM4 5h8v7H4z' fill='%23f0901c'/%3E%3Cpath d='M6 6h4v5H6z' fill='%23ffe27a'/%3E%3Cpath d='M5 12h6v2H5z' fill='%236a4a8c'/%3E%3C/svg%3E";
-const html = `<!doctype html>
+const artifactHtml = `<title>Gloaming Vale</title>
+<style>
+  :root { color-scheme: dark; --bg: #000; --ink: #c8bce8; }
+  html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; overscroll-behavior: none; touch-action: none; -webkit-user-select: none; user-select: none; }
+  canvas#screen { position: fixed; inset: 0; display: block; width: 100vw; height: 100vh; image-rendering: pixelated; outline: none; background: var(--bg); }
+  noscript { position: fixed; inset: 0; display: grid; place-items: center; color: var(--ink); font: 16px monospace; }
+</style>
+<canvas id="screen" tabindex="0"></canvas>
+<noscript>Gloaming Vale needs JavaScript and WebGL2.</noscript>
+<script>
+${js}
+</script>
+`;
+const html = artifact ? artifactHtml : `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">

@@ -144,7 +144,7 @@ class App {
     g.hud.hintState = null;
     this.audio?.stinger?.('sunrise');
     g.hud.banner('THE SUN RISES!', '', 4.5);
-    setTimeout(() => { g.hud.banner('GLOAMING VALE IS SAVED', 'THANK YOU, SPYRO', 5); }, 5200);
+    g.after(5.2, () => { g.hud.banner('GLOAMING VALE IS SAVED', 'THANK YOU, SPYRO', 5); });
     g.cam.playCinematic(finaleShot(g, b), 13, () => this.showResults());
     g.player.cheer = true;
   }
@@ -323,8 +323,12 @@ class App {
     }
     drawText(pix, 'SPYRO', W >> 1, Math.round(H * 0.08) - 2, { style: 'grad', scale: 1, align: 'center', colors: ['#f4eeff', '#b98cff', '#7c3ec8'], outlineColor: INK });
     drawText(pix, 'A LANTERN KEEPERS DLC REALM', W >> 1, Math.round(H * 0.08) + (this.logo ? this.logo.h + 2 : 60), { style: 'grad', align: 'center', colors: LILAC, outlineColor: INK });
-    if (!dim && Math.floor(this.t * 2) % 2 === 0) drawText(pix, 'PRESS ENTER', W >> 1, Math.round(H * 0.74), { style: 'grad', scale: 2, align: 'center', colors: GOLD, outlineColor: INK });
-    drawText(pix, 'ESC: OPTIONS', W >> 1, H - 24, { style: 'outline', align: 'center', color: '#c8bce8', outlineColor: INK });
+    if (!dim && Math.floor(this.t * 2) % 2 === 0) {
+      const touch = !!this.game.input.touch || this.game.input.lastDevice === 'touch';
+      drawText(pix, touch ? 'TAP TO START' : 'PRESS ENTER', W >> 1, Math.round(H * 0.74), { style: 'grad', scale: 2, align: 'center', colors: GOLD, outlineColor: INK });
+      if (!touch) drawText(pix, 'OR CLICK', W >> 1, Math.round(H * 0.74) + 24, { style: 'outline', align: 'center', color: '#c8bce8', outlineColor: INK });
+    }
+    drawText(pix, this.game.input.touch ? 'II: OPTIONS' : 'ESC: OPTIONS', W >> 1, H - 24, { style: 'outline', align: 'center', color: '#c8bce8', outlineColor: INK });
     drawText(pix, 'FAN-MADE TRIBUTE  -  NOT AFFILIATED WITH ACTIVISION', W >> 1, H - 12, { style: 'outline', align: 'center', color: '#8a7cb8', outlineColor: INK });
   }
 

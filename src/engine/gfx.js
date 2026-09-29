@@ -21,11 +21,14 @@ export const DEFAULT_SETTINGS = {
 };
 
 export function loadSettings() {
+  const base = { ...DEFAULT_SETTINGS };
+  // phones are wider than 4:3 and have no room to waste: start in widescreen (players can still pick 4:3 in the options)
+  try { if ('ontouchstart' in window || navigator.maxTouchPoints > 0) base.display = 'wide'; } catch (e) { /* no window (headless) */ }
   try {
     const raw = localStorage.getItem(STORE_KEY);
-    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    if (raw) return { ...base, ...JSON.parse(raw) };
   } catch (e) { /* storage unavailable (private mode / sandboxed frame) */ }
-  return { ...DEFAULT_SETTINGS };
+  return base;
 }
 
 export function saveSettings(s) {
@@ -148,7 +151,7 @@ export class Gfx {
     const s = this.settings;
     const H = s.height;
     let W, scale, rect;
-    const wide = s.display === 'wide';
+    const wide = s.display === 'wide' && devW / devH > 4 / 3;      // (a portrait window falls back to the letterboxed 4:3 frame)
     if (wide) {
       const sInt = Math.max(1, Math.floor(devH / H));
       const useInt = s.scaling === 'integer' || (s.scaling === 'auto' && (sInt * H) / devH >= 0.82);

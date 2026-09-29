@@ -69,6 +69,8 @@ export function baseHeight(x, z, L = LEVEL) {
     if (dm > 0.01) h = Math.max(h, dm);
     h = flatten(h, x, z, W.x, W.z, W.topR, 7, W.topH);
   }
+  // realm portal pad: a flat shelf cut into the southern rim so the arch's dais sits on level ground
+  if (L.portal) h = flatten(h, x, z, L.portal.x, L.portal.z, L.portal.r, L.portal.fall, L.portal.h);
   // north summit
   {
     const S = L.summit;
@@ -147,7 +149,7 @@ function pathProfile(ctrl, sample, spacing = 1.6) {
   for (let pass = 0; pass < 3; pass++) {
     const src = y.slice();
     for (let i = 0; i < n; i++) {
-      if (pins.has(i)) continue;
+      if (pins.has(i) || i < 4 || i >= n - 4) continue;   // (a truncated window at the ends would bias the smoothing)
       let s = 0, c = 0;
       for (let k = -4; k <= 4; k++) { const j = i + k; if (j >= 0 && j < n) { s += src[j]; c++; } }
       y[i] = s / c;

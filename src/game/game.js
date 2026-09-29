@@ -50,6 +50,7 @@ export class Game {
     this.dyn = new THREE.Group();
     this.dyn.name = 'dynamic';
     this.events = {};
+    this.timers = [];
     this.stats = { gems: 0, gemsTotal: 400, beacons: 0, enemies: 0, bunnies: 0, vases: 0, chests: 0, walls: 0, deaths: 0, time: 0 };
     this.checkpoint = null;
     this.loops = {};
@@ -164,7 +165,7 @@ export class Game {
     const isLast = n >= 5;
     this.hud.pulse('beacons');
     this.hud.banner(`${b.def.name} LIT!`, `${n} OF 5 BEACONS`, 3.4);
-    if (n === 4 && this.objects?.barrier) { setTimeout(() => this.objects.openBarrier(), 1400); setTimeout(() => this.hud.banner('THE DAWN GATE OPENS!', 'CLIMB TO THE OBSERVATORY', 4), 3600); }
+    if (n === 4 && this.objects?.barrier) { this.after(1.4, () => this.objects.openBarrier()); this.after(3.6, () => this.hud.banner('THE DAWN GATE OPENS!', 'CLIMB TO THE OBSERVATORY', 4)); }
     if (isLast) this.emit('finale');
     else this.audio?.stinger?.('lantern');
   }
@@ -179,6 +180,9 @@ export class Game {
   }
 
   fadeTo(a, speed = 2) { this.fade.target = a; this.fade.speed = speed; }
+
+  /** Run `fn` after `sec` seconds of game time (pausing the game pauses the timer). */
+  after(sec, fn) { this.timers.push({ t: sec, fn }); }
 
   // ---- loop ------------------------------------------------------------------------------------------------------------------
   /** Advance by `dt` real seconds (fixed-step internally), then update camera/environment/HUD. */
@@ -202,6 +206,11 @@ export class Game {
 
   step(dt) {
     this.time += dt;
+    if (this.timers.length) {
+      const due = [];
+      for (const T of this.timers) { T.t -= dt; if (T.t <= 0) due.push(T); }
+      if (due.length) { this.timers = this.timers.filter((T) => !due.includes(T)); for (const T of due) T.fn(); }
+    }
     const p = this.player;
     if (this.mode === 'play' || this.mode === 'complete') this.stats.time += dt;
     p.update(dt, this.input, this.cam.yaw);

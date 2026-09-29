@@ -95,7 +95,7 @@ export class Input {
     mk('RAM', 26, 124, 62, 'charge', 'rgba(140,70,200,.55)');
     const pause = document.createElement('div');
     pause.textContent = 'II';
-    pause.style.cssText = 'position:absolute;right:14px;top:10px;width:44px;height:44px;border-radius:10px;background:rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.5);color:#fff;font:bold 20px monospace;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none';
+    pause.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);top:8px;width:44px;height:44px;border-radius:10px;background:rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.5);color:#fff;font:bold 20px monospace;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none';
     pause.addEventListener('touchstart', (e) => { e.preventDefault(); this._press('pause'); this._release('pause'); }, { passive: false });
     root.appendChild(pause);
     const ring = document.createElement('div');
@@ -104,6 +104,13 @@ export class Input {
     nub.style.cssText = 'position:absolute;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.55);left:32px;top:32px';
     ring.appendChild(nub);
     root.appendChild(ring);
+    // portrait phones get a tiny frame: suggest landscape
+    const rot = document.createElement('div');
+    rot.textContent = 'TURN YOUR PHONE SIDEWAYS FOR A BIGGER VIEW';
+    rot.style.cssText = 'position:absolute;left:50%;top:9%;transform:translateX(-50%);width:74vw;text-align:center;color:#e8e0ff;font:bold 13px monospace;letter-spacing:.06em;text-shadow:0 2px 0 #000;background:rgba(20,10,40,.62);border:2px solid rgba(255,255,255,.35);padding:8px 10px;border-radius:8px;pointer-events:none';
+    root.appendChild(rot);
+    const orient = () => { rot.style.display = window.innerHeight > window.innerWidth * 1.15 ? 'block' : 'none'; };
+    window.addEventListener('resize', orient); orient();
     document.body.appendChild(root);
     this.touchRoot = root;
 
