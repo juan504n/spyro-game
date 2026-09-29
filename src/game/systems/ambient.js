@@ -22,9 +22,30 @@ export class Ambient {
     this.fireflyAcc = 0;
     this.moteAcc = 0;
     this.stepAcc = 0;
+    // positional loops (waterfall roar, windmill creak, portal hum): started lazily once the audio context is running
+    this.sources = (game.gameplay?.soundSources || []).map((s) => ({ ...s, loop: null }));
+  }
+
+  /** Distance-attenuated, camera-panned looping beds. */
+  _soundscape(game) {
+    const a = game.audio;
+    if (!a || !a.ready) return;
+    const cam = game.camera, e = cam.matrixWorld.elements, cp = cam.position;
+    for (const S of this.sources) {
+      const live = S.when === 'barrier' ? game.objects?.barrier?.target === 0 : true;
+      const dx = S.x - cp.x, dy = S.y - cp.y, dz = S.z - cp.z;
+      const d = Math.hypot(dx, dy, dz);
+      const k = live && d < S.range ? (1 - d / S.range) ** 1.7 : 0;
+      if (k < 0.015) { if (S.loop) { S.loop.stop(0.5); S.loop = null; } continue; }
+      if (!S.loop) S.loop = a.loop(S.name, { vol: 0 });
+      const dh = Math.hypot(dx, dz) || 1;
+      const pan = Math.max(-0.8, Math.min(0.8, ((dx * e[0] + dz * e[2]) / dh) * Math.min(1, dh / 12)));
+      S.loop.set({ vol: S.vol * k, pan });
+    }
   }
 
   update(dt, game) {
+    this._soundscape(game);
     const p = game.player;
     const cam = game.camera.position;
     const day = game.day;

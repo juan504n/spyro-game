@@ -120,7 +120,7 @@ export function windmillBody(kit, p) {
       const land = k === 8;
       const yT = stepTop(k), ph = land ? landPhi : phiC(k);
       const arc = land ? 3 * dph * rso * 1.02 : dph * rso * 1.03;
-      stepBox(kit, wood, ph, rsi, rso, arc, yT, 0.7, { color: stepColor, emissive: 0.2, tag: land ? 'landing' : 'step' });
+      stepBox(kit, wood, ph, k >= 16 ? rDo - 0.05 : rsi, rso, arc, yT, 0.7, { color: stepColor, emissive: 0.2, tag: land ? 'landing' : 'step' });
     }
     // support posts
     for (const k of [2, 5, 8, 10, 13, 16, 19]) {
@@ -276,8 +276,8 @@ export function towerObservatory(kit, p) {
       const yT = stepTop(k), ph = phiC(k), rl = rso - 0.25;
       const px = Math.sin(ph) * rl, pz = Math.cos(ph) * rl;
       br.box(px, yT + 0.9 + 0.3, pz, 0.5, 0.6, 0.5, { tile: 3.2, color: [1.0, 0.98, 1.1], emissive: 0.22, faces: ['+z', '-z', '+x', '-x', '+y'] });
-      lanternBody(kit, px, yT + 1.2 + 0.5, pz, { s: 1.0 });
-      kit.glow(px, yT + 1.7, pz, { color: [1, 0.72, 0.36], size: 3.6, pool: 3.2 });
+      lanternBody(kit, px, yT + 1.5 + 0.36, pz, { s: 1.0 });
+      kit.glow(px, yT + 1.9, pz, { color: [1, 0.72, 0.36], size: 3.6, pool: 3.2 });
     }
     // ---- rune plaques following the stair up the wall, windows, door
     const passY = (phiDeg) => {
@@ -374,12 +374,12 @@ const _phiG = (55 + 11 * 7.5) * DEG, _gate = polar(8.6, _phiG, 4.5);
 export const TOWERS = {
   tower_observatory: {
     fn: towerObservatory, size: 30,
-    note: 'PLACEHOLDER',
+    note: 'Observatory: faceted 12-sided dark tower_stone shaft (r 6.5 at y=1.2 tapering to 5.9), 3-tier walkable base ring (r 13.4/12.6/11.8, tops y=0.4/0.8/1.2), corbel flaring to r 8.2, open-air lantern room: floor at y=25.2 (r 8.1, walkable, top:true), central plinth r 2.35 (top y=26.2) with a rune plate, 8 pillars at r 7.3 (to y=35.2) with arches + low balustrades, pointed teal dome (to y~46) and brass finial (~49). Broad stone spiral stair (outer r 10.6, inner edge = tower wall, 0.5 rise, 47 steps of 8.5deg) starts on the top ring tier (y=1.2) at phi=20deg and winds counter-clockwise (phi from +Z toward +X) ~1.1 turns to the floor at phi~59deg (the open arch span, no balustrade); steps are top:true boxes, parapet colliders on the outer edge, lanterns along the parapet, violet rune plaques spiralling up the wall + glowing bands. Door on +Z at the ring. anchors.beacon = [0,26.2,0] (top of the plinth; 9-unit lantern stands here, clear height to the dome ~10 above the plinth).',
     anchors: { beacon: [0, 26.2, 0] },
   },
   windmill_body: {
     fn: windmillBody, size: 22,
     note: 'Windmill tower: faceted 12-sided stone/plaster tower r 5.5 (base) -> 4.0 (y=15), wooden cone cap to y~22, door on +Z at the base. Sail axle/hub on the +Z face at y=12.4 (anchors.sails = hub front [0,12.4,8.0]; sail plane z~7.5, sails radius <= 8). C-shaped balcony ring at y=9.0 (r 4.3..7.2, walkable, railing, open toward +Z so the sails clear it). Exterior wooden stair r 7.4..9.8 climbs counter-clockwise (phi from +Z toward +X) from the ground at phi=55deg (front-right) to the balcony at phi~205deg; 0.5 rise per step, landing slab at y=4.5 ending in a timber gate frame: anchors.gate = [x,4.5,z,rotY] centre of the stair at the frame, gate local +Z = climbing direction, opening ~2.25 wide x 3.6 tall. anchors.beacon = [0,9.5,-5.75] on a stone pad on the balcony (4-unit lantern stands there). anchors.door in front of the base door.',
-    anchors: { sails: [0, 12.4, 8.0], gate: [+_gate[0].toFixed(2), 4.5, +_gate[2].toFixed(2), +(_phiG + PI / 2).toFixed(3)], beacon: [0, 9.5, -5.75], door: [0, 0.5, 7.0] },
+    anchors: { sails: [0, 12.4, 8.0], gate: [+_gate[0].toFixed(2), 4.5, +_gate[2].toFixed(2), +(_phiG + PI / 2).toFixed(3)], beacon: [0, 9.5, -5.75], door: [0, 0, 7.2] },
   },
 };

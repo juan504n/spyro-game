@@ -26,14 +26,14 @@ await page.evaluate(() => __bot.god());
 await run('main-road', () => { __bot.place(0, 166, Math.PI); return __bot.follow('main', 0.02, 1, 4); });
 await run('west-trail', () => { __bot.place(-3, 80, -1.6); return __bot.follow('west', 0.0, 1, 3); });
 await run('east-trail', () => { __bot.place(0, 84, 1.6); return __bot.follow('east', 0.0, 1, 3); });
-await run('mill-spiral', () => { __bot.place(88, 44, 0); return __bot.follow('mill', 0.0, 1, 3); });
+await run('mill-spiral', () => { const q = __game.grid.paths.find((p) => p.id === 'mill').pts[0]; __bot.place(q[0], q[2], 0); return __bot.follow('mill', 0.0, 1, 3); });
 await run('ring-west', () => { __bot.place(-80, 62, 3.14); return __bot.follow('ringW', 0.0, 1, 3); });
 await run('ring-east', () => { __bot.place(76, 58, 3.14); return __bot.follow('ringE', 0.0, 1, 3); });
 await run('summit-road', () => { if (__game.objects.barrier) __game.objects.barrier.c.solid = false; __bot.place(0, -86, 0); return __bot.follow('summit', 0.0, 1, 3); });
 await run('island-stones', () => {
   const L = __game.level;
   __bot.place(-4, 74, Math.PI);
-  const pts = [[-4, 66], [-6, 58], [-2, 52.5], [-7, 47], [-3, 42], [L.island.x, L.island.z + 5]];
+  const pts = [[-4, 66], [-6, 58], [-2, 52.5], [-7, 47], [-3, 42], [-8, 37.5], [-6, 32], [L.island.x, L.island.z + 5]];   // (the shrine's standing stones ring the island: go through a gap)
   const out = [];
   for (const [x, z] of pts) { const r = __bot.goto(x, z, { tol: 1.4, timeout: 10 }); out.push(r.ok ? 'ok' : r.reason); if (!r.ok) return { ok: false, out, at: [x, z], ...__bot.state() }; }
   return { ok: true, out, end: __bot.state() };
@@ -50,5 +50,32 @@ await run('mesa-launch', () => {
   for (let i = 0; i < 90; i++) { __bot.tick(); maxY = Math.max(maxY, __game.player.y); }
   const s = __bot.state();
   return { ok: maxY > M.h + 5, maxY: +maxY.toFixed(1), pad: [+mx.toFixed(1), +mz.toFixed(1)], at: s };
+});
+await run('sky-route', () => {
+  // bounce off the mesa mushroom, glide to isle 1, then mushroom + glide island to island up to the Sky Beacon isle
+  const G = __game, L = G.level, p = G.player;
+  const M = L.mesa;
+  const legs = [{ near: [M.x, M.z, M.r + 6], to: L.isles[0] }];
+  L.isles.slice(0, 3).forEach((I, k) => legs.push({ near: [I.x, I.z, I.r + 2], to: L.isles[k + 1] }));
+  __bot.place(M.x, M.z, 0, M.h);
+  const log = [];
+  for (const leg of legs) {
+    const mu = G.gameplay.mushrooms.find((m) => Math.hypot(m.x - leg.near[0], m.z - leg.near[1]) < leg.near[2]);
+    if (!mu) return { ok: false, reason: 'no mushroom', leg: leg.to.id, log };
+    const a = __bot.goto(mu.x, mu.z, { tol: 6.2, timeout: 15, auto: false });   // a full-height jump from ~6 units lands on the cap
+    if (!a.ok) return { ok: false, phase: 'walk to mushroom', leg: leg.to.id, ...a, log };
+    __bot.goto(mu.x, mu.z, { tol: 0.5, timeout: 4, auto: false, jumpNow: true });
+    // finish the hop onto the cap, holding jump like a player would, until the bounce fires
+    let bounced = false;
+    for (let i = 0; i < 90 && !bounced; i++) { __bot.ctl.jump = true; __bot.tick(); bounced = p.vy > 20; }
+    __bot.ctl.jump = false;
+    if (!bounced) return { ok: false, reason: 'no bounce', leg: leg.to.id, log, at: __bot.state() };
+    const b = __bot.goto(leg.to.x, leg.to.z, { tol: 3.5, timeout: 14, auto: false, glide: true });
+    for (let i = 0; i < 150 && !p.grounded && !p.dead; i++) __bot.tick();
+    const onIsle = p.grounded && Math.abs(p.y - leg.to.y) < 3 && Math.hypot(p.x - leg.to.x, p.z - leg.to.z) < leg.to.r;
+    log.push([leg.to.id, b.ok ? 'reached' : b.reason, onIsle ? 'landed' : 'MISSED', +p.y.toFixed(1)]);
+    if (!onIsle) return { ok: false, log, at: __bot.state() };
+  }
+  return { ok: true, log, end: __bot.state() };
 });
 await browser.close();

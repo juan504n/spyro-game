@@ -1,5 +1,5 @@
 // Trees and bushes for Gloaming Vale.
-import { lump, lumps, tube, shade, TAU, lerp, clamp, mulc, card, cross, num, int, oneOf } from './util.js';
+import { lump, lumps, tube, shade, TAU, lerp, clamp, mulc, card, cross, num, int, oneOf, swayOK } from './util.js';
 
 // ---- palettes: albedo tints per canopy texture: [dark underside, bright crown] (baked lighting multiplies these) -------
 const CANOPY = {
@@ -8,6 +8,8 @@ const CANOPY = {
   leaves_autumn: { dark: [0.7, 0.6, 0.62], light: [1.14, 1.02, 0.9] },
 };
 export const canopyOf = (name) => CANOPY[name] || CANOPY.leaves_green;
+const SWAY_TREE = 10;                                  // world-height limit for canopy sway (see swayOK)
+const SWAY_GROUND = 8;
 const canopyName = (v, def = 'leaves_green') => (CANOPY[v] ? v : def);
 const sizeName = (v) => oneOf(v, ['s', 'm', 'l'], 'm');
 
@@ -92,10 +94,11 @@ export function treeRound(kit, { x, z, rot = 0, scale = 1, y, canopy, size, styl
   const lean = r.float(0, TAU), lm = r.float(0.03, 0.08) * Ht;
   const lx = Math.cos(lean) * lm, lz = Math.sin(lean) * lm;
   const pal = canopyOf(canopy);
+  const sw = swayOK(kit, x, z, y, SWAY_TREE) ? { sway: true } : {};
   kit.at(x, z, { rot, scale, y }, () => {
     const cy = Ht + R * 0.45;
     trunk(kit.b('bark'), r, Ht, tr, lx, lz, cy + R * 0.2, { segs: size === 's' ? 5 : 6 });
-    lumps(kit.b(canopy, { sway: true }), r, canopySpecs(r, [lx, cy, lz], R, { n: sats || (size === 's' ? 3 : size === 'l' ? 5 : 4), bumps: size === 'l' ? 2 : size === 's' ? 0 : 1, style }),
+    lumps(kit.b(canopy, sw), r, canopySpecs(r, [lx, cy, lz], R, { n: sats || (size === 's' ? 3 : size === 'l' ? 5 : 4), bumps: size === 'l' ? 2 : size === 's' ? 0 : 1, style }),
       { tile: 4, smooth: 0.55, colorFor: lobeColor(pal, Ht, Ht + R * 1.9) });
     kit.caster(lx * 0.5, lz * 0.5, R * 0.55, Ht + R * 1.6, 0.42);
     kit.cyl(0, 0, tr * 1.1, 0, Ht + 1);
@@ -134,7 +137,8 @@ export function treePine(kit, { x, z, rot = 0, scale = 1, y, size }) {
   size = sizeName(size);
   const r = kit.rng(x, z, 23);
   const P = PINE[size] || PINE.m;
-  const H = P.H * r.float(0.94, 1.08), R = P.R * r.float(0.94, 1.08), nT = P.tiers;
+  const H = P.H * r.float(0.94, 1.08), R = P.R * r.float(0.94, 1.08), nT = Math.max(4, P.tiers + r.int(-1, 2));
+  const nSides = r.int(7, 10), taper = r.float(0.75, 1.0);
   kit.at(x, z, { rot, scale, y }, () => {
     const bark = kit.b('bark');
     const bc = shade(0, [0.46, 0.42, 0.48], 3, [0.9, 0.84, 0.82], 0.04);
@@ -145,11 +149,11 @@ export function treePine(kit, { x, z, rot = 0, scale = 1, y, size }) {
     const pine = kit.b('pine');
     for (let i = 0; i < nT; i++) {
       const t = i / (nT - 1);
-      const rr = lerp(R, R * 0.28, Math.pow(t, 0.85));
+      const rr = lerp(R, R * 0.28, Math.pow(t, taper)) * r.float(0.93, 1.07);
       const h = dy * 1.55 * lerp(1, 0.78, t);
       const cy = y0 + i * dy;
       const dark = lerp(0.6, 1.02, t);
-      tier(pine, r, cy, rr, h, 8, {
+      tier(pine, r, cy, rr, h, nSides, {
         tile: 4, smooth: 0,
         color: shade(y0, [0.72, 0.9, 0.82], H, [1.12, 1.16, 0.98], 0.06),
         under: mulc([0.78, 0.98, 0.92], dark + 0.2),
@@ -172,6 +176,7 @@ export function treeBirch(kit, { x, z, rot = 0, scale = 1, y, canopy }) {
   const pal = canopyOf(canopy);
   const lean = r.float(0, TAU), lm = r.float(0.4, 1.0);
   const lx = Math.cos(lean) * lm, lz = Math.sin(lean) * lm;
+  const sw = swayOK(kit, x, z, y, SWAY_TREE) ? { sway: true } : {};
   kit.at(x, z, { rot, scale, y }, () => {
     const bark = kit.b('bark_pale');
     const bc = shade(0, [0.7, 0.68, 0.74], 3, [1.1, 1.08, 1.06], 0.03);
@@ -196,7 +201,7 @@ export function treeBirch(kit, { x, z, rot = 0, scale = 1, y, canopy }) {
       const t = specs[specs.length - 1].c;
       tube(bark, [[lx * 0.7, H * (0.62 + i * 0.05), lz * 0.7], [t[0] * 0.92, t[1] - 0.2, t[2] * 0.92]], [0.12, 0.06], { segs: 4, tile: 3, color: bc });
     }
-    lumps(kit.b(canopy, { sway: true }), r, specs, { tile: 4, smooth: 0.5, colorFor: lobeColor(pal, cy - 2, cy + 3.4) });
+    lumps(kit.b(canopy, sw), r, specs, { tile: 4, smooth: 0.5, colorFor: lobeColor(pal, cy - 2, cy + 3.4) });
     kit.caster(lx * 0.6, lz * 0.6, 1.6, H * 1.05, 0.34);
     kit.cyl(0, 0, 0.5, 0, H * 0.6);
   });
@@ -227,18 +232,19 @@ function lantern(kit, x, y, z, s, glowOpts) {
 }
 
 export function treeLantern(kit, { x, z, rot = 0, scale = 1, y, canopy, size, lanterns }) {
-  canopy = canopyName(canopy, 'leaves_teal'); size = sizeName(size); lanterns = int(lanterns, 5, 1, 8);
+  canopy = canopyName(canopy, 'leaves_teal'); size = sizeName(size); lanterns = int(lanterns, 4, 1, 8);
   const r = kit.rng(x, z, 41);
   const S = SIZES[size] || SIZES.m;
   const R = S.R * r.float(0.96, 1.06), Ht = S.trunk * r.float(0.96, 1.05), tr = S.tr;
   const lean = r.float(0, TAU), lm = r.float(0.03, 0.06) * Ht;
   const lx = Math.cos(lean) * lm, lz = Math.sin(lean) * lm;
   const pal = canopyOf(canopy);
+  const sw = swayOK(kit, x, z, y, SWAY_TREE) ? { sway: true } : {};
   kit.at(x, z, { rot, scale, y }, () => {
     const cy = Ht + R * 0.45;
     trunk(kit.b('bark'), r, Ht, tr, lx, lz, cy + R * 0.2, { segs: 6 });
-    const specs = canopySpecs(r, [lx, cy, lz], R, { n: 4, bumps: 1, style: 'lobed' });
-    lumps(kit.b(canopy, { sway: true }), r, specs, { tile: 4, smooth: 0.55, colorFor: lobeColor(pal, Ht, Ht + R * 1.9) });
+    const specs = canopySpecs(r, [lx, cy, lz], R, { n: size === 's' ? 3 : 4, bumps: 0, style: 'lobed' });
+    lumps(kit.b(canopy, sw), r, specs, { tile: 4, smooth: 0.55, colorFor: lobeColor(pal, Ht, Ht + R * 1.9) });
     // lanterns hang on cords from the underside of the foliage, spread around the trunk
     const cord = kit.b(null, { double: true });
     const a0 = r.float(0, TAU);
@@ -252,7 +258,7 @@ export function treeLantern(kit, { x, z, rot = 0, scale = 1, y, canopy, size, la
       if (ub === null) continue;
       const len = r.float(0.7, 1.5);
       const ly = Math.max(ub - len, 2.9);          // top of the lantern
-      cross(cord, px, ly, pz, 0.12, ub + 0.4 - ly, i * 1.3, { uv: [0, 0, 1, 1], color: [0.32, 0.22, 0.16] });
+      cross(cord, px, ly, pz, 0.13, ub + 0.4 - ly, i * 1.3 + r.float(0, 1), { uv: [0, 0, 1, 1], color: [0.36, 0.26, 0.2], normal: [0, 1, 0] });
       lantern(kit, px, ly + 0.16, pz, r.float(0.95, 1.15), { color: [1, 0.76, 0.4], size: 3.6, pool: 3.4, flicker: 0.12 });
     }
     kit.emitter(0, Ht + R * 0.5, 0, { kind: 'firefly', rate: 1.2, radius: R });
@@ -270,6 +276,8 @@ export function treeGiant(kit, { x, z, rot = 0, scale = 1, y, canopy }) {
   const pal = canopyOf(canopy);
   const tr = 2.2 * r.float(0.95, 1.05);
   const Ht = 9.6, R = 14 * r.float(0.96, 1.04);
+  const sw = swayOK(kit, x, z, y, SWAY_TREE) ? { sway: true } : {};
+  const swG = swayOK(kit, x, z, y, SWAY_GROUND);
   kit.at(x, z, { rot, scale, y }, () => {
     const bark = kit.b('bark');
     const barkCol = shade(0, [0.46, 0.42, 0.5], 12, [1.0, 0.94, 0.9], 0.04);
@@ -315,9 +323,9 @@ export function treeGiant(kit, { x, z, rot = 0, scale = 1, y, canopy }) {
       const a = r.float(0, TAU), d = R * r.float(0.85, 1.0);
       specs.push({ c: [Math.cos(a) * d, Ht + r.float(3, 5.5), Math.sin(a) * d], r: R * r.float(0.15, 0.2), sy: 0.9, detail: 0, noise: 0.22, tone: r.float(0.94, 1.06) });
     }
-    lumps(kit.b(canopy, { sway: true }), r, specs, { tile: 5, smooth: 0.55, colorFor: lobeColor(pal, Ht + 0.5, Ht + R * 0.95) });
+    lumps(kit.b(canopy, sw), r, specs, { tile: 5, smooth: 0.55, colorFor: lobeColor(pal, Ht + 0.5, Ht + R * 0.95) });
     // hanging vines under the canopy
-    const vine = kit.b('vine', { mode: 'cutout', double: true, sway: true });
+    const vine = kit.b('vine', swG ? { mode: 'cutout', double: true, sway: true } : { mode: 'cutout', double: true });
     for (let i = 0; i < 16; i++) {
       const a = r.float(0, TAU), d = R * r.float(0.45, 0.95);
       const px = Math.cos(a) * d, pz = Math.sin(a) * d;
@@ -340,6 +348,7 @@ export function bush(kit, { x, z, rot = 0, scale = 1, y, canopy, flowers }) {
   const r = kit.rng(x, z, 53);
   const pal = canopyOf(canopy);
   const R = r.float(0.85, 1.05);
+  const sw = swayOK(kit, x, z, y, SWAY_GROUND) ? { sway: true } : {};
   kit.at(x, z, { rot, scale, y }, () => {
     const specs = [{ c: [0, R * 0.55, 0], r: R, sy: 0.9, detail: 1, noise: 0.16, rot: r.float(0, 3), tone: 1.04 }];
     const nS = 3 + r.int(0, 2);
@@ -350,7 +359,7 @@ export function bush(kit, { x, z, rot = 0, scale = 1, y, canopy, flowers }) {
       const rr = R * r.float(0.55, 0.72);
       specs.push({ c: [Math.cos(a) * d, rr * 0.55, Math.sin(a) * d], r: rr, sy: 0.9, detail: 'o1', noise: 0.2, rot: r.float(0, 3), rotX: r.float(-0.4, 0.4), tone: r.float(0.94, 1.06) });
     }
-    lumps(kit.b(canopy, { sway: true }), r, specs, {
+    lumps(kit.b(canopy, sw), r, specs, {
       tile: 3.5, smooth: 0.7, minY: -0.05, floorY: -0.05, skipDown: 0.3,
       colorFor: (s) => shade(0, mulc(pal.dark, 1.05 * s.tone), R * 1.7, mulc(pal.light, 1.02 * s.tone), 0.05),
     });
@@ -365,29 +374,18 @@ export function bush(kit, { x, z, rot = 0, scale = 1, y, canopy, flowers }) {
         const a = r.float(0, TAU), el = r.float(0.15, 1.15);
         const dx = Math.cos(a) * Math.cos(el), dy = Math.sin(el), dz = Math.sin(a) * Math.cos(el);
         const px = sp.c[0] + dx * sp.r * 0.95, py = sp.c[1] + dy * sp.r * (sp.sy ?? 1) * 0.92, pz = sp.c[2] + dz * sp.r * 0.95;
-        card(kit.b(r.pick(kinds), { mode: 'cutout', double: true, sway: true }), px, py - 0.12, pz, 0.62, 0.62, Math.atan2(dx, dz), { lean: 0.45, color: [1.08, 1.08, 1.08] });
+        card(kit.b(r.pick(kinds), { mode: 'cutout', double: true, ...sw }), px, py - 0.12, pz, 0.62, 0.62, Math.atan2(dx, dz), { lean: 0.45, color: [1.08, 1.08, 1.08] });
       }
     }
     kit.caster(0, 0, R * 0.9, 1.4, 0.3);
   });
 }
 
-/** Dev lineup (not part of the final registry). */
-function lineup(kit, { x, z }) {
-  treeRound(kit, { x: x - 30, z, size: 'm', canopy: 'leaves_green', style: 'dense' });
-  treeRound(kit, { x: x - 18, z, size: 'm', canopy: 'leaves_green', style: 'lobed' });
-  treeRound(kit, { x: x - 6, z, size: 'm', canopy: 'leaves_green', style: 'lobed', sats: 5 });
-  treeRound(kit, { x: x + 6, z, size: 'm', canopy: 'leaves_teal', style: 'lobed' });
-  treeRound(kit, { x: x + 18, z, size: 'l', canopy: 'leaves_autumn', style: 'lobed' });
-  treeRound(kit, { x: x + 30, z, size: 's', canopy: 'leaves_green', style: 'lobed', sats: 3 });
-}
-
 export const TREES = {
-  tree_round: { fn: treeRound, size: 9, note: 'round-canopy broadleaf tree; canopy leaves_green|leaves_teal|leaves_autumn, size s|m|l', defaults: { canopy: 'leaves_green', size: 'm' } },
+  tree_round: { fn: treeRound, size: 9, note: 'round-canopy broadleaf tree; canopy leaves_green|leaves_teal|leaves_autumn, size s|m|l', defaults: { canopy: 'leaves_green', size: 'm' }, anchors: { crown: [0, 8.5, 0] } },
   tree_pine: { fn: treePine, size: 6.5, note: 'stacked-bough pine; size s|m|l', defaults: { size: 'm' } },
   tree_birch: { fn: treeBirch, size: 5, note: 'slender pale birch with airy foliage', defaults: { canopy: 'leaves_autumn' } },
-  tree_lantern: { fn: treeLantern, size: 9, note: 'signature round tree hung with glowing amber lanterns', defaults: { canopy: 'leaves_teal', size: 'm', lanterns: 5 } },
-  tree_giant: { fn: treeGiant, size: 30, note: 'ancient giant tree: trunk r~2.2, canopy radius ~14, 26 tall; buttress roots, vines', defaults: { canopy: 'leaves_teal' } },
+  tree_lantern: { fn: treeLantern, size: 9, note: 'signature round tree hung with glowing amber lanterns', defaults: { canopy: 'leaves_teal', size: 'm', lanterns: 4 }, anchors: { crown: [0, 8.5, 0] } },
+  tree_giant: { fn: treeGiant, size: 30, note: 'ancient giant tree: trunk r~2.2, canopy radius ~14, 26 tall; buttress roots, vines', defaults: { canopy: 'leaves_teal' }, anchors: { crown: [0, 20, 0] } },
   bush: { fn: bush, size: 2.4, note: 'low leafy bush; flowers:true adds blossoms', defaults: { canopy: 'leaves_green' } },
-  _trees: { fn: lineup, size: 100, note: 'dev lineup' },
 };

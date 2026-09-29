@@ -224,20 +224,11 @@ export function cliffOutcrop(kit, { x, z, rot = 0, scale = 1, y, len, h, warm })
   });
 }
 
-function lineup(kit, { x, z }) {
-  rockCluster(kit, { x: x - 16, z });
-  rockCluster(kit, { x: x - 8, z, tex: 'far_rock' });
-  rockCluster(kit, { x: x, z, warm: true, count: 4 });
-  rockCluster(kit, { x: x + 8, z, warm: true, tex: 'far_rock', count: 4 });
-  boulderBig(kit, { x: x + 20, z });
-}
-
 export const ROCKS = {
   rock_cluster: { fn: rockCluster, size: 7, note: 'half-buried boulder cluster with mossy caps; count 2-5, warm:true for sandstone, size scale', defaults: { count: 3 } },
   boulder_big: { fn: boulderBig, size: 9, note: 'big 5-7 wide boulder with satellites', defaults: {} },
   rock_spire: { fn: rockSpire, size: 8, note: 'tall jagged rock spire 10-16 (h param) with shards', defaults: {} },
-  stepping_stone: { fn: steppingStone, size: 5, note: 'rock pillar with flat mossy top at y=h (walkable, r 1.7); origin at the bed', defaults: { h: 4.6 } },
-  rock_arch: { fn: rockArch, size: 12, note: 'natural rock arch ~9 wide (w, h, warm); walk through along local z', defaults: { w: 9, h: 6.2 } },
+  stepping_stone: { fn: steppingStone, size: 5, note: 'rock pillar with flat mossy top at y=h (walkable, r 1.7); origin at the bed', defaults: { h: 4.6 }, anchors: { top: [0, 4.6, 0] } },
+  rock_arch: { fn: rockArch, size: 12, note: 'natural rock arch ~9 wide (w, h, warm); walk through along local z', defaults: { w: 9, h: 6.2 }, anchors: { gap: [0, 0, 0] } },
   cliff_outcrop: { fn: cliffOutcrop, size: 14, note: 'wall of faceted rock columns; len, h, warm', defaults: { len: 14, h: 6 } },
-  _rocks: { fn: lineup, size: 80, note: 'dev lineup' },
 };

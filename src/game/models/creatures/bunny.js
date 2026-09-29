@@ -6,13 +6,13 @@
 import { U } from '../../../engine/materials.js';
 import {
   Rig, loft, ellipsoid, triC, triF, setBias,
-  clamp, lerp, sstep, damp, mix3, TAU, nextSeed, seeded,
+  clamp, num, heal, lerp, sstep, damp, mix3, TAU, nextSeed, seeded,
 } from './rig.js';
 
-const FUR = [0.86, 0.78, 0.68];
-const FUR_HI = [0.95, 0.90, 0.82];
-const FUR_LO = [0.68, 0.58, 0.50];
-const BELLY = [0.98, 0.94, 0.88];
+const FUR = [0.84, 0.79, 0.66];
+const FUR_HI = [0.95, 0.91, 0.79];
+const FUR_LO = [0.68, 0.60, 0.50];
+const BELLY = [0.98, 0.95, 0.86];
 const EAR_OUT = [0.74, 0.64, 0.56];
 const EAR_IN = [0.98, 0.66, 0.70];
 const NOSE = [0.98, 0.45, 0.56];
@@ -41,13 +41,13 @@ function headGeo(b) {
   const n = [0, 0.1, 1];
   triC(b, [-0.035, ny, nz], [0, ny - 0.03, nz + 0.005], [0.035, ny, nz], NOSE, NOSE, NOSE, n, n, n);
   triC(b, [-0.035, ny, nz], [0.035, ny, nz], [0, ny + 0.028, nz], NOSE, NOSE, NOSE, n, n, n);
-  // eyes (dark quads, slightly outward-facing)
+  // eyes (dark diamonds, slightly outward-facing) + a tiny highlight
   for (const s of [1, -1]) {
-    const c = [s * 0.095, 0.05, 0.135];
-    const w = 0.03, h = 0.045;
+    const c = [s * 0.098, 0.05, 0.132];
+    const w = 0.038, h = 0.048;
     const nn = [s * 0.5, 0, 0.85];
-    triC(b, [c[0] - w, c[1] - h, c[2]], [c[0] + w, c[1] - h, c[2] + 0.005], [c[0] + w, c[1] + h, c[2] + 0.005], EYE, EYE, EYE, nn, nn, nn);
-    triC(b, [c[0] - w, c[1] - h, c[2]], [c[0] + w, c[1] + h, c[2] + 0.005], [c[0] - w, c[1] + h, c[2]], EYE, EYE, EYE, nn, nn, nn);
+    triC(b, [c[0] - w, c[1], c[2]], [c[0], c[1] - h, c[2] + 0.004], [c[0] + w, c[1], c[2] + 0.004], EYE, EYE, EYE, nn, nn, nn);
+    triC(b, [c[0] - w, c[1], c[2]], [c[0] + w, c[1], c[2] + 0.004], [c[0], c[1] + h, c[2] + 0.004], EYE, EYE, EYE, nn, nn, nn);
   }
 }
 
@@ -66,7 +66,16 @@ function earGeo(b) {
 
 function footGeo(b) {
   setBias(0.4);
-  ellipsoid(b, 0, 0.0, 0.07, 0.065, 0.05, 0.14, { segs: 5, rings: 2, col: (th) => mix3(FUR, FUR_HI, 0.5) });
+  ellipsoid(b, 0, 0.0, 0.08, 0.07, 0.045, 0.16, { segs: 6, rings: 2, col: FUR_HI });
+}
+
+function haunchGeo(b) {
+  setBias(0.4);
+  for (const s of [1, -1]) {
+    b.push().translate(s * 0.15, -0.04, -0.13);
+    ellipsoid(b, 0, 0, 0, 0.085, 0.13, 0.12, { segs: 5, rings: 2, col: fur });
+    b.pop();
+  }
 }
 
 function pawGeo(b) {
@@ -81,7 +90,7 @@ function tailGeo(b) {
 
 export function createBunny(assets, opts) {
   opts = opts || {};
-  const R = new Rig(assets);
+  const R = new Rig(assets, 'bunny');
   const M = R.litMat(null);
   const seed = nextSeed(opts);
   const rnd = seeded(seed);
@@ -89,6 +98,7 @@ export function createBunny(assets, opts) {
   const hip = R.pivot(R.rig, 0, 0.17, -0.10, 'hip');       // sits-up pivot
   const body = R.pivot(hip, 0, 0.03, 0.10, 'body');
   R.part(body, M, bodyGeo, 'body');
+  R.part(body, M, haunchGeo, 'haunches');
   const head = R.pivot(body, 0, 0.14, 0.20, 'head');
   R.part(head, M, headGeo, 'head');
   const ears = [1, -1].map((s) => {
@@ -120,18 +130,20 @@ export function createBunny(assets, opts) {
 
   function update(dt, pose) {
     pose = pose || {};
-    dt = clamp(dt || 0, 0, 0.1);
-    const hopIn = pose.hop || 0;
+    dt = clamp(dt, 0, 0.1);
+    heal(S);
+    const hopIn = num(pose.hop);
     const alarmT = clamp(pose.alarm || 0, 0, 1);
     const burnT = clamp(pose.burn || 0, 0, 1);
     S.time += dt;
     const boost = lerp(1.25, 1.0, clamp(U.uDay.value));
     if (Math.abs(boost - S.boost) > 0.004) { S.boost = boost; R.boost(boost); }
     S.alarm = damp(S.alarm, alarmT, 14, dt);
-    S.burn = damp(S.burn, burnT, 12, dt);
+    // soot is sticky while burning (the game's `burn` counts down from 1 to 0 as the bunny is about to pop)
+    S.burn = burnT > 0 ? Math.max(S.burn, burnT) : damp(S.burn, 0, 0.8, dt);
     const alarm = S.alarm, burn = S.burn;
     const t = S.time;
-    const hopping = hopIn > 0 && hopIn < 1;
+    const hopping = (hopIn > 0 && hopIn < 1) || num(pose.speed) > 0.3;   // the game keeps `speed` > 0 between chained hops
     S.hopSm = damp(S.hopSm, hopping ? 1 : 0, 30, dt);
     const u = clamp(hopIn, 0, 1);
     const hopW = S.hopSm;
@@ -167,7 +179,8 @@ export function createBunny(assets, opts) {
     const sx = 1 + 0.10 * (crouch + land) - 0.05 * stretch + 0.02 * breath * calm;
     body.scale.set(sx, sy, sz);
     // sitting up: pitch about the hips, nose up (negative x rotation lifts +z)
-    const pitch = -1.05 * alarm + (-0.30 * air + 0.15 * land + 0.10 * crouch) * hopW + 0.06 * Math.sin(t * 40) * alarm * 0.3;
+    const arcV = clamp((u - 0.15) / 0.65, 0, 1);
+    const pitch = -1.05 * alarm + (-0.42 * (1 - 2 * arcV) * air + 0.15 * land + 0.10 * crouch) * hopW + 0.06 * Math.sin(t * 40) * alarm * 0.3;
     hip.rotation.set(pitch, 0, shakeZ);
     hip.position.set(0, 0.17 + 0.12 * alarm + shakeY + 0.02 * air - 0.03 * (crouch + land) * hopW, -0.10 + 0.04 * alarm);
     R.rig.rotation.z = 0;
@@ -181,8 +194,10 @@ export function createBunny(assets, opts) {
       const relaxed = 0.30 * (1 - alarm);
       const flap = Math.sin(t * 30 + i * 1.7) * 0.5 * panic + Math.sin(t * 20 + i) * 0.06 * alarm;
       const fl = (S.flickSide === side ? flick : 0) * 0.35 * calm;
+      // rotation.x > 0 tips an ear forward, < 0 lays it back
+      const earBack = relaxed + 0.95 * air * hopW + 0.5 * crouch * hopW - 0.6 * land * hopW + 0.05 * breath * calm - 0.10 * alarm;
       ears[i].rotation.set(
-        relaxed + 0.95 * air * hopW + 0.5 * crouch * hopW - 0.55 * land * hopW + 0.05 * breath * calm - 0.10 * alarm,
+        -earBack,
         0,
         side * (-0.22 - 0.10 * alarm + 0.25 * air * hopW) + fl + flap * side,
       );
@@ -191,11 +206,11 @@ export function createBunny(assets, opts) {
     tail.rotation.set(-0.3 * alarm + 0.35 * air, Math.sin(t * 3.2) * 0.25 * calm + Math.sin(t * 30) * 0.5 * panic, 0);
     // front paws tuck up when sitting, reach forward in the air
     for (let i = 0; i < 2; i++) {
-      paws[i].rotation.set(-1.3 * alarm - 0.9 * air * hopW + 0.4 * land * hopW + Math.sin(t * 35 + i) * 0.5 * panic, 0, 0);
+      paws[i].rotation.set(-1.3 * alarm - (0.5 + 0.6 * sstep(0.55, 0.8, u)) * air * hopW + 0.4 * land * hopW + Math.sin(t * 35 + i) * 0.5 * panic, 0, 0);
     }
     // hind feet: stretch back in the air, plant on landing, drum when burning
     for (let i = 0; i < 2; i++) {
-      feet[i].rotation.set(0.95 * air * hopW - 0.15 * crouch * hopW + Math.sin(t * 40 + i * Math.PI) * 0.7 * panic, 0, 0);
+      feet[i].rotation.set(0.95 * air * hopW * (1 - 1.4 * sstep(0.55, 0.8, u)) - 0.15 * crouch * hopW + Math.sin(t * 40 + i * Math.PI) * 0.7 * panic, 0, 0);
       feet[i].position.set(feet[i].position.x, 0.055 + 0.03 * air * hopW + 0.04 * Math.abs(Math.sin(t * 40 + i * Math.PI)) * panic, -0.12 + 0.02 * alarm);
     }
     // eyes are part of the head mesh: emulate a blink with a tiny head squash

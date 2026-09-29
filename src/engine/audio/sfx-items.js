@@ -123,9 +123,9 @@ export const ITEM_SFX = {
     const sq = gen(0.13, (t) => {
       const x = t / 0.13;
       ph += (2000 + 700 * Math.sin(Math.PI * x) - 300 * x) / SR;
-      return (Math.sin(TAU * ph) + 0.2 * Math.sin(TAU * ph * 2)) * Math.pow(Math.sin(Math.PI * x), 0.7);
+      return (Math.sin(TAU * ph) + 0.2 * Math.sin(TAU * ph * 2)) * Math.pow(Math.sin(Math.PI * x), 1.6);
     });
-    return fin(sq, { grit: 0.2 });
+    return fin(sq, { grit: 0.2, peakDb: -3.5 }); // a pure sine burst is dense: keep it a little under the others
   },
 
   bunny_poof() {

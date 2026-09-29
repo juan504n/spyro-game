@@ -118,12 +118,15 @@ export class Hud {
     // ---- hint ----------------------------------------------------------------------------------------------------------
     if (this.hintState && !this.dlg) {
       const h = this.hintState;
-      const m = measureText(h.text, { style: 'outline' });
-      const w = m.w + 12;
+      // long hints wrap onto extra lines instead of running off the screen
+      const lines = wrapText(h.text, W - 30, { style: 'outline' });
+      let lw = 0;
+      for (const ln of lines) lw = Math.max(lw, measureText(ln, { style: 'outline' }).w);
+      const w = lw + 12, ph = 5 + lines.length * 10;
       const x = ((W - w) >> 1);
-      const y = H - 26 - (h.t < 0.2 ? Math.round((0.2 - h.t) * 60) : 0);
-      drawPanel(pix, x, y, w, 15, { style: 'hud' });
-      drawText(pix, h.text, W >> 1, y + 4, { style: 'outline', color: '#fff4ff', outlineColor: INK, align: 'center' });
+      const y = H - 11 - ph - (h.t < 0.2 ? Math.round((0.2 - h.t) * 60) : 0);
+      drawPanel(pix, x, y, w, ph, { style: 'hud' });
+      lines.forEach((ln, i) => drawText(pix, ln, W >> 1, y + 4 + i * 10, { style: 'outline', color: '#fff4ff', outlineColor: INK, align: 'center' }));
     }
     // ---- dialogue ------------------------------------------------------------------------------------------------------
     if (this.dlg) this._drawDialogue(pix);

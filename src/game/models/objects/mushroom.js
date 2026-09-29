@@ -40,7 +40,7 @@ export function createBounceMushroom(assets, opts = {}) {
   // ---- cap: dome ---------------------------------------------------------------------------------------------------
   {
     const b = litBuilder(S, 73);
-    latheUV(b, [[2.22, -0.34, 0.02], [2.42, -0.22, 0.1], [2.3, -0.02, 0.24], [1.7, 0.2, 0.5], [0.9, 0.32, 0.78], [0, 0.35, 1.0]], SEG, { uWrap: 2, color: [1, 1, 1], smooth: true });
+    latheUV(b, [[2.22, -0.34, 0.02], [2.42, -0.2, 0.1], [2.36, 0.08, 0.26], [1.75, 0.27, 0.52], [0.9, 0.34, 0.8], [0, 0.35, 1.0]], SEG, { uWrap: 2, color: [1, 1, 1], smooth: true });
     rig.mesh(b, mCap, capG, { name: 'dome' });
   }
   rig.anchor(anchors, 'top', 0, 1.3 * S, 0);

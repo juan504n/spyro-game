@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { U } from '../../../engine/materials.js';
 import {
   Rig, loft, ellipsoid, spike, bar, triC, triF, setBias,
-  clamp, lerp, sstep, damp, mix3, TAU, nextSeed, seeded,
+  clamp, heal, lerp, sstep, damp, mix3, TAU, nextSeed, seeded,
 } from './rig.js';
 
 // ---- palette -----------------------------------------------------------------------------------------------------------
@@ -19,9 +19,9 @@ const ROBE_HI = [0.33, 0.27, 0.58];
 const HOOD_IN = [0.06, 0.04, 0.14];
 const MASK = [0.93, 0.90, 0.97];
 const MASK_LO = [0.68, 0.64, 0.78];
-const BRASS = [0.93, 0.66, 0.22];
-const BRASS_HI = [1.0, 0.86, 0.45];
-const BRASS_LO = [0.55, 0.34, 0.10];
+const BRASS = [1.0, 0.74, 0.26];
+const BRASS_HI = [1.0, 0.92, 0.55];
+const BRASS_LO = [0.70, 0.44, 0.14];
 const WOOD = [0.42, 0.28, 0.16];
 const CRYSTAL = [0.55, 0.42, 1.0];
 const CRYSTAL_HI = [0.85, 0.78, 1.0];
@@ -104,16 +104,17 @@ function eyesGeo(b) {
 
 function armGeo(b, side) {
   setBias(0.35);
-  // sleeve hangs along -y from the shoulder pivot
+  // sleeve hangs along -y from the shoulder pivot: a tapered cone with a rounded cuff, the hand pokes out below it
   b.push().rotateX(Math.PI / 2);
   loft(b, [
     { z: 0.0, rx: 0.13, ry: 0.13, col: ROBE },
-    { z: 0.32, rx: 0.10, ry: 0.10, col: ROBE_LO },
-  ], { segs: 5, cap1: true, capCol: ROBE_LO });
+    { z: 0.24, rx: 0.105, ry: 0.105, col: ROBE_LO },
+    { z: 0.34, rx: 0, ry: 0, col: ROBE_LO },
+  ], { segs: 5 });
   b.pop();
   // hand
-  b.push().translate(0, -0.37, 0.02);
-  ellipsoid(b, 0, 0, 0, 0.085, 0.085, 0.10, { segs: 5, rings: 2, col: MASK_LO });
+  b.push().translate(0, -0.37, 0.03);
+  ellipsoid(b, 0, 0, 0, 0.095, 0.095, 0.11, { segs: 5, rings: 2, col: MASK_LO });
   b.pop();
 }
 
@@ -165,8 +166,8 @@ function thornsGeo(b) {
 // ---- model ------------------------------------------------------------------------------------------------------------
 export function createSnuffer(assets, opts) {
   opts = opts || {};
-  const variant = opts.variant || 'basic';
-  const R = new Rig(assets);
+  const variant = opts.variant === 'bell' || opts.variant === 'thorn' ? opts.variant : 'basic';
+  const R = new Rig(assets, 'snuffer:' + variant);
   const M = R.litMat(null);
   const G = R.glowMat(null);
   const seed = nextSeed(opts);
@@ -211,8 +212,9 @@ export function createSnuffer(assets, opts) {
 
   function update(dt, pose) {
     pose = pose || {};
-    dt = clamp(dt || 0, 0, 0.1);
-    const speed = clamp(pose.speed || 0, 0, 12);
+    dt = clamp(dt, 0, 0.1);
+    heal(S);
+    const speed = clamp(pose.speed, 0, 12);
     const attack = clamp(pose.attack || 0, 0, 1);
     const alertT = clamp(pose.alert || 0, 0, 1);
     const hurt = clamp(pose.hurt || 0, 0, 1);
@@ -222,8 +224,8 @@ export function createSnuffer(assets, opts) {
     S.time += dt; S.flick += dt;
     const boost = lerp(NIGHT_BOOST, 1.05, clamp(U.uDay.value));
     if (Math.abs(boost - S.boost) > 0.004) { S.boost = boost; R.boost(boost); }
-    S.move = damp(S.move, sstep(0.2, 2.5, speed), 10, dt);
-    S.chase = damp(S.chase, sstep(3.5, 7.0, speed), 8, dt);
+    S.move = damp(S.move, sstep(0.2, 1.8, speed), 10, dt);
+    S.chase = damp(S.chase, sstep(2.6, 5.0, speed), 8, dt);
     S.alert = damp(S.alert, alertT, 18, dt);
     S.hurt = damp(S.hurt, hurt, 40, dt);
     S.stun = damp(S.stun, stun, 10, dt);
@@ -237,7 +239,7 @@ export function createSnuffer(assets, opts) {
     const calm = (1 - move) * (1 - stunK);
 
     // attack curve
-    const wind = sstep(0.0, 0.4, attack), strike = sstep(0.4, 0.53, attack), rec = sstep(0.6, 1.0, attack);
+    const wind = sstep(0.0, 0.4, attack), strike = sstep(0.4, 0.48, attack), rec = sstep(0.6, 1.0, attack);
     const atk = attack > 0 && attack < 1 ? 1 : 0;
     // value that ramps 0 -> a during the windup, jumps to b on the strike, and relaxes back to 0 in the recovery
     const pulse = (a, b) => lerp(lerp(a * wind, b, strike), 0, rec);
@@ -246,7 +248,7 @@ export function createSnuffer(assets, opts) {
     const bob = Math.sin(TAU * 0.55 * S.time) * 0.035 * (1 - move) + Math.abs(Math.sin(ph)) * 0.06 * move - 0.02 * chase;
     const hopY = alert * 0.05 + Math.max(0, Math.sin(Math.min(S.hopT, 0.5) / 0.5 * Math.PI)) * 0.34 * (S.hopT < 0.5 ? 1 : 0);
     const dieHop = dead > 0 ? Math.sin(Math.min(dead * 2.5, 1) * Math.PI) * 0.25 : 0;
-    R.rig.position.set(0, 0.17 + bob + hopY + dieHop, 0);
+    R.rig.position.set(0, 0.22 + bob + hopY + dieHop, 0);
     const lean = 0.10 * move + 0.20 * chase + pulse(-0.30, 0.38) - 0.34 * hurtK - 0.06 * alert;
     const wobble = Math.sin(S.time * 7.5) * 0.16 * stunK;
     const roll = Math.sin(ph) * 0.10 * move + Math.sin(TAU * 0.4 * S.time) * 0.03 * calm + wobble + Math.sin(S.time * 40) * 0.06 * hurtK;
@@ -281,6 +283,7 @@ export function createSnuffer(assets, opts) {
     const widen = 1 + 0.35 * alert + 0.25 * pulse(0.1, 1.0) - 0.35 * hurtK;
     const dim = clamp(1 - 0.65 * stunK * (0.5 + 0.5 * Math.sin(S.time * 14)) - dead, 0, 1);
     eyes.scale.set(widen, widen * (1 - 0.6 * hurtK) * (1 + 0.15 * chase), 1);
+    eyes.rotation.z = Math.sin(S.time * 9) * 0.7 * stunK;
     G.uniforms.uColorMul.value.setRGB(fl * dim, fl * dim, fl * dim);
 
     // ---- arms + pole ----------------------------------------------------------------------------------------------
@@ -290,10 +293,10 @@ export function createSnuffer(assets, opts) {
     if (atk) armPhi = lerp(lerp(armPhiBase, 2.45, wind), 0.95, strike);
     else armPhi = armPhiBase;
     armPhi = lerp(armPhi, armPhiBase, rec * atk);
-    armPhi += 0.9 * stunK;
+    armPhi = lerp(armPhi, 0.25, stunK);
     armR.rotation.set(-armPhi + 0.06 * Math.sin(S.time * 2.2) * calm, 0, -0.10 - 0.25 * alert + 0.4 * wind * atk * 0.3);
     // pole tilt in world terms (0 = vertical, + = top forward)
-    const tiltBase = 0.22 + 0.9 * chase - 0.15 * alert + 1.0 * stunK - 0.04 * Math.sin(ph) * move + 0.04 * Math.sin(S.time * 1.7) * calm;
+    const tiltBase = 0.22 + 0.9 * chase - 0.15 * alert + 2.0 * stunK - 0.04 * Math.sin(ph) * move + 0.04 * Math.sin(S.time * 1.7) * calm;
     let tilt = tiltBase;
     if (atk) tilt = lerp(lerp(tiltBase, -0.55, wind), 1.95, strike);
     tilt = lerp(tilt, tiltBase, rec * atk);

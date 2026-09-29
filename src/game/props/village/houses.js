@@ -142,7 +142,8 @@ const SHUT = [TINT.teal, TINT.coral, [0.78, 0.58, 1.0], [0.55, 0.92, 0.8]];
 const FLOWERS = [[[1.0, 0.45, 0.4], [1.0, 0.85, 0.35]], [[0.75, 0.55, 1.0], [1.0, 0.6, 0.7]], [[1.0, 0.85, 0.35], [0.5, 0.8, 1.0]]];
 
 export function houseCottage(kit, p) {
-  const { x, z, rot = 0, scale = 1, y, variant = 0, w = 8, d = 7 } = p;
+  const { x, z, rot = 0, scale = 1, y, variant = 0 } = p;
+  const w = clamp(p.w ?? 8, 7, 9.3), d = clamp(p.d ?? 7, 6, 10);      // layout assumes 3 panel columns on the front
   const v = ((Math.round(variant) % 4) + 4) % 4;
   const rng = kit.rng(x, z, 11 + v);
   kit.at(x, z, { rot, scale, y }, () => {
@@ -254,7 +255,8 @@ export function houseCottage(kit, p) {
 // house_long : the great hall / tavern (ridge along X, front = long side)
 // ---------------------------------------------------------------------------------------------------------------
 export function houseLong(kit, p) {
-  const { x, z, rot = 0, scale = 1, y, w = 14, d = 7 } = p;
+  const { x, z, rot = 0, scale = 1, y } = p;
+  const w = clamp(p.w ?? 14, 11, 19), d = clamp(p.d ?? 7, 6, 9);
   const rng = kit.rng(x, z, 31);
   kit.at(x, z, { rot, scale, y }, () => {
     const L = w, S = d, Hw = 5.9;
@@ -305,7 +307,8 @@ export function houseLong(kit, p) {
 // house_round : stone roundhouse with a fat conical thatch roof
 // ---------------------------------------------------------------------------------------------------------------
 export function houseRound(kit, p) {
-  const { x, z, rot = 0, scale = 1, y, r = 3.6 } = p;
+  const { x, z, rot = 0, scale = 1, y } = p;
+  const r = clamp(p.r ?? 3.6, 3, 4.6);
   const rng = kit.rng(x, z, 41);
   kit.at(x, z, { rot, scale, y }, () => {
     const N = 10, rr = -PI / N;
@@ -358,14 +361,14 @@ export function houseRound(kit, p) {
 export const HOUSES = {
   house_cottage: {
     fn: houseCottage, size: 11,
-    note: 'Cottage, front (door) on +Z, default 8x7 footprint (w,d), 10-13 tall. variant 0..3: 0 half-timbered + red roof (door centre), 1 stone/plaster + teal roof + porch (door x=+2.7), 2 warm brick + thatch (door x=-2.7), 3 two-storey manor (door centre). anchors.door = spot in front of the door (x depends on variant, see note).',
+    note: 'Cottage, front (door) on +Z, default 8x7 footprint (w,d), 10-13 tall. variant 0..3: 0 half-timbered + red roof (door centre), 1 stone/plaster + teal roof + porch (door x=+2.7), 2 warm brick + thatch (door x=-2.7), 3 two-storey manor (door centre). anchors.door = ground spot 2.5 in front of the door for variants 0 and 3; door_v1 (x=+2.7) for variant 1; door_v2 (x=-2.7) for variant 2 (assumes default w=8).',
     defaults: { variant: 0 },
-    anchors: { door: [0, 0, 2.6] },
+    anchors: { door: [0, 0, 6.0], door_v1: [2.7, 0, 6.0], door_v2: [-2.7, 0, 6.0] },
   },
   house_long: {
     fn: houseLong, size: 17,
     note: 'Long hall / tavern, 14x7 footprint (w,d), ridge along X, FRONT (door + gabled porch) on the long +Z side, ~10 tall, cupola on the ridge. anchors.door in front of the porch.',
-    anchors: { door: [0, 0, 5.6] },
+    anchors: { door: [0, 0, 6.8] },
   },
   house_round: {
     fn: houseRound, size: 11,

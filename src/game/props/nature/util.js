@@ -25,6 +25,26 @@ export const sizeK = (v, def = 1) => (v === 's' ? 0.75 : v === 'm' ? 1 : v === '
 /** v if it is one of list else def */
 export const oneOf = (v, list, def) => (list.includes(v) ? v : def);
 
+/**
+ * The engine's foliage sway displaces vertices by (world y * 0.03), so foliage high above sea level (hills, sky isles)
+ * would slide against its own trunk / the ground.  Props only ask for sway below `limit` metres of world height.
+ */
+export const swayOK = (kit, x, z, y, limit) => (typeof y === 'number' && Number.isFinite(y) ? y : kit.groundY(x, z)) < limit;
+
+/**
+ * Props that float (sky-island decor, the islands themselves) must not sample the TERRAIN shadow map: the map only knows
+ * about the ground far below them, which smears dark streaks over their tops.  For the duration of `fn` the lighting
+ * object reports full visibility (vis = 1) so those vertices get plain sky + sun/moon light.
+ */
+export function unshadowed(kit, fn) {
+  const L = kit.lighting;
+  if (!L || typeof L.vis !== 'function') return fn();
+  const own = Object.prototype.hasOwnProperty.call(L, 'vis');
+  const old = L.vis;
+  L.vis = () => 1;
+  try { return fn(); } finally { if (own) L.vis = old; else delete L.vis; }
+}
+
 /** Stable 0..1 hash of a 3D point: per-vertex colour noise without any RNG state (shared vertices share noise). */
 export function h3(x, y, z) {
   let h = (Math.floor(x * 5.13 + 1000) * 374761393 + Math.floor(y * 5.13 + 1000) * 668265263 + Math.floor(z * 5.13 + 1000) * 2246822519) | 0;
@@ -314,7 +334,11 @@ export function flat(b, x, y, z, s, yaw, o = {}) {
  *    baseFlat (true = also close the base with a fan, for floating crystals), jitter (per-vertex radius noise via rng r).
  */
 export function prism(b, B, d, r, L, tipL, sides, o = {}, rng = null) {
-  const { color, emissive, taper = 1, rot0 = 0, tipV = 0.72, baseFlat = false, jitter = 0 } = o;
+  const { color, emissive, taper = 1, rot0 = 0, baseFlat = false, jitter = 0, uvTile = 0 } = o;
+  // uvTile > 0: world units per texture repeat (for TILING textures such as cliff); otherwise every face maps the whole texture
+  const uMax = uvTile ? (TAU * r / sides) / uvTile : 1;
+  const vMax = uvTile ? (L + tipL) / uvTile : 1;
+  const tipV = uvTile ? L / (L + tipL) * vMax : (o.tipV ?? 0.72);
   const T = norm3(d);
   let N = Math.abs(T[1]) > 0.95 ? [1, 0, 0] : norm3(cross3([0, 1, 0], T));
   N = norm3(cross3(T, cross3(N, T)));
@@ -332,10 +356,10 @@ export function prism(b, B, d, r, L, tipL, sides, o = {}, rng = null) {
   const oo = { color, emissive, alpha: o.alpha };
   for (let k = 0; k < sides; k++) {
     const k2 = (k + 1) % sides;
-    b.tri(r0[k], r0[k2], r1[k2], [0, 0], [1, 0], [1, tipV], oo);
-    b.tri(r0[k], r1[k2], r1[k], [0, 0], [1, tipV], [0, tipV], oo);
-    b.tri(r1[k], r1[k2], apex, [0, tipV], [1, tipV], [0.5, 1], oo);
-    if (baseFlat) b.tri(r0[k2], r0[k], B, [1, 0], [0, 0], [0.5, 0.5], oo);
+    b.tri(r0[k], r0[k2], r1[k2], [0, 0], [uMax, 0], [uMax, tipV], oo);
+    b.tri(r0[k], r1[k2], r1[k], [0, 0], [uMax, tipV], [0, tipV], oo);
+    b.tri(r1[k], r1[k2], apex, [0, tipV], [uMax, tipV], [uMax * 0.5, vMax], oo);
+    if (baseFlat) b.tri(r0[k2], r0[k], B, [uMax, 0], [0, 0], [uMax * 0.5, 0.5 * uMax], oo);
   }
 }
 

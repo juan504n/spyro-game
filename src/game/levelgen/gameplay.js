@@ -73,13 +73,13 @@ export function finalizeGems(ctx) {
   for (const [x, y, z] of golds) gp.gems.push({ x, y, z, value: 10 });
 
   // roads: the classic trail of gems that leads you along
-  ctx.roadGems('main', 0.0, 1.0, 5.5, [1, 1, 2], 2.2);
-  ctx.roadGems('west', 0.05, 0.9, 4.6, [1, 1, 1, 2], 0);
-  ctx.roadGems('east', 0.05, 1.0, 4.6, [1, 1, 1, 2], 0);
-  ctx.roadGems('mill', 0.05, 0.95, 6.5, [1, 2], -1.4);
-  ctx.roadGems('ringW', 0.05, 0.95, 6.0, [1, 1, 2], 1.2);
-  ctx.roadGems('ringE', 0.05, 0.95, 6.0, [1, 1, 2], -1.2);
-  ctx.roadGems('summit', 0.03, 0.97, 7.5, [1, 2, 1, 5], 0);
+  ctx.roadGems('main', 0.0, 1.0, 8.0, [1, 1, 2], 2.2);
+  ctx.roadGems('west', 0.05, 0.9, 7.0, [1, 1, 1, 2], 0);
+  ctx.roadGems('east', 0.05, 1.0, 7.0, [1, 1, 1, 2], 0);
+  ctx.roadGems('mill', 0.05, 0.95, 9.0, [1, 2], -1.4);
+  ctx.roadGems('ringW', 0.05, 0.95, 9.0, [1, 1, 2], 1.2);
+  ctx.roadGems('ringE', 0.05, 0.95, 9.0, [1, 1, 2], -1.2);
+  ctx.roadGems('summit', 0.03, 0.97, 10.0, [1, 2, 1, 5], 0);
 
   let dyn = 0;
   for (const e of gp.enemies) dyn += sum(DROPS[e.variant] || DROPS.basic);
@@ -103,5 +103,5 @@ export function finalizeGems(ctx) {
     need -= v;
   }
   gp.gemsTotal = sum(gp.gems.map((g) => g.value)) + dyn;
-  gp.gemBreakdown = { dynamic: dyn, static: sum(gp.gems.map((g) => g.value)) };
+  gp.gemBreakdown = { dynamic: dyn, static: sum(gp.gems.map((g) => g.value)), fixed, topUp: target - fixed };
 }

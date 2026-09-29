@@ -26,11 +26,11 @@ export class ObjectSystem {
 
     this.portcullis = null;
     if (d.portcullis) {
-      const p = makeModel(g.assets, 'portcullis');
+      const p = makeModel(g.assets, 'portcullis', { frame: 'none', w: 2.2, h: 3.6 });   // the mill tower draws its own timber gate frame
       p.root.position.set(d.portcullis.x, d.portcullis.y, d.portcullis.z);
       rotY(p, d.portcullis.yaw || 0);
       g.dyn.add(p.root);
-      const c = col.add({ type: 'box', x: d.portcullis.x, z: d.portcullis.z, hx: 2.2, hz: 0.7, rot: d.portcullis.yaw || 0, y0: d.portcullis.y, y1: d.portcullis.y + 5, top: false, tag: 'gate' });
+      const c = col.add({ type: 'box', x: d.portcullis.x, z: d.portcullis.z, hx: 1.25, hz: 0.6, rot: d.portcullis.yaw || 0, y0: d.portcullis.y, y1: d.portcullis.y + 4, top: false, tag: 'gate' });
       this.portcullis = { model: p, open: 0, target: 0, c };
     }
     this.barrier = null;
@@ -39,7 +39,7 @@ export class ObjectSystem {
       b.root.position.set(d.barrier.x, d.barrier.y, d.barrier.z);
       rotY(b, d.barrier.yaw || 0);
       g.dyn.add(b.root);
-      const c = col.add({ type: 'box', x: d.barrier.x, z: d.barrier.z, hx: 6.5, hz: 0.9, rot: d.barrier.yaw || 0, y0: d.barrier.y - 2, y1: d.barrier.y + 14, top: false, tag: 'barrier' });
+      const c = col.add({ type: 'box', x: d.barrier.x, z: d.barrier.z, hx: 3.4, hz: 0.9, rot: d.barrier.yaw || 0, y0: d.barrier.y - 2, y1: d.barrier.y + 14, top: false, tag: 'barrier' });
       this.barrier = { model: b, open: 0, target: 0, c, x: d.barrier.x, z: d.barrier.z };
     }
     this.sails = null;

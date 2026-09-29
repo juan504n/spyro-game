@@ -3,9 +3,9 @@
 import { Rig, exposure, setExposure, setAlpha } from './common.js';
 import { litBuilder, clamp } from './geo.js';
 
-const W = 0.7, D = 0.42, BODY_H = 0.5;     // half width, half depth, body height
-const LID_A = 0.44, LID_B = 0.4;           // lid semi-axes (z, y)
-const LID_X = 0.72;
+const W = 0.85, D = 0.5, BODY_H = 0.5;      // half width, half depth, body height (footprint 1.7 x 1.0, radius ~1)
+const LID_A = D + 0.02, LID_B = 0.4;        // lid semi-axes (z, y)
+const LID_X = W + 0.02;
 const MAX_OPEN = (100 * Math.PI) / 180;
 
 export function createChest(assets, opts = {}) {
@@ -51,12 +51,12 @@ export function createChest(assets, opts = {}) {
   // ---- gold heap ------------------------------------------------------------------------------------------------
   {
     const g = litBuilder(1, 63);
-    g.at(0, 0.3, 0.0, (b) => b.blob(0.34, { detail: 0, noise: 0.18, sx: 1.7, sy: 0.75, sz: 1.0, tile: 0.8, color: [1.0, 0.86, 0.45] }));
-    g.at(-0.36, 0.3, 0.1, (b) => b.blob(0.16, { detail: 0, noise: 0.15, sx: 1.2, sy: 0.7, sz: 1.0, tile: 0.8, color: [1.0, 0.92, 0.55] }));
+    g.at(0, 0.3, 0.0, (b) => b.blob(0.4, { detail: 0, noise: 0.18, sx: 1.7, sy: 0.7, sz: 1.0, tile: 0.8, color: [1.0, 0.86, 0.45] }));
+    g.at(-0.42, 0.3, 0.1, (b) => b.blob(0.18, { detail: 0, noise: 0.15, sx: 1.2, sy: 0.7, sz: 1.0, tile: 0.8, color: [1.0, 0.92, 0.55] }));
     rig.mesh(g, mGold, null, { name: 'gold' });
     // glow card just under the rim
     const c = litBuilder(1, 64);
-    c.quad([-0.62, 0.47, 0.3], [0.62, 0.47, 0.3], [0.62, 0.47, -0.3], [-0.62, 0.47, -0.3], { uv: [0, 0, 1, 1], color: [0.5, 0.5, 0.5] });
+    c.quad([-0.75, 0.47, 0.36], [0.75, 0.47, 0.36], [0.75, 0.47, -0.36], [-0.75, 0.47, -0.36], { uv: [0, 0, 1, 1], color: [0.5, 0.5, 0.5] });
     rig.mesh(c, mGlow, null, { name: 'glow' });
   }
   // ---- lid (barrel vault) on a hinge pivot at the back top edge ---------------------------------------------------

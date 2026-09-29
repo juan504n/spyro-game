@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { U } from '../../../engine/materials.js';
 import {
   Rig, loft, ellipsoid, spike, bar, triC, triF, setBias, lit, unlit,
-  clamp, lerp, sstep, damp, mix3, TAU, nextSeed, seeded,
+  clamp, heal, lerp, sstep, damp, mix3, TAU, nextSeed, seeded,
 } from './rig.js';
 
 const TEAL = [0.14, 0.56, 0.58];
@@ -18,8 +18,8 @@ const GOLD = [1.0, 0.76, 0.26];
 const GOLD_LO = [0.80, 0.52, 0.14];
 const SKIN = [0.96, 0.78, 0.64];
 const NOSE = [0.98, 0.62, 0.56];
-const WHITE = [0.98, 0.97, 1.0];
-const WHITE_LO = [0.78, 0.76, 0.90];
+const WHITE = [1.0, 1.0, 1.0];
+const WHITE_LO = [0.86, 0.85, 0.96];
 const WOOD = [0.52, 0.34, 0.20];
 const BRASS = [0.95, 0.68, 0.24];
 const BRASS_LO = [0.58, 0.36, 0.10];
@@ -31,8 +31,8 @@ const lathe = (b, profile, segs, color, o = {}) => b.lathe(profile, segs, { colo
 
 // staff placement (the right hand grips it)
 const STAFF_AT = [-0.50, 0, 0.23];
-const STAFF_H = 2.02;
-const LANTERN_Y = 2.30;
+const STAFF_H = 1.86;
+const LANTERN_Y = 2.12;
 
 function robeGeo(b) {
   setBias(0.4);
@@ -132,7 +132,7 @@ function glassGeo(b) {
 
 export function createElder(assets, opts) {
   opts = opts || {};
-  const R = new Rig(assets);
+  const R = new Rig(assets, 'elder');
   const M = R.litMat(null);
   const G = R.glowMat(null);
   const seed = nextSeed(opts);
@@ -164,7 +164,8 @@ export function createElder(assets, opts) {
 
   function update(dt, pose) {
     pose = pose || {};
-    dt = clamp(dt || 0, 0, 0.1);
+    dt = clamp(dt, 0, 0.1);
+    heal(S);
     const talkT = pose.talk ? 1 : 0;
     const waveT = clamp(pose.wave || 0, 0, 1);
     S.time += dt; S.flick += dt;
@@ -186,8 +187,8 @@ export function createElder(assets, opts) {
     S.sylT -= dt;
     if (S.sylT <= 0) { S.sylT = 0.09 + rnd() * 0.12; S.syl = 0.35 + rnd() * 0.65; }
     const jaw = talk * (0.5 + 0.5 * Math.sin(t * 17)) * S.syl;
-    beard.rotation.set(0.22 * jaw + 0.02 * breath, 0, 0.04 * Math.sin(t * 2.2) + talk * 0.05 * Math.sin(t * 11));
-    beard.scale.set(1 + 0.05 * jaw, 1 - 0.07 * jaw, 1 + 0.05 * jaw);
+    beard.rotation.set(0.34 * jaw + 0.02 * breath, 0, 0.04 * Math.sin(t * 2.2) + talk * 0.07 * Math.sin(t * 11));
+    beard.scale.set(1 + 0.07 * jaw, 1 - 0.10 * jaw, 1 + 0.07 * jaw);
     // look about slowly
     S.lookT -= dt;
     if (S.lookT <= 0) { S.lookT = 2.5 + rnd() * 3; S.lookTarget = (rnd() - 0.5) * 0.7; }

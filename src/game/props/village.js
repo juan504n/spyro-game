@@ -6,12 +6,18 @@
 import { HOUSES } from './village/houses.js';
 import { LANDMARKS } from './village/landmarks.js';
 import { TOWERS } from './village/towers.js';
+import { STRUCTURES } from './village/structures.js';
+import { SMALL } from './village/small.js';
+import { EXTRAS } from './village/extras.js';
 import { makeDev } from './village/dev.js';
 
 const CORE = {
   ...HOUSES,
   ...LANDMARKS,
   ...TOWERS,
+  ...STRUCTURES,
+  ...SMALL,
+  ...EXTRAS,
 };
 
 const wantDev = typeof location !== 'undefined' && /[?&]vdev\b/.test(location.search);

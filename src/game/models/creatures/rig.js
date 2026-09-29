@@ -7,9 +7,29 @@ import * as THREE from 'three';
 import { Builder } from '../../../engine/builder.js';
 
 export const TAU = Math.PI * 2;
-export const clamp = (v, a = 0, b = 1) => (v < a ? a : v > b ? b : v);
+// NaN / non-numbers fall back to 0 (or the range start) so one bad input can never poison the smoothed animation state
+export const clamp = (v, a = 0, b = 1) => {
+  v = +v;
+  if (v !== v) return a <= 0 && b >= 0 ? 0 : a;
+  return v < a ? a : v > b ? b : v;
+};
+export const num = (x, d = 0) => (typeof x === 'number' && Number.isFinite(x) ? x : d);
+/** reset any non-finite number in a state bag to 0 (self-healing animation state) */
+export function heal(S) {
+  for (const k in S) if (typeof S[k] === 'number' && !Number.isFinite(S[k])) S[k] = 0;
+}
 export const lerp = (a, b, t) => a + (b - a) * t;
 export const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+/** underdamped spring on S[key] (velocity in S[key + 'V']); sub-stepped so any dt is stable. Overshoots for a bouncy settle. */
+export function spring(S, key, target, k, c, dt) {
+  const vk = key + 'V';
+  let p = S[key] || 0, v = S[vk] || 0;
+  const n = Math.max(1, Math.ceil(dt / (1 / 90)));
+  const h = dt / n;
+  for (let i = 0; i < n; i++) { v += (k * (target - p) - c * v) * h; p += v * h; }
+  S[key] = p; S[vk] = v;
+  return p;
+}
 /** frame-rate independent exponential approach */
 export const damp = (cur, target, rate, dt) => cur + (target - cur) * (1 - Math.exp(-rate * dt));
 export const mix3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
@@ -34,8 +54,15 @@ export const unlit = () => new Builder();   // non-lit builder: colours bake as 
  * A model under construction: owns the root/rig groups and every material/geometry/texture so that flash(), tint()
  * and dispose() are trivial and nothing leaks between instances.
  */
+// Geometry is identical between instances of a model (all animation is pivot-driven), so parts built through
+// Rig.part() with a cache key are built once and shared; only materials are per instance. Shared geometry is never
+// disposed with an instance (it is a few KB and lives as long as the page).
+const GEO_CACHE = new Map();
+
 export class Rig {
-  constructor(assets) {
+  /** @param {string|null} cacheKey  e.g. 'snuffer:bell' — enables geometry sharing between instances */
+  constructor(assets, cacheKey = null) {
+    this.cacheKey = cacheKey;
     this.assets = assets;
     this.root = new THREE.Group();
     this.rig = new THREE.Group();          // all visuals live here so the game keeps free use of root.visible/position
@@ -59,6 +86,7 @@ export class Rig {
   /** unique fullbright material (pair with an `unlit()` builder). */
   glowMat(tex = null, o = {}) {
     const m = this.assets.mat(tex, { lit: false, unique: true, ...o });
+    m.userData.noMul = true;      // the model drives this material's brightness itself (flicker, dimming)
     this.mats.push(m);
     return m;
   }
@@ -76,11 +104,21 @@ export class Rig {
 
   /** Run fn(builder) on a fresh builder (lit unless `glow`) and mesh it under `parent`. */
   part(parent, material, fn, name = '', glow = false, bias = 0) {
-    const b = glow ? unlit() : lit();
-    setBias(bias);
-    fn(b);
-    setBias(0);
-    return this.mesh(parent, b, material, name);
+    const key = this.cacheKey ? `${this.cacheKey}/${name}` : null;
+    let geo = key ? GEO_CACHE.get(key) : null;
+    if (!geo) {
+      const b = glow ? unlit() : lit();
+      setBias(bias);
+      fn(b);
+      setBias(0);
+      geo = b.build();
+      if (key) GEO_CACHE.set(key, geo); else this.geos.push(geo);
+    }
+    const mesh = new THREE.Mesh(geo, material);
+    if (name) mesh.name = name;
+    parent.add(mesh);
+    this.meshes.push(mesh);
+    return mesh;
   }
 
   /** Build `builder` into a mesh under `parent`. */
@@ -96,7 +134,7 @@ export class Rig {
 
   get triangleCount() {
     let n = 0;
-    for (const g of this.geos) n += g.attributes.position.count / 3;
+    for (const m of this.meshes) n += m.geometry.attributes.position.count / 3;
     return n | 0;
   }
 

@@ -208,7 +208,7 @@ export function generateTerrain(L = LEVEL, W = WORLD) {
   for (const r of L.rivers) {
     const dense = pathProfile(r.pts, baseSample, 1.6);
     // river surface height is pinned; bed is 1.4 below
-    carve(dense, r.width, 4.5, 1.5, riverDist, null, 0);
+    carve(dense, r.width, 3.0, 1.5, riverDist, null, 0);
     rivers.push({ id: r.id, width: r.width, pts: dense });
   }
 

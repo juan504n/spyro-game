@@ -4,7 +4,7 @@
 // setColor([r,g,b]) tints it, setIntensity(k) fades it (0..1, hidden at 0); the texture scrolls upward.
 import { U } from '../../../engine/materials.js';
 import { Rig, setAlpha } from './common.js';
-import { litBuilder, TAU, clamp, lerp } from './geo.js';
+import { litBuilder, TAU, clamp, lerp, smooth } from './geo.js';
 
 const TEX_H = 16;   // world units per repeat of the 16x64 beam texture
 
@@ -53,26 +53,31 @@ export function createLightBeam(assets, opts = {}) {
   // ground flare
   {
     const b = litBuilder(1, 123);
-    b.disc(R * 2.6, 8, { y: 0.14, uvDisc: true, color: [g, g, g] });
+    b.disc(R * 1.9, 8, { y: 0.14, uvDisc: true, color: [g, g, g] });
     rig.mesh(b, mFlare, null, { name: 'flare', order: 8 });
   }
   rig.anchor(anchors, 'base', 0, 0, 0);
   rig.anchor(anchors, 'top', 0, H, 0);
 
   const st = { k: clamp(opts.intensity ?? 1), color: col.slice(), t: 0 };
+  // Additive light washes towards white against a bright/violet sky, so the requested tint is pushed to a more saturated
+  // colour (power curve) before it multiplies the greyscale beam texture.
   const paint = () => {
     const c = st.color;
-    mOuter.uniforms.uColorMul.value.setRGB(c[0], c[1], c[2]);
-    mCore.uniforms.uColorMul.value.setRGB(lerp(c[0], 1, 0.3), lerp(c[1], 1, 0.3), lerp(c[2], 1, 0.3));
-    mFlare.uniforms.uColorMul.value.setRGB(c[0], c[1], c[2]);
+    const pw = (v, e) => Math.pow(clamp(v, 0, 1), e);
+    mOuter.uniforms.uColorMul.value.setRGB(pw(c[0], 1.9), pw(c[1], 1.9), pw(c[2], 1.9));
+    mCore.uniforms.uColorMul.value.setRGB(pw(c[0], 1.5), pw(c[1], 1.5), pw(c[2], 1.5));
+    mFlare.uniforms.uColorMul.value.setRGB(pw(c[0], 1.9), pw(c[1], 1.9), pw(c[2], 1.9));
   };
   const apply = () => {
-    const k = st.k, t = st.t;
+    const t = st.t;
+    // soft knee: a dim beam keeps its strength, a strong one is compressed so the stacked additive layers do not clip to white
+    const k = st.k * (1 - 0.35 * smooth(0.4, 1, st.k));
     const dim = 1 - 0.3 * U.uDay.value;   // additive light washes out against the bright daybreak sky
     setAlpha(mOuter, k * dim * (0.4 + 0.07 * Math.sin(t * 2.1)));
     setAlpha(mCore, k * dim * (0.48 + 0.08 * Math.sin(t * 3.3 + 1)));
     setAlpha(mFlare, k * dim * (0.7 + 0.15 * Math.sin(t * 4.1)));
-    rig.root.visible = k > 0.003;
+    rig.root.visible = st.k > 0.003;
   };
   paint();
   const model = {

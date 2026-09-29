@@ -23,7 +23,7 @@ export function spiral(cx, cz, r0, r1, a0, turns, y0, y1, steps = 40) {
 
 export const LEVEL = {
   name: 'Gloaming Vale',
-  spawn: { x: 0, z: 164, yaw: Math.PI },
+  spawn: { x: 0, z: 158, yaw: Math.PI },
 
   // valley shell: playable ellipse, ringed by impassable mountains
   valley: { x: 0, z: 14, rx: 176, rz: 176, rimStart: 0.84 },
@@ -39,7 +39,7 @@ export const LEVEL = {
   gate: { x: 0, z: -90 },                                           // the Dawn Gate at the mountain's foot
   hollow: { x: -68, z: -70, r: 20 },                               // crystal hollow bowl
   heron: { x: 12, z: -12, r: 12, fall: 8, h: 15 },                 // headland over the lake's north shore
-  cascade: { x: 72, z: -104, r: 30, fall: 9, h: 30 },              // plateau the waterfall pours from
+  cascade: { x: 72, z: -104, r: 30, fall: 4, h: 30 },              // plateau the waterfall pours from
   ruinsMound: { x: -78, z: 102, r: 13, h: 6.2 },
 
   // rolling hills that break up the valley floor and frame sight-lines
@@ -75,7 +75,7 @@ export const LEVEL = {
     { id: 'mill', surface: 'dirt', width: 4.2, pts: spiral(112, 26, 40, 11, Math.PI * 0.62, 1.45, 3.2, 20.2, 44) },
     { id: 'ringW', surface: 'dirt', width: 4.4, pts: [[-80, 62], [-72, 34], [-70, 6], [-58, -24], [-40, -50], [-28, -68], [-15, -76], [-5, -82], [0, -86], [0, -91, 4.4]] },
     { id: 'ringE', surface: 'dirt', width: 4.4, pts: [[76, 58], [70, 28], [62, 4], [52, -16], [44, -40], [30, -64], [14, -74], [5, -81], [0, -86], [0, -91, 4.4]] },
-    { id: 'summit', surface: 'cobble', width: 6, pts: [[0, -91, 4.4], [0, -95, 4.7], ...spiral(0, -132, 37, 9, Math.PI * 0.5, 1.85, 5.0, 59.5, 54)] },
+    { id: 'summit', surface: 'cobble', width: 6, pts: [[0, -91, 4.4], ...spiral(0, -132, 37, 9, Math.PI * 0.5, 1.85, 5.0, 59.5, 54)] },
     { id: 'ruins', surface: 'dirt', width: 3.6, pts: [[-58, 74], [-66, 90], [-76, 100]] },
     { id: 'meadow', surface: 'dirt', width: 3.6, pts: [[30, 86], [50, 98], [72, 102]] },
     { id: 'hollow', surface: 'dirt', width: 3.6, pts: [[-50, -36], [-60, -50], [-66, -58]] },
@@ -84,6 +84,6 @@ export const LEVEL = {
 
   // streams: surfaceY pinned; carved bed sits below the surface
   rivers: [
-    { id: 'river', width: 6.5, pts: [[72, -62, 4.2], [70, -44, 3.6], [60, -30, 2.8], [50, -18, 2.0], [42, -8, 1.2], [40, 4, 0.4]] },
+    { id: 'river', width: 6.5, pts: [[72, -68, 2.4], [72, -62, 2.4], [70, -44, 2.2], [60, -30, 1.9], [50, -18, 1.4], [42, -8, 0.85], [40, 4, 0.15]] },
   ],
 };

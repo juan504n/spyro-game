@@ -45,13 +45,13 @@ export const OBJECTS = {
   },
   barrier: {
     create: createBarrier,
-    size: 11,
-    note: 'Dawn Gate energy wall 12x11 (XY plane, double sided), setOpen(k) 0..1 dissolves it',
+    size: 12,
+    note: 'Dawn Gate energy wall (XY plane, double sided, base at y=0), default fills the gate_pillars opening 6.2x11.6; opts w/wTop/h/arch; setOpen(k) 0..1 dissolves it',
   },
   portcullis: {
     create: createPortcullis,
     size: 10,
-    note: 'iron grate gate 4x5 opening in a 5.8x10.4 stone/timber frame, setOpen(k) lifts the grate 4.5 into the lintel block',
+    note: 'iron grate gate: opts w/h (4x5), frame "stone" (5.8x10.4 gatehouse, grate lifts 4.5 into it) or "none" (grate only, for an existing frame); setOpen(k)',
   },
   light_beam: {
     create: createLightBeam,

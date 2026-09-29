@@ -14,6 +14,17 @@ const LILAC = ['#f4eeff', '#b8a8e8'];
 const INK = '#120c1c';
 const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
+/** Unlit copy of an icon (empty star slots on the results screen). */
+function dimIcon(src) {
+  const c = src.clone(), d = c.data;
+  for (let i = 0; i < d.length; i += 4) {
+    if (!d[i + 3]) continue;
+    const l = (d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11) / 255;
+    d[i] = 30 + l * 34; d[i + 1] = 22 + l * 26; d[i + 2] = 64 + l * 44;
+  }
+  return c;
+}
+
 // import.meta.glob tolerates a missing file (dev) and is replaced by a static import for the single-file build
 const audioModules = import.meta.glob('../engine/audio/audio.js');
 
@@ -130,6 +141,7 @@ class App {
     g.player.cheer = false;
     const b = g.beacons.list.find((x) => x.def.id === 'dawn') || g.beacons.list[g.beacons.list.length - 1];
     g.dayTarget = 1;
+    g.hud.hintState = null;
     this.audio?.stinger?.('sunrise');
     g.hud.banner('THE SUN RISES!', '', 4.5);
     setTimeout(() => { g.hud.banner('GLOAMING VALE IS SAVED', 'THANK YOU, SPYRO', 5); }, 5200);
@@ -352,7 +364,10 @@ class App {
     for (let i = 0; i < 3; i++) {
       const on = i < this.results.stars && this.resultsT > 0.5 + i * 0.4;
       const ic = icons.star;
-      if (ic) { if (on) pix.blit(ic, W / 2 - 24 + i * 16, y + h - 26); else pix.rect(W / 2 - 22 + i * 16, y + h - 23, 6, 6, '#2a1e50'); }
+      if (ic) {
+        if (!this._dimStar) this._dimStar = dimIcon(ic);
+        pix.blit(on ? ic : this._dimStar, W / 2 - 24 + i * 16, y + h - 26);
+      }
     }
     if (this.resultsT > 1.2 && Math.floor(this.t * 2) % 2 === 0) drawText(pix, 'ENTER: KEEP EXPLORING', W >> 1, y + h - 10, { style: 'outline', align: 'center', color: '#ffe27a', outlineColor: INK });
   }

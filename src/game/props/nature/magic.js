@@ -136,16 +136,8 @@ export function standingStones(kit, { x, z, rot = 0, scale = 1, y, r: ringR, cou
   });
 }
 
-function lineup(kit, { x, z }) {
-  crystalCluster(kit, { x: x - 14, z, color: 'violet' });
-  crystalCluster(kit, { x: x - 6, z, color: 'cyan', count: 5 });
-  crystalSpire(kit, { x: x + 6, z, color: 'violet', h: 9 });
-  crystalSpire(kit, { x: x + 16, z, color: 'cyan', h: 6 });
-}
-
 export const MAGIC = {
-  crystal_cluster: { fn: crystalCluster, size: 5, note: 'glowing crystal cluster (color violet|cyan, count, size) with glow point + sparkles', defaults: { color: 'violet', count: 6 } },
-  crystal_spire: { fn: crystalSpire, size: 7, note: 'tall crystal spire h up to 9 (color violet|cyan) with glow + sparkles', defaults: { color: 'violet', h: 8 } },
-  standing_stones: { fn: standingStones, size: 16, note: 'ring of runed monoliths around a glowing rune circle; r (ring radius), count', defaults: { r: 6, count: 7 } },
-  _magic: { fn: lineup, size: 80, note: 'dev lineup' },
+  crystal_cluster: { fn: crystalCluster, size: 5, note: 'glowing crystal cluster (color violet|cyan, count, size) with glow point + sparkles', defaults: { color: 'violet', count: 6 }, anchors: { core: [0, 1.8, 0] } },
+  crystal_spire: { fn: crystalSpire, size: 7, note: 'tall crystal spire h up to 9 (color violet|cyan) with glow + sparkles', defaults: { color: 'violet', h: 8 }, anchors: { core: [0, 4, 0], tip: [0, 8, 0] } },
+  standing_stones: { fn: standingStones, size: 16, note: 'ring of runed monoliths around a glowing rune circle; r (ring radius), count', defaults: { r: 6, count: 7 }, anchors: { center: [0, 0.1, 0] } },
 };

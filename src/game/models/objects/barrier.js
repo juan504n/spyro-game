@@ -1,33 +1,41 @@
-// BARRIER — the "Dawn Gate" energy wall: a translucent shimmering violet field filling a tall arched opening
-// (12 wide x 11 tall, base at y = 0, in the XY plane, visible from both sides). Three additive/half layers with
-// different uv scrolls (dark veil, glowing lattice, bright rim). setOpen(k): 0 = solid field .. 1 = dissolved (hidden).
+// BARRIER — the "Dawn Gate" energy wall: a translucent shimmering violet field filling a tall gate opening (base at y = 0,
+// in the XY plane, visible from both sides). Three additive/half layers with different uv scrolls (dark veil, glowing
+// lattice, bright rim). setOpen(k): 0 = solid field .. 1 = dissolved (hidden).
+//
+// Size: opts.w x opts.h (+ opts.wTop for a field that widens towards the top, opts.arch = height of an elliptical arch
+// on top, 0 = flat top). DEFAULT = the real Dawn Gate prop (gate_pillars: opening 6.0 wide x 11.5 tall, inner faces leaning
+// out to 6.6 at the top): w 6.2, wTop 6.7, h 11.6, no arch.  The original brief (12 x 11 arched) is
+// { w: 12, wTop: 12, h: 11, arch: 3.8 }.
 import { Rig, setAlpha } from './common.js';
 import { litBuilder, smooth, clamp, lerp } from './geo.js';
 
-const HALF_W = 6, WALL_H = 7.2, ARCH_H = 3.8, ARCH_N = 8;
-const CY = 4.4;   // fan centre height
+const ARCH_N = 8;
 
-function outline() {
-  const pts = [[-HALF_W, 0], [HALF_W, 0]];
-  for (let i = 0; i <= ARCH_N; i++) {
-    const a = (i / ARCH_N) * Math.PI;
-    pts.push([HALF_W * Math.cos(a), WALL_H + ARCH_H * Math.sin(a)]);
+function outline(w, wTop, h, arch) {
+  if (arch > 0) {
+    const pts = [[-w / 2, 0], [w / 2, 0]];
+    for (let i = 0; i <= ARCH_N; i++) {
+      const a = (i / ARCH_N) * Math.PI;
+      pts.push([(w / 2) * Math.cos(a), h - arch + arch * Math.sin(a)]);
+    }
+    return pts;   // CCW seen from +z
   }
-  return pts;   // CCW seen from +z
+  return [[-w / 2, 0], [w / 2, 0], [wTop / 2, h], [-wTop / 2, h]];
 }
 
 export function createBarrier(assets, opts = {}) {
+  const W = opts.w ?? 6.2, WT = opts.wTop ?? (opts.w ? opts.w : 6.7), H = opts.h ?? 11.6, ARCH = opts.arch ?? 0;
+  const CY = H * 0.4;   // fan centre height
   const rig = new Rig(assets);
   const anchors = {};
   const mVeil = rig.half('barrier', { double: true, scroll: [0.0, 0.05], depthWrite: false });
   const mGlow = rig.glow('barrier', { double: true, scroll: [0.05, -0.14] });
   const mRim = rig.glow(null, { double: true });
-  const P = outline();
+  const P = outline(W, WT, H, ARCH);
   const n = P.length;
   const N = [0, 0, 1];
   const C = [0, CY, 0];
-  const rc = (p) => Math.hypot(p[0], (p[1] - CY) * 0.6);
-  const rMax = Math.max(...P.map(rc));
+  let veilMesh = null, glowMesh = null;
   const T = 3.2;                                  // world units per texture repeat
   const uvOf = (p, o = 0) => [p[0] / T + o, p[1] / T];
 
@@ -42,11 +50,11 @@ export function createBarrier(assets, opts = {}) {
   {
     const b = litBuilder(1, 101);
     fan(b, [0.3, 0.2, 0.62], [0.55, 0.38, 0.95], 0.8, 1.0, T, 0);
-    rig.mesh(b, mVeil, null, { name: 'veil', order: 8 });
+    veilMesh = rig.mesh(b, mVeil, null, { name: 'veil', order: 8 });
     const g = litBuilder(1, 102);
     g.translate(0, 0, 0.06);
     fan(g, [0.3, 0.2, 0.55], [0.5, 0.34, 0.85], 0.5, 1.0, T, 0.37);
-    rig.mesh(g, mGlow, null, { name: 'glow', order: 9 });
+    glowMesh = rig.mesh(g, mGlow, null, { name: 'glow', order: 9 });
     // rim band (inset 0.9): bright at the frame, fading into the field
     const r = litBuilder(1, 103);
     const inset = (p) => { const dx = p[0] - C[0], dy = p[1] - C[1]; const l = Math.hypot(dx, dy) || 1; const k = 1 - 0.95 / l; return [C[0] + dx * k, C[1] + dy * k]; };
@@ -59,18 +67,36 @@ export function createBarrier(assets, opts = {}) {
     }
     rig.mesh(r, mRim, null, { name: 'rim', order: 10 });
   }
-  rig.anchor(anchors, 'center', 0, 5.5, 0);
+  rig.anchor(anchors, 'center', 0, H / 2, 0);
+
+  // dissolve: the fan's centre vertices fade first, the rim vertices last, so a hole opens in the middle of the field and
+  // widens to the frame (per-vertex alpha lives in the aCol attribute; base values are remembered)
+  const layers = [veilMesh, glowMesh].map((m) => {
+    const attr = m.geometry.attributes.aCol;
+    return { attr, base: Uint8Array.from({ length: attr.count }, (_, i) => attr.array[i * 4 + 3]) };
+  });
+  let lastK = -1;
+  const irisAlpha = (k) => {
+    if (Math.abs(k - lastK) < 1e-4) return;
+    lastK = k;
+    const cf = 1 - smooth(0.0, 0.5, k), ef = 1 - smooth(0.4, 0.95, k);
+    for (const { attr, base } of layers) {
+      for (let i = 0; i < attr.count; i++) attr.array[i * 4 + 3] = Math.round(base[i] * (i % 3 === 0 ? cf : ef));
+      attr.needsUpdate = true;
+    }
+  };
 
   const st = { k: clamp(opts.open ?? 0), target: clamp(opts.open ?? 0), t: 0 };
   const apply = () => {
     const k = st.k, t = st.t;
     const pulse = 0.5 + 0.5 * Math.sin(t * 1.9);
     const shim = 0.5 + 0.5 * Math.sin(t * 5.3 + 1.7) * Math.sin(t * 1.3);
-    const fade = 1 - smooth(0.1, 0.95, k);
-    const surge = 1 + 0.9 * Math.sin(Math.PI * clamp(k * 1.7));
+    irisAlpha(k);
+    const fade = 1 - smooth(0.9, 1.0, k);
+    const surge = 1 + 0.5 * Math.sin(Math.PI * clamp(k * 1.7));
     const flick = k > 0 && k < 1 ? 1 - 0.45 * (0.5 + 0.5 * Math.sin(t * 47)) * Math.sin(Math.PI * k) : 1;
     setAlpha(mVeil, 1.5 * (0.9 + 0.1 * pulse) * fade * flick);
-    setAlpha(mGlow, (0.42 + 0.14 * shim) * surge * (1 - smooth(0.45, 1, k)) * flick);
+    setAlpha(mGlow, (0.42 + 0.14 * shim) * surge * fade * flick);
     setAlpha(mRim, (0.7 + 0.2 * pulse) * (1 - smooth(0.3, 0.9, k)) * flick);
     mVeil.uniforms.uScroll.value.set(0, 0.05 + 0.5 * k);
     mGlow.uniforms.uScroll.value.set(0.05, -0.14 - 0.9 * k);
@@ -79,8 +105,9 @@ export function createBarrier(assets, opts = {}) {
   const model = {
     root: rig.root,
     anchors,
-    radius: 6,
-    height: WALL_H + ARCH_H,
+    radius: Math.max(6, W / 2),
+    height: H,
+    size: { w: W, h: H },
     tris: rig.tris,
     get open() { return st.target; },
     setOpen(k) { st.target = clamp(k); },

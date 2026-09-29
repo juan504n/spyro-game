@@ -11,7 +11,8 @@
 //   - every sfx name, loop, stinger and control call runs without throwing,
 //   - audio actually reaches the output (an AnalyserNode on the last node sees energy) and never
 //     exceeds full scale, even in a 200-trigger gem burst; the voice pool stays under its cap,
-//   - the day/night crossfade is equal-power (cos^2 + sin^2 = 1).
+//   - the day/night crossfade is equal-power (cos^2 + sin^2 = 1),
+//   - setMuffled() low-passes world sounds but lets UI sounds through unfiltered.
 // Playwright is the global install; chromium is launched with autoplay allowed. Exit code 1 on failure.
 
 import http from 'node:http';
@@ -190,6 +191,26 @@ async function inPage() {
   tryCall('startMusic after stop', () => A.startMusic());
   await sleep(200);
   tryCall('stopMusic 2', () => A.stopMusic(0));
+
+  // 7. pause-menu muffle: world sounds are low-passed, UI sounds bypass the filter
+  await sleep(2200); // let every voice from the burst finish
+  // short sounds are easy to under-sample, so take the loudest short-window RMS over three triggers
+  const peakOf = async (name, opts) => { let best = 0; for (let k = 0; k < 3; k++) { await sleep(250); A.sfx(name, opts); best = Math.max(best, (await watch(200)).rms); } return best; };
+  tryCall('setMuffled(false)', () => A.setMuffled(false));
+  await sleep(500);
+  const uiOpen = await peakOf('ui_move', { vol: 1 });
+  const gemOpen = await peakOf('gem_red', { vol: 1 });
+  tryCall('setMuffled(true)', () => A.setMuffled(true));
+  await sleep(700);
+  const uiMuf = await peakOf('ui_move', { vol: 1 });
+  const gemMuf = await peakOf('gem_red', { vol: 1 });
+  tryCall('setMuffled(false) again', () => A.setMuffled(false));
+  report.muffle = { uiOpen, uiMuf, gemOpen, gemMuf };
+  if (!(uiOpen > 0.05 && gemOpen > 0.05)) fail('unmuffled sfx not seen at the output');
+  else {
+    if (uiMuf < uiOpen * 0.7) fail(`UI sound was muffled (${uiMuf.toFixed(3)} vs ${uiOpen.toFixed(3)})`);
+    if (gemMuf > gemOpen * 0.6) fail(`world sound was not muffled (${gemMuf.toFixed(3)} vs ${gemOpen.toFixed(3)})`);
+  }
   return report;
 }
 
@@ -224,6 +245,7 @@ else {
     console.log(`run ${i + 1}: init ${r.initMs.toFixed(0)} ms | progress calls ${r.progressCalls} | longest task ${r.maxLongTaskMs.toFixed(0)} ms (${r.longTasks} long) | longest event-loop gap ${r.maxLoopGapMs.toFixed(0)} ms`);
     console.log(`  context ${r.ctxState} @ ${r.ctxRate} Hz, base latency ${r.baseLatency ? (r.baseLatency * 1000).toFixed(1) + ' ms' : 'n/a'}, ${r.buffers} buffers, clock advances: ${r.clockAdvances}`);
     console.log(`  music rms at output ${r.musicRms.toFixed(3)}, burst: ${r.voicesInBurst} voices, peak ${r.burstPeak.toFixed(3)}, max peak seen ${r.maxPeakSeen.toFixed(3)}, muffle freq ${Math.round(r.mufFreq)} Hz`);
+    console.log(`  muffle test (loudest RMS at output): ui_move ${r.muffle.uiOpen.toFixed(3)} -> ${r.muffle.uiMuf.toFixed(3)} (bypasses), gem_red ${r.muffle.gemOpen.toFixed(3)} -> ${r.muffle.gemMuf.toFixed(3)} (filtered)`);
     console.log('  crossfade (day, gloaming gain, daybreak gain, power): ' + r.crossfade.map((p) => `${p.d}: ${p.night.toFixed(3)}/${p.day.toFixed(3)}/${p.sum.toFixed(3)}`).join('  '));
     if (r.notes.length) console.log('  notes: ' + r.notes.join(' | '));
     console.log(r.errors.length ? '  FAILURES:\n    ' + r.errors.join('\n    ') : '  all checks passed');

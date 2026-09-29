@@ -31,7 +31,7 @@ export function layoutVillage(ctx) {
   put('bunting', 0, 0, { ax: -9, az: 142, bx: 9, bz: 145, h: 5.2 });
 
   // welcome arch (the realm portal) behind the spawn point
-  put('arch_gate', 0, L.spawn.z + 8, { rot: Math.PI }, 6);
+  put('arch_gate', 0, L.spawn.z + 14, { rot: Math.PI }, 6);
 
   // lamp posts down the cobbled main road
   const main = ctx.grid.paths.find((p) => p.id === 'main');
@@ -85,7 +85,7 @@ export function layoutLake(ctx) {
   put('crystal_cluster', I.x - 6, I.z + 3, { color: 'violet', count: 5 }, 2);
   put('tree_lantern', I.x - 3, I.z - 7, { canopy: 'leaves_teal', size: 's' }, 3);
   put('bush', I.x + 4, I.z + 6, { flowers: true }, 1.5);
-  ctx.addChest(I.x + 5.5, I.z + 5, 2.4, [10, 5, 2]);
+  ctx.addChest(I.x + 5.5, I.z + 5, 2.4, [10, 5]);
   ctx.addEnemy(I.x - 5, I.z + 4, 'basic', 3);
   gp.hints.push({ x: -4, z: 70, r: 7, text: 'HOP THE STONES OR GLIDE OFF HERON POINT TO REACH THE ISLE', dur: 6.5 });
   // shoreline dressing: reeds, lily pads, rocks
@@ -123,8 +123,9 @@ export function layoutRiver(ctx) {
   // waterfall at the cascade plateau's south lip, bridge where the east ring road crosses the river
   const river = grid.rivers[0];
   const src = river.pts[0];
-  put('waterfall', src[0] - 2, src[2] - 8, { rot: 0, h: 27, w: 8 }, 8);
-  put('crystal_cluster', src[0] + 12, src[2] - 4, { color: 'cyan', count: 4 }, 2);
+  put('waterfall', src[0], src[2] - 3, { rot: 0, h: 26, w: 8, y: src[1] }, 8);
+  gp.soundSources.push({ name: 'waterfall', x: src[0], y: src[1] + 6, z: src[2] - 1, range: 64, vol: 1.9 });
+  put('crystal_cluster', src[0] + 13, src[2] + 2, { color: 'cyan', count: 4 }, 2);
   // bridge: find first crossing of ringE with the river
   const ring = grid.paths.find((p) => p.id === 'ringE');
   let best = null;
@@ -135,7 +136,7 @@ export function layoutRiver(ctx) {
   if (best) {
     const a = ring.pts[Math.max(best.i - 2, 0)], b = ring.pts[Math.min(best.i + 2, ring.pts.length - 1)];
     const yaw = Math.atan2(b[0] - a[0], b[2] - a[2]);
-    put('bridge_stone', best.q[0], best.q[2], { rot: yaw, len: 14 }, 8);
+    put('bridge_stone', best.q[0], best.q[2], { rot: yaw, len: 18 }, 9);
     gp.hints.push({ x: best.q[0], z: best.q[2], r: 9, text: 'THE OLD BRIDGE CROSSES THE STREAM', dur: 4 });
   }
   void L; void h;
@@ -159,7 +160,7 @@ export function layoutRuins(ctx) {
   put('boulder_big', wx - 6, wz, { rot: 0.5, scale: 0.9 }, 4);
   put('boulder_big', wx + 6, wz - 0.5, { rot: 2.1, scale: 0.9 }, 4);
   ctx.addWall(wx, wz, 0, 6, 5.2, [25]);
-  ctx.addChest(wx, wz - 5, 0, [10, 10]);
+  ctx.addChest(wx, wz - 5, 0, [10, 5]);
   put('flower_patch', wx, wz - 3, { r: 4, count: 14 }, 3);
   gp.hints.push({ x: wx, z: wz + 10, r: 8, text: 'THAT WALL LOOKS CRACKED... TRY CHARGING IT', dur: 6 });
   void h;
@@ -175,6 +176,7 @@ export function layoutWindmill(ctx) {
   const beacon = ctx.anchor('windmill_body', 'beacon', W.x, W.z, { rot: yaw });
   const gate = ctx.anchor('windmill_body', 'gate', W.x, W.z, { rot: yaw });
   if (sails) gp.sails = { x: sails[0], y: sails[1], z: sails[2], yaw };
+  if (sails) gp.soundSources.push({ name: 'windmill', x: sails[0], y: sails[1], z: sails[2], range: 40, vol: 1.7 });
   gp.beacons.push({ id: 'mill', name: 'MILL BEACON', x: beacon ? beacon[0] : W.x, y: beacon ? beacon[1] : top + 9, z: beacon ? beacon[2] : W.z, yaw });
   if (gate) gp.portcullis = { x: gate[0], y: gate[1], z: gate[2], yaw: gate[3] };
   // braziers along the spiral road
@@ -232,7 +234,7 @@ export function layoutSkyIsles(ctx) {
     if (k === 1 || k === 2) ctx.addEnemy(I.x, I.z, 'thorn', 4, I.y);
     if (k === 2) ctx.addEnemy(I.x + 5, I.z - 4, 'bell', 4, I.y);
     if (k === 0) { ctx.addChest(I.x - 4, I.z + 3, 0, [10, 5], I.y); }
-    if (k === 2) { ctx.addChest(I.x - 4, I.z + 4, 0, [10, 10, 5], I.y); }
+    if (k === 2) { ctx.addChest(I.x - 4, I.z + 4, 0, [10, 5, 5], I.y); }
   });
   const I4 = L.isles[3];
   gp.beacons.push({ id: 'sky', name: 'SKY BEACON', x: I4.x, y: I4.y, z: I4.z, yaw: 0 });
@@ -254,7 +256,7 @@ export function layoutHollow(ctx) {
   put('mushroom_cluster', K.x - 10, K.z + 3, { count: 6 }, 3);
   put('tree_lantern', K.x - 11, K.z + 15, { canopy: 'leaves_teal', size: 'm' }, 4);
   put('tree_lantern', K.x + 11, K.z + 15, { canopy: 'leaves_teal', size: 'm' }, 4);
-  ctx.addChest(K.x, K.z - 7, 0, [10, 5, 5]);
+  ctx.addChest(K.x, K.z - 7, 0, [10, 5]);
   ctx.addVase(K.x - 4, K.z - 3, [5]); ctx.addVase(K.x + 5, K.z - 2, [2, 5]);
   ctx.addEnemy(K.x - 4, K.z + 4, 'basic', 4); ctx.addEnemy(K.x + 5, K.z + 6, 'bell', 4);
   ctx.gp.purple = ctx.gp.purple || [];
@@ -267,7 +269,8 @@ export function layoutNorth(ctx) {
   const gy = h(gx, gz);
   put('gate_pillars', gx, gz, { rot: 0 }, 8);
   const gate = ctx.anchor('gate_pillars', 'barrier', gx, gz, { rot: 0 });
-  gp.barrier = { x: gate ? gate[0] : gx, y: gate ? gate[1] : gy, z: gate ? gate[2] : gz, yaw: 0 };
+  gp.barrier = { x: gate ? gate[0] : gx, y: gate ? gate[1] - 5.75 : gy, z: gate ? gate[2] : gz, yaw: 0 };   // anchor is mid-opening; the field's origin is its base
+  gp.soundSources.push({ name: 'portal_hum', x: gp.barrier.x, y: gp.barrier.y + 4, z: gp.barrier.z, range: 38, vol: 1.4, when: 'barrier' });
   gp.hints.push({ x: gx, z: gz + 12, r: 9, text: 'THE DAWN GATE WILL OPEN WHEN FOUR BEACONS BURN', dur: 7 });
   // the summit road: lamps + guards + tower
   const S = L.summit;
@@ -290,9 +293,16 @@ export function layoutNorth(ctx) {
   for (const [t, v] of marks) { const p = ctx.pathPoint('summit', t); ctx.addEnemy(p.x, p.z, v, 4); }
   for (const t of [0.2, 0.42, 0.65, 0.86]) { const p = ctx.pathPoint('summit', t); ctx.addVase(p.x + p.dz * 3.4, p.z - p.dx * 3.4, [2, 5]); }
   const cp = ctx.pathPoint('summit', 0.5);
-  ctx.addChest(cp.x - cp.dz * 3.2, cp.z + cp.dx * 3.2, 0, [10, 10]);
+  ctx.addChest(cp.x - cp.dz * 3.2, cp.z + cp.dx * 3.2, 0, [10, 5]);
   // pines & rocks on the mountain flanks
   ctx.scatter('tree_pine', 26, ctx.inRing(S.x, S.z, 20, 70), { r: 3, maxSlope: 0.5, path: 4, minH: 1 }, () => ({ size: ctx.rng.pick(['s', 'm', 'l']) }));
   ctx.scatter('rock_cluster', 14, ctx.inRing(S.x, S.z, 20, 70), { r: 3, maxSlope: 0.55, path: 3.5, minH: 1 });
   gp.hints.push({ x: 0, z: -120, r: 12, text: 'ARMOURED SNUFFERS: FIRE BOUNCES OFF BELLS, SPIKES HURT WHEN RAMMED', dur: 7 });
+}
+
+/** Bunny fodder (they turn into healing butterflies) scattered through the quieter meadows. */
+export function layoutFauna(ctx) {
+  const groups = [[-40, 140, 3, 8], [42, 138, 2, 8], [56, 100, 3, 8], [-64, 96, 3, 8], [-24, 80, 2, 6], [86, 34, 2, 8],
+    [60, 0, 2, 8], [-66, -10, 2, 8], [-66, -66, 3, 8], [30, -52, 2, 8], [-100, 50, 2, 6]];
+  for (const [x, z, n, r] of groups) ctx.addBunnies(x, z, n, r);
 }

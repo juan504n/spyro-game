@@ -38,7 +38,7 @@ export function createBrazier(assets, opts = {}) {
   }
   // ---- coal bed --------------------------------------------------------------------------------------------------------
   {
-    const blobAt = (b, o, sc = 1) => b.at(0, BOWL_FLOOR + 0.08, 0, (bb) => { if (sc !== 1) bb.scale(sc); bb.blob(0.46, { detail: 0, noise: 0.12, sx: 1, sy: 0.4, sz: 1, tile: 0.8, ...o }); });
+    const blobAt = (b, o, sc = 1) => b.at(0, BOWL_FLOOR + 0.08, 0, (bb) => { if (sc !== 1) bb.scale(sc); bb.blob(0.41, { detail: 0, noise: 0.1, sx: 1, sy: 0.42, sz: 1, tile: 0.8, ...o }); });
     // cold ash: grey, lighter on the ridges (a colour function of position keeps neighbouring faces continuous)
     const ash = (x, y, z) => { const n = 0.5 + 0.5 * Math.sin(x * 9.1 + z * 7.3 + y * 3.7); return [0.32 + 0.4 * n, 0.3 + 0.36 * n, 0.34 + 0.34 * n]; };
     const b = litBuilder(1, 83);
@@ -52,7 +52,7 @@ export function createBrazier(assets, opts = {}) {
     rig.mesh(h, mFire, null, { name: 'fire' });
     // radial glow card over the middle of the bed: violet ember when dormant, orange when lit
     const e = litBuilder(1, 85);
-    e.disc(0.46, 8, { y: BOWL_FLOOR + 0.24, uvDisc: true, color: [0.5, 0.5, 0.5] });
+    e.disc(0.42, 8, { y: BOWL_FLOOR + 0.24, uvDisc: true, color: [0.5, 0.5, 0.5] });
     rig.mesh(e, mEmber, null, { name: 'ember' });
   }
   rig.anchor(anchors, 'flame', 0, BOWL_FLOOR + 0.22, 0);

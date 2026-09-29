@@ -10,8 +10,8 @@
 //   musicBox   plucked comb tine: fundamental + fast-dying 6.27x tine mode + soft octave
 //   marimba    rosewood bar: fundamental + 4x + 9.9x modes (bar-tuned), mallet thock
 //   flute      ocarina-ish breathy sine: 2nd/3rd harmonic, delayed vibrato, chiff noise burst
-//   pad        warm "string synth": 3 detuned band-limited saws through a blooming low-pass
-//   bass       round plucked bass: sine + fast-decaying 2nd/3rd, tiny pitch dip, dark low-pass
+//   pad        warm "string synth": 3 detuned polyBLEP saws through a blooming low-pass (no ADPCM pass)
+//   bass       round plucked bass: sine + fast-decaying 2nd/3rd harmonics, click, dark low-pass
 //   pizz       pizzicato strings: tuned Karplus-Strong pluck
 //   chime      metal wind-chime tube: inharmonic partials with long decays
 //   shaker / wood / tom / bongo / conga / tambourine / kick   the percussion kit

@@ -7,7 +7,8 @@
 //   2. REVERB     the dry mix is high-passed (bass stays dry), preceded by a 4.5 s "pre-roll" copy
 //                 of the loop's own end, and sent through the SPU-style hall (spu.js). Because the
 //                 reverb has already heard the end of the loop when the loop starts, its tail wraps
-//                 around perfectly — no seam, no click.
+//                 around perfectly — no seam, no click. The wet level is a fixed ratio of the dry RMS
+//                 (gloaming 0.65, daybreak 0.45) with both wet channels scaled to equal energy.
 //   3. MASTER     dry + wet -> 9.5 kHz high-cut -> glue compressor -> soft limiter, gained to about
 //                 -14 dBFS RMS (peaks stay under -1 dBFS). The pre-roll is then thrown away.
 // Rendering is split into small jobs (musicJobs) so the browser can yield between them.
@@ -63,14 +64,25 @@ function place(st, s, t, gain, pan = 0, maxLen = 0) {
 }
 
 const isOn = (plan, bar) => plan && plan[bar] === 'x';
-const human = (st, amt) => st.rng.range(-amt, amt);
+/**
+ * Timing "human" wobble as a pure function of WHERE in the tune a note is (bar, position), not of
+ * render order: both variants push the same beat late/early by the same few milliseconds, so the
+ * day/night crossfade never produces flams between the two versions of the same note.
+ */
+function hj(bar, pos, amt) {
+  let h = Math.imul((bar * 131 + Math.round(pos * 8) * 7 + 12345) | 0, 2654435761) >>> 0;
+  h ^= h >>> 15;
+  h = Math.imul(h, 2246822519) >>> 0;
+  h ^= h >>> 13;
+  return amt * (((h >>> 8) / 8388608) - 1);
+}
 const vary = (st, amt) => 1 + st.rng.range(-amt, amt);
 
 /** Melody-style events for one bar: [{t, m, len, vel}]. */
 function barNotes(st, bar, str, transpose = 0) {
   const inten = C.INTENSITY[st.variant][bar];
   return C.parseBar(str, st.day).map((e) => ({
-    t: barTime(bar) + e.u * C.UNIT_SEC + swingOf(e.u) + human(st, 0.004),
+    t: barTime(bar) + e.u * C.UNIT_SEC + swingOf(e.u) + hj(bar, e.u, 0.004),
     m: e.m + transpose,
     len: e.len * C.UNIT_SEC,
     vel: (e.u === 0 ? 1 : e.u % 2 === 0 ? 0.88 : 0.78) * (0.55 + 0.45 * inten) * vary(st, 0.05),
@@ -139,7 +151,7 @@ const LAYERS = {
         const iv = deg === 'R' ? 0 : deg === '5' ? c.t5 : deg === '8' ? 12 : c.t3;
         const m = c.root + iv;
         const uu = c.u + u;
-        const t = barTime(c.bar) + uu * C.UNIT_SEC + swingOf(uu) + human(st, 0.002);
+        const t = barTime(c.bar) + uu * C.UNIT_SEC + swingOf(uu) + hj(c.bar, uu, 0.002);
         place(st, st.bank.get('bass' + m, () => I.bass(m)), t, 0.95 * vel * (0.8 + 0.2 * inten) * vary(st, 0.04), 0, Math.round(len * C.UNIT_SEC * SR * 1.05));
       }
     }
@@ -158,7 +170,7 @@ const LAYERS = {
         const ch = pat[i];
         if (ch === '.') continue;
         const sw = i % 4 === 2 ? C.SWING * C.UNIT_SEC : i % 2 === 1 ? C.SWING * C.UNIT_SEC * 0.5 : 0;
-        const t = barTime(bar) + i * step + sw + human(st, 0.003);
+        const t = barTime(bar) + i * step + sw + hj(bar, i * 0.5, 0.003);
         const s = alt && count % 2 === 1 ? alt() : sample();
         place(st, s, t, gain * (Number(ch) / 9) * (0.35 + 0.65 * inten) * vary(st, 0.06), pan);
         count++;
@@ -207,7 +219,7 @@ const LAYERS = {
           const inten = C.INTENSITY[key][c.bar];
           c.pad.forEach((m, i) => {
             if (i === 0) return; // leave the lowest voice to the bass
-            const t = barTime(c.bar) + u * C.UNIT_SEC + swingOf(u) + i * 0.006 + human(st, 0.003);
+            const t = barTime(c.bar) + u * C.UNIT_SEC + swingOf(u) + i * 0.006 + hj(c.bar, u, 0.003);
             place(st, st.bank.get('pz' + m, () => I.pizz(m)), t, 0.4 * (0.6 + 0.4 * inten) * vary(st, 0.08), [-0.3, 0, 0.3][i - 1]);
           });
         }

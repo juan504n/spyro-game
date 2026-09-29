@@ -15,7 +15,7 @@ import * as THREE from 'three';
 import { U } from '../../../engine/materials.js';
 import {
   Rig, loft, ellipsoid, spike, bar, orient, triF, triDouble, triC, setBias, ringPoint,
-  clamp, lerp, sstep, damp, mix3, TAU, nextSeed, seeded,
+  clamp, num, heal, lerp, sstep, damp, spring, mix3, TAU, nextSeed, seeded,
 } from './rig.js';
 
 // ---- palette (raw albedo tints) -------------------------------------------------------------------------------------
@@ -24,9 +24,9 @@ const PUR_HI = [0.68, 0.40, 0.95];
 const PUR_LO = [0.40, 0.18, 0.66];
 const CREAM = [1.0, 0.88, 0.58];
 const CREAM_LO = [0.95, 0.72, 0.40];
-const GOLD = [1.0, 0.72, 0.18];
-const GOLD_HI = [1.0, 0.88, 0.40];
-const GOLD_LO = [0.88, 0.50, 0.10];
+const GOLD = [1.0, 0.68, 0.16];
+const GOLD_HI = [1.0, 0.84, 0.34];
+const GOLD_LO = [0.88, 0.46, 0.09];
 const MOUTH = [0.62, 0.16, 0.26];
 const TONGUE = [0.94, 0.38, 0.46];
 const WHITE = [1, 1, 1];
@@ -67,7 +67,7 @@ const HEAD = [
   { z: 0.40, rx: 0.25, ry: 0.165, y: 0.085, col: headCol },
   { z: 0.53, rx: 0.205, ry: 0.13, y: 0.058, col: headCol },
   { z: 0.61, rx: 0.165, ry: 0.108, y: 0.046, col: headCol },
-  { z: 0.665, rx: 0.10, ry: 0.068, y: 0.042, col: headCol },
+  { z: 0.66, rx: 0.088, ry: 0.06, y: 0.04, col: headCol },
 ];
 const EYE_AT = ringPoint(HEAD, 0.325, 0.62, -0.05);   // eye centre, sunk into the cranium shoulder
 
@@ -90,7 +90,7 @@ function torsoGeo(b) {
 
 function headGeo(b) {
   setBias(0.45);
-  loft(b, HEAD, { segs: 8, cap1: true, capCol: mix3(PUR, PUR_HI, 0.5) });
+  loft(b, HEAD, { segs: 8, cap1: true, capCol: mix3(PUR, PUR_HI, 0.25) });
   // horns: short, swept back with a forward-curving tip (they point ahead when the head is lowered)
   setBias(0.9);
   for (const s of [1, -1]) {
@@ -112,11 +112,11 @@ function headGeo(b) {
     spike(b, [s * 0.34, 0.03, 0.06], [s * 0.72, 0.12, -0.68], 0.16, 0.065, { segs: 3, col: GOLD, tip: GOLD_HI });
     spike(b, [s * 0.32, -0.07, 0.10], [s * 0.66, -0.10, -0.74], 0.12, 0.055, { segs: 3, col: GOLD, tip: GOLD_HI });
   }
-  // nostrils on the flat nose face
+  // nostrils: two small dark dots high on the nose face
   setBias(0);
-  const nz = HEAD[HEAD.length - 1].z + 0.004, ny = HEAD[HEAD.length - 1].y + 0.02;
+  const nz = HEAD[HEAD.length - 1].z + 0.004, ny = HEAD[HEAD.length - 1].y + 0.014;
   for (const s of [1, -1]) {
-    const cx = s * 0.042, w = 0.024, h = 0.017;
+    const cx = s * 0.034, w = 0.02, h = 0.016;
     const n = [0, 0, 1];
     triC(b, [cx - w, ny, nz], [cx, ny - h, nz], [cx + w, ny, nz], BLACK, BLACK, BLACK, n, n, n);
     triC(b, [cx - w, ny, nz], [cx + w, ny, nz], [cx, ny + h * 0.8, nz], BLACK, BLACK, BLACK, n, n, n);
@@ -145,12 +145,12 @@ function eyesGeo(b) {
     ellipsoid(b, 0, 0, 0, 0.125, 0.15, 0.075, { segs: 6, rings: 3, col: WHITE });
     // pupil (hexagon, faces +z) + highlight
     const zp = 0.079;
-    const cx = -s * 0.004, cy = 0.004;
+    const cx = -s * 0.002, cy = -0.016;
     for (let j = 0; j < 6; j++) {
       const a0 = (j / 6) * TAU + 0.5, a1 = ((j + 1) / 6) * TAU + 0.5;
-      triF(b, [cx, cy, zp], [cx + Math.cos(a0) * 0.058, cy + Math.sin(a0) * 0.084, zp], [cx + Math.cos(a1) * 0.058, cy + Math.sin(a1) * 0.084, zp], BLACK);
+      triF(b, [cx, cy, zp], [cx + Math.cos(a0) * 0.062, cy + Math.sin(a0) * 0.088, zp], [cx + Math.cos(a1) * 0.062, cy + Math.sin(a1) * 0.088, zp], BLACK);
     }
-    const hz = zp + 0.006, hx = cx + 0.024, hy = cy + 0.045, hw = 0.024;
+    const hz = zp + 0.006, hx = cx + 0.026, hy = cy + 0.042, hw = 0.024;
     triF(b, [hx - hw, hy - hw, hz], [hx + hw, hy - hw, hz], [hx + hw, hy + hw, hz], WHITE);
     triF(b, [hx - hw, hy - hw, hz], [hx + hw, hy + hw, hz], [hx - hw, hy + hw, hz], WHITE);
     b.pop();
@@ -164,7 +164,7 @@ function legGeo(b, hind) {
     { z: 0.0, rx: hind ? 0.15 : 0.135, ry: hind ? 0.16 : 0.14, y: 0.0, col: PUR },
     { z: LEG_L * 0.55, rx: hind ? 0.115 : 0.105, ry: hind ? 0.125 : 0.115, y: 0.005, col: PUR },
     { z: LEG_L - 0.008, rx: 0.15, ry: 0.20, y: 0.065, col: mix3(PUR, PUR_LO, 0.35) },
-  ], { segs: 5, cap1: true, capCol: PUR_LO });
+  ], { segs: 6, cap1: true, capCol: PUR_LO });
   b.pop();
   setBias(0.9);
   for (const a of [-0.6, 0, 0.6]) {
@@ -175,8 +175,8 @@ function legGeo(b, hind) {
 // points on the sole (+ claw tips) in leg space, used to keep the feet out of the ground
 function footPoints(hind) {
   const pts = [];
-  for (let j = 0; j < 5; j++) {
-    const th = (j / 5) * TAU;
+  for (let j = 0; j < 6; j++) {
+    const th = (j / 6) * TAU;
     pts.push([0.15 * Math.cos(th), -(LEG_L - 0.008), 0.065 + 0.20 * Math.sin(th)]);
   }
   for (const a of [-0.6, 0, 0.6]) pts.push([Math.sin(a) * 0.09 + Math.sin(a) * 0.8 * 0.095, -LEG_L + 0.06 - 0.45 * 0.095, 0.19 + Math.cos(a) * 0.05 + Math.cos(a) * 0.095]);
@@ -216,13 +216,13 @@ function spadeGeo(b) {
 // wing (left side, +x outward, membrane trails toward -z)
 const WS = [0, 0, 0], WE = [0.34, 0.06, 0.04], WT = [0.74, 0.04, -0.14], WF1 = [0.64, 0.0, -0.46], WF2 = [0.40, 0.0, -0.54], WB = [0.06, 0.0, -0.42];
 function wingGeo(b) {
-  setBias(1.3);
+  setBias(1.8);
   const mid = (a, c, k = 0.26) => {
     const m = [(a[0] + c[0]) / 2, (a[1] + c[1]) / 2, (a[2] + c[2]) / 2];
     return [m[0] + (WE[0] - m[0]) * k, m[1] + (WE[1] - m[1]) * k, m[2] + (WE[2] - m[2]) * k];
   };
   const C1 = mid(WT, WF1), C2 = mid(WF1, WF2), C3 = mid(WF2, WB);
-  const hub = [0.92, 0.55, 0.12], tipc = [1.0, 0.72, 0.20], notch = [1.0, 0.88, 0.40];
+  const hub = [0.92, 0.50, 0.11], tipc = [1.0, 0.68, 0.18], notch = [1.0, 0.84, 0.36];
   triDouble(b, WE, WT, C1, hub, tipc, notch);
   triDouble(b, WE, C1, WF1, hub, notch, tipc);
   triDouble(b, WE, WF1, C2, hub, tipc, notch);
@@ -239,7 +239,7 @@ function wingGeo(b) {
 // ---- model ------------------------------------------------------------------------------------------------------------
 export function createSpyro(assets, opts) {
   opts = opts || {};
-  const R = new Rig(assets);
+  const R = new Rig(assets, 'spyro');
   const M = R.litMat(null);
   const G = R.glowMat(null);
   const seed = nextSeed(opts);
@@ -305,14 +305,13 @@ export function createSpyro(assets, opts) {
     flameT: 0, wasFlame: false, tailW: rnd() * 6, spread: 0, breathe: rnd() * 6, boost: -1,
   };
 
-  const easeOutBack = (x) => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
-
   function update(dt, pose) {
     pose = pose || {};
     dt = clamp(dt || 0, 0, 0.1);
-    const speed = Math.max(0, pose.speed || 0);
+    heal(S);
+    const speed = clamp(num(pose.speed), 0, 60);
     const grounded = pose.grounded !== false;
-    const vy = pose.vy || 0;
+    const vy = clamp(num(pose.vy), -80, 80);
     const dead = !!pose.dead;
     const glideT = !!pose.glide && !grounded && !dead ? 1 : 0;
     const chargeT = !!pose.charge && !dead ? 1 : 0;
@@ -324,18 +323,20 @@ export function createSpyro(assets, opts) {
     const lookIn = pose.look;
 
     S.time += dt;
-    // "character light": lift the albedo at night so the hero pops (fades out towards daybreak so purple does not go pink)
-    const boost = lerp(1.30, 1.0, clamp(U.uDay.value));
-    if (Math.abs(boost - S.boost) > 0.004) { S.boost = boost; R.boost(boost); }
+    // "character light": lift the albedo at night so the hero pops. Towards daybreak the boost fades and the red channel is
+    // pulled back, otherwise the warm sun turns the purple into hot pink.
+    const day = clamp(U.uDay.value);
+    const br = lerp(1.30, 0.80, sstep(0, 0.7, day)), bg = lerp(1.30, 1.0, day), bb = lerp(1.30, 1.02, day);
+    if (Math.abs(br + bg + bb - S.boost) > 0.006) { S.boost = br + bg + bb; R.boost(br, bg, bb); }
     S.move = damp(S.move, sstep(0.25, 2.5, speed) * (grounded ? 1 : 0), 12, dt);
     S.run = damp(S.run, sstep(5, 12, speed), 8, dt);
     S.air = damp(S.air, grounded ? 0 : 1, 16, dt);
     S.rise = damp(S.rise, clamp(vy / 9, -1, 1), 10, dt);
     S.glide = damp(S.glide, glideT, 8, dt);
-    S.charge = damp(S.charge, chargeT, 10, dt);
+    S.charge = damp(S.charge, chargeT, 8, dt);
     S.flame = damp(S.flame, flameT, 11, dt);
     S.cheer = damp(S.cheer, cheerT, 9, dt);
-    S.dead = damp(S.dead, dead ? 1 : 0, 7, dt);
+    spring(S, 'dead', dead ? 1 : 0, 110, 12, dt);      // bouncy tumble: overshoots then settles
     S.hurt = damp(S.hurt, hurt, 40, dt);
     S.land = damp(S.land, land, 40, dt);
     S.turn = damp(S.turn, turnT, 9, dt);
@@ -344,7 +345,8 @@ export function createSpyro(assets, opts) {
     if (flameT) S.flameT += dt;
 
     const runK = S.run, chargeK = S.charge, airK = S.air, glideK = S.glide, flameK = S.flame, cheerK = S.cheer;
-    const deadK = S.dead, hurtK = S.hurt, landK = S.land, rise = S.rise, turn = S.turn;
+    const deadK = clamp(S.dead, 0, 1), hurtK = S.hurt, landK = S.land, rise = S.rise, turn = S.turn;
+    const up = sstep(-0.3, 0.3, rise);      // 0 falling .. 1 rising (smooth, no sign switches)
 
     // gait phase: stride frequency proportional to speed (capped), faster when charging
     const freq = Math.min(1.5 + speed * 0.24, 3.6) * (1 + 0.25 * chargeK);
@@ -398,7 +400,7 @@ export function createSpyro(assets, opts) {
     const sq = 0.30 * landK + 0.16 * hurtK;
     R.rig.scale.set(1 + sq * 0.45, 1 - sq, 1 + sq * 0.45);
     const hop = cheerK * Math.abs(Math.sin(S.time * TAU * 1.5)) * 0.32;
-    const roll90 = (Math.PI / 2) * easeOutBack(clamp(deadK, 0, 1));
+    const roll90 = (Math.PI / 2) * S.dead;       // spring position: overshoots a little
     R.rig.rotation.set(0, 0, -roll90);
     R.rig.position.set(0.36 * Math.sin(roll90), hop + 0.48 * Math.sin(roll90), 0);
 
@@ -412,11 +414,11 @@ export function createSpyro(assets, opts) {
     jaw.rotation.set(0.015 + pant + 0.62 * flameK + 0.26 * cheerK + 0.20 * hurtK + 0.05 * airK + 0.18 * deadK + 0.12 * glideK, 0, 0);
 
     // ---- wings ------------------------------------------------------------------------------------------------
-    const spreadT = clamp(0.5 * airK * (1 - glideK) * (rise < -0.3 ? 1.1 : 0.85) + glideK + 0.35 * flameK + 0.85 * cheerK + 0.55 * deadK + 0.45 * hurtK, 0, 1);
+    const spreadT = clamp(0.5 * airK * (1 - glideK) * lerp(1.1, 0.85, up) + glideK + 0.35 * flameK + 0.85 * cheerK + 0.55 * deadK + 0.45 * hurtK, 0, 1);
     S.spread = damp(S.spread, spreadT, 14, dt);
     const sp = S.spread;
     const flutter = Math.sin(S.time * TAU * 5.5) * 0.09 * glideK + Math.sin(S.time * TAU * 3.2) * 0.75 * cheerK * (1 - deadK)
-      + Math.sin(S.time * TAU * 2.4) * 0.35 * airK * (1 - glideK) * (rise > 0 ? 0.6 : 1);
+      + Math.sin(S.time * TAU * 2.4) * 0.35 * airK * (1 - glideK) * lerp(1, 0.6, up);
     const jiggle = -bob * 5 * (1 - sp) + 0.03 * Math.sin(S.time * 1.3 + 1) * calm;
     for (let i = 0; i < 2; i++) {
       wings[i].rotation.set(lerp(0.95, -0.30, sp), lerp(1.32, 0.30, sp), lerp(0.62, 0.30, sp) + flutter + jiggle + 0.4 * deadK);
@@ -427,7 +429,7 @@ export function createSpyro(assets, opts) {
     // pitch is cumulative down the chain: idle shape droops then flicks up at the spade; states add a total lift.
     const shapeK = 1 - 0.75 * clamp(gait + chargeK + glideK + flameK);
     const tailTotal = 0.30 * runK * gait + 0.28 * chargeK + 0.55 * flameK + 0.06 * glideK + 0.45 * cheerK + 0.18 * hurtK
-      + airK * (1 - glideK) * (rise > 0 ? -0.30 : 0.45);
+      + airK * (1 - glideK) * lerp(0.45, -0.30, up);
     const idleShape = [-0.06, -0.10, -0.04, 0.24];
     const wgt = [0.30, 0.30, 0.25, 0.15];
     const ampY = [0.10, 0.16, 0.22, 0.28];
@@ -451,7 +453,8 @@ export function createSpyro(assets, opts) {
       const swing = (Math.sin(th) * swingA + (L.hind ? 0.0 : lerp(-0.10, -0.16, runK))) * gait;
       const lift = Math.max(0, Math.cos(th)) * gait * lerp(0.035, 0.085, runK);
       const front = !L.hind;
-      const airRot = glideK > 0.5 ? (front ? -0.25 : 0.95) : (rise > 0 ? (front ? -0.55 : 0.75) : (front ? -0.75 : 0.45 + 0.1 * Math.sin(S.time * 9)));
+      const airNormal = front ? lerp(-0.75, -0.55, up) : lerp(0.45 + 0.1 * Math.sin(S.time * 9), 0.75, up);
+      const airRot = lerp(airNormal, front ? -0.25 : 0.95, glideK);
       let rx = lerp(swing, airRot, airK);
       if (flameK > 0.01) rx += front ? -0.22 * flameK : 0.12 * flameK;
       if (front) rx += -0.9 * cheerK * (0.5 + 0.5 * Math.sin(S.time * TAU * 1.5 + (L.n === 'FL' ? 0 : 1)));

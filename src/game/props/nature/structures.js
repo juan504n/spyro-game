@@ -1,5 +1,5 @@
 // Ruins, waterfall, floating island: the one-off landmarks.
-import { lump, lumps, tube, shade, prism, card, cross, TAU, lerp, clamp, mulc, norm3, cross3, dot3, bilerp, num, int, sizeK, oneOf } from './util.js';
+import { lump, lumps, tube, shade, prism, card, cross, TAU, lerp, clamp, mulc, norm3, cross3, dot3, bilerp, num, int, sizeK, oneOf, h3 } from './util.js';
 import { rock, column, stoneTex } from './rocks.js';
 
 /** Quad whose winding is fixed up so the face points along `hint` (robust for arches / irregular slabs). */
@@ -208,6 +208,15 @@ export function waterfall(kit, { x, z, rot = 0, scale = 1, y, h, w, warm }) {
       const zz = 0.95 + 0.22 * t + 0.7 * t * t * t * t;
       return [(j / cols - 0.5) * ww, h * (1 - t), zz];
     };
+    // opaque backing sheet (slower scroll, slightly narrower and darker) so the fall reads as water, not a veil
+    const backing = kit.b('waterfall', { scroll: [0, -0.85], double: true });
+    const PB = (i, j) => { const q = P(i, j); return [q[0] * 0.9, q[1], q[2] - 0.14]; };
+    for (let i = 0; i < rows; i++) {
+      for (let j = 0; j < cols; j++) {
+        const a = PB(i + 1, j), b = PB(i + 1, j + 1), c = PB(i, j + 1), d = PB(i, j);
+        backing.quad(a, b, c, d, { uv: [a[0] / 2.4 + 0.3, (h - a[1]) / 5, b[0] / 2.4 + 0.3, (h - d[1]) / 5], emissive: 0.5, color: [0.78, 0.92, 1.02] }, [[0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1]]);
+      }
+    }
     const alphaOf = (i, j) => (j === 0 || j === cols ? 0.6 : 0.95) * (i === 0 ? 0.85 : 1);
     for (let i = 0; i < rows; i++) {
       for (let j = 0; j < cols; j++) {
@@ -225,7 +234,7 @@ export function waterfall(kit, { x, z, rot = 0, scale = 1, y, h, w, warm }) {
     const fz = 0.95 + 0.22 + 0.7 + 0.9;
     for (let i = 0; i < 5; i++) {
       const px = (i - 2) * (w * 0.24), pz = fz + r.float(-0.3, 0.9);
-      flatQuad(foam, px, 0.14, pz, w * 0.34 + 1.2, r.float(0, TAU), { color: [1.05, 1.08, 1.12], emissive: 0.4, tile: 3.4 });
+      flatQuad(foam, px, 0.14 + i * 0.02, pz, w * 0.34 + 1.2, r.float(0, TAU), { color: [1.05, 1.08, 1.12], emissive: 0.4, tile: 3.4 });
     }
     // vertical foam curtain at the base of the sheet
     const bw = w * 1.14;
@@ -262,81 +271,94 @@ function triFacing(b, p0, p1, p2, uv0, uv1, uv2, hint, o = {}) {
 
 /**
  * Floating island of radius r.  Walkable grass top at local y = 0 (collider: cylinder r*0.92, y -8..0, top:true),
- * turf lip, dirt band, faceted cliff underside tapering to a point, hanging rocks, roots, vines and (optionally)
- * glowing crystals under the belly.  The game puts trees / beacons on top.
+ * turf lip, dirt band, faceted cliff underside tapering to an off-centre point, big hanging chunks, stalactite spikes,
+ * roots, vines and glowing crystals under the belly.  The game puts trees / beacons on top.
  */
 export function floatingIsland(kit, { x, z, rot = 0, scale = 1, y, r: R, crystals, crystal, vines, warm }) {
-  R = num(R, 12, 5, 26); crystals = int(crystals, 2, 0, 4); vines = vines !== false; warm = !!warm;
+  R = num(R, 12, 5, 26); crystals = int(crystals, 3, 0, 5); vines = vines !== false; warm = !!warm;
   const cname = oneOf(crystal, ['violet', 'cyan'], 'cyan');
   const rng = kit.rng(x, z, 151);
   const k = R / 12;                                            // depth / feature scale
+  const sk = Math.sqrt(k);
   kit.at(x, z, { rot, scale, y }, () => {
-    const n = 16;
-    const rho = [];
-    for (let i = 0; i < n; i++) rho.push(R * rng.float(0.98, 1.07));
+    const n = 20;
+    const ph1 = rng.float(0, TAU), ph2 = rng.float(0, TAU), ph3 = rng.float(0, TAU);
     const a0 = rng.float(0, 1);
-    const ang = (i, phi = 0) => a0 + ((i + phi) / n) * TAU;
-    // rings: [radius factor, y, angular half-step offset]
-    const RINGS = [
-      { f: 1.0, y: 0, ph: 0 }, { f: 1.035, y: -0.55, ph: 0 }, { f: 0.95, y: -2.1 * Math.sqrt(k), ph: 0.5 }, { f: 0.7, y: -5.2 * k, ph: 0 },
-      { f: 0.44, y: -8.6 * k, ph: 0.5 }, { f: 0.19, y: -11.6 * k, ph: 0 },
-    ];
-    const tipY = -14.2 * k;
-    const ringPts = RINGS.map((g, ri) => rho.map((rr, i) => {
-      const a = ang(i, g.ph);
-      const jr = ri >= 3 ? rng.float(0.9, 1.1) : 1;
-      return [Math.sin(a) * rr * g.f * jr, g.y + (ri >= 3 ? rng.float(-0.4, 0.4) * k : 0), Math.cos(a) * rr * g.f * jr];
-    }));
-    const tip = [rng.float(-0.6, 0.6) * k, tipY, rng.float(-0.6, 0.6) * k];
-    // ---- top --------------------------------------------------------------------------------------------------
-    const grass = kit.b('grass_a');
-    const gc = [1.0, 1.04, 0.96];
-    const T = ringPts[0];
+    const rho = [];
     for (let i = 0; i < n; i++) {
-      const A = T[i], B = T[(i + 1) % n];
-      grass.tri([0, 0, 0], A, B, [0, 0], [A[0] / 6, A[2] / 6], [B[0] / 6, B[2] / 6], { color: gc }, [0, 1, 0]);
+      const th = (i / n) * TAU;
+      rho.push(R * (1.06 + 0.035 * Math.sin(2 * th + ph1) + 0.03 * Math.sin(3 * th + ph2) + 0.015 * Math.sin(5 * th + ph3) + rng.float(-0.012, 0.012)));
     }
-    // ---- turf lip (grass_b), dirt band, cliff -------------------------------------------------------------
-    const lipB = kit.b('grass_b'), dirt = kit.b('dirt');
-    const cliff = kit.b(stoneTex(warm));
-    const band = (b, r0, r1, colFn, tile, ph0) => {
-      // zig-zag triangle strip between two rings whose vertices are offset by half a step
+    // rings: radius factor, y, half-step angular offset, radial/vertical jitter
+    const RINGS = [
+      { f: 1.0, y: 0, ph: 0, j: 0 }, { f: 1.03, y: -0.55, ph: 0, j: 0 }, { f: 0.97, y: -2.0 * sk, ph: 0.5, j: 0.03 },
+      { f: 0.8, y: -4.4 * k, ph: 0, j: 0.12 }, { f: 0.58, y: -7.2 * k, ph: 0.5, j: 0.16 }, { f: 0.36, y: -9.8 * k, ph: 0, j: 0.18 },
+      { f: 0.16, y: -12.2 * k, ph: 0.5, j: 0.2 },
+    ];
+    const tip = [rng.float(-1.6, 1.6) * k, -14.6 * k, rng.float(-1.6, 1.6) * k];
+    const ringPts = RINGS.map((g) => rho.map((rr, i) => {
+      const a = (a0 + (i + g.ph) / n) * TAU;
+      const jr = 1 + rng.float(-g.j, g.j);
+      return [Math.sin(a) * rr * g.f * jr, g.y + rng.float(-g.j, g.j) * 4.5 * k, Math.cos(a) * rr * g.f * jr];
+    }));
+    // ---- top: centre fan + one inner ring so vertex tints can mottle it like the terrain ------------------------
+    const grass = kit.b('grass_a');
+    const gc = (px, py, pz) => [0.965 + 0.07 * h3(px, py, pz), 0.985 + 0.06 * h3(pz, px, 3), 0.955 + 0.07 * h3(py, pz, 7)];
+    const T = ringPts[0];
+    const I = T.map((p) => [p[0] * 0.5, 0, p[2] * 0.5]);
+    const uvT = (p) => [p[0] / 6, p[2] / 6];
+    for (let i = 0; i < n; i++) {
+      const i2 = (i + 1) % n;
+      grass.tri([0, 0, 0], I[i], I[i2], uvT([0, 0, 0]), uvT(I[i]), uvT(I[i2]), { color: gc }, [0, 1, 0]);
+      grass.tri(I[i], T[i], T[i2], uvT(I[i]), uvT(T[i]), uvT(T[i2]), { color: gc }, [0, 1, 0]);
+      grass.tri(I[i], T[i2], I[i2], uvT(I[i]), uvT(T[i2]), uvT(I[i2]), { color: gc }, [0, 1, 0]);
+    }
+    // ---- bands: zig-zag triangle strips between rings whose vertices are offset by half a step ------------------
+    const mid3 = (p, q, u) => [(p[0] + q[0] + u[0]) / 3, (p[1] + q[1] + u[1]) / 3, (p[2] + q[2] + u[2]) / 3];
+    const band = (b, r0, r1, colFn, tile, caseA, emi) => {
+      const uvf = (p, nrm) => (Math.abs(nrm[0]) > Math.abs(nrm[2]) ? [p[2] / tile, p[1] / tile] : [p[0] / tile, p[1] / tile]);
+      const tri3 = (p0, p1, p2) => {
+        const c = mid3(p0, p1, p2);
+        const nrm = norm3([c[0], 0.05, c[2]]);
+        triFacing(b, p0, p1, p2, uvf(p0, nrm), uvf(p1, nrm), uvf(p2, nrm), [c[0], 0, c[2]], { color: colFn, emissive: emi });
+      };
       for (let i = 0; i < n; i++) {
         const i2 = (i + 1) % n;
-        const A0 = r0[i], A1 = r0[i2];
-        const B0 = ph0 ? r1[i] : r1[i], B1 = ph0 ? r1[i2] : r1[i2];
-        const mid = (p, q) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2, (p[2] + q[2]) / 2];
-        const hint = (p, q, u) => { const m = mid(p, mid(q, u)); return [m[0], 0.15, m[2]]; };
-        const uvf = (p, nrm) => (Math.abs(nrm[0]) > Math.abs(nrm[2]) ? [p[2] / tile, p[1] / tile] : [p[0] / tile, p[1] / tile]);
-        const tri3 = (p0, p1, p2) => {
-          const cen = mid(p0, mid(p1, p2));
-          const nrm = norm3([cen[0], 0.1, cen[2]]);
-          triFacing(b, p0, p1, p2, uvf(p0, nrm), uvf(p1, nrm), uvf(p2, nrm), [cen[0], Math.min(0.15, -cen[1] * 0.02), cen[2]], { color: colFn });
-        };
-        tri3(A0, A1, B0);
-        tri3(A1, B1, B0);
+        if (caseA) { tri3(r0[i], r0[i2], r1[i]); tri3(r0[i2], r1[i2], r1[i]); }
+        else { tri3(r0[i], r0[i2], r1[i2]); tri3(r0[i], r1[i2], r1[i]); }
       }
     };
-    band(lipB, ringPts[0], ringPts[1], shade(-1, [0.5, 0.62, 0.5], 0, [0.95, 1.05, 0.9], 0.05), 5, false);
-    band(dirt, ringPts[1], ringPts[2], shade(-4, [0.6, 0.54, 0.52], -0.5, [0.98, 0.9, 0.84], 0.05), 4, true);
-    const stonePal = warm ? [[0.62, 0.52, 0.52], [1.12, 1.0, 0.92]] : [[0.56, 0.54, 0.7], [1.08, 1.02, 1.04]];
+    const lipB = kit.b('grass_b'), dirt = kit.b('dirt'), cliff = kit.b(stoneTex(warm));
+    band(lipB, ringPts[0], ringPts[1], shade(-1, [0.5, 0.62, 0.5], 0, [0.95, 1.05, 0.9], 0.05), 5, true, 0.1);
+    band(dirt, ringPts[1], ringPts[2], shade(-4, [0.62, 0.56, 0.54], -0.5, [0.98, 0.9, 0.84], 0.05), 4, false, 0.18);
+    const stonePal = warm ? [[0.66, 0.56, 0.56], [1.12, 1.0, 0.92]] : [[0.6, 0.58, 0.74], [1.08, 1.02, 1.04]];
     const cliffCol = shade(-15 * k, stonePal[0], -2, stonePal[1], 0.05);
-    for (let ri = 2; ri < RINGS.length - 1; ri++) band(cliff, ringPts[ri], ringPts[ri + 1], cliffCol, 3.5, true);
-    // tip fan
+    // ring phases alternate 0.5 / 0 / 0.5 ...: ring 2 (ph .5) -> 3 (ph 0): caseB; 3 -> 4 (ph .5): caseA; ...
+    for (let ri = 2; ri < RINGS.length - 1; ri++) band(cliff, ringPts[ri], ringPts[ri + 1], cliffCol, 3.5, RINGS[ri].ph === 0, 0.22);
     const last = ringPts[RINGS.length - 1];
     for (let i = 0; i < n; i++) {
       const A = last[i], B = last[(i + 1) % n];
-      const cen = [(A[0] + B[0] + tip[0]) / 3, (A[1] + B[1] + tip[1]) / 3, (A[2] + B[2] + tip[2]) / 3];
-      triFacing(cliff, A, B, tip, [A[0] / 3.5, A[1] / 3.5], [B[0] / 3.5, B[1] / 3.5], [tip[0] / 3.5, tip[1] / 3.5], [cen[0], -0.2, cen[2]], { color: cliffCol });
+      const c = mid3(A, B, tip);
+      triFacing(cliff, A, B, tip, [A[0] / 3.5, A[1] / 3.5], [B[0] / 3.5, B[1] / 3.5], [tip[0] / 3.5, tip[1] / 3.5], [c[0], -0.3, c[2]], { color: cliffCol, emissive: 0.22 });
     }
-    // ---- hanging rocks -------------------------------------------------------------------------------------------
-    const nRocks = 6;
-    for (let i = 0; i < nRocks; i++) {
-      const ri = 2 + (i % 3);
+    // ---- big hanging chunks and stalactite spikes ---------------------------------------------------------------------
+    const chunk = (ri, Rr, detail) => {
       const p = ringPts[ri][Math.floor(rng.float(0, n))];
-      const Rr = rng.float(1.0, 2.2) * Math.sqrt(k) * (ri === 4 ? 0.8 : 1);
       const out = norm3([p[0], 0, p[2]]);
-      rock(kit, rng, [p[0] + out[0] * Rr * 0.25, p[1] - Rr * 0.3, p[2] + out[2] * Rr * 0.25], Rr, { warm, moss: false, detail: 'o1', sy: rng.float(0.85, 1.15), noise: 0.32, tile: 3.5, floorY: -1e9, skipDown: 2 });
+      rock(kit, rng, [p[0] + out[0] * Rr * 0.62, p[1] - Rr * 0.35, p[2] + out[2] * Rr * 0.62], Rr, { warm, moss: false, detail, sy: rng.float(0.85, 1.15), noise: 0.34, tile: 3.5, floorY: -1e9, skipDown: 2 });
+    };
+    for (let i = 0; i < 3; i++) chunk(3 + (i % 2), R * rng.float(0.16, 0.24), 1);
+    for (let i = 0; i < 3; i++) chunk(2 + i, R * rng.float(0.09, 0.15), 'o1');
+    const nSp = 4 + Math.round(k * 2);
+    for (let i = 0; i < nSp; i++) {
+      const ri = 3 + (i % 3);
+      const p = ringPts[ri][Math.floor(rng.float(0, n))];
+      const out = norm3([p[0], 0, p[2]]);
+      const d = norm3([out[0] * 0.18, -1, out[2] * 0.18]);
+      const rr = rng.float(0.55, 0.95) * sk, Ln = rng.float(3.0, 6.0) * k;
+      prism(cliff, [p[0] * 0.98, p[1] + 0.5, p[2] * 0.98], d, rr, Ln * 0.35, Ln * 0.65, 5, {
+        color: cliffCol, taper: 0.6, rot0: rng.float(0, 1), uvTile: 3.5, emissive: 0.2,
+      });
     }
     // ---- roots and vines dangling from the lip ---------------------------------------------------------------------
     const bark = kit.b('bark');
@@ -344,56 +366,50 @@ export function floatingIsland(kit, { x, z, rot = 0, scale = 1, y, r: R, crystal
     for (let i = 0; i < nRoots; i++) {
       const idx = Math.floor((i / nRoots) * n + rng.float(0, 2)) % n;
       const p = ringPts[2][idx], out = norm3([p[0], 0, p[2]]);
-      const Ln = rng.float(4.5, 8) * Math.sqrt(k);
+      const Ln = rng.float(4.5, 8) * sk;
       const pts = [
         [p[0] * 0.98, p[1] + 0.4, p[2] * 0.98], [p[0] + out[0] * 0.5, p[1] - Ln * 0.3, p[2] + out[2] * 0.5],
         [p[0] + out[0] * 0.3, p[1] - Ln * 0.65, p[2] + out[2] * 0.3], [p[0] + out[0] * 0.1, p[1] - Ln, p[2] + out[2] * 0.1],
       ];
-      tube(bark, pts, [0.42, 0.3, 0.18, 0.02], { segs: 4, tile: 3, color: shade(-10, [0.5, 0.46, 0.52], 0, [0.95, 0.9, 0.86], 0.04) });
+      tube(bark, pts, [0.42, 0.3, 0.18, 0.02], { segs: 4, tile: 3, color: shade(-10, [0.6, 0.55, 0.6], 0, [1.0, 0.94, 0.9], 0.04), emissive: 0.15 });
     }
     if (vines) {
-      const vine = kit.b('vine', { mode: 'cutout', double: true, sway: true });
+      const vine = kit.b('vine', { mode: 'cutout', double: true });        // no sway: islands are far above sea level
       const nV = Math.round(6 + R / 4);
       for (let i = 0; i < nV; i++) {
         const idx = Math.floor(rng.float(0, n));
         const p = ringPts[2][idx], out = norm3([p[0], 0, p[2]]);
-        const hh = rng.float(3.5, 6.5) * Math.sqrt(k);
+        const hh = rng.float(3.5, 6.5) * sk;
         const yaw = Math.atan2(out[0], out[2]);
-        card(vine, p[0] + out[0] * 0.35, p[1] + 0.4 - hh, p[2] + out[2] * 0.35, 0.95, hh, yaw, { color: [0.95, 1.05, 0.9], normal: [out[0], 0.3, out[2]] });
+        card(vine, p[0] + out[0] * 0.35, p[1] + 0.4 - hh, p[2] + out[2] * 0.35, 0.95, hh, yaw, { color: [0.95, 1.05, 0.9], normal: [out[0], 0.3, out[2]], emissive: 0.15 });
       }
     }
     // ---- crystals under the belly ------------------------------------------------------------------------------------
     const spec = { tex: cname === 'violet' ? 'crystal_violet' : 'crystal_cyan', tint: cname === 'violet' ? [1.05, 0.95, 1.12] : [0.92, 1.08, 1.12], glow: cname === 'violet' ? [0.66, 0.46, 1.0] : [0.4, 0.86, 1.0] };
     for (let i = 0; i < crystals; i++) {
-      const ri = 3, idx = Math.floor((i / Math.max(crystals, 1)) * n + rng.float(0, 3)) % n;
+      const ri = 3 + (i % 2), idx = Math.floor((i / Math.max(crystals, 1)) * n + rng.float(0, 4)) % n;
       const p = ringPts[ri][idx], out = norm3([p[0], 0, p[2]]);
-      const d = norm3([out[0] * 0.35, -1, out[2] * 0.35]);
-      const Lc = rng.float(3.0, 4.6) * Math.sqrt(k), rc = rng.float(0.5, 0.7) * Math.sqrt(k);
-      const B = [p[0] * 0.96, p[1] + 0.4, p[2] * 0.96];
+      const d = norm3([out[0] * 0.4, -1, out[2] * 0.4]);
+      const Lc = rng.float(3.6, 5.6) * sk, rc = rng.float(0.6, 0.85) * sk;
+      const B = [p[0] * 0.95, p[1] + 0.5, p[2] * 0.95];
       const b = kit.b(spec.tex);
-      prism(b, B, d, rc, Lc - rc * 1.7, rc * 1.7, 6, { color: shade(-15 * k, mulc(spec.tint, 1.25), -3, mulc(spec.tint, 0.75), 0.06), emissive: 0.55, taper: 0.9, rot0: rng.float(0, 1), jitter: 0.05 }, rng);
-      if (i === 0) kit.glow(B[0] + d[0] * Lc * 0.5, B[1] + d[1] * Lc * 0.5, B[2] + d[2] * Lc * 0.5, { color: spec.glow, size: 8 * Math.sqrt(k), pool: 0, flicker: 0.05 });
+      prism(b, B, d, rc, Lc - rc * 1.8, rc * 1.8, 6, { color: shade(-15 * k, mulc(spec.tint, 1.25), -3, mulc(spec.tint, 0.75), 0.06), emissive: 0.55, taper: 0.9, rot0: rng.float(0, 1), jitter: 0.05 }, rng);
+      if (i === 0) kit.glow(B[0] + d[0] * Lc * 0.5, B[1] + d[1] * Lc * 0.5, B[2] + d[2] * Lc * 0.5, { color: spec.glow, size: 9 * sk, pool: 0, flicker: 0.05 });
     }
     if (crystals) kit.emitter(0, -6 * k, 0, { kind: 'sparkle', rate: 2, radius: R * 0.5 });
     // ---- rim stones (outside the walkable disc) -----------------------------------------------------------------------
     for (let i = 0; i < 4; i++) {
-      const idx = Math.floor(rng.float(0, n)), rr = rho[idx] * 1.0;
-      const a = ang(idx);
+      const idx = Math.floor(rng.float(0, n)), rr = rho[idx];
+      const a = (a0 + idx / n) * TAU;
       rock(kit, rng, [Math.sin(a) * rr * 0.995, 0.1, Math.cos(a) * rr * 0.995], rng.float(0.5, 0.9), { warm, moss: true, detail: 'o1', sy: 0.8, floorY: -0.3, skipDown: 0.4 });
     }
     kit.cyl(0, 0, R * 0.92, -8, 0, { top: true });
   });
 }
 
-function lineup(kit, { x, z }) {
-  ruinPillars(kit, { x: x - 12, z });
-  ruinArch(kit, { x: x + 8, z });
-}
-
 export const STRUCTURES = {
-  ruin_pillars: { fn: ruinPillars, size: 13, note: 'broken brick_mossy colonnade with fallen drums; count', defaults: { count: 4 } },
-  ruin_arch: { fn: ruinArch, size: 9, note: 'broken ruined arch ~8 wide (pier + partial arch + stub); walk through along local z', defaults: { h: 4.8 } },
-  waterfall: { fn: waterfall, size: 16, note: 'waterfall facing +z: origin at the pool surface, lip at y=h; h 12-30, w 4-12; foam + mist', defaults: { h: 18, w: 6 } },
-  floating_island: { fn: floatingIsland, size: 28, note: 'floating island: flat grass top at y=0 (walkable disc r*0.92, collider y0=-8), cliff belly, roots, vines, crystals', defaults: { r: 12, crystals: 2 } },
-  _structures: { fn: lineup, size: 60, note: 'dev lineup' },
+  ruin_pillars: { fn: ruinPillars, size: 13, note: 'broken brick_mossy colonnade with fallen drums; count', defaults: { count: 4 }, anchors: { center: [0, 0, 0] } },
+  ruin_arch: { fn: ruinArch, size: 9, note: 'broken ruined arch ~8 wide (pier + partial arch + stub); walk through along local z', defaults: { h: 4.8 }, anchors: { gap: [0, 0, 0], crown: [0, 7.1, 0] } },
+  waterfall: { fn: waterfall, size: 16, note: 'waterfall facing +z: ORIGIN = pool surface at the foot (pass y = river/pool level), lip at y+h, rock wall 6 behind (-z), sheet ~2 in front; h 12-34, w 3-14; foam + mist', defaults: { h: 18, w: 6 }, anchors: { pool: [0, 0, 2.6], lip: [0, 18, 0.9], base: [0, 0, 0] } },
+  floating_island: { fn: floatingIsland, size: 28, note: 'floating island: flat grass top at y=0 (walkable disc r*0.92, collider y0=-8), cliff belly, roots, vines, crystals; baked without terrain shadows', defaults: { r: 12, crystals: 3 }, anchors: { top: [0, 0, 0] } },
 };

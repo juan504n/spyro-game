@@ -2,7 +2,7 @@
 // deterministic. Gameplay data (enemies, gems, vases…) is produced in every pass but only kept from the dry one.
 import { makeCtx } from './helpers.js';
 import { attachGameplay, finalizeGems } from './gameplay.js';
-import { layoutVillage, layoutLake, layoutRiver, layoutRuins, layoutWindmill, layoutSkyIsles, layoutHollow, layoutNorth } from './layout.js';
+import { layoutVillage, layoutLake, layoutRiver, layoutRuins, layoutWindmill, layoutSkyIsles, layoutHollow, layoutNorth, layoutFauna } from './layout.js';
 import { scatterWorld } from './scatter.js';
 import { Kit } from '../kit.js';
 import { PROPS } from '../props/index.js';
@@ -24,6 +24,7 @@ export function populate(kit, world) {
   layoutSkyIsles(ctx);
   layoutHollow(ctx);
   layoutNorth(ctx);
+  layoutFauna(ctx);
   scatterWorld(ctx);
   finalizeGems(ctx);
 

@@ -1,8 +1,10 @@
 // Ground cover: flower / tuft / fern patches, reeds, lilypads, logs, stumps, mushrooms.
-import { lump, lumps, tube, shade, card, cross, flat, TAU, lerp, clamp, mulc, h3, num, int, oneOf } from './util.js';
+import { lump, lumps, tube, shade, card, cross, flat, TAU, lerp, clamp, mulc, h3, num, int, oneOf, swayOK } from './util.js';
 
 const FLOWERS = ['flower_pink', 'flower_yellow', 'flower_blue'];
 const CUT = { mode: 'cutout', double: true, sway: true };
+const CUT_STATIC = { mode: 'cutout', double: true };
+const SWAY_GROUND = 8;                                  // world-height limit for foliage sway (see swayOK)
 
 /** Random point in a disc (uniform), deterministic from rng. */
 function inDisc(r, rad) {
@@ -39,18 +41,19 @@ export function flowerPatch(kit, { x, z, rot = 0, scale = 1, y, r: rad, count, t
   kinds = Array.isArray(kinds) ? kinds.filter((k) => FLOWERS.includes(k)) : [];
   if (!kinds.length) kinds = FLOWERS;
   const r = kit.rng(x, z, 83);
+  const cut = swayOK(kit, x, z, y, SWAY_GROUND) ? CUT : CUT_STATIC;
   kit.at(x, z, { rot, scale, y }, () => {
     const pts = scatter(r, count, rad, 0.75);
     pts.forEach((p, i) => {
       const k = kinds[Math.floor(r.next() * kinds.length)];
       const s = r.float(0.7, 1.0);
-      cross(kit.b(k, CUT), p[0], -0.05, p[1], 0.72 * s, 0.78 * s, r.float(0, 3), { color: vary(r, 1.12, 0.06) });
+      cross(kit.b(k, cut), p[0], -0.05, p[1], 0.88 * s, 0.94 * s, r.float(0, 3), { color: vary(r, 1.12, 0.06) });
     });
     if (tufts) {
       const n = Math.round(count * 0.45);
       scatter(r, n, rad * 1.05, 0.9).forEach((p) => {
         const s = r.float(0.8, 1.2);
-        cross(kit.b('tuft', CUT), p[0], -0.05, p[1], 1.1 * s, 0.95 * s, r.float(0, 3), { color: vary(r, 1.0, 0.1) });
+        cross(kit.b('tuft', cut), p[0], -0.05, p[1], 1.1 * s, 0.95 * s, r.float(0, 3), { color: vary(r, 1.0, 0.1) });
       });
     }
   });
@@ -60,11 +63,12 @@ export function flowerPatch(kit, { x, z, rot = 0, scale = 1, y, r: rad, count, t
 export function tuftPatch(kit, { x, z, rot = 0, scale = 1, y, r: rad, count, teal }) {
   rad = num(rad, 2.6, 0.5, 14); count = int(count, 12, 1, 40); teal = !!teal;
   const r = kit.rng(x, z, 89);
+  const cut = swayOK(kit, x, z, y, SWAY_GROUND) ? CUT : CUT_STATIC;
   kit.at(x, z, { rot, scale, y }, () => {
     scatter(r, count, rad, 0.8).forEach((p) => {
       const s = r.float(0.75, 1.3);
       const tint = teal ? [0.85, 1.05, 1.0] : vary(r, 1.0, 0.1);
-      cross(kit.b('tuft', CUT), p[0], -0.05, p[1], 1.15 * s, 1.0 * s, r.float(0, 3), { color: tint });
+      cross(kit.b('tuft', cut), p[0], -0.05, p[1], 1.15 * s, 1.0 * s, r.float(0, 3), { color: tint });
     });
   });
 }
@@ -73,6 +77,7 @@ export function tuftPatch(kit, { x, z, rot = 0, scale = 1, y, r: rad, count, tea
 export function fernPatch(kit, { x, z, rot = 0, scale = 1, y, r: rad, count }) {
   rad = num(rad, 2.4, 0.5, 14); count = int(count, 3, 1, 10);
   const r = kit.rng(x, z, 97);
+  const cut = swayOK(kit, x, z, y, SWAY_GROUND) ? CUT : CUT_STATIC;
   kit.at(x, z, { rot, scale, y }, () => {
     const centres = count === 1 ? [[0, 0]] : scatter(r, count, rad, 1.7);
     centres.forEach((c) => {
@@ -81,7 +86,7 @@ export function fernPatch(kit, { x, z, rot = 0, scale = 1, y, r: rad, count }) {
       const s = r.float(0.85, 1.2);
       for (let i = 0; i < nF; i++) {
         const a = a0 + (i / nF) * TAU + r.float(-0.2, 0.2);
-        card(kit.b('fern', CUT), c[0] + Math.sin(a) * 0.15, -0.05, c[1] + Math.cos(a) * 0.15, 1.5 * s, 1.5 * s, a, { lean: r.float(0.65, 0.95), color: vary(r, 1.02, 0.08) });
+        card(kit.b('fern', cut), c[0] + Math.sin(a) * 0.15, -0.05, c[1] + Math.cos(a) * 0.15, 1.5 * s, 1.5 * s, a, { lean: r.float(0.65, 0.95), color: vary(r, 1.02, 0.08) });
       }
     });
   });
@@ -91,10 +96,11 @@ export function fernPatch(kit, { x, z, rot = 0, scale = 1, y, r: rad, count }) {
 export function reeds(kit, { x, z, rot = 0, scale = 1, y, r: rad, count }) {
   rad = num(rad, 2, 0.5, 14); count = int(count, 8, 1, 30);
   const r = kit.rng(x, z, 101);
+  const cut = swayOK(kit, x, z, y, SWAY_GROUND) ? CUT : CUT_STATIC;
   kit.at(x, z, { rot, scale, y }, () => {
     scatter(r, count, rad, 0.6).forEach((p) => {
       const s = r.float(0.8, 1.25);
-      cross(kit.b('reeds', CUT), p[0], -0.1, p[1], 1.05 * s, 2.5 * s, r.float(0, 3), { color: vary(r, 1.0, 0.08) });
+      cross(kit.b('reeds', cut), p[0], -0.1, p[1], 1.05 * s, 2.5 * s, r.float(0, 3), { color: vary(r, 1.0, 0.08) });
     });
   });
 }
@@ -103,12 +109,13 @@ export function reeds(kit, { x, z, rot = 0, scale = 1, y, r: rad, count }) {
 export function lilypads(kit, { x, z, rot = 0, scale = 1, y, r: rad, count }) {
   rad = num(rad, 3.5, 0.8, 14); count = int(count, 8, 1, 24);
   const r = kit.rng(x, z, 103);
+  const cut = swayOK(kit, x, z, y, SWAY_GROUND) ? CUT : CUT_STATIC;
   kit.at(x, z, { rot, scale, y }, () => {
     const pad = kit.b('lilypad', { mode: 'cutout', double: true });
     scatter(r, count, rad, 1.9).forEach((p, i) => {
       const s = r.float(1.3, 2.1);
-      flat(pad, p[0], 0.09, p[1], s, r.float(0, TAU), { color: vary(r, 1.0, 0.08) });
-      if (i % 4 === 1) card(kit.b('flower_pink', CUT), p[0], 0.09, p[1], 0.7, 0.7, r.float(0, 3), { lean: 0, color: [1.15, 1.1, 1.1] });
+      flat(pad, p[0], 0.05, p[1], s, r.float(0, TAU), { color: vary(r, 1.0, 0.08) });
+      if (i % 4 === 1) card(kit.b('flower_pink', cut), p[0], 0.05, p[1], 0.7, 0.7, r.float(0, 3), { lean: 0, color: [1.15, 1.1, 1.1] });
     });
   });
 }
@@ -163,23 +170,12 @@ export function stump(kit, { x, z, rot = 0, scale = 1, y, pale }) {
   });
 }
 
-function lineup(kit, { x, z }) {
-  flowerPatch(kit, { x: x - 18, z });
-  tuftPatch(kit, { x: x - 11, z });
-  fernPatch(kit, { x: x - 5, z });
-  reeds(kit, { x: x + 1, z });
-  lilypads(kit, { x: x + 8, z, y: 3.2 });
-  fallenLog(kit, { x: x + 17, z });
-  stump(kit, { x: x + 25, z });
-}
-
 export const GROUND = {
   flower_patch: { fn: flowerPatch, size: 6, note: 'meadow flowers (pink/yellow/blue) + tufts, sway; r, count, tufts, kinds', defaults: { r: 3, count: 14 } },
   tuft_patch: { fn: tuftPatch, size: 5, note: 'clumps of tall grass; r, count, teal', defaults: { r: 2.6, count: 12 } },
   fern_patch: { fn: fernPatch, size: 5, note: 'fern rosettes; r, count', defaults: { r: 2.4, count: 3 } },
   reeds: { fn: reeds, size: 4, note: 'cattail reeds at the water edge (pass y = shore level); r, count', defaults: { r: 2, count: 8 } },
   lilypads: { fn: lilypads, size: 7, note: 'lilypads on the water (PASS y = water level); r, count', defaults: { r: 3.5, count: 8 } },
-  fallen_log: { fn: fallenLog, size: 7, note: 'fallen log along local x with moss, walkable top; len', defaults: { len: 6.2 } },
-  stump: { fn: stump, size: 3.4, note: 'tree stump with mossy top, walkable', defaults: {} },
-  _ground: { fn: lineup, size: 80, note: 'dev lineup' },
+  fallen_log: { fn: fallenLog, size: 7, note: 'fallen log along local x with moss, walkable top; len', defaults: { len: 6.2 }, anchors: { top: [0, 1.4, 0] } },
+  stump: { fn: stump, size: 3.4, note: 'tree stump with mossy top, walkable', defaults: {}, anchors: { top: [0, 1.25, 0] } },
 };

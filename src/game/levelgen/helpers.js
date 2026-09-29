@@ -38,7 +38,7 @@ export function makeCtx(kit, world, seed = 9127) {
   const s = grid.n + 1;
   const ctx = {
     kit, world, grid, rng, occ, L: grid.level,
-    gp: { gems: [], vases: [], chests: [], walls: [], braziers: [], mushrooms: [], enemies: [], bunnies: [], npcs: [], hints: [], beacons: [], islands: [], extraGems: [] },
+    gp: { gems: [], vases: [], chests: [], walls: [], braziers: [], mushrooms: [], enemies: [], bunnies: [], npcs: [], hints: [], beacons: [], islands: [], extraGems: [], soundSources: [] },
     counts: {},
     h: (x, z) => grid.heightAt(x, z),
     slope: (x, z) => grid.slopeAt(x, z),

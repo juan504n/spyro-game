@@ -96,7 +96,8 @@ const HEIGHTS = { s: 5.2, m: 6.6, l: 8.0 };
 /** Giant decor mushroom 5-8 tall: cream stem, huge spotted cap that glows softly. */
 export function giantMushroom(kit, { x, z, rot = 0, scale = 1, y, size }) {
   const r = kit.rng(x, z, 163);
-  const H = HEIGHTS[size] || num(size, 6.6, 3.5, 10);
+  // size: 's' | 'm' | 'l', a multiplier of the default height (<= 3, e.g. 1.2) or an absolute height (> 3)
+  const H = clamp(HEIGHTS[size] || (typeof size === 'number' && Number.isFinite(size) ? (size <= 3 ? 6.6 * size : size) : 6.6), 3.5, 13);
   const k = H / 6.6;
   kit.at(x, z, { rot, scale, y }, () => {
     const Hs = H * 0.6;
@@ -164,15 +165,7 @@ export function mushroomCluster(kit, { x, z, rot = 0, scale = 1, y, count }) {
   });
 }
 
-function lineup(kit, { x, z }) {
-  giantMushroom(kit, { x: x - 10, z });
-  giantMushroom(kit, { x: x, z, size: 's' });
-  mushroomCluster(kit, { x: x + 8, z });
-  mushroomCluster(kit, { x: x + 13, z, count: 3 });
-}
-
 export const FUNGI = {
-  giant_mushroom: { fn: giantMushroom, size: 8, note: 'giant decor mushroom 5-8 tall (size s|m|l or number): glowing cap, walk under it', defaults: { size: 'm' } },
+  giant_mushroom: { fn: giantMushroom, size: 8, note: 'giant decor mushroom 5-8 tall (size s|m|l, a multiplier such as 1.2, or an absolute height > 3): glowing cap, walk under it', defaults: { size: 'm' }, anchors: { cap: [0, 5.2, 0] } },
   mushroom_cluster: { fn: mushroomCluster, size: 4, note: 'cluster of small glowing toadstools; count', defaults: { count: 5 } },
-  _fungi: { fn: lineup, size: 60, note: 'dev lineup' },
 };
