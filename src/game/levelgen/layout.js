@@ -79,14 +79,22 @@ export function layoutLake(ctx) {
   put('boat', -10.5, shoreZ - 2, { rot: 0.6 }, 3);
   const stones = [[-6, 58], [-2, 52.5], [-7, 47], [-3, 42]];
   for (const [x, z] of stones) put('stepping_stone', x, z, { h: WATER_LEVEL + 0.45 - h(x, z) }, 1.8);
-  // shrine on the island
-  put('standing_stones', I.x, I.z, { r: 8.2, count: 8 }, 9);
-  put('crystal_cluster', I.x + 6, I.z - 4, { color: 'cyan', count: 5 }, 2);
-  put('crystal_cluster', I.x - 6, I.z + 3, { color: 'violet', count: 5 }, 2);
-  put('tree_lantern', I.x - 3, I.z - 7, { canopy: 'leaves_teal', size: 's' }, 3);
-  put('bush', I.x + 4, I.z + 6, { flowers: true }, 1.5);
-  ctx.addChest(I.x + 5.5, I.z + 5, 2.4, [10, 5]);
-  ctx.addEnemy(I.x - 5, I.z + 4, 'basic', 3);
+  // shrine on the island. Its level top is only ~4 m across and the shore falls away steeply under the ring, so everything is
+  // placed in polar terms round the beacon (angle 0 = east, 90 = south). The monoliths are turned to leave a gap towards the
+  // stepping stones (south) and towards Heron Point (north); the crystals, the tree and the bush sit in the other gaps.
+  const isleAt = (deg, d) => [I.x + Math.cos((deg * Math.PI) / 180) * d, I.z + Math.sin((deg * Math.PI) / 180) * d];
+  put('standing_stones', I.x, I.z, { r: 8.2, count: 8, rot: 0.38 }, 9);
+  put('crystal_cluster', ...isleAt(315, 6.8), { color: 'cyan', count: 5 }, 2);
+  put('crystal_cluster', ...isleAt(135, 6.8), { color: 'violet', count: 5 }, 2);
+  put('tree_lantern', ...isleAt(225, 6.6), { canopy: 'leaves_teal', size: 's' }, 3);
+  put('bush', ...isleAt(0, 6.4), { flowers: true }, 1.5);
+  // the chest: on the level shoulder just outside the rune circle, long side along the slope, lock facing outwards. Its base sits
+  // on the lowest ground under its 1.7 x 1.0 footprint, so the downhill edge touches the grass and the uphill one is bedded in
+  const [chestX, chestZ] = isleAt(45, 4.7), chestYaw = Math.PI / 4;
+  const chestGround = Math.min(...[[-0.85, -0.5], [0.85, -0.5], [-0.85, 0.5], [0.85, 0.5]]
+    .map(([lx, lz]) => h(chestX + lx * Math.cos(chestYaw) + lz * Math.sin(chestYaw), chestZ - lx * Math.sin(chestYaw) + lz * Math.cos(chestYaw))));
+  ctx.addChest(chestX, chestZ, chestYaw, [10, 5], chestGround);
+  ctx.addEnemy(...isleAt(145, 4.2), 'basic', 2.2);
   gp.hints.push({ x: -4, z: 70, r: 7, text: 'HOP THE STONES OR GLIDE OFF HERON POINT TO REACH THE ISLE', dur: 6.5 });
   // shoreline dressing: reeds, lily pads, rocks
   let placed = 0;

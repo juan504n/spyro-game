@@ -58,18 +58,22 @@ export function buildTerrainMeshes(grid, lighting, assets) {
   // ---- texture selection --------------------------------------------------------------------------------------
   const lake = L.lake;
   const flowerAt = (x, z) => fbm(nFlower, x * 0.04 + 3, z * 0.04, 2);
-  const pick = (x, z, h, slope, nx, nz, i, j, pd) => {
+  const pick = (x, z, h, slope, nx, nz, i, j, pd, surface) => {
     const dL = Math.hypot((x - lake.x) / lake.rx, (z - lake.z) / lake.rz);
     const r = hash01(i, j);
     if (h < WATER_LEVEL + 0.05 && dL < 1.6) return 'sand';
     if (h < WATER_LEVEL + 0.8 && dL < 1.45 && slope < 0.5) return r < 0.22 && h > WATER_LEVEL + 0.1 ? 'shore_pebbles' : 'sand';
-    const warm = Math.hypot(x - L.mesa.x, z - L.mesa.z) < 60 || Math.hypot(x - L.cascade.x, z - L.cascade.z) < 55 || Math.hypot(x - L.heron.x, z - L.heron.z) < 25;
+    // (the Dawn Gate's surroundings are all one rock: the red cascade rock used to start ten metres from its pillars, and a
+    // random mix of rock and grass on the steep flanks of its forecourt looked torn)
+    const nearGate = Math.hypot(x - L.gate.x, z - L.gate.z) < 34;
+    const warm = !nearGate && (Math.hypot(x - L.mesa.x, z - L.mesa.z) < 60 || Math.hypot(x - L.cascade.x, z - L.cascade.z) < 55 || Math.hypot(x - L.heron.x, z - L.heron.z) < 25);
     if (vrAt(x, z) > 0.965 && slope > 0.3) return 'far_rock';
     if (slope > 0.74) return warm ? 'cliff_warm' : 'cliff';
     if (h > 30 && slope > 0.42) return warm ? 'cliff_warm' : 'cliff';
-    if (slope > 0.5 && r < (slope - 0.5) * 3.5) return warm ? 'cliff_warm' : 'cliff';
+    if (slope > 0.5 && (r < (slope - 0.5) * 3.5 || nearGate)) return warm ? 'cliff_warm' : 'cliff';
     if (h > 42) return 'far_rock';
     if (Math.hypot(x - L.village.x, z - (L.village.z - 4)) < 9.5) return 'flagstone';
+    if (surface === 'flagstone' && pd < 1.2) return 'flagstone';                // a paved forecourt is paved right through (the cells are coarser than the paving)
     if (pd < 0.3) return 'dirt';
     const K = L.hollow;
     if (Math.hypot(x - K.x, z - K.z) < K.r * 0.9) return 'moss';
@@ -97,8 +101,11 @@ export function buildTerrainMeshes(grid, lighting, assets) {
     const ux = vb[0] - va[0], uz = vb[2] - va[2], vx = vc[0] - va[0], vz = vc[2] - va[2];
     if (uz * vx - ux * vz < 0) { [vb, vc] = [vc, vb]; [ib, ic] = [ic, ib]; }
     const b = getB(name);
+    // rock is laid out like a wall from a gentler slope on (its strata are horizontal bands: mapped from above they ran straight
+    // up any hillside that faces east or west, in stripes that broke against the neighbouring, steeper triangles)
+    const wall = slope > 0.62 || (slope > 0.35 && (name === 'cliff' || name === 'cliff_warm'));
     const uvOf = (p, nrm) => {
-      if (slope > 0.62) {
+      if (wall) {
         // wall-ish: project along the dominant horizontal axis so strata stay horizontal
         return Math.abs(nrm[0]) > Math.abs(nrm[2]) ? [p[2] / GROUND_TILE, p[1] / GROUND_TILE] : [p[0] / GROUND_TILE, p[1] / GROUND_TILE];
       }
@@ -113,6 +120,10 @@ export function buildTerrainMeshes(grid, lighting, assets) {
     for (let i = 0; i < n; i++) {
       const A = P(i, j), B = P(i + 1, j), C = P(i, j + 1), D = P(i + 1, j + 1);
       const pd = (pathDist[j * s + i] + pathDist[j * s + i + 1] + pathDist[(j + 1) * s + i] + pathDist[(j + 1) * s + i + 1]) / 4;
+      // what kind of road is nearest (the corner that is closest to a road edge decides)
+      let near = j * s + i;
+      for (const k of [j * s + i + 1, (j + 1) * s + i, (j + 1) * s + i + 1]) if (pathDist[k] < pathDist[near]) near = k;
+      const surface = grid.pathIdx[near] >= 0 ? grid.paths[grid.pathIdx[near]].surface : '';
       const tris = ((i + j) & 1) === 0 ? [[A, D, B, [i, j], [i + 1, j + 1], [i + 1, j]], [A, C, D, [i, j], [i, j + 1], [i + 1, j + 1]]]
         : [[A, C, B, [i, j], [i, j + 1], [i + 1, j]], [B, C, D, [i + 1, j], [i, j + 1], [i + 1, j + 1]]];
       for (const [p0, p1, p2, i0, i1, i2] of tris) {
@@ -121,7 +132,7 @@ export function buildTerrainMeshes(grid, lighting, assets) {
         let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
         const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
         const slope = Math.acos(clamp(Math.abs(ny)));
-        emit(pick(cx, cz, ch, slope, nx, nz, i, j, pd), slope, p0, p1, p2, i0, i1, i2);
+        emit(pick(cx, cz, ch, slope, nx, nz, i, j, pd, surface), slope, p0, p1, p2, i0, i1, i2);
       }
     }
   }

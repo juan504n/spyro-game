@@ -37,8 +37,9 @@ flowchart LR
 | IV | Sky | bounce, glide | a launch mushroom on the mesa, then a chain of floating isles that bob |
 | V | Dawn | endurance | the Dawn Gate stays sealed until four lanterns burn (a ward around the mountain, shown by drifting violet motes, stops anyone walking or gliding round the arch), then a cobbled road spirals up to the observatory |
 
-The two long trails leave the village on opposite sides of the lake and meet again at the Dawn Gate, so the valley is a loop
-and no route is a dead end. Heron Point, a red-rock headland on the lake's north shore, has its own trail: it is the launch
+The two long trails leave the village on opposite sides of the lake and meet again at the Dawn Gate, running into the two
+sides of its paved forecourt (a flagstone apron that climbs gently to the threshold), so the valley is a loop and no route is
+a dead end. Heron Point, a red-rock headland on the lake's north shore, has its own trail: it is the launch
 pad for the long glide out to the island shrine.
 
 ## Enemies
@@ -107,6 +108,8 @@ ladder of a fourth, a fifth and an octave over the chime's own pitch (all inside
 
 `tools/bot.mjs` walks every road with the real player controller; `tools/playthrough.mjs` completes the whole story
 (every beacon, the puzzle, the glide chain, the gate, the finale). Both run without rendering, so they take seconds.
+`tools/level-check.mjs` builds the level headlessly (no server) and checks the gem economy and a few placements that once went
+wrong: the shrine chest sits seated on its island's level top, and the Dawn Gate's forecourt is dry, gentle and where the ring roads end.
 
 Focused checks (they need the dev server): `charge-test` (charging lasts exactly as long as the button is held), `gem-flight-test` (a pulled gem
 rises, peaks in the middle of the flight and dives in; a running target is still caught; the pull cancels cleanly; bursts add up exactly),

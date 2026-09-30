@@ -88,7 +88,12 @@ export function crystalSpire(kit, { x, z, rot = 0, scale = 1, y, color, h }) {
 }
 
 // ---- standing stones -----------------------------------------------------------------------------------------------
-/** Ring of runed monoliths around a glowing rune circle. */
+/**
+ * Ring of runed monoliths around a glowing rune circle.  The circle lies flat at the placement height, but the ground under
+ * the ring need not: on the shore of the lake island or on the ruins' mound it falls away, and a flat ring would hover.  So
+ * every monolith is planted on the ground under its own feet: its base sinks 0.6 below the lowest ground under the
+ * footprint, and its collider starts there too.
+ */
 export function standingStones(kit, { x, z, rot = 0, scale = 1, y, r: ringR, count, glowColor }) {
   ringR = num(ringR, 6, 2.5, 14); count = int(count, 7, 3, 14);
   if (!Array.isArray(glowColor) || glowColor.length < 3 || glowColor.some((v) => !Number.isFinite(v))) glowColor = [0.6, 0.4, 1.0];
@@ -97,6 +102,8 @@ export function standingStones(kit, { x, z, rot = 0, scale = 1, y, r: ringR, cou
     const stone = kit.b('cliff');
     const runes = kit.b('rune_ring');
     const a0 = rng.float(0, TAU);
+    // ground height under prop-local (lx, lz), relative to the prop's origin, in prop units
+    const groundAt = (lx, lz) => { const [wx, wz] = kit.toWorld(lx, lz); return (kit.groundY(wx, wz) - kit.origin.y) / kit.origin.scale; };
     for (let i = 0; i < count; i++) {
       const a = a0 + (i / count) * TAU + rng.float(-0.06, 0.06);
       const px = Math.sin(a) * ringR, pz = Math.cos(a) * ringR;
@@ -105,8 +112,11 @@ export function standingStones(kit, { x, z, rot = 0, scale = 1, y, r: ringR, cou
       // local frame of the stone: +z faces the ring centre
       const yaw = a + Math.PI;
       const cs = Math.cos(yaw), sn = Math.sin(yaw);
-      const P = (lx, ly, lz) => [px + lx * cs + lz * sn + lean * ly * 0.5, ly, pz - lx * sn + lz * cs];
+      let gy = 0;                                        // (set below, once the footprint is known)
+      const P = (lx, ly, lz) => [px + lx * cs + lz * sn + lean * ly * 0.5, ly + gy, pz - lx * sn + lz * cs];
       const w0 = W / 2, d0 = D / 2, w1 = w0 * 0.78, d1 = d0 * 0.78;
+      gy = groundAt(px, pz);
+      for (const [fx, fz] of [[-w0, d0], [w0, d0], [-w0, -d0], [w0, -d0]]) { const q = P(fx, 0, fz); gy = Math.min(gy, groundAt(q[0], q[2])); }
       const hL = H, hR = H * rng.float(0.86, 0.97);       // sloped, broken top
       const col = shade(0, [0.58, 0.55, 0.72], H, [1.1, 1.06, 1.16], 0.05);
       const o = { color: col };
@@ -126,7 +136,7 @@ export function standingStones(kit, { x, z, rot = 0, scale = 1, y, r: ringR, cou
       const zf = (yy) => d0 + (d1 * 0.9 - d0) * clamp((yy + 0.6) / (lerp(hL, hR, 0.5) + 0.6)) + 0.035;
       runes.quad(P(-rs, ry - rs, zf(ry - rs)), P(rs, ry - rs, zf(ry - rs)), P(rs, ry + rs, zf(ry + rs)), P(-rs, ry + rs, zf(ry + rs)),
         { uv: [0, 0, 1, 1], emissive: 0.85, color: [1.1, 1.0, 1.25] });
-      kit.cyl(px, pz, W * 0.48, 0, H * 0.9);
+      kit.cyl(px, pz, W * 0.48, gy - 0.6, gy + H * 0.9);
     }
     // ground rune circle (decal disc) and its glow
     kit.b('rune_ring', { decal: true }).disc(ringR * 0.5, 16, { y: 0.06, uvDisc: true, emissive: 0.45, color: [1.05, 1.0, 1.2] });

@@ -76,8 +76,13 @@ export const LEVEL = {
     { id: 'west', surface: 'dirt', width: 4.6, pts: [[-3, 80], [-30, 80], [-58, 74], [-76, 66], ...spiral(-112, 42, 40, 9, 0.5, 0.82, 3.4, 26, 26)] },
     { id: 'east', surface: 'dirt', width: 4.6, pts: [[0, 84], [30, 86], [56, 74], [76, 58], [90, 46]] },
     { id: 'mill', surface: 'dirt', width: 4.2, pts: spiral(112, 26, 40, 11, Math.PI * 0.62, 1.45, 3.2, 20.2, 44) },
-    { id: 'ringW', surface: 'dirt', width: 4.4, pts: [[-80, 62], [-72, 34], [-70, 6], [-58, -24], [-40, -50], [-28, -68], [-15, -76], [-5, -82], [0, -86], [0, -91, 4.4]] },
-    { id: 'ringE', surface: 'dirt', width: 4.4, pts: [[76, 58], [70, 28], [62, 4], [52, -16], [44, -40], [30, -64], [14, -74], [5, -81], [0, -86], [0, -91, 4.4]] },
+    // the two ring roads follow the terrain all the way and run into the sides of the gate's forecourt (no pinned heights: a pin
+    // 9 m below the natural ground at the gate dragged the last 40 m of both roads down into a trench below the waterline)
+    { id: 'ringW', surface: 'dirt', width: 4.4, pts: [[-80, 62], [-72, 34], [-70, 6], [-58, -24], [-40, -50], [-28, -68], [-17, -75], [-7.6, -78.6]] },
+    { id: 'ringE', surface: 'dirt', width: 4.4, pts: [[76, 58], [70, 28], [62, 4], [52, -16], [44, -40], [30, -64], [18, -73], [7.6, -78.6]] },
+    // the Dawn Gate's forecourt: a paved apron 16 m wide that climbs gently from the valley floor to the gate's threshold (both ends
+    // pinned; it is not drawn as a ribbon, the terrain itself is paved there); the ring roads end at its sides
+    { id: 'plaza', surface: 'flagstone', width: 15, shoulder: 7.5, pts: [[0, -77.5, 2.2], [0, -90.5, 4.4]] },
     { id: 'summit', surface: 'cobble', width: 6, pts: [[0, -91, 4.4], ...spiral(0, -132, 37, 15.5, Math.PI * 0.5, 1.85, 5.0, 61.0, 54), [9.7, -124.9, 61.05]] },   // last stretch runs level onto the observatory's base ring (r 13.4, top y ~60.7)
     { id: 'ruins', surface: 'dirt', width: 3.6, pts: [[-58, 74], [-66, 90], [-76, 100]] },
     { id: 'meadow', surface: 'dirt', width: 3.6, pts: [[30, 86], [50, 98], [72, 102]] },

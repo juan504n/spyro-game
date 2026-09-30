@@ -207,7 +207,7 @@ export function generateTerrain(L = LEVEL, W = WORLD) {
   const paths = [];
   L.paths.forEach((p, id) => {
     const dense = pathProfile(p.pts, baseSample, 1.6);
-    carve(dense, p.width + 1.0, p.width * 1.1 + 3.4, 0.06, pathDist, pathIdx, id);
+    carve(dense, p.width + 1.0, p.shoulder ?? p.width * 1.1 + 3.4, 0.06, pathDist, pathIdx, id);
     paths.push({ id: p.id, surface: p.surface, width: p.width, pts: dense });
   });
   const rivers = [];
