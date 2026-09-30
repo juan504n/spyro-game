@@ -12,7 +12,7 @@ import { createElder } from './creatures/elder.js';
 export const CREATURES = {
   spyro: {
     create: createSpyro,
-    size: 2.2,
+    size: 2.6,
     note: 'Hero dragon. Pose { speed, grounded, vy, glide, charge, flame, turn, hurt, land, dead, cheer, look, t }. anchors: mouth, back.',
   },
   snuffer: {

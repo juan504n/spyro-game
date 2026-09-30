@@ -84,11 +84,13 @@ the whole valley is lit twice (dusk and daybreak) and the world cross-fades betw
 
 ## The hero
 
-Spyro is built in code like everything else (`src/game/models/creatures/spyro.js`): about 1.5 k vertex-coloured, Gouraud-lit
-triangles on a pivot rig (no skinning). The design follows the classic PS1 look — a big blocky head with large eyes and a short
-muzzle, long ringed horns, a gold crest, maroon wings with golden finger bones that stand up like sails (and spread flat for the
-glide), a thick upright neck with a banded gold chest, stubby paws with pale claws and a thin tail with a small orange tip.
-It is drawn by eye as original geometry: no ripped model, texture or animation data is used.
+Spyro is built in code like everything else (`src/game/models/creatures/spyro.js`): about 2 k vertex-coloured, Gouraud-lit
+triangles on a pivot rig (no skinning). The proportions follow the classic PS1 character sheet: a boxy head with a broad flat muzzle
+and large glossy eyes on the forehead wall, two thick ringed horns swept back and a flat orange crest fin behind the crown, a tall
+upright chest with banded orange plates from the throat down to the belly, four short columnar legs with flat three-toed feet,
+wings held up like triangular sails (dark red membrane, broad orange leading edge; they roll out flat for the glide) and a long tail
+that tapers to a ringed orange tip. It is modelled by hand as original geometry, measured off orthographic views of the character
+(every size is authored in "sheet units" and converted with one scale constant): no ripped model, texture or animation data is used.
 
 <p align="center">
   <img src="docs/shots/10-hero.png" width="80%" alt="The hero from four angles, rendered at 240p through the PS1 pipeline">

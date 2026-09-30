@@ -81,9 +81,14 @@ Sparx, the dragonfly, is the health bar: three hits, shown by his colour. Scorch
   capped so that a burst of pickups never lifts a digit above 12 px. It slides in from above on the first pickup, stays for 2.6 s after the last
   one and slides out; it also goes away at once whenever the HUD is hidden (title, cinematics). While it is hidden the extra render pass is skipped.
 * **Camera:** chase camera at a fixed distance that pulls in when something blocks it, plus authored cinematic shots for the title, intro and finale.
-* **The hero:** readable at 33 pixels tall, so the design is silhouette and colour blocks first: a gold crest and ringed brown horns on a big
-  purple head, maroon wings with gold bones, a pale gold banded chest and an orange tail tip. The neck is thick and upright with the head
-  carried high, the front legs are longer than the hind legs, and the horns and wings stay readable from the chase camera behind him.
+* **The hero:** modelled from a measured character sheet (orthographic front / side / top / back views), so the proportions are the classic
+  ones: a boxy purple head on a short thick neck with a broad flat muzzle (the cheek corners are the widest point), big glossy eyes tilted
+  outward on the forehead wall, thick ringed horns sweeping back and up, a flat orange crest fin standing on the midline (six spikes, the
+  base running down the back of the head), a tall upright chest carrying crisp banded orange plates from the throat to the belly, four
+  short columnar legs with flat three-toed feet, wings held up like triangular sails (dark red membrane, broad orange leading edge,
+  brown shoulder knob) and a long tapering tail with an orange ringed tip. Everything is authored in sheet units (`K` metres each) and
+  converted by one helper, so the model can be rescaled with a single constant. The build was checked against the sheet by overlaying
+  silhouettes from the front, side, top and back (about 0.9 overlap for the side and top views, 0.86 from the front).
 
 ## Audio direction
 

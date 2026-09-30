@@ -17,7 +17,7 @@ const cols = +opt('cols', 2);
 const scale = +opt('scale', 1);
 const views = opt('views', 'front,front34,side,back34').split(',');
 const poses = opt('poses', '') ? opt('poses', '').split(',') : null;   // one shot per pose (first view), instead of one per view
-const hy = +opt('hy', 0.55);          // vertical centre of the model
+const hy = +opt('hy', 0.85);          // vertical centre of the model
 const opts = opt('opts', '{"still":1}');   // creation options (still = no idle blink / look-around, so renders are repeatable)
 
 const deg = (a) => (a * Math.PI) / 180;
