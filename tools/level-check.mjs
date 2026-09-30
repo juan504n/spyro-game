@@ -4,6 +4,7 @@ import { buildHeadless } from './headless-world.mjs';
 import { WATER_LEVEL } from '../src/game/level.js';
 import { isleObjects, shortfall } from '../src/game/levelgen/islands.js';
 import { colliderDist } from '../src/game/debuginfo.js';
+import { terrainPicker } from '../src/game/terrain-mesh.js';
 
 const { grid, kit, dryCtx: ctx, gp, ms } = buildHeadless();
 console.log('populate ms', Math.round(ms), '(terrain + both passes, headless)');
@@ -143,5 +144,29 @@ const check = (name, ok, detail) => { checks.push(ok); console.log(ok ? 'PASS' :
   check('there is open water between every two pads, and between the pads and the dock and boat (at least 1.4 m)', closest >= 1.4 && Math.min(...nearDock) >= 1.4, `(closest pair ${closest.toFixed(1)} m at ${closeAt}; closest to the dock or boat ${Math.min(...nearDock).toFixed(1)} m)`);
   const R = lily.map((c) => c.r);
   check('the decor lily pads are twice the old size (2.6-4.2 m across, was 1.3-2.1)', lily.length >= 40 && Math.min(...R) >= 1.0 && R.reduce((a, b) => a + b, 0) / R.length >= 1.3, `(${lily.length} pads, radius ${Math.min(...R).toFixed(2)}-${Math.max(...R).toFixed(2)} m)`);
+}
+{
+  // the ground where the main road, the west and east trails and the dock meet is one calm lawn (level.js `landing`, honoured by terrainPicker, so by the mesh and the debug readout alike). It used to be a
+  // mosaic of moss, a darker grass, flower meadow, a pebble shoreline and scraps of cliff on the road embankments, cell by cell: now only grass_a, sand at the water and the roads' own dirt (and paving) may
+  // appear inside it, nothing beyond its fade moved, and inside the fade a cell only ever changes to one of those.
+  const land = L.landing;
+  const pick = terrainPicker(grid);
+  const before = terrainPicker(Object.create(grid, { level: { value: { ...L, landing: undefined } } }));          // the same ground without the zone: what it was
+  const calm = new Set(['grass_a', 'sand', 'dirt', 'flagstone']);
+  const NEED = 16;                                                                  // the lawn must hold at least this far round the pier's foot (the junction of the roads and the shore either side of the dock)
+  const inZone = new Set(), wasInZone = new Set(), band = { changed: 0, calmer: 0 };
+  let outside = 0, moved = 0;
+  for (let x = land.x - 45; x <= land.x + 45; x += 0.8) for (let z = land.z - 45; z <= land.z + 45; z += 0.8) {
+    const d = Math.hypot(x - land.x, z - land.z), a = pick.at(x, z).tex, b = before.at(x, z).tex;
+    if (d < NEED) { inZone.add(a); wasInZone.add(b); }
+    else if (d >= land.r + land.fade) { outside++; if (a !== b) moved++; }
+    else if (a !== b) { band.changed++; if (calm.has(a)) band.calmer++; }
+  }
+  check(`the pier landing is one calm lawn: only grass, sand and the roads' own dirt and paving within ${NEED} m of its foot`, land.r >= NEED && [...inZone].every((t) => calm.has(t)), `(${inZone.size} textures: ${[...inZone].sort().join(', ')}; it was a mosaic of ${wasInZone.size}: ${[...wasInZone].sort().join(', ')})`);
+  check('... it really was a mosaic before (the check sees the problem)', wasInZone.size >= 6, `(${wasInZone.size} textures)`);
+  check('... nothing beyond the lawn and its fade changed', outside > 5000 && moved === 0, `(${outside} points checked beyond ${land.r + land.fade} m, ${moved} moved)`);
+  check('... inside the fade cells only ever change to the calm textures, and some do', band.changed > 50 && band.calmer === band.changed, `(${band.changed} cells changed, ${band.calmer} to grass, sand, dirt or paving)`);
+  const lawn = pick.at(land.x - 12, land.z + 12);
+  check('... the debug readout names the rule behind it', lawn.tex === 'grass_a' && /landing lawn/.test(lawn.why || ''), `(${lawn.tex}: ${lawn.why})`);
 }
 process.exitCode = checks.every(Boolean) ? 0 : 1;

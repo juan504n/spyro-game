@@ -151,6 +151,7 @@ export class GemField {
   /** Sparx grabs the gem: remember where it starts and how long / how high the lob will be. */
   _launch(it, d) {
     it.magnet = true;
+    this.game.sparx?.grab(it);                        // (he flicks towards it)
     it.mt = 0; it.trail = 0;
     it.sx = it.x; it.sy = it.y; it.sz = it.z;
     it.T = FLIGHT.t0 + FLIGHT.tPerM * d;

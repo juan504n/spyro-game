@@ -176,7 +176,7 @@ export class Game {
     p.place(c.x, c.y + 0.1, c.z, c.yaw);
     p.safe = { x: c.x, y: c.y, z: c.z, yaw: c.yaw };
     p.invulnT = 2;
-    this.sparx?.reset(2);
+    this.sparx?.reset();                                   // (a new life starts with gold Sparx, full health)
     this.cam.snapBehind(p);
     this.audio?.sfx('respawn');
     this.fx.puff(c.x, c.y + 0.5, c.z, 1);

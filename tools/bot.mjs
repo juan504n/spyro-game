@@ -178,6 +178,58 @@ await run('sky-route', () => {
   }
   return { ok: true, log, end: __bot.state() };
 });
+await run('ram-jump', () => {
+  // In the original you can jump while ramming: hold RAM, tap JUMP, and the ram carries on through the air. From the dock's end that is one 18 m leap across the water to the
+  // SECOND lily pad, which a plain jump (8.7 m) cannot reach. The real controller: RAM held from 5 m up the dock, JUMP tapped half a metre before its end.
+  const G = __game, p = G.player, ctl = __bot.ctl;
+  const pads = G.gameplay.placed.filter((q) => q.name === 'stepping_stone').sort((a, b) => b.z - a.z);
+  const pad2 = pads[1], endZ = 66.58;
+  const yaw = Math.atan2(pad2.x - -4, pad2.z - 72);
+  __bot.place(-4, 72, yaw, 0.3);
+  __bot.edge('charge'); ctl.charge = true;
+  let jumpedAt = null, airSpeed = 1e9, charging = true;
+  for (let i = 0; i < 400 && !p.dead; i++) {
+    const dx = pad2.x - p.x, dz = pad2.z - p.z, Y = G.cam.yaw;                          // (steer like the bot's heading helper)
+    ctl.my = dx * Math.sin(Y) + dz * Math.cos(Y); ctl.mx = -dx * Math.cos(Y) + dz * Math.sin(Y);
+    ctl.jump = false;
+    if (jumpedAt === null && p.grounded && p.z < endZ + 0.5) { ctl.jump = true; __bot.edge('jump'); jumpedAt = { x: +p.x.toFixed(1), z: +p.z.toFixed(1), speed: +p.speed.toFixed(1), charging: p.chargeT > 0 }; }
+    __bot.tick();
+    if (jumpedAt !== null && !p.grounded) { airSpeed = Math.min(airSpeed, p.speed); charging = charging && p.chargeT > 0; }
+    if (jumpedAt !== null && p.grounded) break;
+  }
+  ctl.charge = false; ctl.mx = ctl.my = 0; ctl.jump = false;
+  const on = p.dead ? 'dead' : p.grounded && p.groundKind === 'collider' && p.groundC && p.groundC.prop ? p.groundC.prop.name : p.grounded ? p.groundKind : 'air';
+  return { ok: !!jumpedAt && jumpedAt.charging && charging && airSpeed > 22 && on === 'stepping_stone' && Math.hypot(p.x - pad2.x, p.z - pad2.z) < 3.4, jumpedAt, airSpeed: +airSpeed.toFixed(1), stillRamming: charging, landedOn: on, at: [+p.x.toFixed(1), +p.z.toFixed(1)], pad2: [pad2.x, pad2.z] };
+});
+await run('sparx', () => {
+  // Sparx as in the original. The game BEGINS with him gold (full health: nothing has hurt him yet when this runs); every hit he takes turns him blue, then green, then he is
+  // gone, and the next hit is lights out; butterflies bring him back one colour at a time; a new life starts with gold Sparx again. While he is with Spyro the gems near
+  // are pulled in; without him they have to be touched.
+  const G = __game, p = G.player, S = G.sparx, out = {};
+  const tone = (c) => (c[0] > 0.9 && c[1] > 0.7 && c[2] < 0.4 ? 'gold' : c[2] > 0.8 && c[0] < 0.5 ? 'blue' : c[1] > 0.8 && c[0] < 0.5 && c[2] < 0.4 ? 'green' : '?');
+  out.start = [S.hp, tone(S.color)];
+  delete p.hurt;                                                                    // (the bot's god mode is off for this)
+  const hit = () => { p.invulnT = 0; p.hurtT = 0; p.dead = false; return G.playerHurt(p.x + 1, p.z); };
+  out.hits = [];
+  for (let i = 0; i < 3; i++) { hit(); S.frame(1 / 60, 1); out.hits.push([S.hp, tone(S.color), p.dead ? 'DEAD' : 'alive', S.model.hp]); }       // gold -> blue -> green -> gone
+  hit(); out.fourthHitKills = p.dead;
+  G.respawn(); S.frame(1 / 60, 1);
+  out.afterRespawn = [S.hp, tone(S.color), p.dead ? 'DEAD' : 'alive'];
+  S.reset(1); out.butterflies = [];
+  for (let i = 0; i < 4; i++) { const took = S.heal(); out.butterflies.push(`${took ? 'ate' : 'full'} -> ${S.hp}`); }                      // green -> blue -> gold, then no more
+  // gems: 3.5 m away, in the open; with him they are pulled in, without him they stay put until they are touched
+  __bot.place(0, 150, Math.PI);
+  const gem = () => { const it = G.gems._add(p.x + 3.5, p.y + 0.5, p.z, 1, true); it.delay = 0; return it; };
+  S.reset(3); let g1 = gem(); __bot.tick(3); out.withSparx = g1.magnet || !g1.alive;
+  S.reset(0); let g2 = gem(); __bot.tick(30); out.withoutSparx = { pulled: g2.magnet || !g2.alive, stillThere: g2.alive };
+  __bot.goto(g2.x, g2.z, { tol: 1, timeout: 4, auto: false }); __bot.tick(4); out.touched = !g2.alive;
+  S.reset(3); __bot.god();
+  const ok = out.start[0] === 3 && out.start[1] === 'gold'
+    && out.hits.map((h) => h.join()).join('|') === '2,blue,alive,2|1,green,alive,1|0,green,alive,1' && out.fourthHitKills
+    && out.afterRespawn.join() === '3,gold,alive' && out.butterflies.join() === 'ate -> 2,ate -> 3,full -> 3,full -> 3'
+    && out.withSparx && !out.withoutSparx.pulled && out.withoutSparx.stillThere && out.touched;
+  return { ok, ...out };
+});
 await run('one-hit-enemies', () => {
   // Every Snuffer dies to ONE hit of an attack that works on it (they used to take two): plain ones to a breath of fire or to a ram, bell ones (fire bounces
   // off) to a ram, thorn ones (a ram hurts you) to a breath of fire. Each trial: a fresh Snuffer that holds its ground on a clear stretch of the main road, and

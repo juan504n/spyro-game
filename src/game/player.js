@@ -192,7 +192,8 @@ export class Player {
     }
 
     // ---- jumping ----------------------------------------------------------------------------------------------------
-    if (this.bufferT > 0 && ctl && (this.grounded || this.coyoteT > 0) && this.chargeT <= 0) {
+    // (works while ramming too, as in the original: hold RAM and tap JUMP and the charge carries on through the air, and on landing, for as long as RAM stays held)
+    if (this.bufferT > 0 && ctl && (this.grounded || this.coyoteT > 0)) {
       this.vy = P.jumpV; this.grounded = false; this.coyoteT = 0; this.bufferT = 0; this.jumpsUsed = 1; this.gliding = false;
       this.emit('jump');
     }

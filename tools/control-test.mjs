@@ -84,5 +84,39 @@ function breathe({ bearing, dist = 4.5, stick = [0, 0], assist = true, lit = fal
   check('assist: helps when the stick already points roughly at the target', along.hit && along.yaw > 50, `(facing ${along.yaw.toFixed(0)} deg)`);
 }
 
+// ---- ram + jump through the real Player ---------------------------------------------------------------------------------------
+// In the original you can jump while ramming: hold the ram button, tap jump, and the charge carries on through the air (and on landing) while the button stays held.
+function ramJump({ ram = true, releaseInAir = false } = {}) {
+  const game = { gfx: { settings: { ...DEFAULT_SETTINGS } }, collision, level: { valley: { x: 0, z: 0, rx: 1e6, rz: 1e6 } }, objects: {}, beacons: null, enemies: null };
+  const p = new Player(game, null);
+  p.place(0, 0, 0, 0);
+  const input = { move: { x: 0, y: 1 }, held: {}, edge: {}, pressed(a) { return !!this.edge[a]; }, down(a) { return !!this.held[a]; } };
+  const step = () => { p.update(DT, input, 0); input.edge = {}; };
+  for (let i = 0; i < 30; i++) step();                                   // run up
+  if (ram) { input.held.charge = true; input.edge = { charge: true }; for (let i = 0; i < 40; i++) step(); }     // ram to full speed (and keep the button down)
+  const x0 = p.z, v0 = p.speed, charging0 = p.chargeT > 0;
+  input.held.jump = true; input.edge = { jump: true }; step(); input.held.jump = false;                        // tap jump
+  const r = { charging0, v0, jumped: !p.grounded && p.vy > 10, chargingAfter: p.chargeT > 0, minAir: 1e9, flew: 0 };
+  let frames = 0;
+  while (!p.grounded && frames < 200) {
+    step(); frames++;
+    r.minAir = Math.min(r.minAir, p.speed);
+    if (releaseInAir && frames === 10) input.held.charge = false;
+  }
+  r.dist = p.z - x0; r.chargingLanded = p.chargeT > 0; r.vLanded = p.speed; r.frames = frames;
+  input.held.charge = false; step();
+  r.chargingReleased = p.chargeT > 0;
+  return r;
+}
+{
+  const run = ramJump({ ram: false }), ram = ramJump();
+  check('jump: a plain running jump is as it was (about 8.7 m)', run.jumped && !run.charging0 && run.dist > 7.5 && run.dist < 10, `(${run.dist.toFixed(1)} m)`);
+  check('ram + jump: with RAM held and JUMP tapped he jumps, still ramming', ram.charging0 && ram.jumped && ram.chargingAfter, `(charging before ${ram.charging0}, left the ground ${ram.jumped}, still charging ${ram.chargingAfter})`);
+  check('ram + jump: the ram keeps its speed all the way through the air, so the jump is long (about 18 m)', ram.minAir > 22 && ram.dist > 15, `(slowest ${ram.minAir.toFixed(1)} m/s, ${ram.dist.toFixed(1)} m)`);
+  check('ram + jump: he lands still ramming while RAM stays held, and letting go ends it', ram.chargingLanded && ram.vLanded > 22 && !ram.chargingReleased, `(charging on landing ${ram.chargingLanded}, speed ${ram.vLanded.toFixed(1)}, after letting go ${ram.chargingReleased})`);
+  const cut = ramJump({ releaseInAir: true });
+  check('ram + jump: letting go of RAM in the air ends the ram (back to a normal run speed at once)', cut.jumped && !cut.chargingLanded && cut.vLanded < 12.5, `(charging on landing ${cut.chargingLanded}, speed ${cut.vLanded.toFixed(1)})`);
+}
+
 console.log(failed ? `\n${failed} FAILED` : '\nall control checks passed');
 process.exitCode = failed ? 1 : 0;

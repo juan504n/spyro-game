@@ -275,11 +275,11 @@ const WING_HALF = [
 ];
 
 /* ---------------------------------------------------------------------------------------------- */
-/* Sparx icons 14x12 (procedural: pale wings + glowing tinted orb + eyes)                          */
+/* Sparx icons 14x12 (procedural: pink-violet wings with yellow tips + a round body in the health colour + big eyes) */
 /* ---------------------------------------------------------------------------------------------- */
 function sparxIcon(ramp) {
   const p = new Pix(14, 12);
-  const wingHi = rgb('#eef0ff'), wingA = rgb('#d4d4f0'), wingB = rgb('#aaa2d0');
+  const wingHi = rgb('#ffd2f6'), wingA = rgb('#e46ee6'), wingB = rgb('#a64ec8'), wingTip = rgb('#ffe860');
   const wingL = [[6.4, 6.4], [3.4, 5.6], [0.6, 2.6], [0.4, 0.4], [2.6, 0.7], [5.6, 3.4], [6.9, 5.2]];
   for (const w of [wingL, wingL.map(([x, y]) => [14 - x, y])]) {
     const tmp = new Pix(14, 12);
@@ -292,6 +292,7 @@ function sparxIcon(ramp) {
     }
     p.line(w[2][0], w[2][1], w[3][0], w[3][1], wingHi);
     p.line(w[3][0], w[3][1], w[4][0], w[4][1], wingHi);
+    p.set(Math.round(w[3][0] < 7 ? w[3][0] + 0.6 : w[3][0] - 0.6), 1, wingTip);                 // (the yellow tip of the wing)
   }
   // orb body in the tint colour
   p.circle(7, 7.4, 3.6, rgb(ramp[1]));
@@ -309,9 +310,9 @@ function sparxIcon(ramp) {
   }
   // tail nub
   p.set(6, 11, rgb(ramp[1])); p.set(7, 11, rgb(ramp[1]));
-  // eyes
-  p.rect(4, 7, 2, 2, rgb(INK)); p.rect(8, 7, 2, 2, rgb(INK));
-  p.set(4, 7, rgb('#ffffff')); p.set(8, 7, rgb('#ffffff'));
+  // eyes: big and white, with dark pupils looking a little to one side
+  p.rect(3, 6, 3, 3, rgb('#ffffff')); p.rect(8, 6, 3, 3, rgb('#ffffff'));
+  p.rect(4, 7, 2, 2, rgb(INK)); p.rect(9, 7, 2, 2, rgb(INK));
   p.outline(INK, true);
   return p;
 }

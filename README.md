@@ -54,11 +54,16 @@ controls appear automatically (the display defaults to widescreen there; **Optio
 | Jump · glide (hold in the air) | `Space` | `A` / cross | JUMP |
 | Breathe fire | `J` / `F` / left click | `X` / square | FIRE |
 | Charge (ram) — hold | `K` / `Shift` / right click | `B` / circle | RAM |
+| Ram jump — hold the ram, tap jump | `K` + `Space` | `B` + `A` | RAM + JUMP (two fingers) |
 | Camera | mouse (after clicking) · `Q`/`E` | right stick · bumpers | right thumb drag |
 | Re-centre camera behind Spyro | `R` | `Y` / triangle | CAM button (tap) |
 | Camera mode: active → smart → passive | `C` | Pause → Camera | CAM button (hold) |
 | Menu (pause, options, controls) | `Esc` / `P` | Start | **MENU** button (top centre) |
 | Debug mode: off → compact → full | `F3` / `` ` `` | Pause → Debug mode | Menu → Debug mode |
+
+**Ram jump.** As in the original you can jump while ramming: hold the ram button and tap jump, and he leaps with the charge kept, so he carries his full ram speed through the air
+(a ram jump clears about 18 m, a plain running jump 8.7 m) and lands still ramming for as long as the ram button stays down; letting go of it ends the charge at once, in the air too.
+(He can't glide while ramming.)
 
 **On a phone** the game has a labelled **MENU** button at the top centre, on the title screen and in play. It opens the pause menu (resume, camera, debug mode,
 options, controls, restart, quit); while a menu is open the button reads **RESUME** / **BACK**, and tapping outside the panel goes back too. The menu rows are finger-sized
@@ -118,10 +123,12 @@ the whole valley is lit twice (dusk and daybreak) and the world cross-fades betw
 
 * **Snuffers** come in three kinds: plain ones (fire or charge), *bell* Snuffers (armoured — fire bounces off, charge them)
   and *thorn* Snuffers (spiked — don't ram them, burn them). Every one goes down in a single hit of the attack that works on it, as in the original.
-* **Sparx** the dragonfly is your health bar: blue → green → yellow → gone. Bunnies you scorch become healing
-  butterflies.
+* **Sparx** the dragonfly is your health bar, as in the original: he starts at full health, **gold**, and every hit that lands turns him down a colour, **gold → blue → green →
+  gone**; with him gone the next hit is lights out. Bunnies you scorch or ram (and often a Snuffer you defeat) release a healing butterfly that brings him back one colour at a time, and
+  a new life starts with gold Sparx again. He is a real 3D dragonfly (big goofy eyes, antennae, a swishing tail and four glassy wings, flapping as he hovers), not a flat
+  sprite. While he is with you he grabs the gems that are near (a little flick towards each); **with him gone nothing pulls gems in: you have to touch them**.
 * **Gems** are worth 1 / 2 / 5 / 10 / 25 (red, green, blue, gold, purple): cut stones whose facets flash as they spin. Vases, chests, cracked walls and enemies drop
-  them, plus hand-placed trails and a few well-hidden treasures. Total: **700**. While Sparx is with you, gems within a few metres are drawn in
+  them, plus hand-placed trails and a few well-hidden treasures. Total: **700**. While Sparx is with you (and only then), gems within a few metres are drawn in
   on a curved lob (up, then down into Spyro, like the original), and every pickup makes a chunky yellow gem count hop and float in the corner
   for a couple of seconds.
 * Ending the level shows a results screen (three stars) and drops you back into free roam.
@@ -185,20 +192,21 @@ docs/index.html      the built single-file game
 
 ```bash
 npm run qa                    # prop lint + reachability bot + full story playthrough (needs the dev server running)
-node tools/bot.mjs            # headless reachability bot: drives the real controller along every road/route (hops the dock's lily-pad crossing from a standing start, checks every Snuffer dies to one hit, and that the ward wall round the Dawn Gate stands where it blocks)
+node tools/bot.mjs            # headless reachability bot: drives the real controller along every road/route (hops the dock's lily-pad crossing from a standing start, checks every Snuffer dies to one hit, that the ward wall round the Dawn Gate stands where it blocks, that a ram jump from the dock's end reaches the second lily pad, and the Sparx rules: starts gold, gold → blue → green → gone, butterflies, the gem magnet only while he is there)
 node tools/playthrough.mjs    # every beacon, the brazier puzzle, sky-isle glide chain, Dawn Gate, finale
 node tools/monkey.mjs [runs] [secs]   # random-input soak test: exceptions, NaNs, players escaping the world
 node tools/terrain-map.mjs    # top-down map of the realm with slopes and paths -> terrain-map.png
 node tools/prop-lint.mjs      # builds every prop, fails on NaN / degenerate geometry
 node tools/camera-test.mjs    # camera modes, obstacles (trees ignored, ground climbed, big things pull in a little), camera speed, settings migration (real Player + camera + collision, no server); --table prints the metrics
 node tools/camera-input-test.mjs   # R / pad Y / the touch CAM button / C through the real game loop at 30-240 fps (browser; needs the dev server)
-node tools/control-test.mjs   # touch stick maths and the fire aim assist through the real Player; no server needed
+node tools/control-test.mjs   # touch stick maths, the fire aim assist and the ram jump (hold RAM, tap JUMP) through the real Player; no server needed
 node tools/debuginfo-test.mjs # debug readout, headless: ground texture = the terrain mesh's texture under 1500 points, aim ray, nearest props / colliders vs brute force, provenance of every prop / collider / record
 node tools/debug-test.mjs     # debug mode in the browser: F3, X/Y/Z = the player's, aim on the camera's ray, collider wireframes, errors, phone layout (needs the dev server)
 node tools/menu-test.mjs      # menus: the phone MENU button and finger-sized rows through real touches, sub-pages, thumb controls hiding, keyboard and mouse on a desktop (needs the dev server)
+node tools/touch-ram-jump-test.mjs   # ram + jump on an emulated phone through real touches: a finger held on RAM, another tapping JUMP, then lifting RAM (needs the dev server)
 node tools/where.mjs X Z   # what is at a spot (X = east, Z = south, as debug mode shows them): area, ground texture + rule, nearby props / gameplay things / collision shapes with the layout function and file:line that placed them
 node tools/build-id.mjs       # the build id debug mode shows: a hash of src/ plus the date
-node tools/level-check.mjs    # populates the level headlessly: gem economy (700), counts, and placement checks (shrine chest seated on its island, Dawn Gate forecourt dry and gentle, sky-isle decor clear of the mushroom / chests / enemies / beacon, nothing solid standing on a chest, vase, brazier, mushroom, NPC or enemy spawn, and Mirrormere's short wide dock with a clear run-off and its lily pads: big, spaced, easy hops)
+node tools/level-check.mjs    # populates the level headlessly: gem economy (700), counts, and placement checks (shrine chest seated on its island, Dawn Gate forecourt dry and gentle, sky-isle decor clear of the mushroom / chests / enemies / beacon, nothing solid standing on a chest, vase, brazier, mushroom, NPC or enemy spawn, Mirrormere's short wide dock with a clear run-off and its lily pads: big, spaced, easy hops, and the pier's landing lawn: one calm grass, sand and the roads' dirt instead of a mosaic of textures)
 node tools/shot.mjs / play.mjs / probe.mjs   # Playwright screenshots, scripted play-throughs, state probes
 node tools/model-sheet.mjs out.png --only spyro --poses idle,run,glide --views side   # contact sheets of an actor from any angle / pose
 node tools/charge-test.mjs | gem-flight-test.mjs | gem-counter-test.mjs | gem-sound-test.mjs

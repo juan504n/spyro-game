@@ -28,25 +28,34 @@ export function terrainPicker(grid) {
   const vrAt = (x, z) => Math.hypot((x - V.x) / V.rx, (z - V.z) / V.rz);
   const lake = L.lake;
   const flowerAt = (x, z) => fbm(nFlower, x * 0.04 + 3, z * 0.04, 2);
+  const land = L.landing;
   const pickRule = (x, z, h, slope, nx, nz, i, j, pd, surface) => {
     const dL = Math.hypot((x - lake.x) / lake.rx, (z - lake.z) / lake.rz);
     const r = hash01(i, j);
+    // The pier's landing is ONE calm lawn. The rules below pick moss or grass cell by cell along a shore, scatter pebbles, flower cells and patches of a second
+    // green, and leave scraps of cliff on the road's embankments: round the foot of the pier, where the main road reaches the lake, that made a mosaic of half a dozen
+    // textures. In this zone the ground is sand at the water's edge, dirt where a road runs, and a single grass everywhere else; it fades back into the usual rules
+    // over `land.fade` metres (cell by cell, so there is no ring).
+    const dLand = land ? Math.hypot(x - land.x, z - land.z) : 1e9;
+    const tidy = land !== undefined && dLand < land.r + land.fade && (dLand < land.r || r > (dLand - land.r) / land.fade);
     if (h < WATER_LEVEL + 0.05 && dL < 1.6) return ['sand', 'lake floor'];
-    if (h < WATER_LEVEL + 0.8 && dL < 1.45 && slope < 0.5) return [r < 0.22 && h > WATER_LEVEL + 0.1 ? 'shore_pebbles' : 'sand', 'lake shore'];
+    if (h < WATER_LEVEL + 0.8 && dL < 1.45 && slope < 0.5) return [r < 0.22 && h > WATER_LEVEL + 0.1 && !tidy ? 'shore_pebbles' : 'sand', 'lake shore'];
     // (the Dawn Gate's surroundings are all one rock: the red cascade rock used to start ten metres from its pillars, and a
     // random mix of rock and grass on the steep flanks of its forecourt looked torn)
     const nearGate = Math.hypot(x - L.gate.x, z - L.gate.z) < 34;
     const warm = !nearGate && (Math.hypot(x - L.mesa.x, z - L.mesa.z) < 60 || Math.hypot(x - L.cascade.x, z - L.cascade.z) < 55 || Math.hypot(x - L.heron.x, z - L.heron.z) < 25);
     if (vrAt(x, z) > 0.965 && slope > 0.3) return ['far_rock', 'valley rim, slope > 0.3'];
-    if (slope > 0.74) return [warm ? 'cliff_warm' : 'cliff', 'steep, slope > 0.74'];
+    const steep = tidy ? 1.05 : 0.74;                                  // (the landing's road embankments are not cliffs until they really are)
+    if (slope > steep) return [warm ? 'cliff_warm' : 'cliff', `steep, slope > ${steep}`];
     if (h > 30 && slope > 0.42) return [warm ? 'cliff_warm' : 'cliff', 'high and sloping, y > 30 and slope > 0.42'];
-    if (slope > 0.5 && (r < (slope - 0.5) * 3.5 || nearGate)) return [warm ? 'cliff_warm' : 'cliff', nearGate ? 'sloping near the Dawn Gate, slope > 0.5' : 'sloping, rock and grass mix, slope > 0.5'];
+    if (!tidy && slope > 0.5 && (r < (slope - 0.5) * 3.5 || nearGate)) return [warm ? 'cliff_warm' : 'cliff', nearGate ? 'sloping near the Dawn Gate, slope > 0.5' : 'sloping, rock and grass mix, slope > 0.5'];
     if (h > 42) return ['far_rock', 'very high, y > 42'];
     if (Math.hypot(x - L.village.x, z - (L.village.z - 4)) < 9.5) return ['flagstone', 'village plaza'];
     if (surface === 'flagstone' && pd < 1.2) return ['flagstone', 'paved forecourt'];                // a paved forecourt is paved right through (the cells are coarser than the paving)
     if (pd < 0.3) return ['dirt', 'on a road'];
     const K = L.hollow;
     if (Math.hypot(x - K.x, z - K.z) < K.r * 0.9) return ['moss', 'crystal hollow'];
+    if (tidy) return ['grass_a', 'the pier\'s landing lawn: one calm grass'];
     if (dL < 1.5 && h < 1.5) return [r < 0.5 ? 'moss' : 'grass_b', 'lake margin'];
     const f = flowerAt(x, z);
     if (f > 0.6 && r < 0.9) return ['grass_flowers', 'flower noise'];

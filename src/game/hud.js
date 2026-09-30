@@ -82,13 +82,13 @@ export class Hud {
     {
       const hp = g.sparx ? g.sparx.hp : 0;
       drawPanel(pix, 4, 23, 40, 15, { style: 'hud' });
-      const icon = hp >= 3 ? I.sparx_blue : hp === 2 ? I.sparx_green : I.sparx_yellow;
+      const icon = hp >= 3 ? I.sparx_yellow : hp === 2 ? I.sparx_blue : I.sparx_green;      // gold (full), then blue, then green, then gone
       if (hp > 0) pix.blit(icon, 7, 24 - (this.pulses.sparx > 0 ? 1 : 0));
       for (let i = 0; i < 3; i++) {
         const on = i < hp;
         const x = 24 + i * 6;
         pix.rect(x, 28, 4, 4, INK);
-        pix.rect(x + 1, 29, 2, 2, on ? (hp >= 3 ? '#6aa0ff' : hp === 2 ? '#70ff80' : '#ffe860') : '#3a2a60');
+        pix.rect(x + 1, 29, 2, 2, on ? (hp >= 3 ? '#ffe060' : hp === 2 ? '#6aa0ff' : '#70ff80') : '#3a2a60');
       }
     }
     // ---- beacons ---------------------------------------------------------------------------------------------------

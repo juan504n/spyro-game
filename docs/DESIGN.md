@@ -54,7 +54,18 @@ Every Snuffer has one hit point: a single hit of an attack that works on it kill
 bell needed two rams and a plain or thorn one two ticks of fire (a single breath lands two, 0.3 s apart, so it usually did the job, but only just). The armour is what is left of the difficulty: fire bounces
 off a bell and ramming a thorn hurts you, however hard you try.
 
-Sparx, the dragonfly, is the health bar: three hits, shown by his colour. Scorched bunnies turn into butterflies that heal him.
+Sparx, the dragonfly, is the health bar, after the original: Spyro can take three hits, shown by Sparx's colour. He starts at full health (**gold**), each hit that lands turns him down
+a colour (**gold → blue → green → gone**), and with him gone the next hit is lights out. A scorched or rammed bunny (and a defeated Snuffer, six times in ten or whenever he is down to green or
+gone) releases a butterfly that flutters up and then seeks Spyro: each one heals one step (gone → green → blue → gold; nothing when he is full). A new life starts with him gold again.
+The gem magnet belongs to him (see below): with him gone gems are only picked up by touching them.
+
+## Ramming and jumping
+
+The original lets you jump while ramming: hold the charge and tap jump and he leaps with the ram kept. The controller here used to ignore the jump button for as long as he was charging (a ram had to end first),
+so a ram could not cross anything. `Player.update` no longer refuses the jump while `chargeT > 0`: the ram's own horizontal speed (`P.chargeSpeed`, 24 m/s, which drives both the ground and the air) carries him through the jump and the
+charge goes on when he lands, for as long as the ram button stays down, so a ram jump clears about 18 m where a plain running jump clears 8.7 m. The jump's height is unchanged (`P.jumpV`: about 2.9 m), so nothing that was a wall
+is now a step; only gaps are wider. Letting go of the ram ends it at once, in the air too (`_endCharge` brings the speed back to the run speed), and he still cannot glide while charging (the charge owns his horizontal velocity).
+On a touch screen it is two fingers, one held on RAM and one tapping JUMP (the pads track their touches one by one); the Controls page lists it for every device.
 
 ## Collectibles and economy
 
@@ -74,6 +85,18 @@ Sparx, the dragonfly, is the health bar: three hits, shown by his colour. Scorch
 * **Time of day:** one moon-lit *gloaming* light and one *daybreak* light. Vertex colours store both; a uniform blends them.
 * **Textures:** 62 tiny tiles (16–64 px), drawn in code from a limited palette, sampled with nearest filtering.
 * **Geometry:** hand-built from primitives in code. Chunky silhouettes, few vertices per model, texture detail does the work.
+* **The pier's landing lawn:** the ground where the main road, the west and east trails and the dock meet used to be a mosaic: every cell picks its own texture (moss, darker grass,
+  flower meadow, pebble shoreline, cliff scraps on the road embankments), and with three roads in a few metres it read as a dozen textures colliding. `level.js` now has a `landing`
+  zone (centre -4, 76; 20 m across, fading over 10 m more) that `terrainPicker` honours: inside it the grass is one calm `grass_a`, the shore is plain sand (no pebble scatter), and the road
+  embankments are not called cliffs until they are really steep (1.05, not 0.74); the roads themselves stay dirt and cobble. Across the fade a growing share of cells keeps the usual
+  mixture (chosen per cell by its own hash, so there is no visible seam), and past 30 m nothing has changed. The debug readout names the rule (`the pier's landing lawn`), since it reads the same picker.
+  Only ground textures move: no random draw is added or removed, so every prop and gameplay record is where it was.
+* **Sparx:** a real 3D dragonfly (`models/creatures/sparx.js`, about 0.9 m long, drawn 1.2 times bigger for legibility on a phone), not a flat sprite: a plump head with two big goofy eyes whose pupils wander and a grin,
+  two curling antennae that sway, a thorax, a three-segment tail that swishes with a delay and curls up at the tip, and two pairs of translucent wings (a big pair in front, a small pair behind; root teal-grey, then lavender,
+  magenta, violet, and a yellow tip; two-sided, in the half-blend pass after the water) that beat at 9 Hz, faster the quicker he flies, sweeping forward and back as they go. He bobs, noses down when he speeds along and rolls into turns.
+  The body takes his health colour (gold, blue or green, eased over when it changes) and is lifted at dusk so he glows against the dark; the wings and eyes keep their own colours whatever his health, as in the original's art.
+  A chomp squashes him when he eats a butterfly, a flick darts him at a gem he grabs, and a hit flashes and wobbles him. The HUD icon is drawn to match (pink-violet wings, yellow tips, big eyes) in the same three colours.
+  The model viewer (`?test=models`) has his test poses: gold, blue, green, zoom, hurt, eat.
 * **Gems:** cut stones of 48 flat facets (table, crown, girdle, two-tier pavilion). The gem shader ignores the scene light and uses two fixed
   lights plus a specular glint, so the facets flash as a gem spins, at dusk and at daybreak alike. Nearby gems twinkle with white four-point
   stars now and then (big ones more often). Five hues: red, green, blue, gold and purple, bigger for higher values.
@@ -175,6 +198,13 @@ the ground so the line reads from above and from a glide. Away from the hero it 
 gate's own opening to the gate's field, and goes exactly when the ward stops holding (`barrier.c.solid`). The bot's `ward-wall` scenario checks that every vertex stands on the blocking circle, that a hero
 run at the wall is stopped on it with the wall beside him and lit, and that the wall is gone, and the hero through, once the gate opens (it fails with the wall drawn at 40 m, with no wall, with a wall that stays after
 the gate opens, and with a glow that ignores the hero).
+
+Round nine, three requests made after playing. **Ram + jump:** `control-test` runs the real `Player` over a flat stub: a plain running jump still goes 8.6 m; with the ram held and jump tapped he leaves the ground still charging, never drops
+below 24 m/s in the air (18 m), lands still charging and stops when the ram is let go, and letting go in the air brings him back to the run speed. The bot's `ram-jump` scenario does it on the real level (off the dock's end, ramming, onto the second stepping stone, which a run
+jump cannot reach), and `tools/touch-ram-jump-test.mjs` does it on an emulated phone with real touches: a finger held on RAM, another tapping JUMP, then lifting RAM. (All three fail with the old rule.) **Sparx:** the bot's `sparx` scenario checks the rules
+on the running game: he starts gold at full health, three hits turn him blue, green, gone, the fourth kills, a respawn gives gold again, butterflies heal one step at a time and stop at gold, a gem inside the magnet's reach is lobbed in while he is there and is
+left alone once he is gone (and is still collected by touch). It fails with the old start (blue), with the magnet working without him, with no reset at respawn and with the colours swapped. **The landing:** `level-check` samples the ground 16 m
+round the pier's foot and fails if anything but grass, sand, dirt or paving shows up (it was eight textures), checks that nothing beyond the fade changed, that inside it cells only change to those, and that the debug readout names the rule; making the zone smaller fails it.
 
 The bot's `one-hit-enemies` scenario puts a fresh Snuffer of each kind on a clear stretch of the main road and has the real controller breathe fire at it once and ram it once, counting every call to `damage()`:
 plain ones die after one hit to either, bell ones to the ram (fire does nothing), thorn ones to the fire (the ram hurts you instead). With two hit points it fails four of the six trials.

@@ -40,6 +40,7 @@ export const LEVEL = {
   windHill: { x: 112, z: 26, r: 50, h: 21, topR: 9, topH: 21.5 },
   summit: { x: 0, z: -132, r: 66, h: 58, topR: 12, topH: 61 },
   gate: { x: 0, z: -90 },                                           // the Dawn Gate at the mountain's foot
+  landing: { x: -4, z: 76, r: 20, fade: 10 },                       // the pier's foot, where the main road reaches Mirrormere: one calm lawn (see terrain-mesh.js), fading out over `fade` metres
   hollow: { x: -68, z: -70, r: 20 },                               // crystal hollow bowl
   heron: { x: 12, z: -12, r: 12, fall: 8, h: 15 },                 // headland over the lake's north shore
   cascade: { x: 72, z: -104, r: 30, fall: 4, h: 30 },              // plateau the waterfall pours from
