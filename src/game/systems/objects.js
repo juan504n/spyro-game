@@ -2,6 +2,7 @@
 // barrier, bounce mushrooms, windmill sails and bobbing sky islands.
 import * as THREE from 'three';
 import { makeModel } from '../models/fallback.js';
+import { WARD_RADIUS } from '../level.js';
 
 const rotY = (o, y) => { o.root.rotation.y = y; };
 
@@ -41,6 +42,15 @@ export class ObjectSystem {
       g.dyn.add(b.root);
       const c = col.add({ type: 'box', x: d.barrier.x, z: d.barrier.z, hx: 3.4, hz: 0.9, rot: d.barrier.yaw || 0, y0: d.barrier.y - 2, y1: d.barrier.y + 14, top: false, tag: 'barrier', src: 'layoutNorth' });
       this.barrier = { model: b, open: 0, target: 0, c, x: d.barrier.x, z: d.barrier.z };
+    }
+    // the wall round the gate: the ward that stops the hero going round the arch (Player._boundary) drawn as a semi-translucent violet wall on the very circle it holds him
+    // at, so it is seen rather than bumped into. It is part of the gate's spell: it dissolves with the gate's field.
+    this.ward = null;
+    if (d.barrier) {
+      const S = g.level.summit;
+      const w = makeModel(g.assets, 'ward_wall', { cx: S.x, cz: S.z, radius: WARD_RADIUS, gateX: d.barrier.x, heightAt: (x, z) => col.heightAt(x, z) });
+      g.dyn.add(w.root);
+      this.ward = { model: w };
     }
     this.sails = null;
     if (d.sails) {
@@ -245,6 +255,8 @@ export class ObjectSystem {
     if (this.barrier) {
       this.barrier.model.setOpen?.(this.barrier.open);
       this.barrier.model.update?.(dt, { t });
+      // (drawn exactly while it holds: it goes when the gate's collider lets go, however that came about)
+      this.ward?.model.update?.(dt, { t, open: this.barrier.c.solid ? this.barrier.open : 1, px: game.player.x, pz: game.player.z });
     }
     if (this.sails) this.sails.model.update?.(dt, { angle: this.sails.angle });
   }

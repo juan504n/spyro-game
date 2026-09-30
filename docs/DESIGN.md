@@ -35,7 +35,7 @@ flowchart LR
 | II | Isle | jumping | from a short, wide dock, three big round lily-pad stones across the lake, each an easy hop (2 to 3.4 m of open water) from the last (or glide from Heron Point) |
 | III | Mill | fire on a target, stairs | three braziers along the spiral road raise the portcullis to the tower stair |
 | IV | Sky | bounce, glide | a launch mushroom on the mesa, then a chain of floating isles that bob |
-| V | Dawn | endurance | the Dawn Gate stays sealed until four lanterns burn (a ward around the mountain, shown by drifting violet motes, stops anyone walking or gliding round the arch), then a cobbled road spirals up to the observatory |
+| V | Dawn | endurance | the Dawn Gate stays sealed until four lanterns burn (a ward around the mountain stops anyone walking or gliding round the arch; it is drawn as a tall, semi-translucent violet wall in the gate's own hex lattice, brighter as you near it, with drifting motes and a shower of sparks where you lean on it, and it dissolves with the gate's field), then a cobbled road spirals up to the observatory |
 
 The two long trails leave the village on opposite sides of the lake and meet again at the Dawn Gate, running into the two
 sides of its paved forecourt (a flagstone apron that climbs gently to the threshold), so the valley is a loop and no route is
@@ -168,6 +168,13 @@ beach (checked as 1.5 to 4.5 m), so they neither crowd nor stretch a jump (a run
 over water at least 0.3 m deep, kept 1.6 m from its neighbours and clear of the dock, the boat and the crossing. Those pad layouts are planned in `layoutLake` from a private generator, and the 16
 patches are still picked from the shared random stream exactly as before, so nothing else in the realm moved (a before and after dump of every prop and gameplay record differs only in the four old
 stones and the three new ones). The bot's `dock-hop` scenario jumps from a standstill on the dock's west edge, middle and east edge to the first pad, then pad to pad and on to the beach, with no glide.
+
+The wall round the gate (the ward) used to be invisible: the hero was simply stopped 42 m from the summit, with a few drifting violet motes the only hint. `models/objects/ward.js` now draws it on that very
+circle: a veil of the gate's hex lattice (see-through, thickest at the ground and thinning to nothing 40 m up, so it never hides the mountain behind it), an additive lattice that carries the shimmer, and a bright seam on
+the ground so the line reads from above and from a glide. Away from the hero it keeps a little over half its brightness; it lights up along the wall nearby and flares where he leans on it. It follows the terrain, leaves the
+gate's own opening to the gate's field, and goes exactly when the ward stops holding (`barrier.c.solid`). The bot's `ward-wall` scenario checks that every vertex stands on the blocking circle, that a hero
+run at the wall is stopped on it with the wall beside him and lit, and that the wall is gone, and the hero through, once the gate opens (it fails with the wall drawn at 40 m, with no wall, with a wall that stays after
+the gate opens, and with a glow that ignores the hero).
 
 The bot's `one-hit-enemies` scenario puts a fresh Snuffer of each kind on a clear stretch of the main road and has the real controller breathe fire at it once and ram it once, counting every call to `damage()`:
 plain ones die after one hit to either, bell ones to the ram (fire does nothing), thorn ones to the fire (the ram hurts you instead). With two hit points it fails four of the six trials.

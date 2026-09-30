@@ -8,6 +8,7 @@ import { createBounceMushroom } from './objects/mushroom.js';
 import { createBrazier } from './objects/brazier.js';
 import { createWindmillSails } from './objects/windmill.js';
 import { createBarrier } from './objects/barrier.js';
+import { createWard } from './objects/ward.js';
 import { createPortcullis } from './objects/portcullis.js';
 import { createLightBeam } from './objects/beam.js';
 import { createCrackedWall } from './objects/wall.js';
@@ -47,6 +48,11 @@ export const OBJECTS = {
     create: createBarrier,
     size: 12,
     note: 'Dawn Gate energy wall (XY plane, double sided, base at y=0), default fills the gate_pillars opening 6.2x11.6; opts w/wTop/h/arch; setOpen(k) 0..1 dissolves it',
+  },
+  ward_wall: {
+    create: createWard,
+    size: 90,
+    note: 'the ward round the Dawn Gate\'s mountain: a semi-translucent violet wall (hex lattice like the gate\'s field) on the circle of opts.radius (42) round (cx, cz), following opts.heightAt(x, z); world-space vertices, root at the origin; update(dt, { t, open, px, pz }) brightens it round the hero, setOpen(k) 0..1 dissolves it',
   },
   portcullis: {
     create: createPortcullis,

@@ -106,6 +106,38 @@ await run('ward-holds', () => {
   }
   return { ok: minR.v >= 41.5, minDistToSummit: +minR.v.toFixed(1), log };
 });
+await run('ward-wall', () => {
+  // The wall round the gate is SEEN, not just bumped into: drawn on the very circle the ward holds the hero at (42 m from the summit), brighter where he leans on
+  // it, only while it holds, and gone with the gate's field.
+  const G = __game, O = G.objects, S = G.level.summit, p = G.player, R = 42;
+  O.barrier.c.solid = true; O.barrier.open = 0; O.barrier.target = 0;                   // (an earlier scenario opened it artificially)
+  const w = O.ward && O.ward.model;
+  if (!w) return { ok: false, reason: 'the ward has no wall' };
+  __bot.tick(2);
+  const xz = [];
+  w.root.traverse((m) => { const a = m.geometry && m.geometry.attributes.position; if (a) for (let i = 0; i < a.count; i++) xz.push([a.getX(i), a.getZ(i)]); });
+  const offCircle = Math.max(...xz.map(([x, z]) => Math.abs(Math.hypot(x - S.x, z - S.z) - R)));
+  const out = { wallVertices: xz.length, offCircle: +offCircle.toFixed(3), visibleSealed: w.root.visible };
+  // the hero runs at the wall from outside: he is stopped ON it, with the wall right beside him and lit up
+  const a = 14 * Math.PI / 180;
+  __bot.place(S.x + Math.sin(a) * (R + 9), S.z + Math.cos(a) * (R + 9), Math.PI);
+  __bot.goto(S.x, S.z, { tol: 1.5, timeout: 6, auto: false });
+  for (let i = 0; i < 40; i++) __bot.tick();
+  __bot.tick();
+  out.heroDist = +Math.hypot(p.x - S.x, p.z - S.z).toFixed(2);
+  out.nearestWall = +Math.min(...xz.map(([x, z]) => Math.hypot(x - p.x, z - p.z))).toFixed(2);
+  out.lit = +w.touch.toFixed(2);
+  // the gate opens: the wall goes, and the hero can walk in
+  O.openBarrier();
+  for (let i = 0; i < 300; i++) __bot.tick();
+  out.visibleOpen = w.root.visible; out.solidOpen = O.barrier.c.solid;
+  __bot.goto(S.x, S.z + 30, { tol: 1.5, timeout: 6, auto: false });
+  out.heroDistAfter = +Math.hypot(p.x - S.x, p.z - S.z).toFixed(1);
+  const ok = out.wallVertices > 500 && out.offCircle < 0.01 && out.visibleSealed && Math.abs(out.heroDist - R) < 0.3 && out.nearestWall < 1.2 && out.lit > 0.9
+    && !out.visibleOpen && !out.solidOpen && out.heroDistAfter < R - 8;
+  O.barrier.c.solid = true; O.barrier.open = 0; O.barrier.target = 0;
+  return { ok, ...out };
+});
 await run('glide-climb', () => {
   // gliding into a cliff face must not carry the hero up it (the cascade plateau is 27 m above this spot)
   const G = __game, p = G.player;

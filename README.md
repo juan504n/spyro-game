@@ -114,7 +114,7 @@ the whole valley is lit twice (dusk and daybreak) and the world cross-fades betw
 | II | Isle | Mirrormere lake | Run off the end of the dock and hop the three big lily-pad stones across to the shrine island. |
 | III | Mill | Windmill hill (spiral road) | Light the three braziers to raise the portcullis. |
 | IV | Sky | Floating isles | Bounce off the mesa mushroom, then glide island to island. |
-| V | Dawn | Observatory at the top of the spiral mountain | The Dawn Gate only opens once four beacons burn. |
+| V | Dawn | Observatory at the top of the spiral mountain | The Dawn Gate only opens once four beacons burn; until then a shimmering violet ward wall seals the whole mountain. |
 
 * **Snuffers** come in three kinds: plain ones (fire or charge), *bell* Snuffers (armoured — fire bounces off, charge them)
   and *thorn* Snuffers (spiked — don't ram them, burn them). Every one goes down in a single hit of the attack that works on it, as in the original.
@@ -185,7 +185,7 @@ docs/index.html      the built single-file game
 
 ```bash
 npm run qa                    # prop lint + reachability bot + full story playthrough (needs the dev server running)
-node tools/bot.mjs            # headless reachability bot: drives the real controller along every road/route (hops the dock's lily-pad crossing from a standing start, and checks every Snuffer dies to one hit)
+node tools/bot.mjs            # headless reachability bot: drives the real controller along every road/route (hops the dock's lily-pad crossing from a standing start, checks every Snuffer dies to one hit, and that the ward wall round the Dawn Gate stands where it blocks)
 node tools/playthrough.mjs    # every beacon, the brazier puzzle, sky-isle glide chain, Dawn Gate, finale
 node tools/monkey.mjs [runs] [secs]   # random-input soak test: exceptions, NaNs, players escaping the world
 node tools/terrain-map.mjs    # top-down map of the realm with slopes and paths -> terrain-map.png

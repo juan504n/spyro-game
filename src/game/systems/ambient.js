@@ -25,6 +25,7 @@ export class Ambient {
     // positional loops (waterfall roar, windmill creak, portal hum): started lazily once the audio context is running
     this.sources = (game.gameplay?.soundSources || []).map((s) => ({ ...s, loop: null }));
     this.wardAcc = 0;
+    this.wardHitAcc = 0;
   }
 
   /** Distance-attenuated, camera-panned looping beds. */
@@ -45,12 +46,24 @@ export class Ambient {
     }
   }
 
-  /** The ward around the summit while the Dawn Gate is sealed: a curtain of drifting violet motes near the hero. */
+  /**
+   * The ward around the summit while the Dawn Gate is sealed: the wall itself is drawn by the ObjectSystem (models/objects/ward.js); here a curtain of drifting violet
+   * motes near the hero, and a shower of sparks where he leans on it.
+   */
   _ward(dt, game) {
     const bar = game.objects?.barrier, p = game.player;
     if (!bar || !bar.c.solid || p.dead) return;
     const S = game.level.summit, wx = p.x - S.x, wz = p.z - S.z;
     const near = Math.hypot(wx, wz) - WARD_RADIUS;                   // > 0 outside the ward
+    if (near < 0.6 && near > -1) {
+      this.wardHitAcc += dt * 34;
+      while (this.wardHitAcc >= 1) {
+        this.wardHitAcc -= 1;
+        const th = Math.atan2(wx, wz) + rnd(-0.08, 0.08);
+        const x = S.x + Math.sin(th) * WARD_RADIUS, z = S.z + Math.cos(th) * WARD_RADIUS;
+        game.fx.spawn({ pool: 'add', sprite: 'spark_small', x, y: p.y + rnd(0.1, 2.6), z, vx: Math.sin(th) * rnd(0.6, 2.2), vy: rnd(-0.4, 1.2), vz: Math.cos(th) * rnd(0.6, 2.2), life: rnd(0.4, 0.8), size: [0.5, 0.15], c0: [0.9, 0.75, 1, 0.95], c1: [0.75, 0.5, 1, 0], pulse: false });
+      }
+    }
     if (near < -1 || near > 18) return;
     this.wardAcc += dt * 26 * (1 - Math.max(0, near) / 18);
     while (this.wardAcc >= 1) {
