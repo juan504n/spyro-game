@@ -1,6 +1,6 @@
 // SPARX — the dragonfly companion, in 3D: a plump round head with two big goofy eyes and a grin, two curling antennae, a short thorax, a long tapering tail
 // that swishes, and two pairs of translucent pink-violet wings with yellow tips that beat. The body takes his health colour (gold = full, then blue, then green:
-// setHealth / pose.hp); the wings and eyes keep their own colours. Faces +z, origin at the middle of the thorax; about 0.9 m long and 1.2 m across the wings.
+// setHealth / pose.hp); the wings and eyes keep their own colours. Faces +z, origin at the middle of the thorax; about 0.9 m long and 1.2 m across the wings as modelled, drawn at SIZE 0.6 of that (a little over half a metre long).
 //
 // Pose contract (all optional): { t, speed 0..24 (how fast he is flying), vy, turn -1..1, hp 3 | 2 | 1 (his colour), hurt 0..1 (flash + wobble),
 //   eat 0..1 (a butterfly: chomp), grab 0..1 (a gem flick), vis 0..1 (scale: 0 = gone) }
@@ -12,7 +12,7 @@ import {
 
 /** His body colour by health: gold (full), blue, green. */
 export const SPARX_BODY = { 3: [1.0, 0.86, 0.16], 2: [0.30, 0.40, 0.96], 1: [0.28, 0.86, 0.10] };
-const SIZE = 1.2;                                        // (a little larger than life: he is small on a phone screen)
+const SIZE = 0.6;                                        // (half of the 1.2 he was first drawn at: that was too big next to Spyro)
 const NIGHT_BOOST = 1.4;                                  // (the twilight is dark: lift him so he glows against it, easing back to 1 by daybreak)
 
 const EYE_W = [1, 1, 1];

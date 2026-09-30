@@ -124,9 +124,12 @@ the whole valley is lit twice (dusk and daybreak) and the world cross-fades betw
 * **Snuffers** come in three kinds: plain ones (fire or charge), *bell* Snuffers (armoured — fire bounces off, charge them)
   and *thorn* Snuffers (spiked — don't ram them, burn them). Every one goes down in a single hit of the attack that works on it, as in the original.
 * **Sparx** the dragonfly is your health bar, as in the original: he starts at full health, **gold**, and every hit that lands turns him down a colour, **gold → blue → green →
-  gone**; with him gone the next hit is lights out. Bunnies you scorch or ram (and often a Snuffer you defeat) release a healing butterfly that brings him back one colour at a time, and
-  a new life starts with gold Sparx again. He is a real 3D dragonfly (big goofy eyes, antennae, a swishing tail and four glassy wings, flapping as he hovers), not a flat
-  sprite. While he is with you he grabs the gems that are near (a little flick towards each); **with him gone nothing pulls gems in: you have to touch them**.
+  gone**; with him gone the next hit is lights out. Bunnies you scorch or ram (and often a Snuffer you defeat) release a healing butterfly: a bright blue 3D butterfly with a soft glow and a trail of sparkles that
+  flutters up and flies to Sparx, who eats it and gets one colour back (with him gone it flies to Spyro instead, and he pops back); a new life starts with gold Sparx again.
+  He is a real 3D dragonfly (big goofy eyes, antennae, a swishing tail and four glassy wings, flapping as he hovers), not a flat sprite, and a small one: about half a metre long. While he is with you he grabs the gems that are near (a little flick towards each); **with him gone nothing pulls gems in: you have to touch them**.
+* **Butterflies** are real 3D models too (`src/game/models/creatures/butterfly.js`): a slim banded body with clubbed antennae and, on each side, a pointed forewing and a rounder hindwing with a
+  little tail. The wings are two-sided sheets, deep blue on top with a bright sheen and a dark rim of white spots, dusty pale blue underneath, so a butterfly flashes blue and dull as it beats; they beat in
+  bursts with short glides between. A flock of 18 smaller ones in every shade of blue (azure, cyan, sky, violet) drifts about the dry meadows near you, and the healing ones are the brightest blue.
 * **Gems** are worth 1 / 2 / 5 / 10 / 25 (red, green, blue, gold, purple): cut stones whose facets flash as they spin. Vases, chests, cracked walls and enemies drop
   them, plus hand-placed trails and a few well-hidden treasures. Total: **700**. While Sparx is with you (and only then), gems within a few metres are drawn in
   on a curved lob (up, then down into Spyro, like the original), and every pickup makes a chunky yellow gem count hop and float in the corner
@@ -192,13 +195,14 @@ docs/index.html      the built single-file game
 
 ```bash
 npm run qa                    # prop lint + reachability bot + full story playthrough (needs the dev server running)
-node tools/bot.mjs            # headless reachability bot: drives the real controller along every road/route (hops the dock's lily-pad crossing from a standing start, checks every Snuffer dies to one hit, that the ward wall round the Dawn Gate stands where it blocks, that a ram jump from the dock's end reaches the second lily pad, and the Sparx rules: starts gold, gold → blue → green → gone, butterflies, the gem magnet only while he is there)
+node tools/bot.mjs            # headless reachability bot: drives the real controller along every road/route (hops the dock's lily-pad crossing from a standing start, checks every Snuffer dies to one hit, that the ward wall round the Dawn Gate stands where it blocks, that a ram jump from the dock's end reaches the second lily pad, the Sparx rules: starts gold, gold → blue → green → gone, butterflies, the gem magnet only while he is there, and the 3D butterflies: they share one material, beat their wings, and a healing one flies to Sparx, or to Spyro when he is gone, and waits when he is full)
 node tools/playthrough.mjs    # every beacon, the brazier puzzle, sky-isle glide chain, Dawn Gate, finale
 node tools/monkey.mjs [runs] [secs]   # random-input soak test: exceptions, NaNs, players escaping the world
 node tools/terrain-map.mjs    # top-down map of the realm with slopes and paths -> terrain-map.png
 node tools/prop-lint.mjs      # builds every prop, fails on NaN / degenerate geometry
 node tools/camera-test.mjs    # camera modes, obstacles (trees ignored, ground climbed, big things pull in a little), camera speed, settings migration (real Player + camera + collision, no server); --table prints the metrics
 node tools/camera-input-test.mjs   # R / pad Y / the touch CAM button / C through the real game loop at 30-240 fps (browser; needs the dev server)
+node tools/butterfly-test.mjs # the blue butterfly model, headless: finite two-sided wings in every look, a shared material, the wing beat (about 4.4 Hz, quicker when it flies fast, still in a glide), bad inputs
 node tools/control-test.mjs   # touch stick maths, the fire aim assist and the ram jump (hold RAM, tap JUMP) through the real Player; no server needed
 node tools/debuginfo-test.mjs # debug readout, headless: ground texture = the terrain mesh's texture under 1500 points, aim ray, nearest props / colliders vs brute force, provenance of every prop / collider / record
 node tools/debug-test.mjs     # debug mode in the browser: F3, X/Y/Z = the player's, aim on the camera's ray, collider wireframes, errors, phone layout (needs the dev server)

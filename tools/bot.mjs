@@ -230,6 +230,47 @@ await run('sparx', () => {
     && out.withSparx && !out.withoutSparx.pulled && out.withoutSparx.stillThere && out.touched;
   return { ok, ...out };
 });
+await run('butterfly', () => {
+  // The blue butterflies are 3D models, not sprites: a body and two wings of real geometry that beat (the flock shares ONE material, so a butterfly costs three small draw calls).
+  // A healing butterfly (the bright 'shiny' blue one a bunny or a Snuffer leaves) flutters up and flies to SPARX, who eats it: one colour back. With him gone it flies to Spyro
+  // instead, and with him at full health it just flutters about and waits.
+  const G = __game, p = G.player, S = G.sparx, C = G.critters, out = {};
+  const parts = (m) => { const o = { meshes: 0, tris: 0, mats: new Set(), wing: null }; m.root.traverse((x) => { if (x.isMesh) { o.meshes++; o.tris += x.geometry.attributes.position.count / 3; o.mats.add(x.material); } if (x.name === 'wingR' && !x.isMesh) o.wing = x; }); return o; };
+  const all = C.ambient.map((a) => parts(a.model));
+  const mats = new Set(); all.forEach((q) => q.mats.forEach((m) => mats.add(m)));
+  out.ambient = { count: C.ambient.length, meshes: [...new Set(all.map((q) => q.meshes))].join(), minTris: Math.min(...all.map((q) => q.tris)), looks: [...new Set(C.ambient.map((a) => a.model.look))].sort().join() };
+  out.materials = mats.size;
+  // the wings beat while it flutters and hold still in a glide
+  const m0 = C.ambient[0].model, w0 = parts(m0).wing, sweep = (flap, n) => { let lo = 9, hi = -9; for (let i = 0; i < n; i++) { m0.update(1 / 60, { flap }); lo = Math.min(lo, w0.rotation.z); hi = Math.max(hi, w0.rotation.z); } return hi - lo; };
+  sweep(1, 30); out.beat = +sweep(1, 60).toFixed(2); sweep(0, 60); out.glide = +sweep(0, 60).toFixed(2);
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+  const clear = () => { while (C.flutter.length) C._kill(C.flutter[0], 0); };
+  const fly = (hp, ticks, hold) => {
+    clear(); __bot.place(0, 150, Math.PI); S.reset(hp); __bot.tick(90);                   // (Sparx has caught up with the new spot)
+    const upd = S.update;
+    if (hold) { S.update = () => {}; S.x = S.px = p.x + hold; S.y = S.py = p.y + 1.6; S.z = S.pz = p.z; S.vx = S.vy = S.vz = 0; }       // (he holds still, off to Spyro's side: which of the two does the butterfly fly to?)
+    C.releaseButterfly(p.x + 1.5, p.y + 0.8, p.z - 3);
+    const f = C.flutter[0], look = f.model.look;
+    let n = 0, last = { x: f.x, y: f.y, z: f.z }, lastS = { x: S.x, y: S.y, z: S.z };
+    for (; n < ticks && C.flutter.length; n++) { last = { x: f.x, y: f.y, z: f.z }; lastS = { x: S.x, y: S.y, z: S.z }; __bot.tick(1); }
+    __bot.tick(20);                                                                // (he pops back in a few frames after the meal)
+    S.update = upd;
+    return { look, ticks: n, eaten: C.flutter.length === 0, hp: S.hp, dSparx: +dist(last, lastS).toFixed(2), dPlayer: +dist(last, { x: p.x, y: p.y + 0.9, z: p.z }).toFixed(2), detached: f.model.root.parent === null, sparxShown: S.vis > 0.5 };
+  };
+  out.toSparx = fly(1, 420);                                                     // green Sparx: the butterfly goes to him
+  out.toSparxAside = fly(1, 420, 4);                                             // ... wherever he is: here 4 m off to the side, and the butterfly flies past Spyro to him
+  out.sparxGone = fly(0, 420);                                                   // no Sparx: to Spyro, and Sparx comes back
+  out.full = fly(3, 240);                                                        // gold Sparx: it waits
+  out.full.waiting = C.flutter.length === 1 && S.hp === 3;
+  clear(); S.reset(3); __bot.god();
+  const ok = out.ambient.count >= 12 && out.ambient.meshes === '3' && out.ambient.minTris > 150 && /^(azure|cyan|sky|violet)(,(azure|cyan|sky|violet))*$/.test(out.ambient.looks) && out.materials === 1
+    && out.beat > 1.2 && out.glide < 0.16
+    && out.toSparx.look === 'shiny' && out.toSparx.eaten && out.toSparx.hp === 2 && out.toSparx.dSparx < 1 && out.toSparx.detached
+    && out.toSparxAside.eaten && out.toSparxAside.hp === 2 && out.toSparxAside.dSparx < 1 && out.toSparxAside.dPlayer > 2.5
+    && out.sparxGone.eaten && out.sparxGone.hp === 1 && out.sparxGone.dPlayer < 1.6 && out.sparxGone.sparxShown
+    && out.full.waiting;
+  return { ok, ...out };
+});
 await run('one-hit-enemies', () => {
   // Every Snuffer dies to ONE hit of an attack that works on it (they used to take two): plain ones to a breath of fire or to a ram, bell ones (fire bounces
   // off) to a ram, thorn ones (a ram hurts you) to a breath of fire. Each trial: a fresh Snuffer that holds its ground on a clear stretch of the main road, and

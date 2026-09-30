@@ -1,14 +1,19 @@
 // Meadow bunnies ("fodder"): they hop about, bolt when Spyro gets close, and release a healing butterfly when
-// burnt or rammed. Butterflies flutter up, then seek Spyro to refill Sparx.
+// burnt or rammed. Butterflies flutter up, then seek Sparx (or Spyro, when Sparx is gone) to refill him. The butterflies are 3D models (models/creatures/butterfly.js):
+// the healing ones are the bright 'shiny' blue with a glow and a trail of sparkles, and a flock of ambient ones in every shade of blue drifts about the meadows near Spyro.
 import { makeModel } from '../models/fallback.js';
 import { WATER_LEVEL } from '../level.js';
 
-const wrap = (a) => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
-const FLAP = ['butterfly_0', 'butterfly_1', 'butterfly_2', 'butterfly_1'];
+const TAU = Math.PI * 2;
+const wrap = (a) => { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TAU; return a; };
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp1 = (v) => (v < -1 ? -1 : v > 1 ? 1 : v);
+const AMBIENT_LOOKS = ['azure', 'sky', 'cyan', 'azure', 'sky', 'violet', 'cyan', 'azure'];      // the ambient butterflies: every shade of blue
+const HEAL_SCALE = 0.75;                                                                      // (a healing butterfly is a little bigger than an ambient one, 0.45 to 0.65)
 
 export class CritterSystem {
   /** spawns: [{ x, z }] one bunny each */
-  constructor(game, spawns, ambient = 26) {
+  constructor(game, spawns, ambient = 18) {
     this.game = game;
     this.bunnies = [];
     this.flutter = [];       // healing butterflies
@@ -28,14 +33,21 @@ export class CritterSystem {
   }
 
   _ambient(i) {
-    const h = this.game.fx.billboard({ pool: 'cut', sprite: 'butterfly_0', size: 0.5, color: [1, 1, 1] });
-    return { h, x: 0, y: 0, z: 0, a: Math.random() * 6.28, r: 4 + Math.random() * 8, s: 0.4 + Math.random() * 0.5, phase: Math.random() * 6, home: null, tint: [[1, 1, 1], [1, 0.8, 0.6], [0.8, 0.9, 1], [1, 0.9, 0.5]][i % 4] };
+    const g = this.game;
+    const model = makeModel(g.assets, 'butterfly', { look: AMBIENT_LOOKS[i % AMBIENT_LOOKS.length], scale: lerp(0.45, 0.65, Math.random()) });
+    model.root.visible = false;
+    g.dyn.add(model.root);
+    return { model, x: 0, y: 0, z: 0, px: 0, py: 0, pz: 0, vx: 0, vy: 0, vz: 0, yaw: Math.random() * TAU, turn: 0, a: Math.random() * TAU, r: 4 + Math.random() * 8, s: 0.4 + Math.random() * 0.5, phase: Math.random() * 6, home: null, vis: 0 };
   }
 
   releaseButterfly(x, y, z) {
-    const h = this.game.fx.billboard({ pool: 'cut', sprite: 'butterfly_0', size: 1.0, color: [0.75, 0.9, 1.0] });
-    const glow = this.game.fx.billboard({ pool: 'add', sprite: 'glow_small', size: 1.6, color: [0.5, 0.8, 1.0], alpha: 0.6 });
-    this.flutter.push({ h, glow, x, y, z, vx: 0, vy: 2.2, vz: 0, t: 0, phase: Math.random() * 6, wait: 0 });
+    const g = this.game;
+    const model = makeModel(g.assets, 'butterfly', { look: 'shiny', scale: HEAL_SCALE });
+    model.root.position.set(x, y, z);
+    model.root.visible = false;
+    g.dyn.add(model.root);
+    const glow = g.fx.billboard({ pool: 'add', sprite: 'glow_small', size: 1.0, color: [0.3, 0.6, 1.0], alpha: 0.3 });
+    this.flutter.push({ model, glow, x, y, z, px: x, py: y, pz: z, vx: 0, vy: 2.2, vz: 0, yaw: Math.random() * TAU, turn: 0, vis: 0, t: 0, phase: Math.random() * 6, wait: 0, trail: 0 });
   }
 
   update(dt, game) {
@@ -117,16 +129,21 @@ export class CritterSystem {
       b.shadow.x = b.x; b.shadow.z = b.z; b.shadow.alpha = 0.55 - b.jy * 0.4;
     }
     // ---- butterflies -------------------------------------------------------------------------------------------------
+    const sx = game.sparx;
+    const sparxHere = !!sx && sx.hp > 0 && sx.vis > 0.5;                 // he is shown: the butterfly goes to HIM (and he eats it); with him gone it goes to Spyro
     for (let i = this.flutter.length - 1; i >= 0; i--) {
       const f = this.flutter[i];
       f.t += dt;
+      f.px = f.x; f.py = f.y; f.pz = f.z;
+      const toPlayer = Math.hypot(p.x - f.x, p.y + 0.9 - f.y, p.z - f.z);
       if (f.t < 0.9) { f.vy = 2.4; f.vx = Math.cos(f.t * 5) * 1.6; f.vz = Math.sin(f.t * 5) * 1.6; }
-      else if (game.sparx.hp < game.sparx.max && !p.dead) {
-        const dx = p.x - f.x, dy = p.y + 0.9 - f.y, dz = p.z - f.z;
+      else if (sx.hp < sx.max && !p.dead) {
+        const tx = sparxHere ? sx.x : p.x, ty = sparxHere ? sx.y : p.y + 0.9, tz = sparxHere ? sx.z : p.z;
+        const dx = tx - f.x, dy = ty - f.y, dz = tz - f.z;
         const d = Math.hypot(dx, dy, dz) || 1;
         const s = Math.min(11, 3 + (f.t - 0.9) * 6);
         f.vx = dx / d * s + Math.sin(f.t * 7 + f.phase) * 0.8; f.vy = dy / d * s + Math.sin(f.t * 9) * 0.6; f.vz = dz / d * s;
-        if (d < 1.3) { game.sparx.heal(); game.audio?.sfx('butterfly'); game.hud?.pulse('sparx'); this._kill(f, i); continue; }
+        if (d < (sparxHere ? 0.6 : 1.3) || (f.t > 6 && toPlayer < 2.5)) { sx.heal(); game.audio?.sfx('butterfly'); game.hud?.pulse('sparx'); this._kill(f, i); continue; }
       } else {
         // Sparx is full: just flutter about until needed
         f.wait += dt;
@@ -134,31 +151,58 @@ export class CritterSystem {
         if (f.wait > 25) { this._kill(f, i); continue; }
       }
       f.x += f.vx * dt; f.y += f.vy * dt; f.z += f.vz * dt;
-      f.h.x = f.glow.x = f.x; f.h.y = f.glow.y = f.y; f.h.z = f.glow.z = f.z;
-      f.glow.alpha = 0.4 + Math.sin(f.t * 8) * 0.15;
+      // it faces the way it flies, and banks into its turns
+      const hs = Math.hypot(f.vx, f.vz), want = hs > 0.4 ? Math.atan2(f.vx, f.vz) : f.yaw, d = wrap(want - f.yaw);
+      f.yaw += d * (1 - Math.exp(-7 * dt));
+      f.turn = lerp(f.turn, clamp1(d * 1.6), 0.2);
+      f.vis = Math.min(1, f.vis + dt * 4);
+      // a trail of sparkles in the same blue
+      f.trail -= dt;
+      if (f.trail <= 0) {
+        f.trail = 0.07;
+        game.fx.spawn({ pool: 'add', sprite: 'glow_small', x: f.x, y: f.y, z: f.z, vy: -0.3, life: 0.5, size: [0.3, 0.03], c0: [0.5, 0.85, 1, 0.5], c1: [0.4, 0.7, 1, 0] });
+      }
     }
     // ---- ambient butterflies around the player -------------------------------------------------------------------------
-    const night = 1 - game.day;
     for (const a of this.ambient) {
-      if (!a.home || Math.hypot(a.home.x - p.x, a.home.z - p.z) > 34) {
-        const ang = Math.random() * 6.28, r = 8 + Math.random() * 22;
+      const rehome = !a.home || Math.hypot(a.home.x - p.x, a.home.z - p.z) > 22;
+      if (rehome) {
+        const ang = Math.random() * TAU, r = 4 + Math.random() * 11;
         a.home = { x: p.x + Math.cos(ang) * r, z: p.z + Math.sin(ang) * r };
+        a.vis = 0;                                                      // (it fades in at its new home instead of popping up)
       }
+      a.px = a.x; a.py = a.y; a.pz = a.z;
       a.a += dt * a.s;
-      a.x = a.home.x + Math.cos(a.a) * a.r * 0.4; a.z = a.home.z + Math.sin(a.a * 1.3) * a.r * 0.4;
+      const fl = a.a * 4 + a.phase;                                     // (a little flutter on top of the lazy loop)
+      a.x = a.home.x + Math.cos(a.a) * a.r * 0.4 + Math.sin(fl * 1.3) * 0.35;
+      a.z = a.home.z + Math.sin(a.a * 1.3) * a.r * 0.4 + Math.cos(fl) * 0.35;
       const gy = game.collision.heightAt(a.x, a.z);
-      a.y = gy + 1.4 + Math.sin(a.a * 2 + a.phase) * 0.6;
-      a.h.x = a.x; a.h.y = a.y; a.h.z = a.z;
-      a.h.color = a.tint;
-      a.h.visible = gy > WATER_LEVEL + 0.3;
-      a.h.alpha = 1;
+      a.y = gy + 1.4 + Math.sin(a.a * 2 + a.phase) * 0.6 + Math.sin(fl * 1.7) * 0.15;
+      if (rehome) { a.px = a.x; a.py = a.y; a.pz = a.z; }
+      a.vx = (a.x - a.px) / dt; a.vy = (a.y - a.py) / dt; a.vz = (a.z - a.pz) / dt;
+      const hs = Math.hypot(a.vx, a.vz), want = hs > 0.3 ? Math.atan2(a.vx, a.vz) : a.yaw, d = wrap(want - a.yaw);
+      a.yaw += d * (1 - Math.exp(-5 * dt));
+      a.turn = lerp(a.turn, clamp1(d * 1.5), 0.15);
+      a.vis += ((gy > WATER_LEVEL + 0.3 ? 1 : 0) - a.vis) * (1 - Math.exp(-3 * dt));      // (only over dry land: none out over the lake)
     }
   }
 
   frame(dt, alpha, game) {
-    const t = game.time;
-    for (const f of this.flutter) game.fx.setSprite(f.h, FLAP[((t * 10 + f.phase) | 0) % 4]);
-    for (const a of this.ambient) game.fx.setSprite(a.h, FLAP[((t * 7 + a.phase * 3) | 0) % 4]);
+    const place = (o) => {
+      const m = o.model;
+      if (o.vis < 0.02) { m.root.visible = false; return; }
+      m.root.position.set(lerp(o.px, o.x, alpha), lerp(o.py, o.y, alpha), lerp(o.pz, o.z, alpha));
+      m.root.rotation.y = o.yaw;
+      m.update(dt, { speed: Math.hypot(o.vx, o.vy, o.vz), vy: o.vy, turn: o.turn, vis: o.vis, flap: o.glow ? 1 : undefined });
+    };
+    for (const f of this.flutter) {
+      place(f);
+      const g = f.glow, r = f.model.root.position;
+      g.x = r.x; g.y = r.y; g.z = r.z;
+      g.alpha = (0.26 + Math.sin(game.time * 8 + f.phase) * 0.08) * f.vis;
+      g.visible = f.vis > 0.02;
+    }
+    for (const a of this.ambient) place(a);
   }
 
   _pop(b, i) {
@@ -174,7 +218,9 @@ export class CritterSystem {
   }
 
   _kill(f, i) {
-    f.h.dead = true; f.glow.dead = true;
+    f.glow.dead = true;
+    f.model.root.parent?.remove(f.model.root);
+    f.model.dispose?.();
     this.flutter.splice(i, 1);
   }
 }

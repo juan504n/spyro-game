@@ -56,7 +56,8 @@ off a bell and ramming a thorn hurts you, however hard you try.
 
 Sparx, the dragonfly, is the health bar, after the original: Spyro can take three hits, shown by Sparx's colour. He starts at full health (**gold**), each hit that lands turns him down
 a colour (**gold → blue → green → gone**), and with him gone the next hit is lights out. A scorched or rammed bunny (and a defeated Snuffer, six times in ten or whenever he is down to green or
-gone) releases a butterfly that flutters up and then seeks Spyro: each one heals one step (gone → green → blue → gold; nothing when he is full). A new life starts with him gold again.
+gone) releases a butterfly that flutters up for about a second and then flies to Sparx (to Spyro's chest when Sparx is gone, and he pops back when he is healed), and he eats it: each one heals one step (gone → green → blue → gold; with him full the
+butterfly just flutters about and waits, 25 s at most). A new life starts with him gold again.
 The gem magnet belongs to him (see below): with him gone gems are only picked up by touching them.
 
 ## Ramming and jumping
@@ -91,12 +92,21 @@ On a touch screen it is two fingers, one held on RAM and one tapping JUMP (the p
   embankments are not called cliffs until they are really steep (1.05, not 0.74); the roads themselves stay dirt and cobble. Across the fade a growing share of cells keeps the usual
   mixture (chosen per cell by its own hash, so there is no visible seam), and past 30 m nothing has changed. The debug readout names the rule (`the pier's landing lawn`), since it reads the same picker.
   Only ground textures move: no random draw is added or removed, so every prop and gameplay record is where it was.
-* **Sparx:** a real 3D dragonfly (`models/creatures/sparx.js`, about 0.9 m long, drawn 1.2 times bigger for legibility on a phone), not a flat sprite: a plump head with two big goofy eyes whose pupils wander and a grin,
+* **Sparx:** a real 3D dragonfly (`models/creatures/sparx.js`, modelled about 0.9 m long and drawn at `SIZE` 0.6 of that, a little over half a metre: he was first drawn at 1.2, which was too big next to Spyro, so the model, his glow and his sparkle trail are half what they were), not a flat sprite: a plump head with two big goofy eyes whose pupils wander and a grin,
   two curling antennae that sway, a thorax, a three-segment tail that swishes with a delay and curls up at the tip, and two pairs of translucent wings (a big pair in front, a small pair behind; root teal-grey, then lavender,
   magenta, violet, and a yellow tip; two-sided, in the half-blend pass after the water) that beat at 9 Hz, faster the quicker he flies, sweeping forward and back as they go. He bobs, noses down when he speeds along and rolls into turns.
   The body takes his health colour (gold, blue or green, eased over when it changes) and is lifted at dusk so he glows against the dark; the wings and eyes keep their own colours whatever his health, as in the original's art.
   A chomp squashes him when he eats a butterfly, a flick darts him at a gem he grabs, and a hit flashes and wobbles him. The HUD icon is drawn to match (pink-violet wings, yellow tips, big eyes) in the same three colours.
   The model viewer (`?test=models`) has his test poses: gold, blue, green, zoom, hurt, eat.
+* **Butterflies:** the flat 16 px sprites (pale blue with a dark outline, a four-frame flap) are gone; every butterfly is a model (`models/creatures/butterfly.js`, registered as `butterfly`, in the model viewer with the poses
+  flutter, glide, spread, vee, folded, down, dart). The body is a banded tube behind a furry thorax, a small head with dark eyes and two antennae with clubs. Each side has a forewing (an outline of 13 points, pointed at the tip) and a hindwing (13 points,
+  rounder, with a short tail), a shallow cup (they rise 5 cm towards the tip, so the light rolls across them). A wing is a dark rim band, a bright middle that shades from a deep root blue through the main blue to a cyan sheen, and six white dots just
+  inside the rim; every triangle has a twin facing the other way in the pale underside colours, so a butterfly flashes blue and dull as it beats (one lit material, front faces only). Five looks, one set of vertex colours each: azure, cyan, violet and sky for the
+  ambient ones, and the brighter, more saturated `shiny` for the healing ones. The wings pivot on the thorax: a beat is `0.36 + 1.0 (sin p + 0.22 sin(2p - 0.5))` radians (a quick downstroke, a slower upstroke, from 36 degrees below flat to 87 above) at about 4.4 Hz, up to 7.8 Hz
+  at speed, sweeping forward on the downstroke; the body rises with each stroke, noses up when climbing and banks into turns. A butterfly left to itself beats for one to three and a half seconds and then glides for up to a second with the wings held in a shallow V.
+  The flock is cheap: every butterfly of a look shares its geometry (590 triangles) and all of them share ONE material, so one costs three small draw calls and only while it is on screen (3 to 27 extra calls in the test spots). Ambient butterflies (18, about half a metre
+  across, 0.45 to 0.65 of the modelled 0.95 m) drift on lazy loops round a home 4 to 15 m from Spyro (a new one is picked once he has left it 22 m behind), with a little flutter on top, face the way they fly, fade in when their home moves to stay near him and fade out over water; the healing ones are bigger (0.75), with a soft blue halo
+  and a trail of sparkles.
 * **Gems:** cut stones of 48 flat facets (table, crown, girdle, two-tier pavilion). The gem shader ignores the scene light and uses two fixed
   lights plus a specular glint, so the facets flash as a gem spins, at dusk and at daybreak alike. Nearby gems twinkle with white four-point
   stars now and then (big ones more often). Five hues: red, green, blue, gold and purple, bigger for higher values.
@@ -205,6 +215,11 @@ jump cannot reach), and `tools/touch-ram-jump-test.mjs` does it on an emulated p
 on the running game: he starts gold at full health, three hits turn him blue, green, gone, the fourth kills, a respawn gives gold again, butterflies heal one step at a time and stop at gold, a gem inside the magnet's reach is lobbed in while he is there and is
 left alone once he is gone (and is still collected by touch). It fails with the old start (blue), with the magnet working without him, with no reset at respawn and with the colours swapped. **The landing:** `level-check` samples the ground 16 m
 round the pier's foot and fails if anything but grass, sand, dirt or paving shows up (it was eight textures), checks that nothing beyond the fade changed, that inside it cells only change to those, and that the debug readout names the rule; making the zone smaller fails it.
+
+**Round ten** (Sparx half the size, the blue butterflies redesigned): `tools/butterfly-test.mjs` (headless) checks every look's geometry (finite, real 3D, 0.95 m by 0.7 m, every wing triangle twinned with an underside face in another colour), the shared
+material and geometry, the beat (range, about 4.4 Hz, faster at speed, still in a glide), bursts and glides when left alone, a forced wing angle, bad inputs, vis 0, and the dusk lift. The bot's `butterfly` scenario checks it in the running game: 18 ambient models of
+three meshes and one material between them, all in the blue family, and a healing butterfly eaten by Sparx where he hovers (he is held 4 m to Spyro's side so the target is unambiguous), by Spyro's chest when Sparx is gone, and left waiting when he is full
+(it fails with the old rule of flying to Spyro, without the full-health wait, and with a material per butterfly).
 
 The bot's `one-hit-enemies` scenario puts a fresh Snuffer of each kind on a clear stretch of the main road and has the real controller breathe fire at it once and ram it once, counting every call to `damage()`:
 plain ones die after one hit to either, bell ones to the ram (fire does nothing), thorn ones to the fire (the ram hurts you instead). With two hit points it fails four of the six trials.

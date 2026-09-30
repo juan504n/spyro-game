@@ -21,7 +21,7 @@ export class Sparx {
     this.yaw = p.yaw; this.turn = 0;
     this.model = makeModel(game.assets, 'sparx', { hp: this.hp });
     game.dyn.add(this.model.root);
-    this.halo = game.fx.billboard({ pool: 'add', sprite: 'glow', size: 1.7, color: SPARX_BODY[3], alpha: GLOW[3] });
+    this.halo = game.fx.billboard({ pool: 'add', sprite: 'glow', size: 0.85, color: SPARX_BODY[3], alpha: GLOW[3] });      // (sized to the model: half of what it was when he was twice as big)
     this.t = Math.random() * 10;
     this.trail = 0;
     this.vis = 1;                                          // 1 = with Spyro, 0 = gone (he shrinks away and pops back when he is healed)
@@ -67,7 +67,7 @@ export class Sparx {
   grab(it) {
     this.grabT = 1;
     if (it) this.dart = { x: it.x, y: it.y, z: it.z, t: 0.3 };
-    this.game.fx.spawn({ pool: 'add', sprite: 'spark_small', x: this.x, y: this.y, z: this.z, vy: 0.6, life: 0.35, size: [0.45, 0.05], c0: [...this.color, 0.9], c1: [...this.color, 0] });
+    this.game.fx.spawn({ pool: 'add', sprite: 'spark_small', x: this.x, y: this.y, z: this.z, vy: 0.6, life: 0.35, size: [0.3, 0.03], c0: [...this.color, 0.9], c1: [...this.color, 0] });
   }
 
   update(dt, game) {
@@ -103,7 +103,7 @@ export class Sparx {
     if (this.trail <= 0 && this.hp > 0 && !p.dead) {
       this.trail = 0.09;
       const c = this.hp < 3 && Math.random() < 0.35 ? DUST[(Math.random() * DUST.length) | 0] : this.color;
-      game.fx.spawn({ pool: 'add', sprite: 'glow_small', x: this.x, y: this.y - 0.05, z: this.z, vy: -0.2, life: 0.55, size: [0.5, 0.05], c0: [...c, 0.55], c1: [...c, 0] });
+      game.fx.spawn({ pool: 'add', sprite: 'glow_small', x: this.x, y: this.y - 0.05, z: this.z, vy: -0.2, life: 0.55, size: [0.3, 0.03], c0: [...c, 0.55], c1: [...c, 0] });
     }
   }
 
