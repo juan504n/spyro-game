@@ -56,6 +56,12 @@ Sparx, the dragonfly, is the health bar: three hits, shown by his colour. Scorch
 * Gems are worth 1, 2, 5, 10 and 25. **700** in total: 319 laid out as road trails, arcs over gaps and a few hidden purples and golds, 381 inside vases, chests, a cracked wall and Snuffers.
 * The HUD total is computed from the same drop tables the game uses, and a test collects everything to check the numbers match.
 * The results screen awards up to three stars by gem percentage (60 % and 95 % thresholds).
+* **Gems fly in on a lob.** With Sparx alive, a gem inside 5.2 m is launched towards Spyro's chest on a fixed-time arc instead of a straight
+  slide: the position is `start + (chest - start) * u^1.35 + up * H * 4u(1 - u)` with `u` running 0..1 over `T = 0.32 + 0.05 d` seconds and
+  a hump of `H = 0.55 + 0.4 d` metres (`d` is the distance at launch), so it climbs first and dives in at the end. The target is re-read every
+  step, so a running Spyro is still caught; if he gets more than 14 m away the pull lets go (a placed gem goes back to where it hangs, a dropped
+  one falls where it is). The gem tumbles and swells a little on the way and leaves a short trail of coloured sparkles. Gems within 1.55 m are
+  collected directly, exactly as before, so the economy is unchanged.
 
 ## Art direction
 
@@ -66,6 +72,14 @@ Sparx, the dragonfly, is the health bar: three hits, shown by his colour. Scorch
 * **Gems:** cut stones of 48 flat facets (table, crown, girdle, two-tier pavilion). The gem shader ignores the scene light and uses two fixed
   lights plus a specular glint, so the facets flash as a gem spins, at dusk and at daybreak alike. Nearby gems twinkle with white four-point
   stars now and then (big ones more often). Five hues: red, green, blue, gold and purple, bigger for higher values.
+* **Gem counter:** the count that hops in the corner after every pickup is real 3D, like the original's HUD numerals: a stroke font
+  (`DIGIT_STROKES`) of flat-ended, extruded strokes with octagonal joints, in the faceted gem shader tinted gold, with a hard dark copy just
+  behind and below it for readability and a spinning gem icon in the colour of the last pickup. It lives in its own small scene, drawn after the
+  world with the depth buffer cleared, through the same PS1 shader (vertex wobble, banding and dither included). The camera is set up so that
+  one world unit is one HUD pixel on the 240-line layout, so it is placed with the same numbers as the 2D panels. Every changed digit hops
+  (the units first, the tens a moment later; a digit that rolls over flips right round, and every landing squashes). The hop launch speed is
+  capped so that a burst of pickups never lifts a digit above 12 px. It slides in from above on the first pickup, stays for 2.6 s after the last
+  one and slides out; it also goes away at once whenever the HUD is hidden (title, cinematics). While it is hidden the extra render pass is skipped.
 * **Camera:** chase camera at a fixed distance that pulls in when something blocks it, plus authored cinematic shots for the title, intro and finale.
 * **The hero:** readable at 33 pixels tall, so the design is silhouette and colour blocks first: a gold crest and ringed brown horns on a big
   purple head, maroon wings with gold bones, a pale gold banded chest and an orange tail tip. The neck is thick and upright with the head
@@ -88,3 +102,8 @@ ladder of a fourth, a fifth and an octave over the chime's own pitch (all inside
 
 `tools/bot.mjs` walks every road with the real player controller; `tools/playthrough.mjs` completes the whole story
 (every beacon, the puzzle, the glide chain, the gate, the finale). Both run without rendering, so they take seconds.
+
+Focused checks (they need the dev server): `charge-test` (charging lasts exactly as long as the button is held), `gem-flight-test` (a pulled gem
+rises, peaks in the middle of the flight and dives in; a running target is still caught; the pull cancels cleanly; bursts add up exactly),
+`gem-counter-test` (rendered frames really contain the numerals and lose them again; show / hold / fade timing; digit slots, rollover to three
+and four digits, hop height cap, no flash when the HUD returns; sane numeral geometry) and `gem-sound-test` (the chimes).

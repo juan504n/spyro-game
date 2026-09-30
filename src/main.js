@@ -69,7 +69,7 @@ async function boot() {
     }
     gfx.clearHud();
     scene.update?.(dt, clock.t);
-    if (doRender) gfx.render(scene.scene, scene.camera);
+    if (doRender) gfx.render(scene.scene, scene.camera, scene.overlay);
   };
   requestAnimationFrame(frame);
 

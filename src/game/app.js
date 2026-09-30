@@ -59,6 +59,9 @@ class App {
     this.deferReady = true;
   }
 
+  /** the frame size changed (called by main.js after Gfx re-created its targets): keep the 3D counter matched to it */
+  onResize(W, H) { this.game?.counter?.resize(this.gfx.hud.w, W / H); }
+
   async start() {
     const gfx = this.gfx;
     this.audio = await loadAudio();
@@ -67,6 +70,8 @@ class App {
     await game.build((frac, label) => { this.load = { frac, label }; return new Promise((r) => setTimeout(r, 16)); });
     game.externalPoll = true;
     game.resize(gfx.W, gfx.H);
+    game.counter.resize(gfx.hud.w, gfx.W / gfx.H);
+    this.overlay = game.overlay;
     this.scene = game.scene;
     this.camera = game.camera;
     this.menu = new Menu(game);

@@ -18,6 +18,11 @@ export const GEM_TYPES = {
 // one note. A pause resets it.
 const COMBO_WINDOW = 0.85;
 
+// FLIGHT: a gem that Sparx pulls in is lobbed, not slid: it rises first and then dives into Spyro. Over a flight time T the gem
+// follows the straight line to wherever he is *now* (so it still homes in on a moving target) with progress u^EASE (slow at first,
+// fast at the end) plus a parabolic hump of height H (up, then down). Longer pulls take longer and arc higher.
+const FLIGHT = { t0: 0.32, tPerM: 0.05, h0: 0.55, hPerM: 0.4, ease: 1.35, cancelDist: 14 };
+
 const dummy = new THREE.Object3D();
 const col = new THREE.Color();
 
@@ -26,7 +31,7 @@ const col = new THREE.Color();
  * two-tier pavilion down to the point. Each facet carries a baked brightness; the gem shader lights them with two fixed lights
  * and a specular glint, so the facets flash as the gem spins. Vertex colours are white-ish tints, the hue is per instance.
  */
-function gemGeometry() {
+export function gemGeometry() {
   const b = new Builder({ lit: true });
   const N = 6, TAU = Math.PI * 2;
   const ring = (r, y, off = 0) => Array.from({ length: N }, (_, i) => [r * Math.sin((i / N) * TAU + off), y, r * Math.cos((i / N) * TAU + off)]);
@@ -93,7 +98,7 @@ export class GemField {
     const idx = dynamic ? this.free.pop() : this.items.length;
     if (idx === undefined) return null;
     const T = GEM_TYPES[value] || GEM_TYPES[1];
-    const it = { i: idx, x, y, z, value, size: T.size, color: T.color, spin: Math.random() * 6.28, phase: Math.random() * 6.28, alive: true, dynamic, vx: 0, vy: 0, vz: 0, delay: 0, bounces: 0, magnet: false, sp: 0 };
+    const it = { i: idx, x, y, z, value, size: T.size, color: T.color, spin: Math.random() * 6.28, phase: Math.random() * 6.28, alive: true, dynamic, vx: 0, vy: 0, vz: 0, delay: 0, bounces: 0, magnet: false, mt: 0, T: 0, H: 0, sx: 0, sy: 0, sz: 0, trail: 0, hx: x, hy: y, hz: z };
     this.mesh.setColorAt(idx, col.setRGB(T.color[0], T.color[1], T.color[2]));
     if (dynamic) this.items.push(it); else this.items[idx] = it;
     this.mesh.instanceColor.needsUpdate = true;
@@ -138,14 +143,39 @@ export class GemField {
       const dx = px - it.x, dy = py - it.y, dz = pz - it.z;
       const d2 = dx * dx + dy * dy + dz * dz;
       if (d2 < R * R) { this._collect(it, game); continue; }
-      if (hasSparx && d2 < MR * MR) it.magnet = true;
-      if (it.magnet) {
-        it.sp = Math.min(26, it.sp + 60 * dt);
-        const d = Math.sqrt(d2) || 1;
-        it.x += (dx / d) * it.sp * dt; it.y += (dy / d) * it.sp * dt; it.z += (dz / d) * it.sp * dt;
-        if (d < 0.9) this._collect(it, game);
-      }
+      if (!it.magnet && hasSparx && d2 < MR * MR) this._launch(it, Math.sqrt(d2));
+      if (it.magnet) this._fly(it, dt, px, py, pz, game);
     }
+  }
+
+  /** Sparx grabs the gem: remember where it starts and how long / how high the lob will be. */
+  _launch(it, d) {
+    it.magnet = true;
+    it.mt = 0; it.trail = 0;
+    it.sx = it.x; it.sy = it.y; it.sz = it.z;
+    it.T = FLIGHT.t0 + FLIGHT.tPerM * d;
+    it.H = FLIGHT.h0 + FLIGHT.hPerM * d;
+    it.vx = it.vy = it.vz = 0;
+  }
+
+  /** One step of a lob toward the player's chest (px, py, pz): a hump over the line to where he is now. */
+  _fly(it, dt, px, py, pz, game) {
+    const dx = px - it.x, dy = py - it.y, dz = pz - it.z;
+    const dist = Math.hypot(dx, dy, dz);
+    if (dist > FLIGHT.cancelDist) {                   // he was teleported (respawn) or outran the pull: let the gem go
+      it.magnet = false;
+      if (!it.dynamic) { it.x = it.hx; it.y = it.hy; it.z = it.hz; }      // (a placed gem returns to where it hangs; a burst gem just drops)
+      return;
+    }
+    it.mt += dt;
+    const u = Math.min(1, it.mt / it.T);
+    const p = Math.pow(u, FLIGHT.ease);
+    it.x = it.sx + (px - it.sx) * p;
+    it.y = it.sy + (py - it.sy) * p + it.H * 4 * u * (1 - u);
+    it.z = it.sz + (pz - it.sz) * p;
+    it.trail -= dt;
+    if (it.trail <= 0) { it.trail = 0.04; game.fx.gemTrail(it.x, it.y, it.z, it.color); }
+    if (u >= 1 || (it.mt > 0.15 && dist < 0.7)) this._collect(it, game);
   }
 
   /** Playback rate for this pickup's chime: the run so far climbs the type's ladder (semitones), then trills between its top two steps. */
@@ -169,6 +199,7 @@ export class GemField {
     game.fx.gemPickup(it.x, it.y, it.z, T.color);
     game.audio?.sfx(T.snd, { vol: T.vol, pan: 0, pitch: this._comboPitch(T, game.time) });
     game.hud?.pulse('gems');
+    game.counter?.bump(it.value, T.color);
     game.emit('gem', it.value);
   }
 
@@ -183,10 +214,17 @@ export class GemField {
       const near = dx * dx + dz * dz < 190 * 190;
       if (!near) { if (!it.hidden) { dummy.scale.setScalar(0); dummy.updateMatrix(); this.mesh.setMatrixAt(it.i, dummy.matrix); it.hidden = true; dirty = true; } continue; }
       it.hidden = false;
-      const bob = it.dynamic && !it.magnet && it.vy !== 0 ? 0 : Math.sin(t * 2.4 + it.phase) * 0.14;
+      const flying = it.magnet;
+      const bob = flying || (it.dynamic && it.vy !== 0) ? 0 : Math.sin(t * 2.4 + it.phase) * 0.14;
       dummy.position.set(it.x, it.y + bob, it.z);
-      dummy.rotation.set(0, t * 1.9 + it.spin, 0);
-      dummy.scale.setScalar(it.size);
+      if (flying) {
+        const u = Math.min(1, it.mt / it.T);
+        dummy.rotation.set(0.45 * Math.sin(it.mt * 11 + it.phase), t * 1.9 + it.spin + it.mt * 14, 0.35 * Math.cos(it.mt * 8));
+        dummy.scale.setScalar(it.size * (1 + 0.14 * 4 * u * (1 - u) - 0.3 * Math.max(0, u - 0.82) / 0.18));        // swells at the top of the hop, shrinks into Spyro
+      } else {
+        dummy.rotation.set(0, t * 1.9 + it.spin, 0);
+        dummy.scale.setScalar(it.size);
+      }
       dummy.updateMatrix();
       this.mesh.setMatrixAt(it.i, dummy.matrix);
       dirty = true;

@@ -241,8 +241,13 @@ export class Gfx {
 
   clearHud() { this.hud.data.fill(0); }
 
-  /** Render `scene` from `camera` through the whole PS1 pipeline to the canvas. */
-  render(scene, camera) {
+  /**
+   * Render `scene` from `camera` through the whole PS1 pipeline to the canvas. `overlay` ({ scene, camera }) is an optional
+   * second scene drawn on top of the finished world (depth cleared) through the same shaders and post passes: the floating
+   * gem counter uses it, so its 3D numerals wobble, band and dither like everything else. `overlay.visible = false` skips the
+   * pass altogether (no depth clear, no draw), which is the normal state almost all of the time.
+   */
+  render(scene, camera, overlay = null) {
     const r = this.renderer;
     r.info.reset();
     // pass 1: the 3D scene at internal resolution
@@ -252,6 +257,7 @@ export class Gfx {
     r.setClearColor(U.uFogColor.value, 1);
     r.clear(true, true, false);
     r.render(scene, camera);
+    if (overlay && overlay.visible !== false && overlay.scene.children.length) { r.clearDepth(); r.render(overlay.scene, overlay.camera); }
     // pass 2: dither/quantise + HUD
     this.hudTex.needsUpdate = true;
     r.setRenderTarget(this.rtFinal);

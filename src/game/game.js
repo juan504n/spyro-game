@@ -12,6 +12,7 @@ import { makeModel } from './models/fallback.js';
 import { SpriteAtlas } from './sprites.js';
 import { Fx } from './fx.js';
 import { Hud } from './hud.js';
+import { GemCounter } from './gemcounter.js';
 import { GemField } from './systems/gems.js';
 import { Sparx } from './systems/sparx.js';
 import { BeaconSystem } from './systems/beacons.js';
@@ -77,6 +78,8 @@ export class Game {
     this.atlas = new SpriteAtlas();
     this.fx = new Fx(this.atlas, this.grid, this.scene);
     this.hud = new Hud(this);
+    this.counter = new GemCounter(this);           // the floating, bouncing gem count (a 3D overlay drawn over the world)
+    this.overlay = this.counter.overlay;
     if (this.gameplay.gemsTotal) this.stats.gemsTotal = this.gameplay.gemsTotal;
 
     // hero
@@ -266,6 +269,7 @@ export class Game {
     const f = this.fade;
     f.a += Math.sign(f.target - f.a) * Math.min(Math.abs(f.target - f.a), f.speed * dt);
     this.gfx.fade.set(0, 0, 0, f.a);
+    this.counter.update(paused ? 0 : dt, this.hud.visible);
     this.hud.draw(this.gfx.hud);
   }
 }

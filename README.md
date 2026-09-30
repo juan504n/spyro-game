@@ -77,7 +77,9 @@ the whole valley is lit twice (dusk and daybreak) and the world cross-fades betw
 * **Sparx** the dragonfly is your health bar: blue → green → yellow → gone. Bunnies you scorch become healing
   butterflies.
 * **Gems** are worth 1 / 2 / 5 / 10 / 25 (red, green, blue, gold, purple): cut stones whose facets flash as they spin. Vases, chests, cracked walls and enemies drop
-  them, plus hand-placed trails and a few well-hidden treasures. Total: **700**.
+  them, plus hand-placed trails and a few well-hidden treasures. Total: **700**. While Sparx is with you, gems within a few metres are drawn in
+  on a curved lob (up, then down into Spyro, like the original), and every pickup makes a chunky yellow gem count hop and float in the corner
+  for a couple of seconds.
 * Ending the level shows a results screen (three stars) and drops you back into free roam.
 
 ## The hero
@@ -125,6 +127,7 @@ src/game/
   props/  models/    procedural scenery, architecture, hero, creatures and interactive objects
   levelgen/          deterministic placement of props, enemies, gems, hints
   player.js camera.js collision.js   kinematic controller, chase camera, heightfield + collider world
+  gemcounter.js      the floating, bouncing 3D gem count: extruded numerals drawn as a second little scene over the world
   systems/           gems, Sparx, beacons, enemies, critters, NPC, objects, ambience
   app.js hud.js menu.js cinematics.js   title → intro → play → finale → results, HUD, options
 tools/               QA + dev tooling (see below)
@@ -142,6 +145,8 @@ node tools/terrain-map.mjs    # top-down map of the realm with slopes and paths 
 node tools/prop-lint.mjs      # builds every prop, fails on NaN / degenerate geometry
 node tools/shot.mjs / play.mjs / probe.mjs   # Playwright screenshots, scripted play-throughs, state probes
 node tools/model-sheet.mjs out.png --only spyro --poses idle,run,glide --views side   # contact sheets of an actor from any angle / pose
+node tools/charge-test.mjs | gem-flight-test.mjs | gem-counter-test.mjs | gem-sound-test.mjs
+                              # focused checks: charge only while held, the gem lob, the floating count, the pickup chimes
 node tools/audio-render.mjs   # renders every sound to WAV and prints diagnostics
 node tools/build-single.mjs   # esbuild -> one HTML file
 ```

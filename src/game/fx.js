@@ -291,6 +291,11 @@ export class Fx {
     this.spawn({ pool: 'add', sprite: 'gem_glint', x, y, z, life: 0.28, size: [size, size * 0.3], c0: [1, 1, 1, 1], c1: [1, 1, 1, 0] });
   }
 
+  /** A tiny coloured sparkle left behind by a gem in flight. */
+  gemTrail(x, y, z, color) {
+    this.spawn({ pool: 'add', sprite: 'spark_small', x, y, z, vx: this.rnd(-0.5, 0.5), vy: this.rnd(0.2, 1.0), vz: this.rnd(-0.5, 0.5), life: this.rnd(0.28, 0.42), size: [0.4, 0.08], c0: [...color.map((c) => Math.min(1, c + 0.35)), 1], c1: [...color, 0] });
+  }
+
   /** A four-point star twinkle (the white sparkle that pops on gems). */
   twinkle(x, y, z, size = 1) {
     this.spawn({ pool: 'add', sprite: 'spark', x, y, z, life: 0.45, size: [size * 1.3, size * 0.2], c0: [1, 1, 0.96, 1], c1: [1, 0.95, 0.8, 0], rot: this.rnd(-0.35, 0.35) });
