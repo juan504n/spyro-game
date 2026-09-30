@@ -263,7 +263,9 @@ export function layoutHollow(ctx) {
   put('tree_lantern', K.x + 11, K.z + 15, { canopy: 'leaves_teal', size: 'm' }, 4);
   ctx.addChest(K.x, K.z - 7, 0, [10, 5]);
   ctx.addVase(K.x - 4, K.z - 3, [5]); ctx.addVase(K.x + 5, K.z - 2, [2, 5]);
-  ctx.addEnemy(K.x - 4, K.z + 4, 'basic', 4); ctx.addEnemy(K.x + 5, K.z + 6, 'bell', 4);
+  // (a free spot near where he was meant to stand: the random crystal clusters had one growing right through him)
+  const [ex, ez] = ctx.spot(K.x - 4, K.z + 4, { r: 1.4, clear: 1.2, maxR: 8 });
+  ctx.addEnemy(ex, ez, 'basic', 4); ctx.addEnemy(K.x + 5, K.z + 6, 'bell', 4);
   ctx.gp.purple = ctx.gp.purple || [];
   // (found by asking for a free spot: the crystal spires' colliders would put a gem out of the hero's reach)
   const [gx, gz] = ctx.spot(K.x + 1, K.z - 3, { r: 2.6, clear: 1, maxR: 10 });

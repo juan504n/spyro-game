@@ -171,7 +171,7 @@ src/game/
   level.js           the design source of truth: landmarks, roads, hills, beacon order
   terrain*.js        analytic heightfield, road/river carving, per-triangle texturing, water
   props/  models/    procedural scenery, architecture, hero, creatures and interactive objects
-  levelgen/          deterministic placement of props, enemies, gems, hints
+  levelgen/          deterministic placement of props, enemies, gems, hints (islands.js plans the floating isles' decor clear of what stands on them)
   player.js camera.js collision.js   kinematic controller, chase camera, heightfield + collider world
   gemcounter.js      the floating, bouncing 3D gem count: extruded numerals drawn as a second little scene over the world
   systems/           gems, Sparx, beacons, enemies, critters, NPC, objects, ambience
@@ -198,7 +198,7 @@ node tools/debug-test.mjs     # debug mode in the browser: F3, X/Y/Z = the playe
 node tools/menu-test.mjs      # menus: the phone MENU button and finger-sized rows through real touches, sub-pages, thumb controls hiding, keyboard and mouse on a desktop (needs the dev server)
 node tools/where.mjs X Z   # what is at a spot (X = east, Z = south, as debug mode shows them): area, ground texture + rule, nearby props / gameplay things / collision shapes with the layout function and file:line that placed them
 node tools/build-id.mjs       # the build id debug mode shows: a hash of src/ plus the date
-node tools/level-check.mjs    # populates the level headlessly: gem economy (700), counts, and placement checks (shrine chest seated on its island, Dawn Gate forecourt dry and gentle)
+node tools/level-check.mjs    # populates the level headlessly: gem economy (700), counts, and placement checks (shrine chest seated on its island, Dawn Gate forecourt dry and gentle, sky-isle decor clear of the mushroom / chests / enemies / beacon, nothing solid standing on a chest, vase, brazier, mushroom, NPC or enemy spawn)
 node tools/shot.mjs / play.mjs / probe.mjs   # Playwright screenshots, scripted play-throughs, state probes
 node tools/model-sheet.mjs out.png --only spyro --poses idle,run,glide --views side   # contact sheets of an actor from any angle / pose
 node tools/charge-test.mjs | gem-flight-test.mjs | gem-counter-test.mjs | gem-sound-test.mjs

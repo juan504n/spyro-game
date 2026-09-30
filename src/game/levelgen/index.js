@@ -4,6 +4,7 @@ import { makeCtx } from './helpers.js';
 import { attachGameplay, finalizeGems } from './gameplay.js';
 import { layoutVillage, layoutLake, layoutRiver, layoutRuins, layoutWindmill, layoutSkyIsles, layoutHollow, layoutNorth, layoutFauna } from './layout.js';
 import { scatterWorld } from './scatter.js';
+import { planIslandDecor } from './islands.js';
 import { Kit } from '../kit.js';
 import { PROPS } from '../props/index.js';
 
@@ -39,6 +40,22 @@ export function populate(kit, world) {
   stage('scatterWorld', scatterWorld);
   stage('finalizeGems', finalizeGems);
 
+  // the sky isles' own decor (a crystal cluster, a lantern tree, flowers): planned last, when everything that stands on an isle is known, so that
+  // none of it lands on the bounce mushroom, a chest, an enemy's spawn or the beacon (see islands.js). Recorded like every other prop.
+  ctx.stage = 'buildIslands';
+  ctx.gp.islandDecor = {};
+  for (const is of ctx.gp.islands) {
+    const put = (name, x, z, rot, size) => {
+      const rec = { name, x, z, y: is.y, rot, size, src: 'buildIslands' };
+      ctx.gp.placed.push(rec);
+      ctx.counts[name] = (ctx.counts[name] || 0) + 1;
+      return rec;
+    };
+    const rec = put('floating_island', is.x, is.z, 0, is.r * 2);
+    ctx.gp.islandDecor[is.id] = { rec, decor: planIslandDecor(ctx.gp, is, kit.rng(is.x, is.z, 3)).map((d) => ({ ...d, rec: put(d.name, d.x, d.z, d.rot, PROPS[d.name] ? PROPS[d.name].size : 4) })) };
+  }
+  ctx.stage = 'populate';
+
   // beacon order: hearth, isle, mill, sky, dawn (HUD counts lit beacons, order is cosmetic)
   const byId = Object.fromEntries(ctx.gp.beacons.map((b) => [b.id, b]));
   ctx.gp.beacons = [hearth, isle, byId.mill, byId.sky, byId.dawn].filter(Boolean);
@@ -46,7 +63,7 @@ export function populate(kit, world) {
   ctx.gp.counts = ctx.counts;
 
   if (kit.pass === 'dry') world.gameplay = ctx.gp;
-  else world.gameplay.islands = kit.assets ? buildIslands(ctx, world) : [];      // (no GPU assets in the headless level check)
+  else world.gameplay.islands = buildIslands(ctx, world);           // (headless, with no GPU assets, this only registers the colliders)
   return ctx;
 }
 
@@ -55,30 +72,30 @@ function buildIslands(ctx, world) {
   const out = [];
   for (const isle of ctx.gp.islands) {
     const ik = new Kit({ assets: ctx.kit.assets, lighting: world.lighting, grid: world.grid });
+    const { rec, decor } = ctx.gp.islandDecor[isle.id];
     const run = () => {
       const y = isle.y;
       const p = PROPS.floating_island;
-      ik.cur = { name: 'floating_island', x: isle.x, z: isle.z, y, size: isle.r * 2, src: 'buildIslands' };
+      ik.cur = rec;
       if (p) p.fn(ik, { ...(p.defaults || {}), x: isle.x, z: isle.z, y, r: isle.r });
-      // little decor on every isle
-      const rng = ik.rng(isle.x, isle.z, 3);
-      for (let i = 0; i < 3; i++) {
-        const a = rng.float(0, Math.PI * 2), d = rng.float(isle.r * 0.35, isle.r * 0.75);
-        const x = isle.x + Math.cos(a) * d, z = isle.z + Math.sin(a) * d;
-        const name = i === 0 ? 'crystal_cluster' : i === 1 ? 'tree_lantern' : 'flower_patch';
-        const q = PROPS[name];
-        ik.cur = { name, x, z, y, size: 4, src: 'buildIslands' };
-        if (q) q.fn(ik, { ...(q.defaults || {}), x, z, y, rot: a, r: 3, count: 10, color: i % 2 ? 'violet' : 'cyan', size: 's', canopy: 'leaves_teal' });
+      // little decor on every isle, where islands.js planned it
+      for (const d of decor) {
+        const q = PROPS[d.name];
+        ik.cur = d.rec;
+        if (q) q.fn(ik, { ...(q.defaults || {}), x: d.x, z: d.z, y, rot: d.rot, ...d.params });
       }
     };
     ik.setPass('dry'); run();
-    ik.setPass('wet'); run();
-    const group = ik.build();
-    out.push({ group, colliders: ik.colliders, baseY: isle.baseY, y: isle.baseY, amp: isle.amp, speed: isle.speed, phase: isle.phase, lights: ik.lights, emitters: ik.emitters });
+    let group = null;
+    if (ctx.kit.assets) {                                          // (no GPU assets in the headless level check: colliders only)
+      ik.setPass('wet'); run();
+      group = ik.build();
+      world.scene.add(group);
+    }
+    out.push({ id: isle.id, src: 'buildIslands', group, colliders: ik.colliders, baseY: isle.baseY, y: isle.baseY, amp: isle.amp, speed: isle.speed, phase: isle.phase, lights: ik.lights, emitters: ik.emitters });
     world.lights.push(...ik.lights);
     world.emitters.push(...ik.emitters);
     world.colliders.push(...ik.colliders);
-    world.scene.add(group);
   }
   return out;
 }

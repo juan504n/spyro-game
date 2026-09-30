@@ -113,15 +113,19 @@ export function colliderDist(c, x, z) {
   return Math.hypot(Math.max(0, Math.abs(lx) - c.hx), Math.max(0, Math.abs(lz) - c.hz));
 }
 
-/** The n colliders closest to (x, z) (edge distance), looking at the hash cells around it. */
-export function nearestColliders(collision, x, z, n = 1, maxD = 14) {
+/**
+ * The n colliders closest to (x, z) (edge distance), looking at the hash cells around it. With `y` (the feet of someone standing there) the
+ * height counts too: the floating isle's underside 30 m overhead is not "next to" someone on the ground below it.
+ */
+export function nearestColliders(collision, x, z, n = 1, maxD = 14, y) {
   const seen = new Set(), out = [];
   const cell = collision.cell;
   for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
     for (const c of collision.near(x + a * cell, z + b * cell)) {
       if (seen.has(c)) continue;
       seen.add(c);
-      const d = colliderDist(c, x, z);
+      const dy = y === undefined ? 0 : Math.max(0, c.y0 - (y + 1.05), y - c.y1);          // (a body 1.05 m tall standing on y)
+      const d = Math.hypot(colliderDist(c, x, z), dy);
       if (d <= maxD) out.push({ c, d });
     }
   }
@@ -129,11 +133,17 @@ export function nearestColliders(collision, x, z, n = 1, maxD = 14) {
   return out.slice(0, n);
 }
 
-/** The n placed props closest to (x, z), by the distance to their edge (half their footprint from the centre). */
-export function nearestProps(placed, x, z, n = 3, maxD = 60) {
+/**
+ * The n placed props closest to (x, z), by the distance to their edge (half their footprint from the centre). With `y` the height counts
+ * too, so on a floating isle the isle's own decor is nearer than the meadow trees on the ground 30 m below it.
+ */
+export function nearestProps(placed, x, z, n = 3, maxD = 60, y) {
   const out = [];
   for (const r of placed) {
-    const d = Math.max(0, Math.hypot(r.x - x, r.z - z) - (r.size || 2) / 2);
+    const half = (r.size || 2) / 2;
+    const dxz = Math.max(0, Math.hypot(r.x - x, r.z - z) - half);
+    const dy = y === undefined ? 0 : Math.max(0, Math.abs((r.y ?? y) - y) - half);
+    const d = Math.hypot(dxz, dy);
     if (d <= maxD) out.push({ rec: r, d });
   }
   out.sort((p, q) => p.d - q.d);
@@ -258,9 +268,9 @@ export function collect(game, extra = {}) {
     stand: p.groundKind === 'collider' && p.groundC ? { kind: 'collider', c: p.groundC } : { kind: 'terrain' },
     area: areaAt(L, p.x, p.z, p.y),
     ground: groundAt(game.grid, p.x, p.z),
-    props: nearestProps(placed, p.x, p.z, 3),
+    props: nearestProps(placed, p.x, p.z, 3, 60, p.y),
     things: nearestThings(game, p.x, p.y, p.z, 3),
-    colliders: nearestColliders(game.collision, p.x, p.z, 2),
+    colliders: nearestColliders(game.collision, p.x, p.z, 2, 14, p.y),
     hints: hintZonesAt(game, p.x, p.z),
     aim: null,
     extra,
@@ -273,7 +283,7 @@ export function collect(game, extra = {}) {
     if (hit.kind === 'collider' && hit.c.prop) data.aim.prop = hit.c.prop;
     else if (hit.kind !== 'collider') { const q = propOnRay(placed, o, d, hit.t); if (q) data.aim.prop = q.rec; }
     if (hit.kind === 'collider' && !hit.c.prop) data.aim.tag = hit.c.tag || '';
-    if (hit.kind !== 'none' && !data.aim.prop) data.aim.near = nearestProps(placed, hit.x, hit.z, 1, 8)[0] || null;      // (a flat prop the ray went over: the closest one to the spot)
+    if (hit.kind !== 'none' && !data.aim.prop) data.aim.near = nearestProps(placed, hit.x, hit.z, 1, 8, hit.y)[0] || null;      // (a flat prop the ray went over: the closest one to the spot)
   }
   return data;
 }

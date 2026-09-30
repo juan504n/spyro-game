@@ -5,11 +5,7 @@
 //   - the aim ray (ground, colliders, water, sky), the nearest prop / collider / gameplay object (against brute force)
 //   - provenance: every placed prop, collider and gameplay record says which layout function made it
 //   - the rows: the POS line is the player's position, the source tags are there, compact and full differ as they should
-import { generateTerrain } from '../src/game/terrain.js';
-import { Lighting } from '../src/engine/lighting.js';
-import { Kit } from '../src/game/kit.js';
-import { populate } from '../src/game/levelgen/index.js';
-import { Collision } from '../src/game/collision.js';
+import { buildHeadless } from './headless-world.mjs';
 import { LEVEL, WATER_LEVEL } from '../src/game/level.js';
 import { buildTerrainMeshes } from '../src/game/terrain-mesh.js';
 import * as D from '../src/game/debuginfo.js';
@@ -18,15 +14,8 @@ let failed = 0;
 const check = (name, ok, detail) => { if (!ok) failed++; console.log(ok ? 'PASS' : 'FAIL', name, detail || ''); };
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
 
-// ---- the world, headlessly (as tools/level-check.mjs does) --------------------------------------------------------------------------
-const grid = generateTerrain();
-const lighting = new Lighting(); lighting.attach(grid);
-const world = { grid, lighting, timings: {}, lights: [], emitters: [], colliders: [], scene: { add() {} } };
-const kit = new Kit({ assets: null, lighting, grid });
-world.kit = kit;
-kit.setPass('dry'); const dryCtx = populate(kit, world); lighting.bake(); kit.setPass('wet'); populate(kit, world);
-const collision = new Collision(grid, kit.colliders);
-const gp = world.gameplay;
+// ---- the world, headlessly (both passes: the floating isles' colliders are in it, as in the game) ---------------------------------------
+const { grid, lighting, kit, dryCtx, collision, gp } = buildHeadless();
 const player = { x: 0, y: grid.heightAt(0, 140) + 0.05, z: 140, yaw: 0, vx: 0, vy: 0, vz: 0, grounded: true, groundKind: 'terrain', gliding: false, hurtT: 0, chargeT: 0, flameT: 0, dead: false, inWater: false };
 const game = { grid, collision, gameplay: gp, level: LEVEL, player };
 
@@ -127,6 +116,16 @@ const game = { grid, collision, gameplay: gp, level: LEVEL, player };
   }
   check('nearestProps matches a brute-force search', bad === 0, `(${N} points, ${bad} wrong)`);
   check('nearestColliders matches a brute-force search (when something is within 6 m)', badC === 0, `(${badC} wrong)`);
+  // height counts: on Sky Isle 2 (from a real bug report's screenshot) the nearest props are the isle's own, not the meadow trees on the ground 30 m below it
+  const isle = { x: -129.83, y: 34.06, z: -38.73 };
+  const up = D.nearestProps(gp.placed, isle.x, isle.z, 4, 60, isle.y);
+  check('on a floating isle the nearest props are the isle\'s own (not the ground props 30 m below)', up.length > 0 && up.every((q) => q.rec.src === 'buildIslands'), `(${up.map((q) => `${q.rec.name} [${q.rec.src}] ${q.d.toFixed(1)} m`).join(', ')})`);
+  const flat = D.nearestProps(gp.placed, isle.x, isle.z, 1, 60)[0];
+  check('... whereas ignoring height finds a ground prop underneath (what the readout used to say)', flat && flat.rec.src !== 'buildIslands', `(${flat && flat.rec.name} [${flat && flat.rec.src}])`);
+  const below = D.nearestColliders(collision, isle.x, isle.z, 3, 14, grid.heightAt(isle.x, isle.z));
+  check('on the ground below an isle its underside is not "next to" you', below.every((q) => q.c.prop === undefined || q.c.prop.name !== 'floating_island'), `(${below.map((q) => `${q.c.prop ? q.c.prop.name : q.c.tag} ${q.d.toFixed(1)} m`).join(', ')})`);
+  const onIsle = D.nearestColliders(collision, isle.x, isle.z, 1, 14, isle.y)[0];
+  check('... and on the isle the isle itself is what you stand on (0 m)', onIsle && onIsle.c.prop && onIsle.c.prop.name === 'floating_island' && onIsle.d < 0.1, `(${onIsle && onIsle.c.prop && onIsle.c.prop.name} ${onIsle && onIsle.d.toFixed(2)} m)`);
   const chest = gp.chests.find((c) => Math.hypot(c.x - LEVEL.island.x, c.z - LEVEL.island.z) < 12);
   const t = D.nearestThings(game, chest.x + 1, chest.y, chest.z, 1)[0];
   check('nearestThings finds a chest and says which layout placed it', t && t.kind === 'chest' && t.src === 'layoutLake', `(${t && t.kind} [${t && t.src}] ${t && t.d.toFixed(1)} m)`);

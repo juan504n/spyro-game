@@ -150,8 +150,12 @@ ladder of a fourth, a fifth and an octave over the chime's own pitch (all inside
 behaviour under a wobbling, zig-zagging, hopping or sideways thumb, trees / houses / slopes / bumps around the camera, the settings migration, the touch stick and the aim assist.
 `tools/camera-input-test.mjs` drives the real game loop in the browser: R, the gamepad's Y and the touch CAM button must swing the camera behind Spyro at any frame rate. (They once
 did not: the camera looked for the press after the step loop had already cleared it, so they only worked on frames in which no fixed step ran.)
-`tools/level-check.mjs` builds the level headlessly (no server) and checks the gem economy and a few placements that once went
-wrong: the shrine chest sits seated on its island's level top, and the Dawn Gate's forecourt is dry, gentle and where the ring roads end.
+`tools/level-check.mjs` builds the level headlessly (no server; the shared world is `tools/headless-world.mjs`) and checks the gem economy and a few placements that once went
+wrong: the shrine chest sits seated on its island's level top, the Dawn Gate's forecourt is dry, gentle and where the ring roads end, and the floating isles' decor keeps clear of what
+stands on them. (Each isle gets a crystal cluster, a lantern tree and some flowers; they used to be dropped at random, so on Sky Isle 2 the tree grew through the bounce mushroom's cap, 1.8 m
+away, and on Sky Isle 3 a crystal cluster sat on the chest. `levelgen/islands.js` now plans them: the same first pick as before, redrawn while it is too close to the mushroom, a chest,
+an enemy's spawn, the beacon or a gem, from the isle's own generator so nothing else in the realm moves.) A second check finds any prop collider standing on a chest, vase, brazier, mushroom, NPC
+or enemy spawn anywhere in the realm; it caught an enemy in the Crystal Hollow spawning inside a crystal cluster, now moved to a free spot.
 
 `tools/debuginfo-test.mjs` (no server) builds the level headlessly and checks the debug readout against independent computations: the texture it reports is the texture of the
 terrain mesh triangle under the point (1500 scattered points, all eleven textures and 16 rules), the aim ray against known ground, houses, a pier and the water, the nearest prop and
