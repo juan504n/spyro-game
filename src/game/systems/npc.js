@@ -13,7 +13,7 @@ export class NpcSystem {
       model.root.position.set(n.x, y, n.z);
       model.root.rotation.y = n.yaw || 0;
       game.dyn.add(model.root);
-      game.collision.add({ type: 'cyl', x: n.x, z: n.z, r: 0.6, y0: y, y1: y + 1.7, top: false, tag: 'npc' });
+      game.collision.add({ type: 'cyl', x: n.x, z: n.z, r: 0.6, y0: y, y1: y + 1.7, top: false, tag: 'npc', src: n.src });
       const shadow = game.fx.decal({ pool: 'half', sprite: 'shadow_blob', r: 1.0, color: [0.3, 0.3, 0.4], alpha: 0.7 });
       shadow.x = n.x; shadow.z = n.z;
       const glow = game.fx.billboard({ pool: 'add', sprite: 'glow', size: 4, color: [1, 0.78, 0.4], alpha: 0.5 });

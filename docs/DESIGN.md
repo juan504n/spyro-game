@@ -101,6 +101,25 @@ Sparx, the dragonfly, is the health bar: three hits, shown by his colour. Scorch
 * **Steering aids:** the touch move stick is a floating circle with a dead zone whose base follows a thumb sliding past the rim (a turn of any size costs at most one
   diameter of thumb travel); breathing fire turns Spyro up to 5.5 rad/s towards the burnable thing nearest to straight ahead inside a 66 degree cone (never against
   a stick pushed the other way).
+* **Menu on a touch screen:** there is no Esc key on a phone, and the old unlabelled "II" button sat over the title logo, so the menu now has a plain labelled **MENU**
+  button (a 44 px pill, top centre, anchored to the game frame so it sits in the same place relative to the HUD on any window; it reads RESUME / BACK while a menu is
+  open). The app tells the input layer what to show each frame (`Input.setTouchUI(controls, menuLabel)`): the title shows only MENU, play shows everything, menus show only
+  RESUME / BACK (JUMP / FIRE would sit on top of the rows and swallow the taps meant for them, and a hidden button never sees its touchend, so hiding also lets go of
+  anything held), and cutscenes show nothing. Menu rows are finger-sized: the HUD is a fixed 240 lines however big the screen, so `Menu.layout` converts 40 CSS px to
+  lines (25 on a phone, the usual 13 on a desktop window) and keeps the panel below the button. Options is a short list of sub-pages so every page has at most 7 rows, and the
+  BACK / RESUME rows are left out on touch (the button and a tap outside do that). Taps on the menu never count as "tap to start" on the title (the flag they set is discarded), and an
+  open menu stops the mouse being captured (a click on a row used to lock and hide the pointer). A tap made in play leaves its pointer flags set (nothing consumes them
+  there), so opening a menu clears them: the menu used to read that old tap as a click on its first frame and close (or press a row) at once. A browser that hides its touch
+  support gets the controls with its first touch.
+* **Debug mode:** F3 (off / compact / full), or Menu → Debug mode on a phone. `debuginfo.js` holds everything the readout says as pure functions (testable without a
+  browser), `debug.js` is the DOM overlay, the crosshair, an aim marker and the collider wireframes. It answers "where do I fix this?" from a screenshot: the player's X / Y / Z
+  (x east, z south, y up), the named area, the ground texture *and the rule that chose it* (`terrainPicker`, factored out of the mesh builder, so it is the same code), a ray
+  through the middle of the screen against the terrain, the colliders and the water (marching every 0.5 m, then bisecting) with the prop it landed on, the nearest props,
+  gameplay things and collision shape with distance and clock direction, and the build id. On a touch screen a tap pins the aim ray to the tapped pixel (unprojected through the
+  camera), so the thing that looks wrong can be pointed at without centring it. Provenance is recorded while the level is built: `ctx.put` records every prop
+  (`gameplay.placed`: name, position, size, `src`), the props' colliders carry the prop (`collider.prop`) and `populate()` labels each gameplay record with the layout function
+  that made it (`src`: `layoutLake`, `scatterWorld`, ...), so "chest [layoutLake]" is a grep away from the code. `errlog.js` keeps the last errors and warnings from page load on; the
+  build id is a hash of `src/` injected by `tools/build-single.mjs`.
 * **The hero:** modelled from a measured character sheet (orthographic front / side / top / back views), so the proportions are the classic
   ones: a boxy purple head on a short thick neck with a broad flat muzzle (the cheek corners are the widest point), big glossy eyes tilted
   outward on the forehead wall, thick ringed horns sweeping back and up, a flat orange crest fin standing on the midline (six spikes, the
@@ -133,6 +152,12 @@ behaviour under a wobbling, zig-zagging, hopping or sideways thumb, trees / hous
 did not: the camera looked for the press after the step loop had already cleared it, so they only worked on frames in which no fixed step ran.)
 `tools/level-check.mjs` builds the level headlessly (no server) and checks the gem economy and a few placements that once went
 wrong: the shrine chest sits seated on its island's level top, and the Dawn Gate's forecourt is dry, gentle and where the ring roads end.
+
+`tools/debuginfo-test.mjs` (no server) builds the level headlessly and checks the debug readout against independent computations: the texture it reports is the texture of the
+terrain mesh triangle under the point (1500 scattered points, all eleven textures and 16 rules), the aim ray against known ground, houses, a pier and the water, the nearest prop and
+collider against brute force, and that every prop, collider and gameplay record names its layout function. `tools/debug-test.mjs` and `tools/menu-test.mjs` (browser) cover F3, the readout's X / Y / Z
+being the player's, the aim point lying on the camera's own ray, the phone layout, and the menu on an emulated phone through real touch events (the MENU button, finger-sized rows, sub-pages,
+thumb controls hiding and nothing left held) plus the keyboard and mouse on a desktop window.
 
 Focused checks (they need the dev server): `charge-test` (charging lasts exactly as long as the button is held), `gem-flight-test` (a pulled gem
 rises, peaks in the middle of the flight and dives in; a running target is still caught; the pull cancels cleanly; bursts add up exactly),

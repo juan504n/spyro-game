@@ -4,6 +4,14 @@ import { drawPanel } from '../engine/textures/ui.js';
 
 const GOLD = ['#fff4b0', '#ffc03c', '#e07818'];
 const INK = '#120c1c';
+/** A finger-sized menu row, in CSS pixels (Apple asks for 44, Material 48; 40 still fits a seven-row page in a phone's 390 px of height). */
+export const TOUCH_ROW_PX = 40;
+
+/**
+ * HUD lines at the top of the game frame that the touch MENU button covers (plus a little air): menus and the title logo start below
+ * them. `f` = gfx.frameCss(). The button is 44 CSS px tall, at least 8 px from the top of the page and 4 lines below the frame's top edge.
+ */
+export function touchClear(f) { return Math.ceil(Math.max(4, (8 - f.top) / f.unit) + 44 / f.unit + 3); }
 
 export class Menu {
   /** @param {object} app { game, icons } — pages are pushed with open() */
@@ -15,7 +23,16 @@ export class Menu {
   }
 
   get active() { return this.stack.length > 0; }
-  open(page) { this.stack.push({ ...page, sel: 0 }); this.game.audio?.sfx('ui_select', { vol: 0.5 }); }
+  open(page) {
+    if (!this.stack.length) {
+      // a tap made while playing leaves its flags set (nothing else consumes them): without this, the first frame of a menu that was just opened
+      // would take that old tap as a click, and close it (or press a row) at once
+      const P = this.game.input.ptr;
+      P.tap = false; P.moved = false;
+    }
+    this.stack.push({ ...page, sel: 0 });
+    this.game.audio?.sfx('ui_select', { vol: 0.5 });
+  }
   close() { this.stack.pop(); this.game.audio?.sfx('ui_back', { vol: 0.5 }); }
   closeAll() { this.stack.length = 0; }
 
@@ -50,13 +67,23 @@ export class Menu {
     return true;
   }
 
+  /** Is a finger driving the menu? Then its rows are made big enough to tap (see layout). */
+  get finger() { return this.game.input.lastDevice === 'touch'; }
+
   /** Panel geometry in internal pixels (also used for pointer hit-testing and by pages that draw extra lines). */
   layout(W, H, page, items) {
     const extraH = page.extra ? page.extra.length * 10 + 6 : 0;         // room for a page's own text block above the rows
-    const rowH = Math.max(10, Math.min(13, Math.floor((H - 16 - 34 - extraH - (page.footer ? 12 : 0)) / Math.max(1, items.length))));   // (long pages tighten up to fit)
+    const foot = page.footer ? 12 : 0;
+    const f = this.game.gfx.frameCss();
+    const top = this.finger ? touchClear(f) : 8;                        // (below the touch MENU button)
+    const room = Math.floor((H - top - 8 - 34 - extraH - foot) / Math.max(1, items.length));      // (long pages tighten up to fit)
+    // a finger needs ~40 CSS px per row: the HUD is a fixed 240 lines high however big the screen is, so that is a different number of lines on
+    // a phone (1.6 px per line: 25 lines) than on a desktop window (4.5 px: 9, i.e. the ordinary 13-line rows)
+    const want = this.finger ? Math.ceil(TOUCH_ROW_PX / Math.max(0.5, f.unit)) : 13;
+    const rowH = Math.max(10, Math.min(Math.max(13, Math.min(want, 30)), room));
     const w = Math.min(W - 24, page.width || 230);
-    const h = 34 + extraH + items.length * rowH + (page.footer ? 12 : 0);
-    const x = (W - w) >> 1, y = Math.max(8, (H - h) >> 1);
+    const h = 34 + extraH + items.length * rowH + foot;
+    const x = (W - w) >> 1, y = Math.max(top, (H - h) >> 1);
     return { x, y, w, h, rowH, extraH, rows0: y + 26 + extraH };
   }
 
@@ -109,21 +136,23 @@ export class Menu {
     drawText(pix, page.title, W >> 1, y + 9, { style: 'grad', colors: GOLD, outlineColor: INK, align: 'center', scale: 1 });
     items.forEach((it, i) => {
       const ry = rows0 + i * rowH;
+      const ty = ry + Math.max(0, Math.floor((rowH - 12) / 2));         // (text centred in a tall, finger-sized row)
       const sel = i === page.sel;
+      if (rowH > 14 && i > 0) pix.rect(x + 10, ry - 3, w - 20, 1, '#33266a');      // (a faint rule between big rows shows where one row ends)
       if (sel) {
         pix.rect(x + 6, ry - 2, w - 12, rowH - 1, '#4a3a86');
         const bob = Math.floor(this.t * 4) % 2;
-        drawText(pix, '>', x + 9 + bob, ry, { style: 'outline', color: '#ffc03c', outlineColor: INK });
+        drawText(pix, '>', x + 9 + bob, ty, { style: 'outline', color: '#ffc03c', outlineColor: INK });
       }
-      drawText(pix, it.label, x + 20, ry, { style: 'outline', color: sel ? '#ffffff' : '#c8bce8', outlineColor: INK });
+      drawText(pix, it.label, x + 20, ty, { style: 'outline', color: sel ? '#ffffff' : '#c8bce8', outlineColor: INK });
       let val = '';
       if (it.type === 'toggle') val = it.get() ? 'ON' : 'OFF';
       else if (it.type === 'choice') val = it.labels ? it.labels[it.options.indexOf(it.get())] : String(it.get());
       else if (it.type === 'slider') {
         const bx = x + w - 84, n = 10, on = Math.round(it.get() * n);
-        for (let k = 0; k < n; k++) pix.rect(bx + k * 7, ry + 1, 5, 6, k < on ? (sel ? '#ffc03c' : '#c08a30') : '#2a1e50');
-      }
-      if (val) drawText(pix, val, x + w - 10, ry, { style: 'outline', color: sel ? '#ffe27a' : '#a898d8', outlineColor: INK, align: 'right' });
+        for (let k = 0; k < n; k++) pix.rect(bx + k * 7, ty + 1, 5, 6, k < on ? (sel ? '#ffc03c' : '#c08a30') : '#2a1e50');
+      } else if (it.type === 'action' && it.more) val = '>';               // (a row that opens another page)
+      if (val) drawText(pix, val, x + w - 10, ty, { style: 'outline', color: sel ? '#ffe27a' : '#a898d8', outlineColor: INK, align: 'right' });
     });
     if (page.footer) drawText(pix, page.footer, W >> 1, y + h - 11, { style: 'outline', color: '#a898d8', outlineColor: INK, align: 'center' });
   }

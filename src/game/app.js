@@ -2,9 +2,10 @@
 import * as THREE from 'three';
 import { Game } from './game.js';
 import { populate } from './levelgen/index.js';
-import { Menu } from './menu.js';
+import { Menu, touchClear } from './menu.js';
 import { CAM_MODES } from './camera.js';
 import { Hud } from './hud.js';
+import { DebugHud } from './debug.js';
 import { titleShot, introShot, finaleShot } from './cinematics.js';
 import { makeLogo, drawPanel } from '../engine/textures/ui.js';
 import { drawText } from '../engine/textures/font.js';
@@ -76,6 +77,7 @@ class App {
     this.scene = game.scene;
     this.camera = game.camera;
     this.menu = new Menu(game);
+    this.debug = new DebugHud(this);                 // debug mode's readout / crosshair / wireframes (drawn only when the setting is on)
     try { this.logo = makeLogo(['GLOAMING', 'VALE'], { scale: [4, 4], top: '#fff4b0', bottom: '#f0901c', wobble: 1 }); } catch (e) { console.warn('logo failed', e); }
     game.on('finale', () => this.startFinale());
     window.__game = game;
@@ -141,7 +143,7 @@ class App {
     g.fadeTo(0, 1.6);
     if (!instant) g.hud.banner('GLOAMING VALE', 'LANTERN KEEPERS REALM', 4.2);
     const dev = g.input.lastDevice;
-    g.hud.hint(dev === 'touch' ? 'STICK MOVES   JUMP / GLIDE   FIRE   RAM' : dev === 'pad' ? 'STICK MOVE   A JUMP / GLIDE   X FIRE   B CHARGE' : 'WASD MOVE   SPACE JUMP / GLIDE   J FIRE   K CHARGE', 7);
+    g.hud.hint(dev === 'touch' ? 'STICK MOVES   JUMP / GLIDE   FIRE   RAM   TAP MENU FOR OPTIONS' : dev === 'pad' ? 'STICK MOVE   A JUMP / GLIDE   X FIRE   B CHARGE' : 'WASD MOVE   SPACE JUMP / GLIDE   J FIRE   K CHARGE', 7);
   }
 
   startFinale() {
@@ -202,6 +204,7 @@ class App {
   closePause() {
     const g = this.game;
     this.menu.closeAll();
+    g.input.menuOpen = false;
     g.paused = false;
     this.state = 'play';
     this.audio?.setMuffled?.(false);
@@ -209,16 +212,35 @@ class App {
     g.input.relock?.();
   }
 
+  /** On a touch screen the MENU button reads RESUME / BACK while a menu is open, and a tap outside the panel goes back too: those rows are left out
+   *  so the rest can be bigger (a finger needs ~40 px per row and a phone is 390 px tall). */
+  _touchOnly() { return () => this.game.input.lastDevice === 'touch'; }
+
   pausePage() {
     return {
       title: 'PAUSED', width: 210, closable: true, onBack: () => this.closePause(),
       items: [
-        { type: 'action', label: 'RESUME', action: () => this.closePause() },
+        { type: 'action', label: 'RESUME', hidden: this._touchOnly(), action: () => this.closePause() },
         this._cameraRow(),
-        { type: 'action', label: 'OPTIONS', action: (m) => m.open(this.optionsPage()) },
-        { type: 'action', label: 'CONTROLS', action: (m) => m.open(this.controlsPage()) },
+        this._debugRow(),
+        { type: 'action', label: 'OPTIONS', more: true, action: (m) => m.open(this.optionsPage()) },
+        { type: 'action', label: 'CONTROLS', more: true, action: (m) => m.open(this.controlsPage()) },
         { type: 'action', label: 'RESTART REALM', action: () => { location.href = location.pathname + '?skip=1'; } },
         { type: 'action', label: 'QUIT TO TITLE', action: () => { location.href = location.pathname; } },
+      ],
+    };
+  }
+
+  /** The menu on the title screen (Esc, or the MENU button on a touch screen). */
+  titlePage() {
+    return {
+      title: 'MENU', width: 210, closable: true,
+      items: [
+        { type: 'action', label: 'PLAY', action: (m) => { m.closeAll(); this.startIntro(); } },
+        { type: 'action', label: 'OPTIONS', more: true, action: (m) => m.open(this.optionsPage()) },
+        { type: 'action', label: 'CONTROLS', more: true, action: (m) => m.open(this.controlsPage()) },
+        this._debugRow(),
+        { type: 'action', label: 'BACK', hidden: this._touchOnly(), action: (m) => m.close() },
       ],
     };
   }
@@ -229,13 +251,27 @@ class App {
     return { type: 'choice', label: 'CAMERA', options: CAM_MODES, labels: ['ACTIVE', 'SMART', 'PASSIVE'], get: () => gfx.settings.camMode, set: (i, opts) => gfx.set('camMode', opts[i]) };
   }
 
+  /** the debug mode row (pause menu, title menu and options): OFF, COMPACT (where am I, what is around me) or FULL (adds camera, input, performance, errors) */
+  _debugRow() {
+    const gfx = this.gfx;
+    return { type: 'choice', label: 'DEBUG MODE', options: [0, 1, 2], labels: ['OFF', 'COMPACT', 'FULL'], get: () => gfx.settings.debug, set: (i, opts) => gfx.set('debug', opts[i]) };
+  }
+
+  /** F3: off > compact > full > off */
+  cycleDebug() {
+    const gfx = this.gfx, next = ((gfx.settings.debug | 0) + 1) % 3;
+    gfx.set('debug', next);
+    this.audio?.sfx('ui_move', { vol: 0.4 });
+    this.game.hud.hint(['DEBUG MODE: OFF', 'DEBUG MODE: COMPACT (F3 FOR FULL)', 'DEBUG MODE: FULL (F3 TO TURN OFF)'][next], 2.4);
+  }
+
   controlsPage() {
     const dev = this.game.input.lastDevice;
     const lines = dev === 'touch'
-      ? ['MOVE ........ LEFT THUMB (THE CIRCLE)', 'JUMP ........ JUMP  (HOLD IN AIR: GLIDE)', 'FIRE ........ FIRE BUTTON (AIMS FOR YOU)', 'CHARGE ...... HOLD THE RAM BUTTON', 'CAMERA ...... DRAG THE RIGHT SIDE', 'CAM BUTTON .. TAP: BEHIND ME  HOLD: MODE', 'TALK ........ TALK BUTTON   PAUSE ... II']
+      ? ['MOVE ........ LEFT THUMB (THE CIRCLE)', 'JUMP ........ JUMP  (HOLD IN AIR: GLIDE)', 'FIRE ........ FIRE BUTTON (AIMS FOR YOU)', 'CHARGE ...... HOLD THE RAM BUTTON', 'CAMERA ...... DRAG THE RIGHT SIDE', 'CAM BUTTON .. TAP: BEHIND ME  HOLD: MODE', 'TALK ........ TALK BUTTON', 'MENU ........ MENU BUTTON (TOP CENTRE)', 'DEBUG ....... MENU > DEBUG MODE']
       : dev === 'pad'
-        ? ['MOVE ........ LEFT STICK / D-PAD', 'JUMP ........ A  (HOLD IN AIR: GLIDE)', 'FIRE ........ X', 'CHARGE ...... HOLD B', 'CAMERA ...... RIGHT STICK / BUMPERS', 'BEHIND ME ... Y   MODE: PAUSE > CAMERA', 'TALK ........ RT   PAUSE ... START']
-        : ['MOVE ........ WASD / ARROWS', 'JUMP ........ SPACE  (HOLD IN AIR: GLIDE)', 'FIRE ........ J / F / LEFT CLICK', 'CHARGE ...... HOLD K / SHIFT / RIGHT CLICK', 'CAMERA ...... MOUSE / Q E', 'BEHIND ME ... R   CAMERA MODE ... C', 'TALK ........ ENTER   PAUSE ... ESC'];
+        ? ['MOVE ........ LEFT STICK / D-PAD', 'JUMP ........ A  (HOLD IN AIR: GLIDE)', 'FIRE ........ X', 'CHARGE ...... HOLD B', 'CAMERA ...... RIGHT STICK / BUMPERS', 'BEHIND ME ... Y   MODE: PAUSE > CAMERA', 'TALK ........ RT   PAUSE ... START', 'DEBUG ....... PAUSE > DEBUG MODE']
+        : ['MOVE ........ WASD / ARROWS', 'JUMP ........ SPACE  (HOLD IN AIR: GLIDE)', 'FIRE ........ J / F / LEFT CLICK', 'CHARGE ...... HOLD K / SHIFT / RIGHT CLICK', 'CAMERA ...... MOUSE / Q E', 'BEHIND ME ... R   CAMERA MODE ... C', 'TALK ........ ENTER   PAUSE ... ESC', 'DEBUG MODE .. F3  (OFF / COMPACT / FULL)'];
     return {
       title: 'CONTROLS', width: 280, items: [{ type: 'action', label: 'BACK', action: (m) => m.close() }], footer: '',
       extra: lines,
@@ -243,42 +279,119 @@ class App {
     };
   }
 
+  /** Options is a short list of sub-pages: a phone can only tap a handful of rows on one screen (each needs to be a finger tall). */
   optionsPage() {
     const gfx = this.gfx;
-    const g = this.game;
-    const set = (k) => (i, opts) => { gfx.set(k, opts ? opts[i] : i); };
-    const pctOpts = [0, 0.5, 1];
     return {
       title: 'OPTIONS', width: 260,
       items: [
         { type: 'slider', label: 'MUSIC', get: () => gfx.settings.music, set: (v) => { gfx.set('music', v); this.audio?.setVolumes?.({ music: v }); } },
         { type: 'slider', label: 'SOUND FX', get: () => gfx.settings.sfx, set: (v) => { gfx.set('sfx', v); this.audio?.setVolumes?.({ sfx: v }); } },
+        { type: 'action', label: 'CAMERA & AIM', more: true, action: (m) => m.open(this.cameraPage()) },
+        { type: 'action', label: 'GRAPHICS', more: true, action: (m) => m.open(this.graphicsPage()) },
+        { type: 'action', label: 'DEBUG', more: true, action: (m) => m.open(this.debugPage()) },
+        { type: 'action', label: 'BACK', hidden: this._touchOnly(), action: (m) => m.close() },
+      ],
+      footer: this._changeHint(),
+    };
+  }
+
+  _changeHint() { return this.game.input.lastDevice === 'touch' ? 'TAP A ROW TO CHANGE IT' : 'LEFT / RIGHT TO CHANGE'; }
+
+  cameraPage() {
+    const gfx = this.gfx;
+    return {
+      title: 'CAMERA & AIM', width: 260,
+      items: [
         this._cameraRow(),
         { type: 'slider', label: 'CAMERA SPEED', get: () => gfx.settings.lookSpeed, set: (v) => gfx.set('lookSpeed', v) },
+        { type: 'toggle', label: 'INVERT CAMERA Y', get: () => !!gfx.settings.invertY, set: (v) => gfx.set('invertY', v) },
+        { type: 'toggle', label: 'FIRE AIM ASSIST', get: () => gfx.settings.aimAssist !== false, set: (v) => gfx.set('aimAssist', v) },
+        { type: 'action', label: 'BACK', hidden: this._touchOnly(), action: (m) => m.close() },
+      ],
+      footer: this._changeHint(),
+    };
+  }
+
+  graphicsPage() {
+    const gfx = this.gfx;
+    const set = (k) => (i, opts) => { gfx.set(k, opts ? opts[i] : i); };
+    return {
+      title: 'GRAPHICS', width: 260,
+      items: [
         { type: 'choice', label: 'DISPLAY', options: ['4:3', 'wide'], labels: ['4:3 CLASSIC', 'WIDESCREEN'], get: () => gfx.settings.display, set: set('display') },
-        { type: 'choice', label: 'SCALING', options: ['auto', 'integer', 'fill'], labels: ['AUTO', 'INTEGER', 'FILL'], get: () => gfx.settings.scaling, set: set('scaling') },
         { type: 'choice', label: 'LOOK', options: ['smooth', 'ps1', 'custom'], labels: ['SMOOTH', 'PS1 AUTHENTIC', 'CUSTOM'], get: () => gfx.look, set: (i, opts) => { if (opts[i] !== 'custom') gfx.setLook(opts[i]); } },
         { type: 'choice', label: 'RESOLUTION', options: [240, 360, 480, 720], labels: ['240P PS1', '360P', '480P', '720P'], get: () => gfx.settings.height, set: set('height') },
-        { type: 'toggle', label: 'SMOOTH TEXTURES', get: () => gfx.settings.filter === 'smooth', set: (v) => gfx.set('filter', v ? 'smooth' : 'pixel') },
         { type: 'choice', label: 'COLORS', options: [0, 0.6, 1], labels: ['CLASSIC', 'VIVID', 'EXTRA VIVID'], get: () => gfx.settings.color, set: set('color') },
+        { type: 'toggle', label: '30 FPS LOCK', get: () => !!gfx.settings.fps30, set: (v) => gfx.set('fps30', v) },
+        { type: 'action', label: 'MORE GRAPHICS', more: true, action: (m) => m.open(this.advancedGraphicsPage()) },
+        { type: 'action', label: 'BACK', hidden: this._touchOnly(), action: (m) => m.close() },
+      ],
+      footer: this._changeHint(),
+    };
+  }
+
+  advancedGraphicsPage() {
+    const gfx = this.gfx;
+    const set = (k) => (i, opts) => { gfx.set(k, opts ? opts[i] : i); };
+    const pctOpts = [0, 0.5, 1];
+    return {
+      title: 'MORE GRAPHICS', width: 260,
+      items: [
+        { type: 'choice', label: 'SCALING', options: ['auto', 'integer', 'fill'], labels: ['AUTO', 'INTEGER', 'FILL'], get: () => gfx.settings.scaling, set: set('scaling') },
+        { type: 'toggle', label: 'SMOOTH TEXTURES', get: () => gfx.settings.filter === 'smooth', set: (v) => gfx.set('filter', v ? 'smooth' : 'pixel') },
         { type: 'choice', label: 'CRT FILTER', options: pctOpts, labels: ['OFF', 'LIGHT', 'FULL'], get: () => gfx.settings.crt, set: set('crt') },
         { type: 'toggle', label: '15-BIT DITHER', get: () => !!gfx.settings.dither, set: (v) => gfx.set('dither', v ? 1 : 0) },
         { type: 'toggle', label: 'VERTEX WOBBLE', get: () => !!gfx.settings.snap, set: (v) => gfx.set('snap', v ? 1 : 0) },
-        { type: 'choice', label: 'TEXTURE WARP', options: pctOpts.concat([]).map((v) => v), labels: ['OFF', 'HALF', 'FULL'], get: () => gfx.settings.affine, set: set('affine') },
-        { type: 'toggle', label: '30 FPS LOCK', get: () => !!gfx.settings.fps30, set: (v) => gfx.set('fps30', v) },
-        { type: 'toggle', label: 'INVERT CAMERA Y', get: () => !!gfx.settings.invertY, set: (v) => gfx.set('invertY', v) },
-        { type: 'toggle', label: 'FIRE AIM ASSIST', get: () => gfx.settings.aimAssist !== false, set: (v) => gfx.set('aimAssist', v) },
-        { type: 'action', label: 'BACK', action: (m) => m.close() },
+        { type: 'choice', label: 'TEXTURE WARP', options: pctOpts, labels: ['OFF', 'HALF', 'FULL'], get: () => gfx.settings.affine, set: set('affine') },
+        { type: 'action', label: 'BACK', hidden: this._touchOnly(), action: (m) => m.close() },
       ],
-      footer: 'LEFT / RIGHT TO CHANGE',
+      footer: this._changeHint(),
+    };
+  }
+
+  /** Debug mode: a readout of where Spyro is and what is around him, to send along with a screenshot of anything that looks wrong. */
+  debugPage() {
+    const gfx = this.gfx;
+    const lines = this.game.input.lastDevice === 'touch'
+      ? ['X = EAST   Y = UP   Z = SOUTH', 'THE READOUT NAMES WHAT IS NEARBY.', 'TAP THE SCREEN TO PIN IT TO A SPOT', '(TAP THE SAME SPOT AGAIN TO UNPIN)']
+      : ['X = EAST   Y = UP   Z = SOUTH', 'THE READOUT NAMES WHAT IS NEARBY AND', 'WHAT THE CROSSHAIR POINTS AT'];
+    return {
+      title: 'DEBUG', width: 260,
+      items: [
+        this._debugRow(),
+        { type: 'toggle', label: 'SHOW COLLIDERS', get: () => !!gfx.settings.debugColliders, set: (v) => gfx.set('debugColliders', v) },
+        { type: 'choice', label: 'TEXT SIZE', options: [0, 1, 2], labels: ['SMALL', 'NORMAL', 'LARGE'], get: () => gfx.settings.debugSize, set: (i, opts) => gfx.set('debugSize', opts[i]) },
+        { type: 'action', label: 'BACK', hidden: this._touchOnly(), action: (m) => m.close() },
+      ],
+      extra: lines,
+      draw: (pix, x, y) => lines.forEach((l, i) => drawText(pix, l, x, y + i * 10, { style: 'outline', color: '#e8e0ff', outlineColor: INK })),
+      footer: this._changeHint(),
     };
   }
 
   // ---- per-frame ---------------------------------------------------------------------------------------------------------------
+  /** The on-screen touch controls follow the app: a menu or a cutscene must not have JUMP / FIRE sitting on top of it (see Input.setTouchUI). */
+  _syncTouchUI() {
+    const g = this.game;
+    if (!g || !g.input.touchRoot) return;
+    let controls = false, menu = null;
+    switch (this.state) {
+      case 'title': menu = 'MENU'; break;
+      case 'title-options': menu = 'BACK'; break;
+      case 'paused': menu = this.menu.stack.length > 1 ? 'BACK' : 'RESUME'; break;
+      case 'play': controls = true; menu = g.hud.talking ? null : 'MENU'; break;
+      default: break;                       // loading, intro, finale, results: taps only, no buttons
+    }
+    g.input.layoutTouch(this.gfx.frameCss());
+    g.input.setTouchUI(controls, menu);
+  }
+
   update(dt) {
     this.t += dt;
     const gfx = this.gfx;
     if (this.state === 'loading') {
+      this._syncTouchUI();
       Hud.drawLoading(gfx.hud, this.load.frac, this.load.label);
       return;
     }
@@ -286,6 +399,10 @@ class App {
     const input = g.input;
     input.poll();
     const snap = input.snapshot();       // UI-level presses, captured before the sim consumes them
+    if (snap.debug) this.cycleDebug();
+    input.menuOpen = this.menu.active;
+    this._syncTouchUI();
+    this.debug?.update(dt);
     // menus swallow input and freeze the sim
     if (this.state === 'paused') {
       g.update(dt);
@@ -300,15 +417,19 @@ class App {
     switch (this.state) {
       case 'title': {
         this._drawTitle();
-        if (snap.confirm || snap.jump || snap.flame || (input.lastDevice === 'touch' && input.takeAnyKey())) this.startIntro();
-        else if (snap.pause) { this.menu.open(this.optionsPage()); this.state = 'title-options'; }
+        const go = this.t >= (this.startOkAt || 0);
+        if (go && (snap.confirm || snap.jump || snap.flame || (input.lastDevice === 'touch' && input.takeAnyKey()))) this.startIntro();
+        else if (snap.pause) { this.menu.open(this.titlePage()); this.state = 'title-options'; }
+        else if (!go) input.takeAnyKey();
         break;
       }
       case 'title-options': {
         this.menu.update(dt, input, snap);
+        input.takeAnyKey();                                               // (taps on the menu's rows are not "tap to start": the title must not see them once the menu closes)
+        if (this.state !== 'title-options') break;                        // (PLAY was picked: the intro has begun)
         this._drawTitle(true);
         this._drawMenus();
-        if (!this.menu.active) this.state = 'title';
+        if (!this.menu.active) { this.state = 'title'; this.startOkAt = this.t + 0.35; }      // (the tap that closed it does not start the game either)
         break;
       }
       case 'intro': {
@@ -338,26 +459,29 @@ class App {
     this.menu.draw(pix);
     const page = this.menu.stack[this.menu.stack.length - 1];
     if (page && page.draw) {
-      const L = this.menu.layout(pix.w, pix.h, page, page.items);
+      const L = this.menu.layout(pix.w, pix.h, page, page.items.filter((it) => !it.hidden || !it.hidden()));      // (the rows actually showing: the same layout Menu.draw uses)
       page.draw(pix, L.x + 12, L.y + 24);
     }
   }
 
   _drawTitle(dim = false) {
     const pix = this.gfx.hud, W = pix.w, H = pix.h;
+    const touch = !!this.game.input.touch || this.game.input.lastDevice === 'touch';
+    const pad = this.game.input.lastDevice === 'pad';
+    // (on a touch screen the MENU button sits at the top centre: the logo starts below it)
+    const top = touch ? Math.max(Math.round(H * 0.08), touchClear(this.gfx.frameCss())) : Math.round(H * 0.08);
     if (this.logo) {
       const bob = Math.round(Math.sin(this.t * 1.6) * 1.5);
-      pix.blit(this.logo, (W - this.logo.w) >> 1, Math.round(H * 0.08) + bob);
+      pix.blit(this.logo, (W - this.logo.w) >> 1, top + bob);
     }
-    drawText(pix, 'SPYRO', W >> 1, Math.round(H * 0.08) - 2, { style: 'grad', scale: 1, align: 'center', colors: ['#f4eeff', '#b98cff', '#7c3ec8'], outlineColor: INK });
-    drawText(pix, 'A LANTERN KEEPERS DLC REALM', W >> 1, Math.round(H * 0.08) + (this.logo ? this.logo.h + 2 : 60), { style: 'grad', align: 'center', colors: LILAC, outlineColor: INK });
+    drawText(pix, 'SPYRO', W >> 1, top - 2, { style: 'grad', scale: 1, align: 'center', colors: ['#f4eeff', '#b98cff', '#7c3ec8'], outlineColor: INK });
+    drawText(pix, 'A LANTERN KEEPERS DLC REALM', W >> 1, top + (this.logo ? this.logo.h + 2 : 60), { style: 'grad', align: 'center', colors: LILAC, outlineColor: INK });
     if (!dim && Math.floor(this.t * 2) % 2 === 0) {
-      const touch = !!this.game.input.touch || this.game.input.lastDevice === 'touch';
-      const pad = this.game.input.lastDevice === 'pad';
       drawText(pix, touch ? 'TAP TO START' : pad ? 'PRESS A' : 'PRESS ENTER', W >> 1, Math.round(H * 0.74), { style: 'grad', scale: 2, align: 'center', colors: GOLD, outlineColor: INK });
       if (!touch && !pad) drawText(pix, 'OR CLICK', W >> 1, Math.round(H * 0.74) + 24, { style: 'outline', align: 'center', color: '#c8bce8', outlineColor: INK });
     }
-    drawText(pix, this.game.input.touch ? 'II: OPTIONS' : 'ESC: OPTIONS', W >> 1, H - 24, { style: 'outline', align: 'center', color: '#c8bce8', outlineColor: INK });
+    if (dim) return;                                       // (a menu is open over the title: its own footer lives down here)
+    drawText(pix, touch ? 'TAP MENU FOR OPTIONS' : pad ? 'START: MENU' : 'ESC: MENU', W >> 1, H - 24, { style: 'outline', align: 'center', color: '#c8bce8', outlineColor: INK });
     drawText(pix, 'FAN-MADE TRIBUTE  -  NOT AFFILIATED WITH ACTIVISION', W >> 1, H - 12, { style: 'outline', align: 'center', color: '#8a7cb8', outlineColor: INK });
   }
 

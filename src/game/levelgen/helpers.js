@@ -38,8 +38,9 @@ export function makeCtx(kit, world, seed = 9127) {
   const s = grid.n + 1;
   const ctx = {
     kit, world, grid, rng, occ, L: grid.level,
-    gp: { gems: [], vases: [], chests: [], walls: [], braziers: [], mushrooms: [], enemies: [], bunnies: [], npcs: [], hints: [], beacons: [], islands: [], extraGems: [], soundSources: [] },
+    gp: { gems: [], vases: [], chests: [], walls: [], braziers: [], mushrooms: [], enemies: [], bunnies: [], npcs: [], hints: [], beacons: [], islands: [], extraGems: [], soundSources: [], placed: [] },
     counts: {},
+    stage: 'populate',       // which part of the level script is running (populate() sets it per layout function): recorded on everything placed, for the debug readout
     h: (x, z) => grid.heightAt(x, z),
     slope: (x, z) => grid.slopeAt(x, z),
     pathDist: (x, z) => {
@@ -60,11 +61,18 @@ export function makeCtx(kit, world, seed = 9127) {
     return false;
   };
 
-  /** Place a registered prop (no terrain checks). Returns true if placed. */
+  /**
+   * Place a registered prop (no terrain checks). Returns true if placed. Every placement is recorded ({ name, x, y, z, size, src }) in
+   * gp.placed, and stamped on the colliders the prop registers, so the debug readout can say which prop it is and which layout made it.
+   */
   ctx.put = (name, x, z, params = {}, footprint = 0) => {
     if (!ctx.has(name)) return false;
     const e = PROPS[name];
+    const rec = { name, x, z, y: params.y ?? grid.heightAt(x, z), rot: params.rot || 0, size: e.size || 4, src: ctx.stage };
+    kit.cur = rec;
     e.fn(kit, { ...(e.defaults || {}), x, z, ...params });
+    kit.cur = null;
+    ctx.gp.placed.push(rec);
     if (footprint) occ.add(x, z, footprint);
     ctx.counts[name] = (ctx.counts[name] || 0) + 1;
     return true;

@@ -5,6 +5,7 @@ import * as esbuild from 'esbuild';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildId } from './build-id.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -42,7 +43,7 @@ const res = await esbuild.build({
   entryPoints: [path.join(root, 'src/main.js')],
   bundle: true, write: false, format: 'iife', minify: true, target: 'es2022', legalComments: 'none',
   plugins: [singleFile], logLevel: 'warning', charset: 'ascii',
-  define: { 'process.env.NODE_ENV': '"production"' },
+  define: { 'process.env.NODE_ENV': '"production"', __GV_BUILD__: JSON.stringify(buildId(root)) },      // (debug mode's "build" line)
 });
 let js = res.outputFiles[0].text;
 js = js.replace(/<\/script/gi, '<\\/script').replace(/<!--/g, '<\\!--');
@@ -89,4 +90,4 @@ ${js}
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, html);
 const kb = (Buffer.byteLength(html) / 1024).toFixed(0);
-console.log(`built ${path.relative(root, out)}  ${kb} KB  in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+console.log(`built ${path.relative(root, out)}  ${kb} KB  in ${((Date.now() - t0) / 1000).toFixed(1)}s  (build ${buildId(root)})`);

@@ -13,8 +13,81 @@ const nTint = valueNoise(7001), nPatch = valueNoise(7002), nFlower = valueNoise(
 
 export const GROUND_TILE = 6;
 
-export function buildTerrainMeshes(grid, lighting, assets) {
+/**
+ * Which texture the ground gets: the rules, factored out of the mesh builder so the debug readout can answer "why does the ground under
+ * me look like this?" with exactly the same code the mesh was built with.
+ *   tris(i, j)  the two triangles of grid cell (i, j), split like grid.heightAt does: { p: [3 corners], idx: [3 grid indices], slope, tex, why }
+ *   at(x, z)    the triangle under a world position: { tex, why, slope, i, j, tri }
+ * `why` names the rule that chose the texture (a short lowercase phrase).
+ */
+export function terrainPicker(grid) {
   const { n, cell, half, heights: H, pathDist } = grid;
+  const L = grid.level;
+  const s = n + 1;
+  const V = L.valley;
+  const vrAt = (x, z) => Math.hypot((x - V.x) / V.rx, (z - V.z) / V.rz);
+  const lake = L.lake;
+  const flowerAt = (x, z) => fbm(nFlower, x * 0.04 + 3, z * 0.04, 2);
+  const pickRule = (x, z, h, slope, nx, nz, i, j, pd, surface) => {
+    const dL = Math.hypot((x - lake.x) / lake.rx, (z - lake.z) / lake.rz);
+    const r = hash01(i, j);
+    if (h < WATER_LEVEL + 0.05 && dL < 1.6) return ['sand', 'lake floor'];
+    if (h < WATER_LEVEL + 0.8 && dL < 1.45 && slope < 0.5) return [r < 0.22 && h > WATER_LEVEL + 0.1 ? 'shore_pebbles' : 'sand', 'lake shore'];
+    // (the Dawn Gate's surroundings are all one rock: the red cascade rock used to start ten metres from its pillars, and a
+    // random mix of rock and grass on the steep flanks of its forecourt looked torn)
+    const nearGate = Math.hypot(x - L.gate.x, z - L.gate.z) < 34;
+    const warm = !nearGate && (Math.hypot(x - L.mesa.x, z - L.mesa.z) < 60 || Math.hypot(x - L.cascade.x, z - L.cascade.z) < 55 || Math.hypot(x - L.heron.x, z - L.heron.z) < 25);
+    if (vrAt(x, z) > 0.965 && slope > 0.3) return ['far_rock', 'valley rim, slope > 0.3'];
+    if (slope > 0.74) return [warm ? 'cliff_warm' : 'cliff', 'steep, slope > 0.74'];
+    if (h > 30 && slope > 0.42) return [warm ? 'cliff_warm' : 'cliff', 'high and sloping, y > 30 and slope > 0.42'];
+    if (slope > 0.5 && (r < (slope - 0.5) * 3.5 || nearGate)) return [warm ? 'cliff_warm' : 'cliff', nearGate ? 'sloping near the Dawn Gate, slope > 0.5' : 'sloping, rock and grass mix, slope > 0.5'];
+    if (h > 42) return ['far_rock', 'very high, y > 42'];
+    if (Math.hypot(x - L.village.x, z - (L.village.z - 4)) < 9.5) return ['flagstone', 'village plaza'];
+    if (surface === 'flagstone' && pd < 1.2) return ['flagstone', 'paved forecourt'];                // a paved forecourt is paved right through (the cells are coarser than the paving)
+    if (pd < 0.3) return ['dirt', 'on a road'];
+    const K = L.hollow;
+    if (Math.hypot(x - K.x, z - K.z) < K.r * 0.9) return ['moss', 'crystal hollow'];
+    if (dL < 1.5 && h < 1.5) return [r < 0.5 ? 'moss' : 'grass_b', 'lake margin'];
+    const f = flowerAt(x, z);
+    if (f > 0.6 && r < 0.9) return ['grass_flowers', 'flower noise'];
+    const p = fbm(nPatch, x * 0.05 + 40, z * 0.05, 2);
+    if (p > 0.58) return ['grass_b', 'grass patch noise'];
+    return ['grass_a', 'default grass'];
+  };
+
+  const P = (i, j) => [-half + i * cell, H[j * s + i], -half + j * cell];
+  const tris = (i, j) => {
+    const A = P(i, j), B = P(i + 1, j), C = P(i, j + 1), D = P(i + 1, j + 1);
+    const pd = (pathDist[j * s + i] + pathDist[j * s + i + 1] + pathDist[(j + 1) * s + i] + pathDist[(j + 1) * s + i + 1]) / 4;
+    // what kind of road is nearest (the corner that is closest to a road edge decides)
+    let near = j * s + i;
+    for (const k of [j * s + i + 1, (j + 1) * s + i, (j + 1) * s + i + 1]) if (pathDist[k] < pathDist[near]) near = k;
+    const surface = grid.pathIdx[near] >= 0 ? grid.paths[grid.pathIdx[near]].surface : '';
+    const split = ((i + j) & 1) === 0 ? [[A, D, B, [i, j], [i + 1, j + 1], [i + 1, j]], [A, C, D, [i, j], [i, j + 1], [i + 1, j + 1]]]
+      : [[A, C, B, [i, j], [i, j + 1], [i + 1, j]], [B, C, D, [i + 1, j], [i, j + 1], [i + 1, j + 1]]];
+    return split.map(([p0, p1, p2, i0, i1, i2]) => {
+      const cx = (p0[0] + p1[0] + p2[0]) / 3, cz = (p0[2] + p1[2] + p2[2]) / 3, ch = (p0[1] + p1[1] + p2[1]) / 3;
+      const ux = p1[0] - p0[0], uy = p1[1] - p0[1], uz = p1[2] - p0[2], vx = p2[0] - p0[0], vy = p2[1] - p0[1], vz = p2[2] - p0[2];
+      let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
+      const slope = Math.acos(clamp(Math.abs(ny)));
+      const [tex, why] = pickRule(cx, cz, ch, slope, nx, nz, i, j, pd, surface);
+      return { p: [p0, p1, p2], idx: [i0, i1, i2], slope, tex, why };
+    });
+  };
+
+  const at = (x, z) => {
+    const fx = clamp((x + half) / cell, 0, n - 1e-4), fz = clamp((z + half) / cell, 0, n - 1e-4);
+    const i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j;
+    const first = ((i + j) & 1) === 0 ? tx > tz : tx + tz < 1;         // (the same split as grid.heightAt)
+    const t = tris(i, j)[first ? 0 : 1];
+    return { tex: t.tex, why: t.why, slope: t.slope, i, j, tri: first ? 0 : 1 };
+  };
+  return { tris, at };
+}
+
+export function buildTerrainMeshes(grid, lighting, assets) {
+  const { n, cell, half, heights: H } = grid;
   const L = grid.level;
   const s = n + 1;
 
@@ -55,35 +128,8 @@ export function buildTerrainMeshes(grid, lighting, assets) {
     return [r, g, bl];
   };
 
-  // ---- texture selection --------------------------------------------------------------------------------------
-  const lake = L.lake;
-  const flowerAt = (x, z) => fbm(nFlower, x * 0.04 + 3, z * 0.04, 2);
-  const pick = (x, z, h, slope, nx, nz, i, j, pd, surface) => {
-    const dL = Math.hypot((x - lake.x) / lake.rx, (z - lake.z) / lake.rz);
-    const r = hash01(i, j);
-    if (h < WATER_LEVEL + 0.05 && dL < 1.6) return 'sand';
-    if (h < WATER_LEVEL + 0.8 && dL < 1.45 && slope < 0.5) return r < 0.22 && h > WATER_LEVEL + 0.1 ? 'shore_pebbles' : 'sand';
-    // (the Dawn Gate's surroundings are all one rock: the red cascade rock used to start ten metres from its pillars, and a
-    // random mix of rock and grass on the steep flanks of its forecourt looked torn)
-    const nearGate = Math.hypot(x - L.gate.x, z - L.gate.z) < 34;
-    const warm = !nearGate && (Math.hypot(x - L.mesa.x, z - L.mesa.z) < 60 || Math.hypot(x - L.cascade.x, z - L.cascade.z) < 55 || Math.hypot(x - L.heron.x, z - L.heron.z) < 25);
-    if (vrAt(x, z) > 0.965 && slope > 0.3) return 'far_rock';
-    if (slope > 0.74) return warm ? 'cliff_warm' : 'cliff';
-    if (h > 30 && slope > 0.42) return warm ? 'cliff_warm' : 'cliff';
-    if (slope > 0.5 && (r < (slope - 0.5) * 3.5 || nearGate)) return warm ? 'cliff_warm' : 'cliff';
-    if (h > 42) return 'far_rock';
-    if (Math.hypot(x - L.village.x, z - (L.village.z - 4)) < 9.5) return 'flagstone';
-    if (surface === 'flagstone' && pd < 1.2) return 'flagstone';                // a paved forecourt is paved right through (the cells are coarser than the paving)
-    if (pd < 0.3) return 'dirt';
-    const K = L.hollow;
-    if (Math.hypot(x - K.x, z - K.z) < K.r * 0.9) return 'moss';
-    if (dL < 1.5 && h < 1.5) return r < 0.5 ? 'moss' : 'grass_b';
-    const f = flowerAt(x, z);
-    if (f > 0.6 && r < 0.9) return 'grass_flowers';
-    const p = fbm(nPatch, x * 0.05 + 40, z * 0.05, 2);
-    if (p > 0.58) return 'grass_b';
-    return 'grass_a';
-  };
+  // ---- texture selection: see terrainPicker -------------------------------------------------------------------
+  const picker = terrainPicker(grid);
 
   const builders = new Map();
   const getB = (name) => {
@@ -92,7 +138,6 @@ export function buildTerrainMeshes(grid, lighting, assets) {
     return b;
   };
 
-  const P = (i, j) => [-half + i * cell, H[j * s + i], -half + j * cell];
   const NV = (i, j) => grid.vertexNormal(i, j);
   const opts = { aoFn, color: tintFn };
 
@@ -118,22 +163,7 @@ export function buildTerrainMeshes(grid, lighting, assets) {
 
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
-      const A = P(i, j), B = P(i + 1, j), C = P(i, j + 1), D = P(i + 1, j + 1);
-      const pd = (pathDist[j * s + i] + pathDist[j * s + i + 1] + pathDist[(j + 1) * s + i] + pathDist[(j + 1) * s + i + 1]) / 4;
-      // what kind of road is nearest (the corner that is closest to a road edge decides)
-      let near = j * s + i;
-      for (const k of [j * s + i + 1, (j + 1) * s + i, (j + 1) * s + i + 1]) if (pathDist[k] < pathDist[near]) near = k;
-      const surface = grid.pathIdx[near] >= 0 ? grid.paths[grid.pathIdx[near]].surface : '';
-      const tris = ((i + j) & 1) === 0 ? [[A, D, B, [i, j], [i + 1, j + 1], [i + 1, j]], [A, C, D, [i, j], [i, j + 1], [i + 1, j + 1]]]
-        : [[A, C, B, [i, j], [i, j + 1], [i + 1, j]], [B, C, D, [i + 1, j], [i, j + 1], [i + 1, j + 1]]];
-      for (const [p0, p1, p2, i0, i1, i2] of tris) {
-        const cx = (p0[0] + p1[0] + p2[0]) / 3, cz = (p0[2] + p1[2] + p2[2]) / 3, ch = (p0[1] + p1[1] + p2[1]) / 3;
-        const ux = p1[0] - p0[0], uy = p1[1] - p0[1], uz = p1[2] - p0[2], vx = p2[0] - p0[0], vy = p2[1] - p0[1], vz = p2[2] - p0[2];
-        let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
-        const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
-        const slope = Math.acos(clamp(Math.abs(ny)));
-        emit(pick(cx, cz, ch, slope, nx, nz, i, j, pd, surface), slope, p0, p1, p2, i0, i1, i2);
-      }
+      for (const t of picker.tris(i, j)) emit(t.tex, t.slope, t.p[0], t.p[1], t.p[2], t.idx[0], t.idx[1], t.idx[2]);
     }
   }
 

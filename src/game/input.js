@@ -1,12 +1,14 @@
 // Unified input: keyboard, mouse (drag or pointer-lock look), gamepad and on-screen touch controls.
 // The sim runs on a fixed step, so "pressed" edges live until the sim consumes them (endStep()).
 import { FloatingStick } from './touchstick.js';
+import { isTouchDevice } from '../engine/device.js';
 
-const ACTIONS = ['jump', 'flame', 'charge', 'confirm', 'talk', 'pause', 'camReset', 'camMode', 'back'];
+const ACTIONS = ['jump', 'flame', 'charge', 'confirm', 'talk', 'pause', 'camReset', 'camMode', 'back', 'debug'];
 
 const KEYMAP = {
   Space: 'jump', KeyJ: 'flame', KeyF: 'flame', KeyK: 'charge', ShiftLeft: 'charge', ShiftRight: 'charge',
   Enter: 'confirm', Escape: 'pause', KeyP: 'pause', KeyR: 'camReset', KeyC: 'camMode', Backspace: 'back',
+  F3: 'debug', Backquote: 'debug',
 };
 
 const TOUCH_LOOK = 0.0042;      // camera radians per pixel of a right-thumb drag (mouse: 0.0032). It was 0.006, which swung the view too far for a small flick.
@@ -23,12 +25,14 @@ export class Input {
     // confirmKey = confirm from keyboard/pad only (menus use it: mouse and touch select rows by position instead).
     this.uiEdge = Object.fromEntries([...ACTIONS, 'confirmKey'].map((a) => [a, false]));
     this.ptr = { x: -1, y: -1, moved: false, tap: false };   // last pointer position (client px), hover + tap flags for menus
+    this.lastTap = null;                 // the latest touch tap { x, y, n } (client px, n counts them): debug mode pins its aim point there
     this.move = { x: 0, y: 0 };
     this.look = { x: 0, y: 0 };          // accumulated mouse/stick delta (radians) since last take
     this.stickLook = { x: 0, y: 0 };     // continuous rate from gamepad / keys (rad/s)
     this.mouseDown = false;
     this.locked = false;
     this.touch = null;
+    this.menuOpen = false;               // set by the app while a menu is showing: the mouse is not captured then
     this.anyKey = false;
     this.lastDevice = 'keyboard';
     this.onGesture = null;
@@ -51,10 +55,11 @@ export class Input {
       if (e.repeat && down) { if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); return; }
       if (down) this.keys.add(e.code); else this.keys.delete(e.code);
       const a = KEYMAP[e.code];
-      if (a) { if (down) this._press(a); else this._release(a); }
+      if (a === 'debug') { if (down) { this._press(a); this._release(a); } }          // (a one-shot toggle: never left "held" if the browser swallows the key-up, as it can for F3)
+      else if (a) { if (down) this._press(a); else this._release(a); }
       if (e.code === 'Enter') { if (down) this._press('talk'); else this._release('talk'); }      // (a click must not start a conversation)
       if (down) { this.anyKey = true; this.lastDevice = 'keyboard'; if (this.onGesture) this.onGesture(); }
-      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.code)) e.preventDefault();
+      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'F3'].includes(e.code)) e.preventDefault();      // (F3 is the browser's "find" otherwise)
     };
     window.addEventListener('keydown', (e) => onKey(e, true));
     window.addEventListener('keyup', (e) => onKey(e, false));
@@ -90,11 +95,17 @@ export class Input {
       }
     });
 
-    // touch controls (only created on touch devices)
-    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) this._bindTouch();
+    // touch controls (only created on touch devices). A browser that hides its touch support still gets them with the first touch it
+    // delivers, so a phone can never be left without the MENU button.
+    if (isTouchDevice()) this._bindTouch();
+    else {
+      const late = () => { window.removeEventListener('touchstart', late, true); if (!this.touch) this._bindTouch(); };
+      window.addEventListener('touchstart', late, { capture: true, passive: true });
+    }
   }
 
   _tryLock() {
+    if (this.menuOpen) return;                // (a menu is open: the mouse must stay a pointer, or the first click on a row would capture and hide it)
     try { const p = this.canvas.requestPointerLock?.(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* not allowed (sandboxed frame) */ }
   }
 
@@ -107,14 +118,21 @@ export class Input {
   relock() { if (this.lastDevice === 'keyboard' && !this.locked) this._tryLock(); }
 
   _bindTouch() {
+    if (this.touch) return;
     const stick = new FloatingStick();
     const t = (this.touch = { stick: null, look: null, active: false, pad: stick });
     const root = document.createElement('div');
     root.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:5;touch-action:none;font-family:monospace';
+    // every thumb control lives in one group, so a menu or a cutscene can hide them all at once (see setTouchUI)
+    const pads = document.createElement('div');
+    pads.style.cssText = 'position:absolute;inset:0;pointer-events:none';
+    root.appendChild(pads);
+    // (a plain px fallback first: a browser without env() would otherwise drop the whole declaration and lose the button)
+    const inset = (prop, px, side) => `${prop}:${px}px;${prop}:calc(${px}px + env(safe-area-inset-${side},0px));`;
     const mk = (label, right, bottom, size, action, color) => {
       const b = document.createElement('div');
       b.textContent = label;
-      b.style.cssText = `position:absolute;right:${right}px;bottom:${bottom}px;width:${size}px;height:${size}px;border-radius:50%;background:${color};border:3px solid rgba(255,255,255,.55);color:#fff;font:bold ${size * 0.3}px monospace;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none;opacity:.72;user-select:none;-webkit-user-select:none;text-shadow:0 2px 0 #000`;
+      b.style.cssText = `position:absolute;${inset('right', right, 'right')}${inset('bottom', bottom, 'bottom')}width:${size}px;height:${size}px;border-radius:50%;background:${color};border:3px solid rgba(255,255,255,.55);color:#fff;font:bold ${size * 0.3}px monospace;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none;opacity:.72;user-select:none;-webkit-user-select:none;text-shadow:0 2px 0 #000`;
       if (action) {
         const down = (e) => { e.preventDefault(); this.lastDevice = 'touch'; this.anyKey = true; this._press(action); b.style.opacity = '1'; };
         const up = (e) => { e.preventDefault(); this._release(action); b.style.opacity = '.72'; };
@@ -122,7 +140,7 @@ export class Input {
         b.addEventListener('touchend', up, { passive: false });
         b.addEventListener('touchcancel', up, { passive: false });
       }
-      root.appendChild(b);
+      pads.appendChild(b);
       return b;
     };
     mk('JUMP', 26, 34, 74, 'jump', 'rgba(60,150,90,.55)');
@@ -141,11 +159,30 @@ export class Input {
     }
     this.talkBtn = mk('TALK', 112, 96, 58, 'talk', 'rgba(50,110,200,.65)');    // only shown next to someone who wants to talk
     this.talkBtn.style.display = 'none';
-    const pause = document.createElement('div');
-    pause.textContent = 'II';
-    pause.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);top:8px;width:44px;height:44px;border-radius:10px;background:rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.5);color:#fff;font:bold 20px monospace;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none';
-    pause.addEventListener('touchstart', (e) => { e.preventDefault(); this._press('pause'); this._release('pause'); }, { passive: false });
-    root.appendChild(pause);
+
+    // MENU: a plain, labelled button at the top centre (the game's pause menu: options, controls, debug mode, quit). It is the way to
+    // the menu on a touch screen (there is no Esc key), so it says what it is; while a menu is open it reads RESUME / BACK instead.
+    const menu = document.createElement('div');
+    menu.setAttribute('role', 'button');
+    menu.setAttribute('aria-label', 'Menu');
+    menu.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);top:8px;min-width:104px;height:44px;box-sizing:border-box;padding:0 18px;border-radius:22px;background:rgba(36,20,72,.86);border:2px solid #ffc03c;color:#fff4b0;font:bold 16px monospace;letter-spacing:.08em;display:flex;align-items:center;justify-content:center;gap:9px;pointer-events:auto;touch-action:none;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;text-shadow:0 2px 0 #000;box-shadow:0 2px 0 rgba(0,0,0,.55)';
+    const bars = document.createElement('span');
+    const bar = 'linear-gradient(#fff4b0,#fff4b0)';
+    bars.style.cssText = `width:18px;height:14px;flex:none;background:${bar} 0 0/100% 3px no-repeat,${bar} 0 50%/100% 3px no-repeat,${bar} 0 100%/100% 3px no-repeat`;
+    const label = document.createElement('span');
+    label.textContent = 'MENU';
+    menu.append(bars, label);
+    const openMenu = () => { this.lastDevice = 'touch'; if (this.onGesture) this.onGesture(); this._press('pause'); this._release('pause'); };   // (not a "tap anywhere": on the title it opens the menu, it does not start the game)
+    const scale = (k) => { menu.style.transform = `translateX(-50%) scale(${k})`; };
+    let touchedAt = -1e9;
+    menu.addEventListener('touchstart', (e) => { e.preventDefault(); touchedAt = performance.now(); scale(0.95); openMenu(); }, { passive: false });
+    menu.addEventListener('touchend', (e) => { e.preventDefault(); scale(1); }, { passive: false });
+    menu.addEventListener('touchcancel', () => scale(1));
+    // (a mouse or pen on a hybrid device. A touch does not click as well: its touchstart is cancelled above, and a click just after one is ignored in case a browser sends it anyway)
+    menu.addEventListener('click', () => { if (performance.now() - touchedAt > 1000) openMenu(); });
+    root.appendChild(menu);
+    this.menuBtn = menu; this._menuBars = bars; this._menuLabel = label;
+
     const ring = document.createElement('div');
     // (clearly visible on grass, cobbles and water alike: a light ring with a dark hairline, and a solid nub)
     ring.style.cssText = 'position:absolute;width:110px;height:110px;border-radius:50%;border:3px solid rgba(255,255,255,.62);background:rgba(255,255,255,.14);box-shadow:0 0 0 2px rgba(20,10,40,.35),inset 0 0 14px rgba(20,10,40,.25);display:none;pointer-events:none';
@@ -153,6 +190,7 @@ export class Input {
     nub.style.cssText = 'position:absolute;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.82);border:2px solid rgba(20,10,40,.4);box-sizing:border-box;left:32px;top:32px';
     ring.appendChild(nub);
     root.appendChild(ring);
+    this._ring = ring; this._nub = nub;
     // portrait phones get a tiny frame: suggest landscape
     const rot = document.createElement('div');
     rot.textContent = 'TURN YOUR PHONE SIDEWAYS FOR A BIGGER VIEW';
@@ -162,6 +200,8 @@ export class Input {
     window.addEventListener('resize', orient); orient();
     document.body.appendChild(root);
     this.touchRoot = root;
+    this._pads = pads;
+    this._uiControls = undefined; this._uiMenu = undefined;      // (until the app says otherwise: everything shows, as it always did)
 
     const c = this.canvas;
     const own = new Map();
@@ -170,9 +210,11 @@ export class Input {
       e.preventDefault();
       this.lastDevice = 'touch'; this.anyKey = true;
       if (this.onGesture) this.onGesture();
+      const play = this._uiControls !== false;       // (menus and cutscenes take taps only: no stick, no camera drag)
       for (const tc of e.changedTouches) {
-        taps.set(tc.identifier, { t: performance.now(), x: tc.clientX, y: tc.clientY, moved: false });
+        taps.set(tc.identifier, { t: e.timeStamp, x: tc.clientX, y: tc.clientY, moved: false });       // (the event's own time, not "now": a busy page runs the handlers late, and a tap must not turn into a long press for it)
         this.ptr.x = tc.clientX; this.ptr.y = tc.clientY; this.ptr.moved = true;
+        if (!play) continue;
         const left = tc.clientX < window.innerWidth * 0.45;
         if (left && !t.stick) { t.stick = tc.identifier; stick.start(tc.clientX, tc.clientY); ring.style.display = 'block'; ring.style.left = tc.clientX - 55 + 'px'; ring.style.top = tc.clientY - 55 + 'px'; own.set(tc.identifier, 'stick'); }
         else if (!left && t.look === null) { t.look = tc.identifier; t.lx = tc.clientX; t.ly = tc.clientY; own.set(tc.identifier, 'look'); }
@@ -200,9 +242,10 @@ export class Input {
       for (const tc of e.changedTouches) {
         const tp = taps.get(tc.identifier);
         taps.delete(tc.identifier);
-        if (e.type === 'touchend' && tp && !tp.moved && performance.now() - tp.t < 350) {
+        if (e.type === 'touchend' && tp && !tp.moved && e.timeStamp - tp.t < 350) {
           this._press('confirm', true); this._release('confirm');
           this.ptr.x = tp.x; this.ptr.y = tp.y; this.ptr.tap = true;
+          this.lastTap = { x: tp.x, y: tp.y, n: (this.lastTap ? this.lastTap.n : 0) + 1 };
         }
         if (tc.identifier === t.stick) { t.stick = null; t.active = false; stick.end(); this.move.x = 0; this.move.y = 0; ring.style.display = 'none'; nub.style.left = '32px'; nub.style.top = '32px'; }
         if (tc.identifier === t.look) t.look = null;
@@ -210,6 +253,47 @@ export class Input {
     };
     c.addEventListener('touchend', end, { passive: false });
     c.addEventListener('touchcancel', end, { passive: false });
+  }
+
+  /**
+   * Choose which on-screen controls show. `controls`: the thumb controls (move circle, JUMP, FIRE, RAM, CAM, TALK) and touch steering.
+   * `menu`: the label on the menu button ('MENU', 'RESUME', 'BACK'), or null to hide it (cutscenes). Called every frame by the app: a
+   * menu that opened over a thumb-controlled game must not leave JUMP / FIRE sitting on top of it (they would swallow the taps meant for
+   * the menu rows), nor leave the stick or a button held.
+   */
+  setTouchUI(controls, menu) {
+    if (!this.touchRoot) return;
+    const c = !!controls, m = menu || null;
+    if (c === this._uiControls && m === this._uiMenu) return;
+    const hadControls = this._uiControls !== false;
+    this._uiControls = c; this._uiMenu = m;
+    this._pads.style.display = c ? 'block' : 'none';
+    this.menuBtn.style.display = m ? 'flex' : 'none';
+    if (m) { this._menuLabel.textContent = m; this._menuBars.style.display = m === 'MENU' ? 'block' : 'none'; }
+    if (hadControls && !c) this._dropTouches();
+  }
+
+  /** Let go of every thumb control (their finger may lift while they are hidden, and a hidden button never sees its touchend). */
+  _dropTouches() {
+    const t = this.touch;
+    if (!t) return;
+    for (const a of ['jump', 'flame', 'charge', 'talk']) this._release(a);
+    t.stick = null; t.look = null; t.active = false; t.pad.end();
+    this.move.x = 0; this.move.y = 0;
+    if (this._ring) { this._ring.style.display = 'none'; this._nub.style.left = '32px'; this._nub.style.top = '32px'; }
+    if (this.camBtn) this.camBtn.style.opacity = '.72';
+  }
+
+  /** Anchor the MENU button to the game frame (call when the frame or window changes): top centre, a little below the frame's top edge. */
+  layoutTouch(f) {
+    if (!this.menuBtn) return;
+    const key = `${Math.round(f.left)},${Math.round(f.top)},${Math.round(f.width)},${Math.round(f.unit * 100)}`;
+    if (key === this._frameKey) return;
+    this._frameKey = key;
+    const top = Math.max(8, Math.round(f.top + 4 * f.unit));
+    this.menuBtn.style.top = `${top}px`;
+    this.menuBtn.style.top = `calc(${top}px + env(safe-area-inset-top,0px))`;
+    this.menuBtn.style.left = `${Math.round(f.left + f.width / 2)}px`;
   }
 
   setTouchVisible(v) { if (this.touchRoot) this.touchRoot.style.display = v ? 'block' : 'none'; }

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { U, setTextureSmoothing } from './materials.js';
 import { QUANT_FRAG, OUT_FRAG, FULLSCREEN_VERT } from './shaders.js';
 import { Pix } from './textures/pix.js';
+import { isTouchDevice } from './device.js';
 
 const STORE_KEY = 'gloaming-vale/settings/v2';
 
@@ -24,6 +25,9 @@ export const DEFAULT_SETTINGS = {
   camVersion: 2,      // 1: the default was 'smart' (saved along with any other option that was changed); 2: it is 'active'
   lookSpeed: 0.5,     // 0..1 -> mouse / stick / touch camera speed x0.4 .. x1.6 (0.5 = x1)
   aimAssist: true,    // breathing fire nudges Spyro round towards a brazier / beacon / Snuffer in front of him
+  debug: 0,           // debug mode (F3, or the menu): 0 off | 1 compact readout (where am I, what is around me) | 2 full (adds camera, input, performance, errors)
+  debugColliders: false, // debug mode: draw the collision volumes near Spyro as wireframes
+  debugSize: 1,       // debug readout text size: 0 small | 1 normal | 2 large
 };
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -48,13 +52,16 @@ function sanitize(s) {
   s.camVersion = 2;
   s.lookSpeed = num(s.lookSpeed, DEFAULT_SETTINGS.lookSpeed);
   s.aimAssist = s.aimAssist !== false;
+  s.debug = [0, 1, 2].includes(s.debug) ? s.debug : 0;
+  s.debugColliders = !!s.debugColliders;
+  s.debugSize = [0, 1, 2].includes(s.debugSize) ? s.debugSize : 1;
   return s;
 }
 
 export function loadSettings() {
   const base = { ...DEFAULT_SETTINGS };
   // phones are wider than 4:3 and have no room to waste: start in widescreen (players can still pick 4:3 in the options)
-  try { if ('ontouchstart' in window || navigator.maxTouchPoints > 0) { base.display = 'wide'; base.height = 360; } } catch (e) { /* no window (headless) */ }
+  if (isTouchDevice()) { base.display = 'wide'; base.height = 360; }
   try {
     const raw = localStorage.getItem(STORE_KEY);
     if (raw) {
@@ -250,6 +257,17 @@ export class Gfx {
       this._allocTargets(W, H);
       if (this.onInternalResize) this.onInternalResize(W, H);
     }
+  }
+
+  /**
+   * Where the game frame is on the page, in CSS pixels, and how big one HUD layout unit is (the HUD is a fixed 240 lines high, so
+   * `unit` = frame height / 240). DOM overlays (the touch MENU button, the debug readout) anchor to this so they sit in the same place
+   * relative to the HUD on a phone, a tablet and a desktop window.
+   */
+  frameCss() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const [x0, y0, rw, rh] = this.rect;
+    return { left: x0 / dpr, top: (this.devH - (y0 + rh)) / dpr, width: rw / dpr, height: rh / dpr, unit: rh / dpr / this.hud.h, dpr };
   }
 
   clearHud() { this.hud.data.fill(0); }

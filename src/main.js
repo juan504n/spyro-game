@@ -1,5 +1,8 @@
 import { Gfx } from './engine/gfx.js';
 import { U } from './engine/materials.js';
+import { installErrorLog } from './engine/errlog.js';
+
+installErrorLog();      // (debug mode shows the last errors: catch them from the very start, including the ones while the world builds)
 
 const params = new URLSearchParams(location.search);
 const canvas = document.getElementById('screen');

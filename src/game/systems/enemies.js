@@ -34,7 +34,7 @@ export class EnemySystem {
     alertIcon.visible = false;
     return {
       variant: s.variant || 'basic', V, model, shadow, alertIcon, x: s.x, y, z: s.z, hx: s.x, hz: s.z, vx: 0, vz: 0, yaw: Math.random() * 6.28, r: 0.75, h: 2,
-      hp: V.hp, state: 'idle', st: 0, patrolR: s.patrol ?? 5, tx: s.x, tz: s.z, flameCd: 0, chargeCd: 0, struck: false, attack: 0, hurt: 0, stun: 0, dead: 0, alert: 0, exclaimT: 0, t: Math.random() * 10, active: true, clangCd: 0,
+      hp: V.hp, state: 'idle', st: 0, patrolR: s.patrol ?? 5, tx: s.x, tz: s.z, flameCd: 0, chargeCd: 0, struck: false, attack: 0, hurt: 0, stun: 0, dead: 0, alert: 0, exclaimT: 0, t: Math.random() * 10, active: true, clangCd: 0, src: s.src,
     };
   }
 

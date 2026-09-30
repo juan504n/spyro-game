@@ -36,7 +36,8 @@ export class Kit {
     this.lights = [];
     this.emitters = [];
     this.pass = 'wet';
-    this.origin = { x: 0, y: 0, z: 0, rot: 0, scale: 1 }; // current prop placement (for caster/collider/light registration)
+    this.cur = null;              // provenance of the prop being placed ({ name, x, z, src }, set by ctx.put): stamped on its colliders for the debug readout
+    this.origin = { x: 0, y: 0, z: 0, rot: 0, scale: 1, prop: null }; // current prop placement (for caster/collider/light registration)
     this._stack = [];
   }
 
@@ -74,7 +75,7 @@ export class Kit {
     if (typeof opts === 'function') { fn = opts; opts = {}; }
     const { rot = 0, scale = 1, y = this.groundY(x, z) } = opts;
     this._stack.push(this.origin);
-    this.origin = { x, y, z, rot, scale };
+    this.origin = { x, y, z, rot, scale, prop: this.cur };
     this.xf.push().translate(x, y, z);
     if (rot) this.xf.rotateY(rot);
     if (scale !== 1) this.xf.scale(scale);
@@ -103,7 +104,7 @@ export class Kit {
     if (this.pass !== 'dry') return;
     const [wx, wz] = this.toWorld(lx, lz);
     const o = this.origin;
-    this.colliders.push({ type: 'cyl', x: wx, z: wz, r: r * o.scale, y0: o.y + y0 * o.scale, y1: o.y + y1 * o.scale, top, tag });
+    this.colliders.push({ type: 'cyl', x: wx, z: wz, r: r * o.scale, y0: o.y + y0 * o.scale, y1: o.y + y1 * o.scale, top, tag, prop: o.prop });
   }
 
   /** Oriented box collider (local coords; hx, hz half extents). */
@@ -111,7 +112,7 @@ export class Kit {
     if (this.pass !== 'dry') return;
     const [wx, wz] = this.toWorld(lx, lz);
     const o = this.origin;
-    this.colliders.push({ type: 'box', x: wx, z: wz, hx: hx * o.scale, hz: hz * o.scale, rot: o.rot + rot, y0: o.y + y0 * o.scale, y1: o.y + y1 * o.scale, top, tag });
+    this.colliders.push({ type: 'box', x: wx, z: wz, hx: hx * o.scale, hz: hz * o.scale, rot: o.rot + rot, y0: o.y + y0 * o.scale, y1: o.y + y1 * o.scale, top, tag, prop: o.prop });
   }
 
   /**

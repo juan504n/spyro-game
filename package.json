@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "build:single": "node tools/build-single.mjs",
     "lint:props": "node tools/prop-lint.mjs",
-    "qa": "node tools/prop-lint.mjs && node tools/bot.mjs && node tools/playthrough.mjs"
+    "qa": "node tools/prop-lint.mjs && node tools/debuginfo-test.mjs && node tools/bot.mjs && node tools/playthrough.mjs"
   },
   "dependencies": {
     "three": "^0.186.1"

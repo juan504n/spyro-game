@@ -30,7 +30,7 @@ export class ObjectSystem {
       p.root.position.set(d.portcullis.x, d.portcullis.y, d.portcullis.z);
       rotY(p, d.portcullis.yaw || 0);
       g.dyn.add(p.root);
-      const c = col.add({ type: 'box', x: d.portcullis.x, z: d.portcullis.z, hx: 1.25, hz: 0.6, rot: d.portcullis.yaw || 0, y0: d.portcullis.y, y1: d.portcullis.y + 4, top: false, tag: 'gate' });
+      const c = col.add({ type: 'box', x: d.portcullis.x, z: d.portcullis.z, hx: 1.25, hz: 0.6, rot: d.portcullis.yaw || 0, y0: d.portcullis.y, y1: d.portcullis.y + 4, top: false, tag: 'gate', src: 'layoutWindmill' });
       this.portcullis = { model: p, open: 0, target: 0, c };
     }
     this.barrier = null;
@@ -39,7 +39,7 @@ export class ObjectSystem {
       b.root.position.set(d.barrier.x, d.barrier.y, d.barrier.z);
       rotY(b, d.barrier.yaw || 0);
       g.dyn.add(b.root);
-      const c = col.add({ type: 'box', x: d.barrier.x, z: d.barrier.z, hx: 3.4, hz: 0.9, rot: d.barrier.yaw || 0, y0: d.barrier.y - 2, y1: d.barrier.y + 14, top: false, tag: 'barrier' });
+      const c = col.add({ type: 'box', x: d.barrier.x, z: d.barrier.z, hx: 3.4, hz: 0.9, rot: d.barrier.yaw || 0, y0: d.barrier.y - 2, y1: d.barrier.y + 14, top: false, tag: 'barrier', src: 'layoutNorth' });
       this.barrier = { model: b, open: 0, target: 0, c, x: d.barrier.x, z: d.barrier.z };
     }
     this.sails = null;
@@ -59,7 +59,7 @@ export class ObjectSystem {
     const model = makeModel(g.assets, 'vase', { variant: v.variant || 0 });
     model.root.position.set(v.x, v.y, v.z);
     g.dyn.add(model.root);
-    const c = g.collision.add({ type: 'cyl', x: v.x, z: v.z, r: 0.55, y0: v.y, y1: v.y + 1.1, top: false, tag: 'vase' });
+    const c = g.collision.add({ type: 'cyl', x: v.x, z: v.z, r: 0.55, y0: v.y, y1: v.y + 1.1, top: false, tag: 'vase', src: v.src });
     return { ...v, model, c, broken: false, wob: 0 };
   }
 
@@ -69,7 +69,7 @@ export class ObjectSystem {
     model.root.position.set(ch.x, ch.y, ch.z);
     rotY(model, ch.yaw || 0);
     g.dyn.add(model.root);
-    const c = g.collision.add({ type: 'box', x: ch.x, z: ch.z, hx: 1.0, hz: 0.65, rot: ch.yaw || 0, y0: ch.y, y1: ch.y + 0.9, top: false, tag: 'chest' });
+    const c = g.collision.add({ type: 'box', x: ch.x, z: ch.z, hx: 1.0, hz: 0.65, rot: ch.yaw || 0, y0: ch.y, y1: ch.y + 0.9, top: false, tag: 'chest', src: ch.src });
     return { ...ch, model, c, open: 0, opened: false };
   }
 
@@ -79,7 +79,7 @@ export class ObjectSystem {
     model.root.position.set(w.x, w.y, w.z);
     rotY(model, w.yaw || 0);
     g.dyn.add(model.root);
-    const c = g.collision.add({ type: 'box', x: w.x, z: w.z, hx: w.w / 2, hz: 0.6, rot: w.yaw || 0, y0: w.y, y1: w.y + w.h, top: false, tag: 'wall' });
+    const c = g.collision.add({ type: 'box', x: w.x, z: w.z, hx: w.w / 2, hz: 0.6, rot: w.yaw || 0, y0: w.y, y1: w.y + w.h, top: false, tag: 'wall', src: w.src });
     const rec = { ...w, model, c, broken: false };
     c.onCharge = () => { this._breakWall(rec); return true; };
     return rec;
@@ -90,7 +90,7 @@ export class ObjectSystem {
     const model = makeModel(g.assets, 'brazier');
     model.root.position.set(b.x, b.y, b.z);
     g.dyn.add(model.root);
-    g.collision.add({ type: 'cyl', x: b.x, z: b.z, r: 0.75, y0: b.y, y1: b.y + 1.4, top: false, tag: 'brazier' });
+    g.collision.add({ type: 'cyl', x: b.x, z: b.z, r: 0.75, y0: b.y, y1: b.y + 1.4, top: false, tag: 'brazier', src: b.src });
     const pool = g.fx.decal({ pool: 'add', sprite: 'glow', x: b.x, z: b.z, r: 5, color: [1, 0.7, 0.3], alpha: 0 });
     pool.y = b.y + 0.08;
     return { ...b, model, lit: false, l: 0, pool };
@@ -103,8 +103,8 @@ export class ObjectSystem {
     model.root.position.set(m.x, m.y, m.z);
     g.dyn.add(model.root);
     const top = m.y + 1.3 * size;
-    g.collision.add({ type: 'cyl', x: m.x, z: m.z, r: 0.7 * size, y0: m.y, y1: top, top: false, tag: 'stem' });
-    const cap = g.collision.add({ type: 'cyl', x: m.x, z: m.z, r: 2.3 * size, y0: top - 0.5, y1: top, top: true, tag: 'bounce' });
+    g.collision.add({ type: 'cyl', x: m.x, z: m.z, r: 0.7 * size, y0: m.y, y1: top, top: false, tag: 'stem', src: m.src });
+    const cap = g.collision.add({ type: 'cyl', x: m.x, z: m.z, r: 2.3 * size, y0: top - 0.5, y1: top, top: true, tag: 'bounce', src: m.src });
     return { ...m, size, model, cap, top, squash: 0, cool: 0 };
   }
 
