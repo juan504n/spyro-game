@@ -1,15 +1,16 @@
-// Snuffers: the realm's villains. Three flavours that demand different tactics:
+// Snuffers: the realm's villains. Three flavours that demand different tactics, and every one of them falls to a single hit of the attack that works on it
+// (as in the original: they used to take two):
 //   basic — burns and rams equally well
-//   bell  — armoured with a brass bell: fire bounces off, needs two rams
-//   thorn — spiked: ramming hurts YOU, fire is the answer
+//   bell  — armoured with a brass bell: fire bounces off, one ram does it
+//   thorn — spiked: ramming hurts YOU, one breath of fire is the answer
 import { makeModel } from '../models/fallback.js';
 import { WATER_LEVEL } from '../level.js';
 import { ENEMY_DROPS } from '../economy.js';
 
 const VARIANTS = {
-  basic: { hp: 2, speed: 5.4, notice: 15, reach: 2.7, drops: ENEMY_DROPS.basic, flameDmg: 1, chargeDmg: 2 },
-  bell: { hp: 2, speed: 4.3, notice: 13, reach: 2.9, drops: ENEMY_DROPS.bell, flameDmg: 0, chargeDmg: 1 },
-  thorn: { hp: 2, speed: 5.8, notice: 14, reach: 2.5, drops: ENEMY_DROPS.thorn, flameDmg: 1, chargeDmg: 0, spiked: true },
+  basic: { hp: 1, speed: 5.4, notice: 15, reach: 2.7, drops: ENEMY_DROPS.basic, flameDmg: 1, chargeDmg: 1 },
+  bell: { hp: 1, speed: 4.3, notice: 13, reach: 2.9, drops: ENEMY_DROPS.bell, flameDmg: 0, chargeDmg: 1, armored: true },
+  thorn: { hp: 1, speed: 5.8, notice: 14, reach: 2.5, drops: ENEMY_DROPS.thorn, flameDmg: 1, chargeDmg: 0, spiked: true },
 };
 
 const wrap = (a) => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
@@ -123,7 +124,7 @@ export class EnemySystem {
             this.damage(e, e.V.chargeDmg, p.x, p.z, 'charge');
             p.vx *= 0.35; p.vz *= 0.35;
             game.audio?.sfx('charge_hit', { vol: 1 });
-            if (e.V.chargeDmg < e.hp + e.V.chargeDmg && e.hp > 0) game.audio?.sfx('armor_clang', { vol: 0.6 });
+            if (e.V.armored) game.audio?.sfx('armor_clang', { vol: 0.6 });         // (the bell rings as it goes)
           }
           if (e.state === 'dead') continue;
         }

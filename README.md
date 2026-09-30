@@ -117,7 +117,7 @@ the whole valley is lit twice (dusk and daybreak) and the world cross-fades betw
 | V | Dawn | Observatory at the top of the spiral mountain | The Dawn Gate only opens once four beacons burn. |
 
 * **Snuffers** come in three kinds: plain ones (fire or charge), *bell* Snuffers (armoured — fire bounces off, charge them)
-  and *thorn* Snuffers (spiked — don't ram them, burn them).
+  and *thorn* Snuffers (spiked — don't ram them, burn them). Every one goes down in a single hit of the attack that works on it, as in the original.
 * **Sparx** the dragonfly is your health bar: blue → green → yellow → gone. Bunnies you scorch become healing
   butterflies.
 * **Gems** are worth 1 / 2 / 5 / 10 / 25 (red, green, blue, gold, purple): cut stones whose facets flash as they spin. Vases, chests, cracked walls and enemies drop
@@ -185,7 +185,7 @@ docs/index.html      the built single-file game
 
 ```bash
 npm run qa                    # prop lint + reachability bot + full story playthrough (needs the dev server running)
-node tools/bot.mjs            # headless reachability bot: drives the real controller along every road/route (and hops the dock's lily-pad crossing from a standing start)
+node tools/bot.mjs            # headless reachability bot: drives the real controller along every road/route (hops the dock's lily-pad crossing from a standing start, and checks every Snuffer dies to one hit)
 node tools/playthrough.mjs    # every beacon, the brazier puzzle, sky-isle glide chain, Dawn Gate, finale
 node tools/monkey.mjs [runs] [secs]   # random-input soak test: exceptions, NaNs, players escaping the world
 node tools/terrain-map.mjs    # top-down map of the realm with slopes and paths -> terrain-map.png

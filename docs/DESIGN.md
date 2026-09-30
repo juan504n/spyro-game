@@ -50,6 +50,10 @@ pad for the long glide out to the island shrine.
 | Bell | brass bell shield on a pole | charge (fire bounces off) |
 | Thorn | crystal spikes on the back | fire (charging hurts you) |
 
+Every Snuffer has one hit point: a single hit of an attack that works on it kills it (a breath of fire for plain and thorn ones, a ram for plain and bell ones), as in the original. They used to have two, so a
+bell needed two rams and a plain or thorn one two ticks of fire (a single breath lands two, 0.3 s apart, so it usually did the job, but only just). The armour is what is left of the difficulty: fire bounces
+off a bell and ramming a thorn hurts you, however hard you try.
+
 Sparx, the dragonfly, is the health bar: three hits, shown by his colour. Scorched bunnies turn into butterflies that heal him.
 
 ## Collectibles and economy
@@ -164,6 +168,9 @@ beach (checked as 1.5 to 4.5 m), so they neither crowd nor stretch a jump (a run
 over water at least 0.3 m deep, kept 1.6 m from its neighbours and clear of the dock, the boat and the crossing. Those pad layouts are planned in `layoutLake` from a private generator, and the 16
 patches are still picked from the shared random stream exactly as before, so nothing else in the realm moved (a before and after dump of every prop and gameplay record differs only in the four old
 stones and the three new ones). The bot's `dock-hop` scenario jumps from a standstill on the dock's west edge, middle and east edge to the first pad, then pad to pad and on to the beach, with no glide.
+
+The bot's `one-hit-enemies` scenario puts a fresh Snuffer of each kind on a clear stretch of the main road and has the real controller breathe fire at it once and ram it once, counting every call to `damage()`:
+plain ones die after one hit to either, bell ones to the ram (fire does nothing), thorn ones to the fire (the ram hurts you instead). With two hit points it fails four of the six trials.
 
 `tools/debuginfo-test.mjs` (no server) builds the level headlessly and checks the debug readout against independent computations: the texture it reports is the texture of the
 terrain mesh triangle under the point (1500 scattered points, all eleven textures and 16 rules), the aim ray against known ground, houses, a pier and the water, the nearest prop and

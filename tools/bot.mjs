@@ -146,5 +146,55 @@ await run('sky-route', () => {
   }
   return { ok: true, log, end: __bot.state() };
 });
+await run('one-hit-enemies', () => {
+  // Every Snuffer dies to ONE hit of an attack that works on it (they used to take two): plain ones to a breath of fire or to a ram, bell ones (fire bounces
+  // off) to a ram, thorn ones (a ram hurts you) to a breath of fire. Each trial: a fresh Snuffer that holds its ground on a clear stretch of the main road, and
+  // the real controller 6.5 m away, facing it. Every call to damage() is counted, so "dead after two hits" fails.
+  const G = __game, E = G.enemies, road = G.grid.paths.find((q) => q.id === 'main').pts;
+  const far = (x, z) => E.list.every((e) => Math.hypot(e.x - x, e.z - z) > 45);
+  let a = null, b = null;
+  for (let i = 0; i < road.length && !a; i++) {
+    for (let j = i + 1; j < road.length; j++) {
+      const d = Math.hypot(road[j][0] - road[i][0], road[j][2] - road[i][2]);
+      if (d < 6.5) continue;
+      if (d < 7.5 && Math.abs(road[j][1] - road[i][1]) < 0.5 && far(road[i][0], road[i][2]) && far(road[j][0], road[j][2])) { a = road[i]; b = road[j]; }
+      break;
+    }
+  }
+  if (!a) return { ok: false, reason: 'no clear stretch of the main road, away from the level\'s own Snuffers' };
+  const hits = [];
+  let hurts = 0;
+  const damage0 = E.damage.bind(E), hurt0 = G.playerHurt.bind(G);
+  E.damage = (e, amount, ...rest) => { hits.push(e.variant); return damage0(e, amount, ...rest); };
+  G.playerHurt = (...args) => { hurts++; return hurt0(...args); };
+  const trial = (variant, attack) => {
+    const e = E._make({ x: b[0], z: b[2], variant, patrol: 0 });
+    e.V = { ...e.V, speed: 0 };                                       // (it holds its ground: this tests the hit, not the chase)
+    E.list.push(e);
+    hits.length = 0; hurts = 0;
+    __bot.place(a[0], a[2], Math.atan2(b[0] - a[0], b[2] - a[2]), a[1]);
+    if (attack === 'fire') { __bot.tap('flame', 4); __bot.tick(40); }                                 // one breath (0.42 s)
+    else {
+      __bot.edge('charge'); __bot.ctl.charge = true;                                                 // one ram: held until it lands (or 1.5 s)
+      for (let i = 0; i < 90 && e.state !== 'dead' && !hurts; i++) __bot.tick();
+      __bot.ctl.charge = false; __bot.tick(20);
+    }
+    const r = { dead: e.state === 'dead' || !E.list.includes(e), hits: hits.length, hurts };
+    if (E.list.includes(e)) E._remove(e, E.list.indexOf(e));
+    return r;
+  };
+  //                    fire            ram                 [dead, damage() calls]
+  const want = { basic: { fire: [true, 1], ram: [true, 1] }, bell: { fire: [false, 0], ram: [true, 1] }, thorn: { fire: [true, 1], ram: [false, 0] } };
+  const out = [];
+  let ok = true;
+  for (const v of Object.keys(want)) for (const attack of ['fire', 'ram']) {
+    const r = trial(v, attack), [dead, n] = want[v][attack];
+    const good = r.dead === dead && r.hits === n && (v === 'thorn' && attack === 'ram' ? r.hurts >= 1 : r.hurts === 0);
+    out.push(`${v}/${attack}: ${good ? 'ok' : 'FAIL'} (${r.dead ? 'dead' : 'alive'} after ${r.hits} hit${r.hits === 1 ? '' : 's'}${r.hurts ? ', it hurt you' : ''})`);
+    ok = ok && good;
+  }
+  delete E.damage; delete G.playerHurt;
+  return { ok, out };
+});
 await browser.close();
 process.exit(failed ? 1 : 0);
