@@ -84,14 +84,20 @@ Sparx, the dragonfly, is the health bar: three hits, shown by his colour. Scorch
 * **Camera:** chase camera at a fixed distance that pulls in when something blocks it, plus authored cinematic shots for the title, intro and finale.
   The chase camera has three modes, after the original games' Active / Passive camera setting (research: the manual describes Active as "moves right along
   with you", Passive as slow, letting you "run around without moving the camera"; players describe Active as swinging Spyro round in wide arcs and Passive
-  as absolute sideways movement). **Passive** never turns by itself. **Active** turns after Spyro at up to 2.3 rad/s for even a small sideways lean.
-  **Smart** (default) is a calmer Active: nothing happens inside a 35 degree dead zone around straight ahead (a touch thumb always wanders), the rate ramps
-  up to 1 rad/s by about 55 degrees after a 0.3 s hold on one side, and a pure strafe or a step back never moves the view. The rate depends on the stick angle
-  from straight ahead (steering is camera-relative, so that angle IS the angle between Spyro's path and the view); the old camera turned at a fixed 66 degrees per
-  second for any forward-ish push, so a thumb resting 25 degrees off straight made the world creep round in circles. Other twitches removed: the look-ahead point
-  is smoothed (it used to follow Spyro's near-instant turns), the camera is smoothed as an offset from the pivot (an absolute lerp trailed a running hero by
-  speed / rate metres, and the rate switched with the obstruction, pumping the distance by ~0.7 m), the obstruction ray is bisected (0.6 m sampling made the
-  pulled-in distance jump in 8 % steps) and the pulled-in distance is held for 0.4 s before it eases out (a row of trees popped it in and out).
+  as absolute sideways movement). **Active** (the default) turns after Spyro at up to 2.3 rad/s for even a small sideways lean. **Passive** never turns by itself.
+  **Smart** is a calmer Active: nothing happens inside a 35 degree dead zone around straight ahead (a touch thumb always wanders), the rate ramps
+  up to 1 rad/s by about 55 degrees after a 0.3 s hold on one side, and a pure strafe or a step back never moves the view. The turn rate depends on the stick angle
+  from straight ahead (steering is camera-relative, so that angle IS the angle between Spyro's path and the view).
+  Other twitches removed: the look-ahead point is smoothed (it used to follow Spyro's near-instant turns), the camera is smoothed as an offset from the pivot (an
+  absolute lerp trailed a running hero by speed / rate metres, and the rate switched with the obstruction, pumping the distance by ~0.7 m), and the obstruction
+  ray is bisected (0.6 m sampling made the pulled-in distance jump in 8 % steps).
+  **Obstacles.** The camera used to be held back by every collider and by the ground, and could come within 1.4 m of Spyro: circling a lone tree it got as close as
+  1.6 m and popped in and out 95 times in 9 s, and at slopes it sat 1.8-3.4 m away for up to 63 % of the time. Now (a) only colliders at least 2.4 m across that are not
+  walk-on surfaces can hold it back (houses, the windmill and observatory towers, gate pillars, big boulders and spires; trees are 0.5-1.1 m, lamp posts 0.3 m, so it
+  slides through them); (b) rising ground behind Spyro makes the camera climb instead of come in: the smallest extra pitch (found by bisection, up to 63 degrees) that
+  clears the terrain at its full distance, smoothed up in ~0.12 s, held 0.5 s and released over ~1.5 s so bumps never bob the view; (c) whatever still blocks it pulls
+  it in at most to 62 % of its distance, over ~0.1 s, and releases after 0.5 s of clear view. The same scenarios now keep the camera at 6.9-7.1 m at the closest
+  (tools/camera-test.mjs checks each rule; the collider survey behind the 2.4 m threshold is in the commit message).
 * **Steering aids:** the touch move stick is a floating circle with a dead zone whose base follows a thumb sliding past the rim (a turn of any size costs at most one
   diameter of thumb travel); breathing fire turns Spyro up to 5.5 rad/s towards the burnable thing nearest to straight ahead inside a 66 degree cone (never against
   a stick pushed the other way).
@@ -121,8 +127,10 @@ ladder of a fourth, a fifth and an octave over the chime's own pitch (all inside
 
 `tools/bot.mjs` walks every road with the real player controller; `tools/playthrough.mjs` completes the whole story
 (every beacon, the puzzle, the glide chain, the gate, the finale). Both run without rendering, so they take seconds.
-`tools/camera-test.mjs` and `tools/control-test.mjs` run the real Player and camera on flat ground with scripted stick input (no browser or server): every mode's behaviour
-under a wobbling, zig-zagging, hopping or sideways thumb, the obstruction hold, the touch stick and the aim assist.
+`tools/camera-test.mjs` and `tools/control-test.mjs` run the real Player, camera and collision layer over fake terrain and props with scripted stick input (no browser or server): every mode's
+behaviour under a wobbling, zig-zagging, hopping or sideways thumb, trees / houses / slopes / bumps around the camera, the settings migration, the touch stick and the aim assist.
+`tools/camera-input-test.mjs` drives the real game loop in the browser: R, the gamepad's Y and the touch CAM button must swing the camera behind Spyro at any frame rate. (They once
+did not: the camera looked for the press after the step loop had already cleared it, so they only worked on frames in which no fixed step ran.)
 `tools/level-check.mjs` builds the level headlessly (no server) and checks the gem economy and a few placements that once went
 wrong: the shrine chest sits seated on its island's level top, and the Dawn Gate's forecourt is dry, gentle and where the ring roads end.
 

@@ -226,7 +226,7 @@ class App {
   /** the camera mode row (pause menu and options): SMART follows you round corners, ACTIVE always swings behind you, PASSIVE never moves by itself */
   _cameraRow() {
     const gfx = this.gfx;
-    return { type: 'choice', label: 'CAMERA', options: CAM_MODES, labels: ['SMART', 'ACTIVE', 'PASSIVE'], get: () => gfx.settings.camMode, set: (i, opts) => gfx.set('camMode', opts[i]) };
+    return { type: 'choice', label: 'CAMERA', options: CAM_MODES, labels: ['ACTIVE', 'SMART', 'PASSIVE'], get: () => gfx.settings.camMode, set: (i, opts) => gfx.set('camMode', opts[i]) };
   }
 
   controlsPage() {

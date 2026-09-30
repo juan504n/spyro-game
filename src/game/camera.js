@@ -1,15 +1,16 @@
-// Third-person chase camera (orbit + optional auto-follow), obstruction avoidance, FOV kicks, screen shake, and a
+// Third-person chase camera (orbit + optional auto-follow), obstruction handling, FOV kicks, screen shake, and a
 // cinematic mode driven by a path function (intro fly-through, sunrise finale, title orbit).
 //
 // Camera modes (Options > CAMERA, key C), after the original games' Active / Passive camera setting:
+//   active   (default) the original's Active camera: it swings after Spyro quickly whenever he is steered off to the side.
+//   smart    a calmer Active: small stick wobbles never move it; pushing forward-and-to-the-side (about 35-75 degrees off straight)
+//            turns it after Spyro, the harder the faster; pure sideways (a strafe) and backwards leave it alone.
 //   passive  the view never turns by itself: it follows Spyro's position and only orbits when you steer it (mouse, right stick,
 //            Q/E, dragging the right side of the screen) or press R / the CAM button to swing it back behind him.
-//   active   the original's Active camera: it swings after Spyro quickly whenever he is steered off to the side.
-//   smart    (default) active, but calm: small stick wobbles never move it; pushing forward-and-to-the-side (about 35-75 degrees off
-//            straight) turns it after Spyro, the harder the faster; pure sideways (a strafe) and backwards leave it alone. The old
-//            camera turned at a fixed rate for ANY forward-ish input, so a thumb resting a few degrees off straight made the
-//            view (and, since steering is camera-relative, Spyro's path) creep round in a circle, and every quick turn of Spyro
-//            panned the look-at point by up to 15 degrees.
+//
+// Obstacles: the camera stays where it is next to trees, lamp posts and other small props (it slides through them); rising ground
+// behind Spyro makes it climb rather than come in close; only big things (houses, towers, gates, boulders) or ground it cannot climb
+// over hold it back, and then only by a little (never closer than CAM.minPull of its distance), calmly, and released slowly.
 import * as THREE from 'three';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -17,7 +18,13 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const angDiff = (a, b) => { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; };
 
-export const CAM_MODES = ['smart', 'active', 'passive'];
+export const CAM_MODES = ['active', 'smart', 'passive'];
+
+const CAM = {
+  clearance: 0.6,   // m: how far above the ground the line from Spyro to the camera stays
+  maxPitch: 1.1,    // rad (63 deg): the highest the camera climbs to look over rising ground; beyond that it comes closer instead
+  minPull: 0.62,    // the share of its distance the camera always keeps, whatever gets in the way (it used to come within 1.4 m)
+};
 
 /**
  * How a mode turns the view after Spyro. The stick angle `a` is measured from straight ahead (0) to sideways (pi/2) to
@@ -56,18 +63,28 @@ export class GameCamera {
     this.pushSide = 0;
     this.pull = 1;                   // usable fraction of the camera distance (obstruction pull-in, with a hold before it eases back out)
     this.clearT = 0;
+    this.lift = 0;                   // extra pitch (rad) that lets the camera look over rising ground behind Spyro
+    this.liftT = 0;
     this.lx = 0; this.lz = 0;        // smoothed look-ahead offset (metres)
     this._tmp = new THREE.Vector3();
   }
 
   /** the camera mode in force (from the options) */
-  get mode() { const m = this.game.gfx?.settings?.camMode; return AUTO[m] ? m : 'smart'; }
+  get mode() { const m = this.game.gfx?.settings?.camMode; return AUTO[m] ? m : 'active'; }
 
   /** Jump the camera behind the player instantly. */
   snapBehind(player) {
     this.yaw = player.yaw;
     this.pitch = 0.3;
     this.snapNext = true;
+    this.pushT = 0;
+  }
+
+  /** R / gamepad Y / the CAM button: swing the view round to sit behind Spyro again and level the pitch. */
+  swingBehind(player) {
+    this.yaw = player.yaw;
+    this.pitch = 0.32;
+    this.lastManual = -10;
     this.pushT = 0;
   }
 
@@ -109,7 +126,7 @@ export class GameCamera {
     let manual = false;
     if (look.x || look.y) { this.yaw -= look.x * speedK; this.pitch += look.y * inv * speedK; manual = true; }
     if (sl.x || sl.y) { this.yaw -= sl.x * 2.3 * dt * speedK; this.pitch += sl.y * 1.6 * dt * inv * speedK; manual = true; }
-    if (input.pressed('camReset')) { this.yaw = player.yaw; this.pitch = 0.32; manual = false; this.lastManual = -10; this.pushT = 0; }
+    // (R / pad Y / the CAM button are handled by Game.step -> swingBehind(): a press is cleared by input.endStep() before this runs)
     if (manual) { this.lastManual = this.time; this.pushT = 0; }
     this.pitch = clamp(this.pitch, -0.12, 1.28);
 
@@ -132,32 +149,36 @@ export class GameCamera {
     this.dist = lerp(this.dist, dTarget, Math.min(1, dt * (dTarget > this.dist ? 2.0 : 1.5)));
     this.fov = lerp(this.fov, fTarget, Math.min(1, dt * 4));
 
-    // ---- desired position with obstruction pull-in ------------------------------------------------------------------
-    const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
+    // ---- desired position: over the ground, held back only by big things ----------------------------------------------------------
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
     const ax = this.tx, ay = this.ty + 0.25, az = this.tz;     // pivot
+    const col = this.game.collision;
+    // (1) Rising ground behind Spyro (a slope, a ridge, an "edge") used to shove the camera in close. Now it climbs instead: `lift` is the
+    // extra pitch that lets it look over the ground at its full distance. Up quickly, held for a moment, then down slowly, so bumps in the
+    // ground never bob the view.
+    const need = this._liftNeeded(col, ax, ay, az, fx, fz);
+    if (this.snapNext) { this.lift = need; this.liftT = 0; }
+    if (need >= this.lift) { this.lift = lerp(this.lift, need, 1 - Math.exp(-8 * dt)); this.liftT = 0.5; }
+    else { this.liftT -= dt; if (this.liftT <= 0) this.lift = lerp(this.lift, need, 1 - Math.exp(-1.8 * dt)); }
+    const pe = clamp(this.pitch + this.lift, -0.12, CAM.maxPitch);
+    const cp = Math.cos(pe), sp = Math.sin(pe);
     let d = this.dist;
     let ox = -fx * d * cp, oy = sp * d, oz = -fz * d * cp;      // offset of the camera from the pivot
-    const col = this.game.collision;
-    const f = col.rayFraction(ax, ay, az, ax + ox, ay + oy, az + oz, 0.45);
-    // How much of the full distance is usable. It drops at once when something gets in the way, but climbs back only after the
-    // way has been clear for a moment and then gently: passing a row of trees or a fence used to pop the camera in and out
-    // once per obstacle, which read as a twitchy camera.
-    if (this.snapNext) { this.pull = f; this.clearT = 0; }
-    if (f < this.pull) { this.pull = f; this.clearT = 0; }
-    else if (f < 1 && f < this.pull + 0.02) this.clearT = 0;                 // (still up against the same obstruction: keep the distance)
-    else {
-      this.clearT += dt;
-      if (this.clearT > 0.4) this.pull = lerp(this.pull, f, 1 - Math.exp(-3.5 * dt));
-    }
-    if (this.pull < 1) { d = Math.max(1.4, d * this.pull); ox = -fx * d * cp; oy = sp * d; oz = -fz * d * cp; }
+    // (2) What still gets in the way (ground that cannot be climbed, and only BIG colliders: houses, towers, gates, boulders; trees, lamp posts
+    // and other small props are ignored) pulls the camera in a little: never closer than CAM.minPull of its distance, in over ~0.1 s,
+    // and back out only after the way has been clear for a while.
+    const f = col.rayFraction(ax, ay, az, ax + ox, ay + oy, az + oz, 0.45, true);
+    const want = Math.max(f, CAM.minPull);
+    if (this.snapNext) { this.pull = want; this.clearT = 0; }
+    if (want < this.pull) { this.pull = lerp(this.pull, want, 1 - Math.exp(-9 * dt)); this.clearT = 0; }
+    else if (want < 1 && want < this.pull + 0.02) this.clearT = 0;           // (still up against the same obstruction: keep the distance)
+    else { this.clearT += dt; if (this.clearT > 0.5) this.pull = lerp(this.pull, want, 1 - Math.exp(-2.2 * dt)); }
+    if (this.pull < 1) { d *= this.pull; ox = -fx * d * cp; oy = sp * d; oz = -fz * d * cp; }
     // The camera is smoothed as an OFFSET from the (already smoothed) pivot, not as an absolute position: an absolute lerp trails a
-    // running hero by speed / rate metres, and since the rate was switched with the obstruction (42 when blocked, 11 when clear) the
-    // trailing distance pumped by ~0.7 m every time something came or went.
+    // running hero by speed / rate metres, and when the rate changed with the obstruction the trailing distance pumped.
     if (this.snapNext) this.off.set(ox, oy, oz);
     else {
-      const inward = ox * ox + oy * oy + oz * oz < this.off.lengthSq();
-      const k = 1 - Math.exp(-(inward && f < 1 ? 26 : 13) * dt);            // pull in fast (but not in one pop), ease back out gently
+      const k = 1 - Math.exp(-14 * dt);
       this.off.x = lerp(this.off.x, ox, k); this.off.y = lerp(this.off.y, oy, k); this.off.z = lerp(this.off.z, oz, k);
     }
     this.pos.set(ax + this.off.x, ay + this.off.y, az + this.off.z);
@@ -172,6 +193,29 @@ export class GameCamera {
     this.look.set(this.tx + this.lx, this.ty + 0.05, this.tz + this.lz);
     this.snapNext = false;
     this._apply(dt, false);
+  }
+
+  /**
+   * The extra pitch (beyond this.pitch) that lets the camera, at its full distance, look over the ground behind the pivot; 0 when the
+   * ground is already clear. Found by bisection: raising the camera both lifts the line and shortens its reach, so "clear" is monotone
+   * in the pitch. When even CAM.maxPitch cannot clear it the rest is left to the pull-in (which is limited).
+   */
+  _liftNeeded(col, ax, ay, az, fx, fz) {
+    const p0 = this.pitch, d = this.dist;
+    const clear = (p) => {
+      const reach = d * Math.cos(p), tp = Math.tan(p);
+      for (let s = 1.5; ; s += 0.75) {
+        const q = Math.min(s, reach);
+        if (col.heightAt(ax - fx * q, az - fz * q) + CAM.clearance > ay + tp * q) return false;
+        if (q >= reach) return true;
+      }
+    };
+    if (clear(p0)) return 0;
+    const top = Math.max(p0, CAM.maxPitch);
+    if (!clear(top)) return top - p0;
+    let lo = p0, hi = top;
+    for (let i = 0; i < 7; i++) { const mid = (lo + hi) / 2; if (clear(mid)) hi = mid; else lo = mid; }
+    return hi - p0;
   }
 
   /**

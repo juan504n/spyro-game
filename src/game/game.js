@@ -234,7 +234,11 @@ export class Game {
     }
     const p = this.player;
     if (this.mode === 'play' || this.mode === 'complete') this.stats.time += dt;
-    if (this.mode === 'play' && !this.locked && this.input.pressed('camMode')) this.cycleCameraMode();
+    if (this.mode === 'play' && !this.locked && !this.cam.inCinematic) {
+      // (read here, not in the camera's own update: that runs after this step loop, by which time input.endStep() has cleared the press)
+      if (this.input.pressed('camReset')) this.cam.swingBehind(p);
+      if (this.input.pressed('camMode')) this.cycleCameraMode();
+    }
     p.update(dt, this.input, this.cam.yaw);
     // flame breath particles
     if (p.flameT > 0 && !p.dead) this.fx.flameBreath(p.mouth.x, p.mouth.y, p.mouth.z, p.dirx, p.dirz, 1);

@@ -8,6 +8,12 @@
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 export const SLOPE_WALK = 0.56;      // min normal.y considered walkable (~56 degrees; the valley rim is far steeper)
+/**
+ * Only colliders at least this big (radius / half-extent, metres) can hold the chase camera back, and never walk-on surfaces
+ * (decks, stair treads, dais). That is houses, towers, the windmill, gate pillars, big boulders and spires. Trees (r 0.5-1.1), lamp posts,
+ * standing stones, small rocks, fences and stalls do not: the camera slides through them, so passing a tree never zooms it in.
+ */
+export const CAM_BLOCK_SIZE = 2.4;
 
 export class Collision {
   constructor(grid, colliders = []) {
@@ -23,6 +29,7 @@ export class Collision {
 
   add(c) {
     if (c.solid === undefined) c.solid = true;
+    if (c.cam === undefined) c.cam = !c.top && (c.type === 'cyl' ? c.r : Math.max(c.hx, c.hz)) >= CAM_BLOCK_SIZE;     // (may it hold the camera back?)
     this.colliders.push(c);
     // (+ the largest entity radius: near() only looks at the entity's own cell, so a collider must also be listed in the
     // neighbouring cells an entity touching it can stand in)
@@ -120,12 +127,12 @@ export class Collision {
     return contact;
   }
 
-  /** First solid collider whose volume contains the 3D point (used for camera/rays). */
-  blocking(x, y, z, pad = 0) {
+  /** First solid collider whose volume contains the 3D point (used for camera/rays). camOnly: only those that may hold the camera back. */
+  blocking(x, y, z, pad = 0, camOnly = false) {
     const list = this.near(x, z);
     for (let k = 0; k < list.length; k++) {
       const c = list[k];
-      if (!c.solid || y < c.y0 - pad || y > c.y1 + pad) continue;
+      if (!c.solid || (camOnly && !c.cam) || y < c.y0 - pad || y > c.y1 + pad) continue;
       if (this.inside(c, x, z, pad)) return c;
     }
     return null;
@@ -136,13 +143,14 @@ export class Collision {
    * (terrain or solid collider), or 1 if clear. `pad` grows obstacles (camera radius).
    * The march samples every 0.6 m, then bisects the last gap so the fraction is continuous: the coarse steps alone made the
    * result jump in ~8 % increments as the ray slid along an obstacle, and the camera followed each jump.
+   * camOnly: the chase camera's question: the ground, and only the colliders big enough to hold a camera back (see CAM_BLOCK_SIZE).
    */
-  rayFraction(ax, ay, az, bx, by, bz, pad = 0.3) {
+  rayFraction(ax, ay, az, bx, by, bz, pad = 0.3, camOnly = false) {
     const len = Math.hypot(bx - ax, by - ay, bz - az);
     const steps = Math.max(2, Math.ceil(len / 0.6));
     const hit = (t) => {
       const x = ax + (bx - ax) * t, y = ay + (by - ay) * t, z = az + (bz - az) * t;
-      return this.grid.heightAt(x, z) + pad > y || !!this.blocking(x, y, z, pad * 0.5);
+      return this.grid.heightAt(x, z) + pad > y || !!this.blocking(x, y, z, pad * 0.5, camOnly);
     };
     for (let i = 1; i <= steps; i++) {
       if (!hit(i / steps)) continue;

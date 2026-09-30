@@ -20,7 +20,8 @@ export const DEFAULT_SETTINGS = {
   music: 0.8,
   sfx: 1,
   invertY: false,
-  camMode: 'smart',   // 'smart' (turns after you only for a clear sideways push) | 'active' (always swings behind you, like the original's Active) | 'passive' (never moves by itself)
+  camMode: 'active',  // 'active' (swings behind you, like the original's Active camera) | 'smart' (a calmer Active) | 'passive' (never moves by itself)
+  camVersion: 2,      // 1: the default was 'smart' (saved along with any other option that was changed); 2: it is 'active'
   lookSpeed: 0.5,     // 0..1 -> mouse / stick / touch camera speed x0.4 .. x1.6 (0.5 = x1)
   aimAssist: true,    // breathing fire nudges Spyro round towards a brazier / beacon / Snuffer in front of him
 };
@@ -43,7 +44,8 @@ function sanitize(s) {
   s.snap = s.snap ? 1 : 0;
   s.fps30 = !!s.fps30;
   s.invertY = !!s.invertY;
-  if (!['smart', 'active', 'passive'].includes(s.camMode)) s.camMode = 'smart';
+  if (!['active', 'smart', 'passive'].includes(s.camMode)) s.camMode = DEFAULT_SETTINGS.camMode;
+  s.camVersion = 2;
   s.lookSpeed = num(s.lookSpeed, DEFAULT_SETTINGS.lookSpeed);
   s.aimAssist = s.aimAssist !== false;
   return s;
@@ -57,7 +59,12 @@ export function loadSettings() {
     const raw = localStorage.getItem(STORE_KEY);
     if (raw) {
       const saved = JSON.parse(raw);
-      if (saved && typeof saved === 'object') return sanitize({ ...base, ...saved });
+      if (saved && typeof saved === 'object') {
+        // 'smart' was the default until Active took over: one saved from that time is the old default, not a choice, so it moves over once
+        // (a 'smart' picked afterwards is saved with camVersion 2 and stays)
+        if ((saved.camVersion | 0) < 2 && saved.camMode === 'smart') saved.camMode = 'active';
+        return sanitize({ ...base, ...saved });
+      }
     }
   } catch (e) { /* storage unavailable (private mode / sandboxed frame) or corrupt JSON */ }
   return sanitize(base);
