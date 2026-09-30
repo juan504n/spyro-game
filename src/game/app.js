@@ -481,8 +481,7 @@ class App {
       if (!touch && !pad) drawText(pix, 'OR CLICK', W >> 1, Math.round(H * 0.74) + 24, { style: 'outline', align: 'center', color: '#c8bce8', outlineColor: INK });
     }
     if (dim) return;                                       // (a menu is open over the title: its own footer lives down here)
-    drawText(pix, touch ? 'TAP MENU FOR OPTIONS' : pad ? 'START: MENU' : 'ESC: MENU', W >> 1, H - 24, { style: 'outline', align: 'center', color: '#c8bce8', outlineColor: INK });
-    drawText(pix, 'FAN-MADE TRIBUTE  -  NOT AFFILIATED WITH ACTIVISION', W >> 1, H - 12, { style: 'outline', align: 'center', color: '#8a7cb8', outlineColor: INK });
+    drawText(pix, touch ? 'TAP MENU FOR OPTIONS' : pad ? 'START: MENU' : 'ESC: MENU', W >> 1, H - 12, { style: 'outline', align: 'center', color: '#c8bce8', outlineColor: INK });
   }
 
   _drawIntro() {
