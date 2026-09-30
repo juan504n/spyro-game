@@ -134,15 +134,21 @@ export class Collision {
   /**
    * March a segment (a -> b, each [x,y,z]) and return the fraction 0..1 of the first obstruction
    * (terrain or solid collider), or 1 if clear. `pad` grows obstacles (camera radius).
+   * The march samples every 0.6 m, then bisects the last gap so the fraction is continuous: the coarse steps alone made the
+   * result jump in ~8 % increments as the ray slid along an obstacle, and the camera followed each jump.
    */
   rayFraction(ax, ay, az, bx, by, bz, pad = 0.3) {
     const len = Math.hypot(bx - ax, by - ay, bz - az);
     const steps = Math.max(2, Math.ceil(len / 0.6));
-    for (let i = 1; i <= steps; i++) {
-      const t = i / steps;
+    const hit = (t) => {
       const x = ax + (bx - ax) * t, y = ay + (by - ay) * t, z = az + (bz - az) * t;
-      if (this.grid.heightAt(x, z) + pad > y) return (i - 1) / steps;
-      if (this.blocking(x, y, z, pad * 0.5)) return (i - 1) / steps;
+      return this.grid.heightAt(x, z) + pad > y || !!this.blocking(x, y, z, pad * 0.5);
+    };
+    for (let i = 1; i <= steps; i++) {
+      if (!hit(i / steps)) continue;
+      let lo = (i - 1) / steps, hi = i / steps;
+      for (let k = 0; k < 5; k++) { const mid = (lo + hi) / 2; if (hit(mid)) hi = mid; else lo = mid; }
+      return lo;
     }
     return 1;
   }

@@ -96,6 +96,7 @@ export function createPortcullis(assets, opts = {}) {
     opening: { w: OPEN_W, h: OPEN_H },
     frame,
     get open() { return st.target; },
+    get raised() { return st.k; },             // how far the grate has actually been hauled up (0..1), as opposed to `open`, where it is heading
     setOpen(k) { st.target = clamp(k); },
     update(dt, pose) {
       pose = pose || {};

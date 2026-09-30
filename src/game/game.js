@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { Assets } from './assets.js';
 import { Input } from './input.js';
 import { Collision } from './collision.js';
-import { GameCamera } from './camera.js';
+import { GameCamera, CAM_MODES } from './camera.js';
 import { Player } from './player.js';
 import { LEVEL } from './level.js';
 import { buildWorldAsync } from './world.js';
@@ -23,6 +23,11 @@ import { Ambient } from './systems/ambient.js';
 import { NpcSystem } from './systems/npc.js';
 
 export const STEP = 1 / 60;
+const CAMERA_HINT = {
+  smart: 'CAMERA: SMART - FOLLOWS YOU AROUND CORNERS',
+  active: 'CAMERA: ACTIVE - ALWAYS SWINGS BEHIND YOU',
+  passive: 'CAMERA: PASSIVE - STAYS WHERE YOU LEAVE IT',
+};
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 export class Game {
@@ -145,6 +150,15 @@ export class Game {
     p.on.bounce = () => {};
   }
 
+  /** C key / holding the CAM button: smart -> active -> passive -> smart, saved with the other options. */
+  cycleCameraMode() {
+    const next = CAM_MODES[(CAM_MODES.indexOf(this.cam.mode) + 1) % CAM_MODES.length];
+    this.gfx.set('camMode', next);
+    this.hud.hint(CAMERA_HINT[next], 3.2);
+    this.audio?.sfx('ui_move', { vol: 0.5 });
+    return next;
+  }
+
   /** A hostile touched the player. Sparx absorbs one hit; without him it's lights out. */
   playerHurt(fromX, fromZ) {
     const p = this.player;
@@ -220,6 +234,7 @@ export class Game {
     }
     const p = this.player;
     if (this.mode === 'play' || this.mode === 'complete') this.stats.time += dt;
+    if (this.mode === 'play' && !this.locked && this.input.pressed('camMode')) this.cycleCameraMode();
     p.update(dt, this.input, this.cam.yaw);
     // flame breath particles
     if (p.flameT > 0 && !p.dead) this.fx.flameBreath(p.mouth.x, p.mouth.y, p.mouth.z, p.dirx, p.dirz, 1);

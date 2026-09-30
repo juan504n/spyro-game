@@ -236,7 +236,12 @@ export class ObjectSystem {
       m.squash = Math.max(0, m.squash - dt * 2.6);
       m.model.update?.(dt, { squash: m.squash, t });
     }
-    if (this.portcullis) this.portcullis.model.setOpen?.(this.portcullis.open);
+    if (this.portcullis) {
+      // (the grate only moves inside the model's own update(): setOpen just sets its target, so without this call the bars
+      // stayed on the door for good while the collider opened underneath them)
+      this.portcullis.model.setOpen?.(this.portcullis.open);
+      this.portcullis.model.update?.(dt, { t });
+    }
     if (this.barrier) {
       this.barrier.model.setOpen?.(this.barrier.open);
       this.barrier.model.update?.(dt, { t });

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Game } from './game.js';
 import { populate } from './levelgen/index.js';
 import { Menu } from './menu.js';
+import { CAM_MODES } from './camera.js';
 import { Hud } from './hud.js';
 import { titleShot, introShot, finaleShot } from './cinematics.js';
 import { makeLogo, drawPanel } from '../engine/textures/ui.js';
@@ -213,6 +214,7 @@ class App {
       title: 'PAUSED', width: 210, closable: true, onBack: () => this.closePause(),
       items: [
         { type: 'action', label: 'RESUME', action: () => this.closePause() },
+        this._cameraRow(),
         { type: 'action', label: 'OPTIONS', action: (m) => m.open(this.optionsPage()) },
         { type: 'action', label: 'CONTROLS', action: (m) => m.open(this.controlsPage()) },
         { type: 'action', label: 'RESTART REALM', action: () => { location.href = location.pathname + '?skip=1'; } },
@@ -221,13 +223,19 @@ class App {
     };
   }
 
+  /** the camera mode row (pause menu and options): SMART follows you round corners, ACTIVE always swings behind you, PASSIVE never moves by itself */
+  _cameraRow() {
+    const gfx = this.gfx;
+    return { type: 'choice', label: 'CAMERA', options: CAM_MODES, labels: ['SMART', 'ACTIVE', 'PASSIVE'], get: () => gfx.settings.camMode, set: (i, opts) => gfx.set('camMode', opts[i]) };
+  }
+
   controlsPage() {
     const dev = this.game.input.lastDevice;
     const lines = dev === 'touch'
-      ? ['MOVE ........ LEFT THUMB', 'JUMP ........ JUMP  (HOLD IN AIR: GLIDE)', 'FIRE ........ FIRE BUTTON', 'CHARGE ...... HOLD THE RAM BUTTON', 'CAMERA ...... DRAG THE RIGHT SIDE', 'TALK ........ TALK BUTTON   PAUSE ... II']
+      ? ['MOVE ........ LEFT THUMB (THE CIRCLE)', 'JUMP ........ JUMP  (HOLD IN AIR: GLIDE)', 'FIRE ........ FIRE BUTTON (AIMS FOR YOU)', 'CHARGE ...... HOLD THE RAM BUTTON', 'CAMERA ...... DRAG THE RIGHT SIDE', 'CAM BUTTON .. TAP: BEHIND ME  HOLD: MODE', 'TALK ........ TALK BUTTON   PAUSE ... II']
       : dev === 'pad'
-        ? ['MOVE ........ LEFT STICK / D-PAD', 'JUMP ........ A  (HOLD IN AIR: GLIDE)', 'FIRE ........ X', 'CHARGE ...... HOLD B', 'CAMERA ...... RIGHT STICK / BUMPERS', 'TALK ........ RT   PAUSE ... START']
-        : ['MOVE ........ WASD / ARROWS', 'JUMP ........ SPACE  (HOLD IN AIR: GLIDE)', 'FIRE ........ J / F / LEFT CLICK', 'CHARGE ...... HOLD K / SHIFT / RIGHT CLICK', 'CAMERA ...... MOUSE / Q E   R: RESET', 'TALK ........ ENTER   PAUSE ... ESC'];
+        ? ['MOVE ........ LEFT STICK / D-PAD', 'JUMP ........ A  (HOLD IN AIR: GLIDE)', 'FIRE ........ X', 'CHARGE ...... HOLD B', 'CAMERA ...... RIGHT STICK / BUMPERS', 'BEHIND ME ... Y   MODE: PAUSE > CAMERA', 'TALK ........ RT   PAUSE ... START']
+        : ['MOVE ........ WASD / ARROWS', 'JUMP ........ SPACE  (HOLD IN AIR: GLIDE)', 'FIRE ........ J / F / LEFT CLICK', 'CHARGE ...... HOLD K / SHIFT / RIGHT CLICK', 'CAMERA ...... MOUSE / Q E', 'BEHIND ME ... R   CAMERA MODE ... C', 'TALK ........ ENTER   PAUSE ... ESC'];
     return {
       title: 'CONTROLS', width: 280, items: [{ type: 'action', label: 'BACK', action: (m) => m.close() }], footer: '',
       extra: lines,
@@ -245,6 +253,8 @@ class App {
       items: [
         { type: 'slider', label: 'MUSIC', get: () => gfx.settings.music, set: (v) => { gfx.set('music', v); this.audio?.setVolumes?.({ music: v }); } },
         { type: 'slider', label: 'SOUND FX', get: () => gfx.settings.sfx, set: (v) => { gfx.set('sfx', v); this.audio?.setVolumes?.({ sfx: v }); } },
+        this._cameraRow(),
+        { type: 'slider', label: 'CAMERA SPEED', get: () => gfx.settings.lookSpeed, set: (v) => gfx.set('lookSpeed', v) },
         { type: 'choice', label: 'DISPLAY', options: ['4:3', 'wide'], labels: ['4:3 CLASSIC', 'WIDESCREEN'], get: () => gfx.settings.display, set: set('display') },
         { type: 'choice', label: 'SCALING', options: ['auto', 'integer', 'fill'], labels: ['AUTO', 'INTEGER', 'FILL'], get: () => gfx.settings.scaling, set: set('scaling') },
         { type: 'choice', label: 'LOOK', options: ['smooth', 'ps1', 'custom'], labels: ['SMOOTH', 'PS1 AUTHENTIC', 'CUSTOM'], get: () => gfx.look, set: (i, opts) => { if (opts[i] !== 'custom') gfx.setLook(opts[i]); } },
@@ -257,6 +267,7 @@ class App {
         { type: 'choice', label: 'TEXTURE WARP', options: pctOpts.concat([]).map((v) => v), labels: ['OFF', 'HALF', 'FULL'], get: () => gfx.settings.affine, set: set('affine') },
         { type: 'toggle', label: '30 FPS LOCK', get: () => !!gfx.settings.fps30, set: (v) => gfx.set('fps30', v) },
         { type: 'toggle', label: 'INVERT CAMERA Y', get: () => !!gfx.settings.invertY, set: (v) => gfx.set('invertY', v) },
+        { type: 'toggle', label: 'FIRE AIM ASSIST', get: () => gfx.settings.aimAssist !== false, set: (v) => gfx.set('aimAssist', v) },
         { type: 'action', label: 'BACK', action: (m) => m.close() },
       ],
       footer: 'LEFT / RIGHT TO CHANGE',

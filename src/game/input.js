@@ -1,12 +1,15 @@
 // Unified input: keyboard, mouse (drag or pointer-lock look), gamepad and on-screen touch controls.
 // The sim runs on a fixed step, so "pressed" edges live until the sim consumes them (endStep()).
+import { FloatingStick } from './touchstick.js';
 
-const ACTIONS = ['jump', 'flame', 'charge', 'confirm', 'talk', 'pause', 'camReset', 'back'];
+const ACTIONS = ['jump', 'flame', 'charge', 'confirm', 'talk', 'pause', 'camReset', 'camMode', 'back'];
 
 const KEYMAP = {
   Space: 'jump', KeyJ: 'flame', KeyF: 'flame', KeyK: 'charge', ShiftLeft: 'charge', ShiftRight: 'charge',
-  Enter: 'confirm', Escape: 'pause', KeyP: 'pause', KeyR: 'camReset', Backspace: 'back',
+  Enter: 'confirm', Escape: 'pause', KeyP: 'pause', KeyR: 'camReset', KeyC: 'camMode', Backspace: 'back',
 };
+
+const TOUCH_LOOK = 0.0042;      // camera radians per pixel of a right-thumb drag (mouse: 0.0032). It was 0.006, which swung the view too far for a small flick.
 
 export class Input {
   constructor(canvas) {
@@ -104,24 +107,38 @@ export class Input {
   relock() { if (this.lastDevice === 'keyboard' && !this.locked) this._tryLock(); }
 
   _bindTouch() {
-    const t = (this.touch = { stick: null, look: null, sx: 0, sy: 0, active: false });
+    const stick = new FloatingStick();
+    const t = (this.touch = { stick: null, look: null, active: false, pad: stick });
     const root = document.createElement('div');
     root.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:5;touch-action:none;font-family:monospace';
     const mk = (label, right, bottom, size, action, color) => {
       const b = document.createElement('div');
       b.textContent = label;
       b.style.cssText = `position:absolute;right:${right}px;bottom:${bottom}px;width:${size}px;height:${size}px;border-radius:50%;background:${color};border:3px solid rgba(255,255,255,.55);color:#fff;font:bold ${size * 0.3}px monospace;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none;opacity:.72;user-select:none;-webkit-user-select:none;text-shadow:0 2px 0 #000`;
-      const down = (e) => { e.preventDefault(); this.lastDevice = 'touch'; this.anyKey = true; this._press(action); b.style.opacity = '1'; };
-      const up = (e) => { e.preventDefault(); this._release(action); b.style.opacity = '.72'; };
-      b.addEventListener('touchstart', down, { passive: false });
-      b.addEventListener('touchend', up, { passive: false });
-      b.addEventListener('touchcancel', up, { passive: false });
+      if (action) {
+        const down = (e) => { e.preventDefault(); this.lastDevice = 'touch'; this.anyKey = true; this._press(action); b.style.opacity = '1'; };
+        const up = (e) => { e.preventDefault(); this._release(action); b.style.opacity = '.72'; };
+        b.addEventListener('touchstart', down, { passive: false });
+        b.addEventListener('touchend', up, { passive: false });
+        b.addEventListener('touchcancel', up, { passive: false });
+      }
       root.appendChild(b);
       return b;
     };
     mk('JUMP', 26, 34, 74, 'jump', 'rgba(60,150,90,.55)');
     mk('FIRE', 112, 24, 62, 'flame', 'rgba(220,110,30,.55)');
     mk('RAM', 26, 124, 62, 'charge', 'rgba(140,70,200,.55)');
+    // CAM: a tap swings the camera back behind Spyro (the R key); holding it for a moment switches the camera mode (the C key)
+    {
+      const cam = mk('CAM', 30, 196, 46, null, 'rgba(50,130,190,.55)');
+      let timer = 0, long = false;
+      const down = (e) => { e.preventDefault(); this.lastDevice = 'touch'; this.anyKey = true; long = false; cam.style.opacity = '1'; clearTimeout(timer); timer = setTimeout(() => { long = true; this._press('camMode'); this._release('camMode'); }, 600); };
+      const up = (e) => { e.preventDefault(); cam.style.opacity = '.72'; clearTimeout(timer); if (!long && e.type === 'touchend') { this._press('camReset'); this._release('camReset'); } };
+      cam.addEventListener('touchstart', down, { passive: false });
+      cam.addEventListener('touchend', up, { passive: false });
+      cam.addEventListener('touchcancel', up, { passive: false });
+      this.camBtn = cam;
+    }
     this.talkBtn = mk('TALK', 112, 96, 58, 'talk', 'rgba(50,110,200,.65)');    // only shown next to someone who wants to talk
     this.talkBtn.style.display = 'none';
     const pause = document.createElement('div');
@@ -130,9 +147,10 @@ export class Input {
     pause.addEventListener('touchstart', (e) => { e.preventDefault(); this._press('pause'); this._release('pause'); }, { passive: false });
     root.appendChild(pause);
     const ring = document.createElement('div');
-    ring.style.cssText = 'position:absolute;width:110px;height:110px;border-radius:50%;border:3px solid rgba(255,255,255,.4);background:rgba(255,255,255,.08);display:none;pointer-events:none';
+    // (clearly visible on grass, cobbles and water alike: a light ring with a dark hairline, and a solid nub)
+    ring.style.cssText = 'position:absolute;width:110px;height:110px;border-radius:50%;border:3px solid rgba(255,255,255,.62);background:rgba(255,255,255,.14);box-shadow:0 0 0 2px rgba(20,10,40,.35),inset 0 0 14px rgba(20,10,40,.25);display:none;pointer-events:none';
     const nub = document.createElement('div');
-    nub.style.cssText = 'position:absolute;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.55);left:32px;top:32px';
+    nub.style.cssText = 'position:absolute;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.82);border:2px solid rgba(20,10,40,.4);box-sizing:border-box;left:32px;top:32px';
     ring.appendChild(nub);
     root.appendChild(ring);
     // portrait phones get a tiny frame: suggest landscape
@@ -156,7 +174,7 @@ export class Input {
         taps.set(tc.identifier, { t: performance.now(), x: tc.clientX, y: tc.clientY, moved: false });
         this.ptr.x = tc.clientX; this.ptr.y = tc.clientY; this.ptr.moved = true;
         const left = tc.clientX < window.innerWidth * 0.45;
-        if (left && !t.stick) { t.stick = tc.identifier; t.sx = tc.clientX; t.sy = tc.clientY; ring.style.display = 'block'; ring.style.left = tc.clientX - 55 + 'px'; ring.style.top = tc.clientY - 55 + 'px'; own.set(tc.identifier, 'stick'); }
+        if (left && !t.stick) { t.stick = tc.identifier; stick.start(tc.clientX, tc.clientY); ring.style.display = 'block'; ring.style.left = tc.clientX - 55 + 'px'; ring.style.top = tc.clientY - 55 + 'px'; own.set(tc.identifier, 'stick'); }
         else if (!left && t.look === null) { t.look = tc.identifier; t.lx = tc.clientX; t.ly = tc.clientY; own.set(tc.identifier, 'look'); }
       }
     }, { passive: false });
@@ -167,14 +185,13 @@ export class Input {
         if (tp && !tp.moved && Math.hypot(tc.clientX - tp.x, tc.clientY - tp.y) > 12) tp.moved = true;
         this.ptr.x = tc.clientX; this.ptr.y = tc.clientY; this.ptr.moved = true;
         if (tc.identifier === t.stick) {
-          const dx = tc.clientX - t.sx, dy = tc.clientY - t.sy;
-          const l = Math.hypot(dx, dy), m = 52;
-          const k = l > m ? m / l : 1;
-          this.move.x = (dx * k) / m; this.move.y = (-dy * k) / m;
-          nub.style.left = 32 + dx * k * 0.9 + 'px'; nub.style.top = 32 + dy * k * 0.9 + 'px';
+          stick.move(tc.clientX, tc.clientY);
+          this.move.x = stick.x; this.move.y = stick.y;
+          ring.style.left = stick.bx - 55 + 'px'; ring.style.top = stick.by - 55 + 'px';         // (the circle follows a thumb that slides past its rim)
+          nub.style.left = 32 + stick.dx * 0.9 + 'px'; nub.style.top = 32 + stick.dy * 0.9 + 'px';
           t.active = true;
         } else if (tc.identifier === t.look) {
-          this.look.x += (tc.clientX - t.lx) * 0.006; this.look.y += (tc.clientY - t.ly) * 0.006;
+          this.look.x += (tc.clientX - t.lx) * TOUCH_LOOK; this.look.y += (tc.clientY - t.ly) * TOUCH_LOOK;
           t.lx = tc.clientX; t.ly = tc.clientY;
         }
       }
@@ -187,7 +204,7 @@ export class Input {
           this._press('confirm', true); this._release('confirm');
           this.ptr.x = tp.x; this.ptr.y = tp.y; this.ptr.tap = true;
         }
-        if (tc.identifier === t.stick) { t.stick = null; t.active = false; this.move.x = 0; this.move.y = 0; ring.style.display = 'none'; nub.style.left = '32px'; nub.style.top = '32px'; }
+        if (tc.identifier === t.stick) { t.stick = null; t.active = false; stick.end(); this.move.x = 0; this.move.y = 0; ring.style.display = 'none'; nub.style.left = '32px'; nub.style.top = '32px'; }
         if (tc.identifier === t.look) t.look = null;
       }
     };

@@ -20,6 +20,9 @@ export const DEFAULT_SETTINGS = {
   music: 0.8,
   sfx: 1,
   invertY: false,
+  camMode: 'smart',   // 'smart' (turns after you only for a clear sideways push) | 'active' (always swings behind you, like the original's Active) | 'passive' (never moves by itself)
+  lookSpeed: 0.5,     // 0..1 -> mouse / stick / touch camera speed x0.4 .. x1.6 (0.5 = x1)
+  aimAssist: true,    // breathing fire nudges Spyro round towards a brazier / beacon / Snuffer in front of him
 };
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -40,6 +43,9 @@ function sanitize(s) {
   s.snap = s.snap ? 1 : 0;
   s.fps30 = !!s.fps30;
   s.invertY = !!s.invertY;
+  if (!['smart', 'active', 'passive'].includes(s.camMode)) s.camMode = 'smart';
+  s.lookSpeed = num(s.lookSpeed, DEFAULT_SETTINGS.lookSpeed);
+  s.aimAssist = s.aimAssist !== false;
   return s;
 }
 

@@ -82,6 +82,19 @@ Sparx, the dragonfly, is the health bar: three hits, shown by his colour. Scorch
   capped so that a burst of pickups never lifts a digit above 12 px. It slides in from above on the first pickup, stays for 2.6 s after the last
   one and slides out; it also goes away at once whenever the HUD is hidden (title, cinematics). While it is hidden the extra render pass is skipped.
 * **Camera:** chase camera at a fixed distance that pulls in when something blocks it, plus authored cinematic shots for the title, intro and finale.
+  The chase camera has three modes, after the original games' Active / Passive camera setting (research: the manual describes Active as "moves right along
+  with you", Passive as slow, letting you "run around without moving the camera"; players describe Active as swinging Spyro round in wide arcs and Passive
+  as absolute sideways movement). **Passive** never turns by itself. **Active** turns after Spyro at up to 2.3 rad/s for even a small sideways lean.
+  **Smart** (default) is a calmer Active: nothing happens inside a 35 degree dead zone around straight ahead (a touch thumb always wanders), the rate ramps
+  up to 1 rad/s by about 55 degrees after a 0.3 s hold on one side, and a pure strafe or a step back never moves the view. The rate depends on the stick angle
+  from straight ahead (steering is camera-relative, so that angle IS the angle between Spyro's path and the view); the old camera turned at a fixed 66 degrees per
+  second for any forward-ish push, so a thumb resting 25 degrees off straight made the world creep round in circles. Other twitches removed: the look-ahead point
+  is smoothed (it used to follow Spyro's near-instant turns), the camera is smoothed as an offset from the pivot (an absolute lerp trailed a running hero by
+  speed / rate metres, and the rate switched with the obstruction, pumping the distance by ~0.7 m), the obstruction ray is bisected (0.6 m sampling made the
+  pulled-in distance jump in 8 % steps) and the pulled-in distance is held for 0.4 s before it eases out (a row of trees popped it in and out).
+* **Steering aids:** the touch move stick is a floating circle with a dead zone whose base follows a thumb sliding past the rim (a turn of any size costs at most one
+  diameter of thumb travel); breathing fire turns Spyro up to 5.5 rad/s towards the burnable thing nearest to straight ahead inside a 66 degree cone (never against
+  a stick pushed the other way).
 * **The hero:** modelled from a measured character sheet (orthographic front / side / top / back views), so the proportions are the classic
   ones: a boxy purple head on a short thick neck with a broad flat muzzle (the cheek corners are the widest point), big glossy eyes tilted
   outward on the forehead wall, thick ringed horns sweeping back and up, a flat orange crest fin standing on the midline (six spikes, the
@@ -108,6 +121,8 @@ ladder of a fourth, a fifth and an octave over the chime's own pitch (all inside
 
 `tools/bot.mjs` walks every road with the real player controller; `tools/playthrough.mjs` completes the whole story
 (every beacon, the puzzle, the glide chain, the gate, the finale). Both run without rendering, so they take seconds.
+`tools/camera-test.mjs` and `tools/control-test.mjs` run the real Player and camera on flat ground with scripted stick input (no browser or server): every mode's behaviour
+under a wobbling, zig-zagging, hopping or sideways thumb, the obstruction hold, the touch stick and the aim assist.
 `tools/level-check.mjs` builds the level headlessly (no server) and checks the gem economy and a few placements that once went
 wrong: the shrine chest sits seated on its island's level top, and the Dawn Gate's forecourt is dry, gentle and where the ring roads end.
 

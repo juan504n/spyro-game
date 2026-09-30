@@ -2,6 +2,7 @@
 // Tuning constants live in P so game feel can be adjusted in one place.
 import { SLOPE_WALK } from './collision.js';
 import { WATER_LEVEL, WARD_RADIUS } from './level.js';
+import { aimBearing, aimStep } from './aim.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -156,6 +157,7 @@ export class Player {
       this.yaw += step;
       this.turnRate = lerp(this.turnRate, step / dt / P.turnGround, 0.25);
     } else this.turnRate = lerp(this.turnRate, 0, 0.2);
+    if (ctl && this.flameT > 0 && this.game.gfx?.settings?.aimAssist !== false) this._aimAssist(dt, mag, wx, wz);
     if (this.yaw > Math.PI) this.yaw -= Math.PI * 2; else if (this.yaw < -Math.PI) this.yaw += Math.PI * 2;
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
     this.dirx = fx; this.dirz = fz;
@@ -295,6 +297,29 @@ export class Player {
     this._pose(dt, this.turnRate);
     // the flame starts at the model's actual mouth (it sits higher, and lifts further while breathing fire)
     if (this.flameT > 0 && this.model && this.model.mouthWorld) this.model.mouthWorld(this.x, this.y, this.z, this.yaw, this.mouth);
+  }
+
+  /** Things worth breathing fire at: unlit braziers and beacons, awake Snuffers, and vases / chests still to be broken open. */
+  _aimTargets() {
+    const g = this.game, out = this._aimList || (this._aimList = []);
+    out.length = 0;
+    for (const b of g.objects?.braziers || []) if (!b.lit) out.push({ x: b.x, z: b.z, r: 0.9 });
+    for (const v of g.objects?.vases || []) if (!v.broken) out.push({ x: v.x, z: v.z, r: 0.6 });
+    for (const c of g.objects?.chests || []) if (!c.opened) out.push({ x: c.x, z: c.z, r: 1.1 });
+    for (const b of g.beacons?.list || []) if (!b.litFlag) out.push({ x: b.x, z: b.z, r: b.radius || 1.5 });
+    for (const e of g.enemies?.list || []) if (e.state !== 'dead') out.push({ x: e.x, z: e.z, r: 0.8 });
+    return out;
+  }
+
+  /**
+   * Aim assist: while breathing fire, swing towards the burnable thing nearest to straight ahead (inside a wide cone). The stick still
+   * has the last word: with it pushed, the assist only helps if it already points roughly at that target.
+   */
+  _aimAssist(dt, mag, wx, wz) {
+    const b = aimBearing(this.x, this.z, this.yaw, this._aimTargets());
+    if (b === null) return;
+    if (mag > 0.25 && Math.abs(angDiff(b, Math.atan2(wx, wz))) > 0.7) return;
+    this.yaw = aimStep(this.yaw, b, dt);
   }
 
   /** Is a target at (x,y,z) with horizontal radius r inside the current fire breath? */

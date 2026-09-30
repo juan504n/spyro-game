@@ -39,7 +39,7 @@ function fallback(assets, name, opts) {
     update() {},
     flash(k) { mesh.material.uniforms.uFlash.value = k; },
     setLit(k) { this.lit = k; mesh.material.uniforms.uColorMul.value.setRGB(0.6 + 0.8 * k, 0.6 + 0.6 * k, 0.6 + 0.2 * k); },
-    setOpen(k) { this.open = k; root.visible = k < 0.98; if (name === 'portcullis') mesh.position.y = k * 4.5; },
+    setOpen(k) { this.open = k; this.raised = k; root.visible = k < 0.98; if (name === 'portcullis') mesh.position.y = k * 4.5; },
     wobble() {},
     setColor() {}, setIntensity(k) { mesh.material.uniforms.uAlpha.value = k; },
   };

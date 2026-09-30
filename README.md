@@ -55,8 +55,21 @@ controls appear automatically (the display defaults to widescreen there; **Optio
 | Breathe fire | `J` / `F` / left click | `X` / square | FIRE |
 | Charge (ram) — hold | `K` / `Shift` / right click | `B` / circle | RAM |
 | Camera | mouse (after clicking) · `Q`/`E` | right stick · bumpers | right thumb drag |
-| Re-centre camera | `R` | `Y` / triangle | — |
+| Re-centre camera behind Spyro | `R` | `Y` / triangle | CAM button (tap) |
+| Camera mode: smart → active → passive | `C` | Pause → Camera | CAM button (hold) |
 | Pause / options | `Esc` / `P` | Start | ‖ button |
+
+**Camera modes** (also under **Options → Camera**, saved with the other options), after the original games' *Active* / *Passive* setting:
+
+* **Smart** (default): the camera follows Spyro round corners, but calmly. It ignores a thumb that wanders a little off straight, a strafe and a
+  step back, and swings after him only when you push clearly forward-and-to-the-side, the harder the faster.
+* **Active**: the original's Active camera: it swings after Spyro quickly, on even a small lean of the stick, so he always runs into the view.
+* **Passive**: the original's Passive camera: it follows Spyro's position but never turns by itself; you turn it (mouse, right stick, Q/E, right-thumb drag)
+  or press `R` / tap CAM to swing it back behind him.
+
+**Options → Camera speed** scales every way of turning the camera by hand (x0.4 to x1.6). **Fire aim assist** (on by default) turns Spyro towards a
+brazier, beacon, Snuffer, vase or chest that is up to about 65° off his nose while he breathes fire; the stick always has the last word. On a touch screen
+the move stick's circle appears where the left thumb lands, has a small dead zone, and follows the thumb when it slides past the rim.
 
 ## The realm
 
@@ -145,6 +158,8 @@ node tools/playthrough.mjs    # every beacon, the brazier puzzle, sky-isle glide
 node tools/monkey.mjs [runs] [secs]   # random-input soak test: exceptions, NaNs, players escaping the world
 node tools/terrain-map.mjs    # top-down map of the realm with slopes and paths -> terrain-map.png
 node tools/prop-lint.mjs      # builds every prop, fails on NaN / degenerate geometry
+node tools/camera-test.mjs    # camera modes, look-ahead, obstruction pull-in, camera speed (real Player + camera on flat ground; no server needed); --table prints the metrics
+node tools/control-test.mjs   # touch stick maths and the fire aim assist through the real Player; no server needed
 node tools/level-check.mjs    # populates the level headlessly: gem economy (700), counts, and placement checks (shrine chest seated on its island, Dawn Gate forecourt dry and gentle)
 node tools/shot.mjs / play.mjs / probe.mjs   # Playwright screenshots, scripted play-throughs, state probes
 node tools/model-sheet.mjs out.png --only spyro --poses idle,run,glide --views side   # contact sheets of an actor from any angle / pose

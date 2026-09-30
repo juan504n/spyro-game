@@ -103,6 +103,9 @@ await run('4 mill stair + beacon', () => {
   const yaw = Math.atan2(88 - W.x, 46 - W.z), c = Math.cos(yaw), s = Math.sin(yaw);
   const wp = (lx, lz) => [W.x + lx * c + lz * s, W.z - lx * s + lz * c];
   for (let k = 0; k < 90 && G.objects.portcullis.open < 0.6; k++) __bot.tick(10);   // let the portcullis finish rising
+  // ... and the bars must really have gone up: the collider opened on its own while the grate never moved (a door you walk through)
+  for (let k = 0; k < 60 && !(G.objects.portcullis.model.raised > 0.95); k++) __bot.tick(10);
+  if (!(G.objects.portcullis.model.raised > 0.95)) return { ok: false, phase: 'portcullis bars still on the door', raised: G.objects.portcullis.model.raised, open: +G.objects.portcullis.open.toFixed(2) };
   const pts = [];
   for (let phi = 50; phi <= 200; phi += 10) { const r = 8.55, a = (phi * Math.PI) / 180; pts.push(wp(r * Math.sin(a), r * Math.cos(a))); }
   { const a = (195 * Math.PI) / 180; pts.push(wp(6.4 * Math.sin(a), 6.4 * Math.cos(a))); }   // step in from the last tread onto the balcony ring
