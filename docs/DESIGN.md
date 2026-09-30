@@ -73,9 +73,16 @@ Sparx, the dragonfly, is the health bar: three hits, shown by his colour. Scorch
 
 ## Audio direction
 
-Everything is synthesised at start-up to imitate a 22 kHz sample-playback chip with ADPCM grit and a hall reverb. The score is
+Everything is synthesised at start-up to imitate a 22 kHz sample-playback chip with ADPCM grit and a hall reverb, with one deliberate
+exception: the gem chimes (below). The score is
 one 16-bar theme in two colourings: D dorian on celesta and music box for the gloaming, D major with marimba and flute for
 daybreak. Both are the same length and time-aligned, so the game crossfades between them as beacons are lit.
+
+**Gem chimes.** The most-heard sound in the game gets the cleanest treatment: 48 kHz stereo, no grit, no high-cut. Each gem is a quick
+rising run of near-harmonic glass bells (A6 to A8 for the purple one) with a detuned twin on the other side of the stereo field, a 1.5 ms
+glint of 7-9 kHz on the attack and a scatter of tiny 5-9 kHz pings as the glitter tail. Value climbs by a higher top note, more notes and a
+longer ring (red 3 notes, green 4, blue 5, gold 6, purple 8). A quick run of pickups (a burst from a chest, a sprint down a trail) climbs a
+ladder of a fourth, a fifth and an octave over the chime's own pitch (all inside the D pentatonic family) and then trills, and a pause resets it.
 
 ## Testing
 

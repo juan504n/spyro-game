@@ -2,13 +2,21 @@
 import * as THREE from 'three';
 import { Builder } from '../../engine/builder.js';
 
+// vol: playback level of the chime (the rarer, richer chimes are a little louder: they are the reward)
+// ladder: semitones over the chime's own pitch for a quick run of pickups (see COMBO below); gold and purple keep their pitch
 export const GEM_TYPES = {
-  1: { name: 'red', color: [1.0, 0.13, 0.20], size: 0.62, snd: 'gem_red' },
-  2: { name: 'green', color: [0.10, 0.95, 0.38], size: 0.70, snd: 'gem_green' },
-  5: { name: 'blue', color: [0.22, 0.50, 1.0], size: 0.80, snd: 'gem_blue' },
-  10: { name: 'gold', color: [1.0, 0.80, 0.10], size: 0.92, snd: 'gem_gold' },
-  25: { name: 'purple', color: [0.82, 0.28, 1.0], size: 1.12, snd: 'gem_purple' },
+  1: { name: 'red', color: [1.0, 0.13, 0.20], size: 0.62, snd: 'gem_red', vol: 0.8, ladder: [0, 5, 7, 12] },
+  2: { name: 'green', color: [0.10, 0.95, 0.38], size: 0.70, snd: 'gem_green', vol: 0.85, ladder: [0, 5, 7] },
+  5: { name: 'blue', color: [0.22, 0.50, 1.0], size: 0.80, snd: 'gem_blue', vol: 0.9, ladder: [0, 5, 7, 12] },
+  10: { name: 'gold', color: [1.0, 0.80, 0.10], size: 0.92, snd: 'gem_gold', vol: 1.0, ladder: [0] },
+  25: { name: 'purple', color: [0.82, 0.28, 1.0], size: 1.12, snd: 'gem_purple', vol: 1.0, ladder: [0] },
 };
+
+// COMBO: pickups less than COMBO_WINDOW seconds apart form a run. Each chime in a run is played higher along the type's ladder
+// (a fourth, a fifth, an octave: all inside the D pentatonic family, so it stays in tune with the music) and after the top it
+// trills between the last two steps, so a burst out of a chest or a sprint down a gem trail sparkles upward instead of repeating
+// one note. A pause resets it.
+const COMBO_WINDOW = 0.85;
 
 const dummy = new THREE.Object3D();
 const col = new THREE.Color();
@@ -76,6 +84,8 @@ export class GemField {
     for (let i = list.length; i < this.capacity; i++) this.free.push(i);
     this.total = list.reduce((s, g) => s + g.value, 0);
     this.collected = 0;
+    this.combo = 0;                    // pickups so far in the current run
+    this.lastAt = -1e9;                // game time of the previous pickup
     this.magnetR = 5.2;
   }
 
@@ -138,6 +148,15 @@ export class GemField {
     }
   }
 
+  /** Playback rate for this pickup's chime: the run so far climbs the type's ladder (semitones), then trills between its top two steps. */
+  _comboPitch(T, now) {
+    this.combo = now - this.lastAt < COMBO_WINDOW ? this.combo + 1 : 0;
+    this.lastAt = now;
+    const L = T.ladder, k = this.combo;
+    const semis = k < L.length ? L[k] : L[Math.max(0, L.length - 1 - ((k - L.length + 1) % 2))];
+    return Math.pow(2, semis / 12);
+  }
+
   _collect(it, game) {
     it.alive = false;
     dummy.scale.setScalar(0); dummy.updateMatrix();
@@ -148,7 +167,7 @@ export class GemField {
     game.stats.gems += it.value;
     const T = GEM_TYPES[it.value] || GEM_TYPES[1];
     game.fx.gemPickup(it.x, it.y, it.z, T.color);
-    game.audio?.sfx(T.snd, { vol: 0.85, pan: 0 });
+    game.audio?.sfx(T.snd, { vol: T.vol, pan: 0, pitch: this._comboPitch(T, game.time) });
     game.hud?.pulse('gems');
     game.emit('gem', it.value);
   }

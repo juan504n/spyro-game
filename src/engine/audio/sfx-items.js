@@ -1,14 +1,8 @@
 // Gloaming Vale audio — collectible, breakable and critter/enemy sound effects. Pure DSP.
 //
-// Gems are glassy bells from the D pentatonic (D E A B, no 3rd, so they never fight the music's
-// mode). Value climbs three ways at once: higher root pitch, more notes, longer / richer ring:
-//   gem_red     D6                              one tiny tink
-//   gem_green   E6 + B6 (45 ms later)           two-note "ti-ting"
-//   gem_blue    A5 (soft) A6 E7                 three-note lift
-//   gem_gold    B5 (soft) B6 D7 E7 + shimmer    four notes, detuned twin bells
-//   gem_purple  D6 A6 B6 D7 E7 chord + shimmer  wide shimmering chord in a small stone room
+// The gem pickups (gem_red .. gem_purple) and gem_burst live in sfx-gems.js: bright stereo 48 kHz chimes
+// with a glitter tail, rendered cleaner than everything else here (which is deliberately 22 kHz and grainy).
 //
-//   gem_burst     pop + air puff + nine scattered pentatonic tinkles
 //   butterfly     A5 B5 D6 E6 A6 rising chime with detuned twin bells, sparkle and a bit of room
 //   vase_break    clay crack + low thud + shard crunch (12 ticks) + ceramic tinkles
 //   chest_open    creaking lid, latch click, then a D5 A5 D6 "ta-da" with a D7 glint
@@ -19,42 +13,13 @@
 //   armor_clang   six inharmonic steel partials (x1 2.32 2.76 3.73 5.11 6.6) + detuned twin + strike noise
 //   bunny_squeak  tiny 1.9 -> 2.7 -> 2.4 kHz chirp;  bunny_poof  soft puff + thud + three sparkles
 
-import { SR, TAU, gen, decay, ad, smooth, seedOf, RNG, barVoice } from './synth.js';
+import { SR, TAU, gen, decay, ad, smooth, seedOf, barVoice } from './synth.js';
 import { finalizeSfx as fin, reverbMono } from './spu.js';
 import { layer, sweep, noiseFilt, thump, ping, bell, tinkles, ticks, vowel, hz, creak } from './sfx-kit.js';
-
-/** Build a gem sound from [[note, delaySec, gain], ...]. */
-function gem(list, o) {
-  const { tau = 0.15, bright = 1, dur = 0.4, grit = 0.15, rev = 0, shimmer = 0 } = o;
-  const parts = [];
-  for (const [nm, t, g] of list) {
-    const f = hz(nm);
-    parts.push([bell(f, dur, tau, bright), t, g]);
-    if (shimmer) parts.push([bell(f * 1.004, dur, tau * 0.9, bright * 0.7), t + 0.004, g * shimmer]);
-  }
-  let b = layer(dur + (rev ? 0.12 : 0.03), parts);
-  if (rev) b = reverbMono(b, 'chamber', rev, 0.35);
-  return fin(b, { grit });
-}
+import { GEM_SFX } from './sfx-gems.js';
 
 export const ITEM_SFX = {
-  gem_red: () => gem([['D6', 0, 1]], { tau: 0.09, bright: 0.6, dur: 0.25 }),
-  gem_green: () => gem([['E6', 0, 1], ['B6', 0.045, 0.75]], { tau: 0.11, bright: 0.8, dur: 0.32 }),
-  gem_blue: () => gem([['A5', 0, 0.5], ['A6', 0.02, 1], ['E7', 0.06, 0.65]], { tau: 0.14, bright: 0.9, dur: 0.4 }),
-  gem_gold: () => gem([['B5', 0, 0.5], ['B6', 0.02, 1], ['D7', 0.055, 0.8], ['E7', 0.09, 0.7]], { tau: 0.2, bright: 1, dur: 0.55, shimmer: 0.5 }),
-  gem_purple: () => gem([['D6', 0, 0.8], ['A6', 0.005, 1], ['B6', 0.03, 0.75], ['D7', 0.055, 0.8], ['E7', 0.085, 0.65]], { tau: 0.42, bright: 1, dur: 0.9, shimmer: 0.6, rev: 0.45 }),
-
-  gem_burst() {
-    const s = seedOf('gem_burst');
-    const r = new RNG(s);
-    const pent = ['D6', 'E6', 'A6', 'B6', 'D7'];
-    const parts = [
-      [thump(0.08, 420, 130, 0.015, 0.03), 0, 0.9],
-      [noiseFilt(0.06, s, { mode: 'lp', f0: 3000, q: 0.7, env: (t) => decay(t, 0.012) }), 0, 0.6],
-    ];
-    for (let i = 0; i < 9; i++) parts.push([bell(hz(r.pick(pent)), 0.3, 0.08, 0.8), 0.02 + i * 0.045 + r.range(0, 0.02), r.range(0.3, 0.7)]);
-    return fin(layer(0.62, parts), { grit: 0.25 });
-  },
+  ...GEM_SFX,
 
   butterfly() {
     const names = ['A5', 'B5', 'D6', 'E6', 'A6'];

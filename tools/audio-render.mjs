@@ -42,7 +42,7 @@ const noteName = (f) => {
   return `${NOTE[((r % 12) + 12) % 12]}${Math.floor(r / 12) - 1}`;
 };
 
-function writeWavFile(file, chans) {
+function writeWavFile(file, chans, sr = SR) {
   const n = chans[0].length;
   const nc = chans.length;
   const b = Buffer.alloc(44 + n * nc * 2);
@@ -52,8 +52,8 @@ function writeWavFile(file, chans) {
   b.writeUInt32LE(16, 16);
   b.writeUInt16LE(1, 20);
   b.writeUInt16LE(nc, 22);
-  b.writeUInt32LE(SR, 24);
-  b.writeUInt32LE(SR * nc * 2, 28);
+  b.writeUInt32LE(sr, 24);
+  b.writeUInt32LE(sr * nc * 2, 28);
   b.writeUInt16LE(nc * 2, 32);
   b.writeUInt16LE(16, 34);
   b.write('data', 36);
@@ -117,7 +117,7 @@ function spectrum(x, start, len, size) {
   return mag;
 }
 
-function analyseSpectrum(mono, size = 1 << 16) {
+function analyseSpectrum(mono, size = 1 << 16, sr = SR) {
   const len = Math.min(mono.length, size);
   const start = Math.max(0, ((mono.length - len) / 2) | 0);
   let n = 1024;
@@ -125,7 +125,7 @@ function analyseSpectrum(mono, size = 1 << 16) {
   const mag = spectrum(mono, start, len, n);
   let wsum = 0, s = 0, low = 0, mid = 0, high = 0, tot = 0;
   for (let i = 1; i < mag.length; i++) {
-    const f = (i * SR) / n;
+    const f = (i * sr) / n;
     const e = mag[i] * mag[i];
     wsum += f * mag[i];
     s += mag[i];
@@ -138,7 +138,7 @@ function analyseSpectrum(mono, size = 1 << 16) {
     let bi = 1;
     for (let i = 2; i < m2.length; i++) if (m2[i] > m2[bi]) bi = i;
     if (m2[bi] <= 0) break;
-    const f = (bi * SR) / n;
+    const f = (bi * sr) / n;
     peaks.push(f);
     const lo = Math.max(1, Math.floor(bi * 0.94));
     const hi = Math.min(m2.length - 1, Math.ceil(bi * 1.06));
@@ -193,6 +193,7 @@ for (const job of jobs) {
     Object.defineProperty(v, '__done', { value: true, enumerable: false });
     if (onlyRe && !onlyRe.test(k)) continue;
     const isLoop = LOOP_SET.has(k);
+    const sr = v.sr || SR;                       // (the gem chimes carry their own rate: 48 kHz)
     const N = chans[0].length;
     let peak = 0, sq = 0, clip = 0, dc = 0, nan = 0;
     for (const c of chans) {
@@ -215,7 +216,7 @@ for (const job of jobs) {
     const seamRatio = isLoop ? Math.max(...seams.map((q) => q.ratio)) : 0;
     const seamMax = isLoop ? Math.max(...seams.map((q) => q.maxRatio)) : 0;
     const mono = chans.length === 1 ? chans[0] : Float32Array.from(chans[0], (x, i) => (x + chans[1][i]) * 0.5);
-    const sp = analyseSpectrum(mono);
+    const sp = analyseSpectrum(mono, 1 << 16, sr);
     const flags = [];
     if (nan) flags.push(`NaN x${nan}`);
     if (clip) flags.push(`CLIP x${clip}`);
@@ -226,10 +227,10 @@ for (const job of jobs) {
     if (isShot && (dB(peak) > -1 || dB(peak) < -4)) flags.push('PEAK-RANGE');
     if (dB(peak) > -0.5) flags.push('HOT');
     if (flags.some((f) => /NaN|CLIP|DC|EDGE|SEAM/.test(f))) hardFails.push(`${k}: ${flags.join(' ')}`);
-    rows.push({ k, kind: isLoop ? 'loop' : k.startsWith('stinger_') ? 'sting' : 'shot', ch: chans.length, dur: N / SR, peak: dB(peak), rms: dB(rms), clip, dc, edge, seam, seamRatio, seamMax, sp, flags, ms: job.name === k ? ms : NaN });
+    rows.push({ k, kind: isLoop ? 'loop' : k.startsWith('stinger_') ? 'sting' : 'shot', ch: chans.length, dur: N / sr, peak: dB(peak), rms: dB(rms), clip, dc, edge, seam, seamRatio, seamMax, sp, flags, ms: job.name === k ? ms : NaN });
     if (writeWav) {
-      writeWavFile(path.join(outDir, `${k}.wav`), chans);
-      if (flags2x(k)) writeWavFile(path.join(outDir, `${k}_x2.wav`), chans.map((c) => Float32Array.from([...c, ...c])));
+      writeWavFile(path.join(outDir, `${k}.wav`), chans, sr);
+      if (flags2x(k)) writeWavFile(path.join(outDir, `${k}_x2.wav`), chans.map((c) => Float32Array.from([...c, ...c])), sr);
     }
   }
 }

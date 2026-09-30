@@ -188,13 +188,14 @@ function releaseChain(c) {
 function toAudioBuffer(data) {
   const ctx = S.ctx;
   const chans = data instanceof Float32Array ? [data] : [data.L, data.R];
+  const rate = data.sr || SR;         // (most assets are 22.05 kHz; the gem chimes are rendered at 48 kHz)
   let buf;
   try {
-    buf = ctx.createBuffer(chans.length, chans[0].length, SR);
+    buf = ctx.createBuffer(chans.length, chans[0].length, rate);
     for (let c = 0; c < chans.length; c++) buf.copyToChannel(chans[c], c);
   } catch (e) {
     // rate not supported by this browser: resample to the context rate ourselves (linear)
-    const ratio = ctx.sampleRate / SR;
+    const ratio = ctx.sampleRate / rate;
     const n = Math.round(chans[0].length * ratio);
     buf = ctx.createBuffer(chans.length, n, ctx.sampleRate);
     for (let c = 0; c < chans.length; c++) {

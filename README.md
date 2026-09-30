@@ -118,6 +118,7 @@ not frustum-culled), which integrated graphics and recent phones handle at 320×
 src/engine/          renderer + PS1 pipeline (shaders, materials, gfx, builder, lighting)
   textures/          procedural pixel-art toolkit: 62 world textures, sprites, bitmap font, UI atlas
   audio/             procedural PS1-SPU-style synth: music (dusk + daybreak variants), ambience, stingers, ~60 sound assets
+                     (the gem chimes are the exception: clean 48 kHz stereo, see sfx-gems.js)
 src/game/
   level.js           the design source of truth: landmarks, roads, hills, beacon order
   terrain*.js        analytic heightfield, road/river carving, per-triangle texturing, water
