@@ -185,6 +185,17 @@ On a touch screen it is two fingers, one held on RAM and one tapping JUMP (the p
   brown shoulder knob) and a long tapering tail with an orange ringed tip. Everything is authored in sheet units (`K` metres each) and
   converted by one helper, so the model can be rescaled with a single constant. The build was checked against the sheet by overlaying
   silhouettes from the front, side, top and back (about 0.9 overlap for the side and top views, 0.86 from the front).
+* **The ram pose:** the head tucks steeply down and the horns are lowered to point ahead, as in the reference art of Spyro mid-charge. Two parts. The head: the charge used to add
+  0.55 rad of nose-down to the neck (the head's front ended about 34 degrees below level, with the horns still standing up); `CHARGE_HEAD` is now 1.15 rad on top of the body's own pitch, so the
+  head's front points 65 to 70 degrees below level (the run's bob moves it by about 5 either way), the chin near the chest, and the crest fin ends up pointing back and up behind it. The horns:
+  they were part of the skull mesh, swept back and up from the crown, so they could only turn with the head (a head pitched that far made them point up and forward, not down). They are now a
+  mesh of their own (`hornsGeo`) and `hornBender` bends them: each vertex belongs to the ring of the swept tube it was made on, a ring turns about the head's X axis by an angle that grows from
+  nothing at the root to `HORN_BEND` (1.7 rad) at the tip (power 1.2: the root hardly turns, the tip curls most) and its centre follows the bent spine, so the tube curves smoothly, with no joints to
+  open up (a first try that swung each horn rigidly about its root left them lying along the top of the head like a unicorn's), keeps its length and its outward splay, and its normals turn with
+  it. At full charge a horn rises from the crown and sweeps forward until its tip is level, about half a metre ahead of its root (it is 0.4 m behind and 0.5 m above it at rest). The bend is driven by
+  the same smoothed `charge` value as the head, rewrites the roughly 600 vertices only while that value changes and snaps back to the rest arrays exactly when the charge ends; every other pose
+  leaves the horns bit for bit as they were (checked against the model before the change: no vertex of any other pose moved). Each hero has its own copy of the horn geometry (it is edited
+  in place), the horns' mesh is one more draw call, and two anchors (`anchors.hornL`, `anchors.hornR`) ride the tips. `tools/spyro-pose-test.mjs` (no server) checks all of it in world space.
 
 ## Audio direction
 
@@ -261,6 +272,11 @@ terrain mesh triangle under the point (1500 scattered points, all eleven texture
 collider against brute force, and that every prop, collider and gameplay record names its layout function. `tools/debug-test.mjs` and `tools/menu-test.mjs` (browser) cover F3, the readout's X / Y / Z
 being the player's, the aim point lying on the camera's own ray, the phone layout, and the menu on an emulated phone through real touch events (the MENU button, finger-sized rows, sub-pages,
 thumb controls hiding and nothing left held) plus the keyboard and mouse on a desktop window.
+
+`tools/spyro-pose-test.mjs` (no server) builds the hero headlessly and checks the ram pose in world space: the head's front 55 degrees or more below level against level at rest, the horns' tips
+ahead of their roots and lower than at rest (about 0.5 m ahead and 0.2 to 0.3 m above at full charge, depending on the stride's phase; 0.42 m behind and 0.54 m above at rest), the ram jump the same, a bend that keeps every edge of the horns between
+0.75 and 1.3 of its length and never moves a vertex sideways, the tip moving smoothly (no step over 0.2 m a frame) as the charge starts and ends, the rest shape coming back to the last bit, every other
+pose leaving the horns untouched, two heroes not sharing their horns, the horns freed with the hero, and NaN / Infinity / a missing pose leaving them finite.
 
 Focused checks (they need the dev server): `charge-test` (charging lasts exactly as long as the button is held), `gem-flight-test` (a pulled gem
 rises, peaks in the middle of the flight and dives in; a running target is still caught; the pull cancels cleanly; bursts add up exactly),

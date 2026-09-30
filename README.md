@@ -148,10 +148,19 @@ wings held up like triangular sails (dark red membrane, broad orange leading edg
 that tapers to a ringed orange tip. It is modelled by hand as original geometry, measured off orthographic views of the character
 (every size is authored in "sheet units" and converted with one scale constant): no ripped model, texture or animation data is used.
 
+**The ram.** When he charges, the head tucks steeply down (its front 65 to 70° below level, chin toward the chest; it used to dip about 34°) and the horns bend forward along their
+length until they point ahead like a bull's, tips level, instead of standing straight up; the crest fin and the wings stay up behind. The horns are a mesh of their own that is bent in place
+while the charge comes and goes (a smooth bend along the tube, not a swing of the whole horn), and every other pose keeps them exactly as they were. The same goes for a ram jump.
+
 <p align="center">
   <img src="docs/shots/10-hero.png" width="80%" alt="The hero from four angles, rendered at 240p through the PS1 pipeline">
 </p>
 <p align="center"><sub>The four camera angles of <code>node tools/model-sheet.mjs</code>, rendered at the game's 240 lines (nearest-neighbour ×2).</sub></p>
+
+<p align="center">
+  <img src="docs/shots/11-ram.png" width="80%" alt="The ram pose from four angles: head tucked down, horns bent forward">
+</p>
+<p align="center"><sub>The same angles in the ram pose (<code>--pose charge</code>): the head tucked down, the horns bent forward to point ahead.</sub></p>
 
 ## How the PS1 look is made
 
@@ -206,6 +215,7 @@ node tools/terrain-map.mjs    # top-down map of the realm with slopes and paths 
 node tools/prop-lint.mjs      # builds every prop, fails on NaN / degenerate geometry
 node tools/camera-test.mjs    # camera modes, obstacles (trees ignored, ground climbed, big things pull in a little), camera speed, settings migration (real Player + camera + collision, no server); --table prints the metrics
 node tools/camera-input-test.mjs   # R / pad Y / the touch CAM button / C through the real game loop at 30-240 fps (browser; needs the dev server)
+node tools/spyro-pose-test.mjs # the hero's ram pose, headless: the head points 55° or more below level, the horns bend forward to point ahead (every edge keeps its length, the splay stays, it comes and goes smoothly and leaves the rest shape exactly), every other pose keeps the horns as they were, two heroes do not share horns, bad input
 node tools/butterfly-test.mjs # the blue butterfly model, headless: finite two-sided wings in every look, a shared material, the wing beat (about 4.4 Hz, quicker when it flies fast, still in a glide), bad inputs
 node tools/control-test.mjs   # touch stick maths, the fire aim assist and the ram jump (hold RAM, tap JUMP) through the real Player; no server needed
 node tools/debuginfo-test.mjs # debug readout, headless: ground texture = the terrain mesh's texture under 1500 points, aim ray, nearest props / colliders vs brute force, provenance of every prop / collider / record

@@ -10,7 +10,7 @@
 // Rig (all pivots procedural, no skinning):
 //   root > rig (squash / tumble / hop)
 //     > body (torso + chest column; pitch / roll / bob)
-//         > head (neck joint)  > jaw, eyes, [anchors.mouth]
+//         > head (neck joint)  > jaw, eyes, horns (a mesh of its own: the charge bends it), [anchors.mouth, hornL, hornR]
 //         > wingL / wingR (root pivots at the spine, mirrored group for the right side)
 //         > tail1 > tail2 > tail3 > tip
 //         > legFL / legFR / legHL / legHR
@@ -19,10 +19,13 @@
 // Pose contract (all optional): { speed 0..24, grounded = true, vy, glide, charge, flame, turn -1..1, hurt 0..1,
 //   land 0..1, dead, cheer, look -1..1, t, flash 0..1 (extra: drives the hit flash directly, for the dev viewer) }
 // Creation options: { seed, still } — `still` switches the idle blink / look-around / breathing / tail sway off (for review renders).
+//
+// The charge (ram): the head tucks steeply down (65 to 70 degrees below level, chin toward the chest) and the horns bend forward along their length until they
+// point ahead, lowered like a bull's, with the tips curling level; the crest fin and the wings stay up behind. See CHARGE_HEAD and hornBender.
 import * as THREE from 'three';
 import { U } from '../../../engine/materials.js';
 import {
-  Rig, loft, ellipsoid, spike, bar, triF, triDouble, setBias,
+  Rig, lit, loft, ellipsoid, spike, bar, triF, triDouble, setBias,
   clamp, num, heal, lerp, sstep, damp, spring, mix3, TAU, nextSeed, seeded,
 } from './rig.js';
 import { superRing, meshRings, sweep, spline } from './parts.js';
@@ -82,6 +85,7 @@ const BACK_AT = sub3(W.back, W.body);
 const WING_AT = sub3(W.wing, W.body);
 const TAIL_AT = sub3(W.tail, W.body);
 const TAIL_LEN = [140 * K, 130 * K, 85 * K];          // tail1..tail3 (the orange tip hangs off the end of tail3)
+const CHARGE_HEAD = 1.15;                              // the head pitches this far down on top of the body's own pitch at full charge (65 to 70 degrees below level in all)
 const HEAD_TILT = 0;                                  // the head is built level: no resting nose-down angle
 const OCT = Math.PI / 8;                              // 8-sided rings turned so the faces (not the corners) point up / down / sideways
 const N8 = 8;
@@ -314,10 +318,6 @@ function skullGeo(b) {
   meshRings(b, ringsZ(CHEEK, skullCol), { cap0: true, cap1: true, capCol: PUR });
   meshRings(b, ringsZ(MUZZLE, muzzleCol), { cap0: true });
 
-  // horns: thick, ringed, swept back and up
-  setBias(0.7);
-  for (const s of [1, -1]) sweep(b, hornPath(s), { segs: 6 });
-
   // crest fin
   setBias(0.9);
   finGeo(b);
@@ -342,6 +342,71 @@ function skullGeo(b) {
     const c = P(s * 9, 74, 236);
     ellipsoid(b, c[0], c[1], c[2], 4 * K, 2.5 * K, 6 * K, { segs: 6, rings: 2, col: BLACK });
   }
+}
+
+/** the horns: thick, ringed, swept back and up. A part of their own (not the skull's) because the charge bends them, see hornBender. */
+function hornsGeo(b) {
+  b.translate(...neg3(W.head));
+  setBias(0.7);
+  for (const s of [1, -1]) sweep(b, hornPath(s), { segs: 6 });
+}
+
+/**
+ * The charge lowers the horns, as a bull lowers its horns to ram: they bend forward along their length. Every vertex of the horns' mesh belongs to the ring
+ * of the swept tube it was made on; a ring turns about the head's X axis by an angle that grows from nothing at the root to HORN_BEND at the tip
+ * (HORN_PROFILE), and its centre follows the bent spine. So the tube curves smoothly, with no joint that could open up, and keeps its length and its splay
+ * (x never changes). bend(0) puts the rest shape back exactly. `tips` are two anchors that ride the horns' tips (left, right).
+ * Returns bend(k), k 0..1, which rewrites the position and normal arrays of the geometry it was given (about 600 vertices: nothing).
+ */
+const HORN_BEND = 1.7;                                    // radians the tip is turned by at full charge (the root stays where it was)
+const HORN_PROFILE = (t) => Math.pow(t, 1.2);             // share of the bend reached at t along the horn (0 root .. 1 tip): the root barely turns, the tip curls the most
+function hornBender(geo, tips) {
+  const pos = geo.attributes.position, nrm = geo.attributes.normal;
+  const p0 = Float32Array.from(pos.array), n0 = Float32Array.from(nrm.array), count = pos.count;
+  const rings = [1, -1].map((s) => hornPath(s).map((q) => sub3(q.p, W.head)));          // ring centres in head space: the left horn, then the right one
+  const nr = rings[0].length;
+  const ring = new Uint8Array(count), side = new Uint8Array(count);
+  for (let v = 0; v < count; v++) {                      // the ring whose centre is nearest (a ring's own points are its radius away, the next ring's centre is further)
+    const sd = p0[v * 3] >= 0 ? 0 : 1, C = rings[sd];
+    let best = 0, bd = Infinity;
+    for (let i = 0; i < nr; i++) {
+      const d = (p0[v * 3] - C[i][0]) ** 2 + (p0[v * 3 + 1] - C[i][1]) ** 2 + (p0[v * 3 + 2] - C[i][2]) ** 2;
+      if (d < bd) { bd = d; best = i; }
+    }
+    ring[v] = best; side[v] = sd;
+  }
+  const ang = new Float64Array(nr), cy = [new Float64Array(nr), new Float64Array(nr)], cz = [new Float64Array(nr), new Float64Array(nr)];
+  const bend = (k) => {
+    k = clamp(k);
+    const P = pos.array, N = nrm.array;
+    for (let i = 0; i < nr; i++) ang[i] = k * HORN_BEND * HORN_PROFILE(i / (nr - 1));
+    for (let sd = 0; sd < 2; sd++) {                     // the bent spine: each step of the path turned by the mean angle of its two rings
+      const C = rings[sd];
+      cy[sd][0] = C[0][1]; cz[sd][0] = C[0][2];
+      for (let i = 0; i < nr - 1; i++) {
+        const a = (ang[i] + ang[i + 1]) / 2, co = Math.cos(a), si = Math.sin(a);
+        const dy = C[i + 1][1] - C[i][1], dz = C[i + 1][2] - C[i][2];
+        cy[sd][i + 1] = cy[sd][i] + dy * co - dz * si;
+        cz[sd][i + 1] = cz[sd][i] + dy * si + dz * co;
+      }
+      tips[sd].position.set(C[nr - 1][0], cy[sd][nr - 1], cz[sd][nr - 1]);
+    }
+    if (k < 1e-4) { P.set(p0); N.set(n0); }              // (exactly the rest shape, not a bend of 0.0000x)
+    else {
+      for (let v = 0; v < count; v++) {
+        const i = ring[v], sd = side[v], C = rings[sd][i], co = Math.cos(ang[i]), si = Math.sin(ang[i]), o = v * 3;
+        const dy = p0[o + 1] - C[1], dz = p0[o + 2] - C[2];
+        P[o] = p0[o];
+        P[o + 1] = cy[sd][i] + dy * co - dz * si;
+        P[o + 2] = cz[sd][i] + dy * si + dz * co;
+        N[o] = n0[o];
+        N[o + 1] = n0[o + 1] * co - n0[o + 2] * si;
+        N[o + 2] = n0[o + 1] * si + n0[o + 2] * co;
+      }
+    }
+    pos.needsUpdate = nrm.needsUpdate = true;
+  };
+  return bend;
 }
 
 /** a flat two-sided strip across the mouth at height y (sheet units): x = +-k * the jaw's half-width at each station */
@@ -498,6 +563,13 @@ export function createSpyro(assets, opts) {
 
   const head = R.pivot(body, ...HEAD_AT, 'head');
   R.part(head, M, skullGeo, 'skull');
+  // the horns bend with the charge, so each model has its own copy of their geometry (a few hundred vertices)
+  const hornBuilder = lit(); hornsGeo(hornBuilder); setBias(0);
+  const hornMesh = R.mesh(head, hornBuilder, M, 'horns');
+  hornMesh.frustumCulled = false;                       // (it bends out of the box the geometry was measured in)
+  const hornTips = [R.pivot(head, 0, 0, 0, 'hornL'), R.pivot(head, 0, 0, 0, 'hornR')];
+  const bendHorns = hornBender(hornMesh.geometry, hornTips);
+  bendHorns(0);
   const jaw = R.pivot(head, ...JAW_AT, 'jaw');
   R.part(jaw, M, jawGeo, 'jaw');
   const eyes = R.pivot(head, 0, EYES_AT[1], EYES_AT[2], 'eyes');
@@ -550,7 +622,7 @@ export function createSpyro(assets, opts) {
   const S = {
     time: rnd() * 10, phase: rnd() * TAU, move: 0, run: 0, air: 0, rise: 0, glide: 0, charge: 0, flame: 0, cheer: 0, dead: 0, hurt: 0,
     land: 0, turn: 0, lookYaw: 0, lookPitch: 0, lookTarget: 0, lookPTarget: 0, lookT: 2 + rnd() * 3, blinkT: 1 + rnd() * 2.5, blink: 0,
-    flameT: 0, wasFlame: false, tailW: rnd() * 6, spread: 0, breathe: rnd() * 6, boost: -1,
+    flameT: 0, wasFlame: false, tailW: rnd() * 6, spread: 0, breathe: rnd() * 6, boost: -1, hornBend: 0,
   };
   const idleK = opts.still ? 0 : 1;                        // review renders: no idle blink / look-around / breathing / tail sway
   if (opts.still) { S.lookT = 1e9; S.blinkT = 1e9; }
@@ -655,11 +727,13 @@ export function createSpyro(assets, opts) {
     R.rig.position.set(0.36 * Math.sin(roll90), hop + 0.48 * Math.sin(roll90), 0);
 
     // ---- head + jaw ---------------------------------------------------------------------------------------------
-    const headPitch = -noseDown * 0.85 + 0.55 * chargeK - 0.55 * flameK - 0.25 * glideK - 0.22 * cheerK + 0.05 * Math.sin(2 * ph + 1.0) * gait
+    const headPitch = -noseDown * 0.85 + CHARGE_HEAD * chargeK - 0.55 * flameK - 0.25 * glideK - 0.22 * cheerK + 0.05 * Math.sin(2 * ph + 1.0) * gait
       - 0.28 * hurtK + 0.1 * landK + S.lookPitch - 0.10 * airK * Math.max(0, rise) + 0.15 * airK * Math.max(0, -rise) - 0.15 * recoil
       - 0.02 * breath * calm;
     head.rotation.set(headPitch + HEAD_TILT, S.lookYaw + 0.30 * turn + shake * 2, -0.06 * S.lookYaw + 0.12 * Math.sin(S.time * 3) * cheerK);
     head.position.set(HEAD_AT[0], HEAD_AT[1] + 0.01 * breath * calm, HEAD_AT[2]);
+    const hornK = chargeK < 5e-4 ? 0 : chargeK;         // the horns bend with the charge (and are only rewritten while it changes)
+    if (hornK !== S.hornBend && (hornK === 0 || Math.abs(hornK - S.hornBend) > 2e-4)) { S.hornBend = hornK; bendHorns(hornK); }
     const pant = (0.03 + 0.05 * runK) * (0.5 + 0.5 * Math.sin(2 * ph)) * gait;
     jaw.rotation.set(0.015 + pant + 0.62 * flameK + 0.26 * cheerK + 0.20 * hurtK + 0.05 * airK + 0.18 * deadK + 0.12 * glideK, 0, 0);
 
@@ -738,6 +812,7 @@ export function createSpyro(assets, opts) {
     fall: { grounded: false, vy: -9, speed: 6 },
     glide: { grounded: false, glide: true, vy: -2, speed: 14 },
     charge: { speed: 22, charge: true },
+    ramjump: { speed: 22, charge: true, grounded: false, vy: 3 },
     flame: { flame: true },
     hurt: (t) => { const k = (t % 1.6) / 0.7; const h = k < 1 ? 1 - k : 0; return { hurt: h, flash: h > 0.5 ? 1 : 0, t }; },
     dead: { dead: true },
@@ -761,7 +836,7 @@ export function createSpyro(assets, opts) {
     mouthWorld,
     radius: 0.55,
     height: 1.05,
-    anchors: { mouth, back },
+    anchors: { mouth, back, hornL: hornTips[0], hornR: hornTips[1] },
     testPoses,
     update,
     flash: (k) => R.flash(k),
