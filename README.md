@@ -124,12 +124,14 @@ the whole valley is lit twice (dusk and daybreak) and the world cross-fades betw
 * **Snuffers** come in three kinds: plain ones (fire or charge), *bell* Snuffers (armoured — fire bounces off, charge them)
   and *thorn* Snuffers (spiked — don't ram them, burn them). Every one goes down in a single hit of the attack that works on it, as in the original.
 * **Sparx** the dragonfly is your health bar, as in the original: he starts at full health, **gold**, and every hit that lands turns him down a colour, **gold → blue → green →
-  gone**; with him gone the next hit is lights out. Bunnies you scorch or ram (and often a Snuffer you defeat) release a healing butterfly: a bright blue 3D butterfly with a soft glow and a trail of sparkles that
-  flutters up and flies to Sparx, who eats it and gets one colour back (with him gone it flies to Spyro instead, and he pops back); a new life starts with gold Sparx again.
+  gone**; with him gone the next hit is lights out. Bunnies you scorch or ram (and often a Snuffer you defeat) release a healing butterfly: a white 3D butterfly with a soft glow that
+  flutters up and flies to Sparx, who eats it and gets one colour back (with him gone it flies to Spyro instead, and he pops back). **Every tenth bunny** (the 10th, 20th and 30th of the level's 37) leaves a
+  rare **blue butterfly** instead, as in the original: bigger, deep blue and shining, with a sparkle trail and a chime, that brings Sparx **all the way back to gold** at once, from any colour and from gone;
+  with him already full it waits a minute and a half (an ordinary one 25 s). A new life starts with gold Sparx again.
   He is a real 3D dragonfly (big goofy eyes, antennae, a swishing tail and four glassy wings, flapping as he hovers), not a flat sprite, and a small one: about half a metre long. While he is with you he grabs the gems that are near (a little flick towards each); **with him gone nothing pulls gems in: you have to touch them**.
 * **Butterflies** are real 3D models too (`src/game/models/creatures/butterfly.js`): a slim banded body with clubbed antennae and, on each side, a pointed forewing and a rounder hindwing with a
   little tail. The wings are two-sided sheets, deep blue on top with a bright sheen and a dark rim of white spots, dusty pale blue underneath, so a butterfly flashes blue and dull as it beats; they beat in
-  bursts with short glides between. A flock of 18 smaller ones in every shade of blue (azure, cyan, sky, violet) drifts about the dry meadows near you, and the healing ones are the brightest blue.
+  bursts with short glides between. A flock of 18 smaller ones in every shade of blue (azure, cyan, sky, violet) drifts about the dry meadows near you; the ordinary healing ones are white and the rare full-heal ones the deepest, brightest blue.
 * **Gems** are worth 1 / 2 / 5 / 10 / 25 (red, green, blue, gold, purple): cut stones whose facets flash as they spin. Vases, chests, cracked walls and enemies drop
   them, plus hand-placed trails and a few well-hidden treasures. Total: **700**. While Sparx is with you (and only then), gems within a few metres are drawn in
   on a curved lob (up, then down into Spyro, like the original), and every pickup makes a chunky yellow gem count hop and float in the corner
@@ -180,6 +182,7 @@ src/engine/          renderer + PS1 pipeline (shaders, materials, gfx, builder, 
 src/game/
   level.js           the design source of truth: landmarks, roads, hills, beacon order
   terrain*.js        analytic heightfield, road/river carving, per-triangle texturing, water
+  roads.js           the cobble and dirt roads, draped exactly on the terrain mesh (cut against its triangles, so they never hover or sink)
   props/  models/    procedural scenery, architecture, hero, creatures and interactive objects
   levelgen/          deterministic placement of props, enemies, gems, hints (islands.js plans the floating isles' decor clear of what stands on them)
   player.js camera.js collision.js   kinematic controller, chase camera, heightfield + collider world
@@ -195,7 +198,7 @@ docs/index.html      the built single-file game
 
 ```bash
 npm run qa                    # prop lint + reachability bot + full story playthrough (needs the dev server running)
-node tools/bot.mjs            # headless reachability bot: drives the real controller along every road/route (hops the dock's lily-pad crossing from a standing start, checks every Snuffer dies to one hit, that the ward wall round the Dawn Gate stands where it blocks, that a ram jump from the dock's end reaches the second lily pad, the Sparx rules: starts gold, gold → blue → green → gone, butterflies, the gem magnet only while he is there, and the 3D butterflies: they share one material, beat their wings, and a healing one flies to Sparx, or to Spyro when he is gone, and waits when he is full)
+node tools/bot.mjs            # headless reachability bot: drives the real controller along every road/route (hops the dock's lily-pad crossing from a standing start, checks every Snuffer dies to one hit, that the ward wall round the Dawn Gate stands where it blocks, that a ram jump from the dock's end reaches the second lily pad, the Sparx rules: starts gold, gold → blue → green → gone, butterflies, the gem magnet only while he is there, and the 3D butterflies: they share one material, beat their wings, and a healing one flies to Sparx, or to Spyro when he is gone, and waits when he is full; and the rare blue butterfly of every tenth bunny heals him completely)
 node tools/playthrough.mjs    # every beacon, the brazier puzzle, sky-isle glide chain, Dawn Gate, finale
 node tools/monkey.mjs [runs] [secs]   # random-input soak test: exceptions, NaNs, players escaping the world
 node tools/terrain-map.mjs    # top-down map of the realm with slopes and paths -> terrain-map.png
@@ -210,7 +213,7 @@ node tools/menu-test.mjs      # menus: the phone MENU button and finger-sized ro
 node tools/touch-ram-jump-test.mjs   # ram + jump on an emulated phone through real touches: a finger held on RAM, another tapping JUMP, then lifting RAM (needs the dev server)
 node tools/where.mjs X Z   # what is at a spot (X = east, Z = south, as debug mode shows them): area, ground texture + rule, nearby props / gameplay things / collision shapes with the layout function and file:line that placed them
 node tools/build-id.mjs       # the build id debug mode shows: a hash of src/ plus the date
-node tools/level-check.mjs    # populates the level headlessly: gem economy (700), counts, and placement checks (shrine chest seated on its island, Dawn Gate forecourt dry and gentle, sky-isle decor clear of the mushroom / chests / enemies / beacon, nothing solid standing on a chest, vase, brazier, mushroom, NPC or enemy spawn, Mirrormere's short wide dock with a clear run-off and its lily pads: big, spaced, easy hops, and the pier's landing lawn: one calm grass, sand and the roads' dirt instead of a mosaic of textures)
+node tools/level-check.mjs    # populates the level headlessly: gem economy (700), counts, and placement checks (shrine chest seated on its island, Dawn Gate forecourt dry and gentle, sky-isle decor clear of the mushroom / chests / enemies / beacon, nothing solid standing on a chest, vase, brazier, mushroom, NPC or enemy spawn, Mirrormere's short wide dock with a clear run-off and its lily pads: big, spaced, easy hops, the pier's landing lawn: one calm grass, sand and the roads' dirt instead of a mosaic of textures, and the roads draped on the terrain: every vertex on the surface, cobble over dirt where they meet)
 node tools/shot.mjs / play.mjs / probe.mjs   # Playwright screenshots, scripted play-throughs, state probes
 node tools/model-sheet.mjs out.png --only spyro --poses idle,run,glide --views side   # contact sheets of an actor from any angle / pose
 node tools/charge-test.mjs | gem-flight-test.mjs | gem-counter-test.mjs | gem-sound-test.mjs

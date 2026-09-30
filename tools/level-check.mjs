@@ -5,8 +5,9 @@ import { WATER_LEVEL } from '../src/game/level.js';
 import { isleObjects, shortfall } from '../src/game/levelgen/islands.js';
 import { colliderDist } from '../src/game/debuginfo.js';
 import { terrainPicker } from '../src/game/terrain-mesh.js';
+import { buildRoads, ROAD_LIFT, ROAD_DECAL } from '../src/game/roads.js';
 
-const { grid, kit, dryCtx: ctx, gp, ms } = buildHeadless();
+const { grid, kit, dryCtx: ctx, gp, ms, lighting } = buildHeadless();
 console.log('populate ms', Math.round(ms), '(terrain + both passes, headless)');
 console.log('placements', JSON.stringify(ctx.counts));
 console.log('kit tris', kit.triangleCount(), 'builders', kit.builders.size, 'colliders', kit.colliders.length, 'lights', kit.lights.length, 'emitters', kit.emitters.length);
@@ -168,5 +169,47 @@ const check = (name, ok, detail) => { checks.push(ok); console.log(ok ? 'PASS' :
   check('... inside the fade cells only ever change to the calm textures, and some do', band.changed > 50 && band.calmer === band.changed, `(${band.changed} cells changed, ${band.calmer} to grass, sand, dirt or paving)`);
   const lawn = pick.at(land.x - 12, land.z + 12);
   check('... the debug readout names the rule behind it', lawn.tex === 'grass_a' && /landing lawn/.test(lawn.why || ''), `(${lawn.tex}: ${lawn.why})`);
+}
+{
+  // the roads are DRAPED on the terrain mesh (roads.js). Every lane of a ribbon used to stand at the height of the road's centre line, so on a slope the edges hovered above the ground on the
+  // downhill side (1.2 m at the pier's landing, where three roads meet on a bank) and were buried on the uphill side: planks sticking out of the hillside. Now every vertex of every road
+  // triangle lies on the terrain surface plus a small constant lift, nothing is lost, and cobble sits over dirt where two roads meet.
+  const roads = buildRoads(grid, lighting);
+  const tris = [];
+  let worst = 0, nan = 0, down = 0, verts = 0;
+  for (const surface of ['cobble', 'dirt']) {
+    const b = roads[surface];
+    if (!b) continue;
+    for (let i = 0; i < b.pos.length; i += 9) {
+      const P = [0, 1, 2].map((k) => [b.pos[i + k * 3], b.pos[i + k * 3 + 1], b.pos[i + k * 3 + 2]]);
+      for (const p of P) { verts++; if (!p.every(Number.isFinite)) { nan++; continue; } worst = Math.max(worst, Math.abs(p[1] - (grid.heightAt(p[0], p[2]) + ROAD_LIFT[surface]))); }
+      const cy = (P[1][0] - P[0][0]) * (P[2][2] - P[0][2]) - (P[1][2] - P[0][2]) * (P[2][0] - P[0][0]);             // (up-facing triangles, as the terrain's own)
+      if (cy > 0) down++;
+      tris.push({ surface, P });
+    }
+  }
+  check('every road vertex lies on the terrain surface (plus its lift): no edge hovers, none is buried', nan === 0 && worst < 0.002, `(${tris.length} triangles, ${verts} vertices, worst ${(worst * 1000).toFixed(3)} mm off)`);
+  check('... every road triangle faces up', down === 0, `(${down} face down)`);
+  const st = roads.stats;
+  check('... and the roads are all there: what is drawn plus what lies under the lake is the whole ribbon', Math.abs(st.draped + st.submerged - st.footprint) < 0.005 * st.footprint && st.submerged < 0.01 * st.footprint, `(${st.footprint.toFixed(0)} m2 of road, ${st.draped.toFixed(0)} drawn, ${st.submerged.toFixed(1)} under the lake)`);
+  // what the old ribbons did, for the record: the lanes at the centre line's height
+  let lanes = 0, off25 = 0, off50 = 0, far = 0;
+  for (const p of grid.paths) for (let i = 0; i < p.pts.length; i++) {
+    const a = p.pts[Math.max(i - 1, 0)], c = p.pts[Math.min(i + 1, p.pts.length - 1)];
+    let fx = c[0] - a[0], fz = c[2] - a[2]; const l = Math.hypot(fx, fz) || 1; fx /= l; fz /= l;
+    for (const k of [-1, 1]) {
+      const x = p.pts[i][0] - fz * (p.width / 2) * k, z = p.pts[i][2] + fx * (p.width / 2) * k, d = Math.abs(grid.heightAt(x, z) - grid.heightAt(p.pts[i][0], p.pts[i][2]));
+      lanes++; if (d > 0.25) off25++; if (d > 0.5) off50++; far = Math.max(far, d);
+    }
+  }
+  check('(the old ribbons would have stood off the ground by more than 25 cm at a tenth of their edges: the check sees the problem)', off25 > lanes * 0.05, `(${off25} of ${lanes} edge samples over 25 cm, ${off50} over 50 cm, up to ${far.toFixed(2)} m)`);
+  // the pier's landing, where the main road, the west and east trails and the dock meet: a cobble triangle over the junction, above a dirt one
+  const at = (surface, x, z) => { for (const t of tris) if (t.surface === surface) { const [A, B, C] = t.P; const d = (B[2] - C[2]) * (A[0] - C[0]) + (C[0] - B[0]) * (A[2] - C[2]); const w0 = ((B[2] - C[2]) * (x - C[0]) + (C[0] - B[0]) * (z - C[2])) / d, w1 = ((C[2] - A[2]) * (x - C[0]) + (A[0] - C[0]) * (z - C[2])) / d, w2 = 1 - w0 - w1; if (w0 >= -1e-9 && w1 >= -1e-9 && w2 >= -1e-9) return w0 * A[1] + w1 * B[1] + w2 * C[1]; } return null; };
+  let over = 0, both = 0, worstGap = Infinity;
+  for (const [x, z] of [[-4, 79], [-4, 80.5], [-5, 81], [-3.5, 78.5], [-5, 79.2], [-4.5, 80]]) {
+    const c = at('cobble', x, z), d = at('dirt', x, z);
+    if (c !== null && d !== null) { both++; worstGap = Math.min(worstGap, c - d); if (c - d >= 0.015) over++; }
+  }
+  check('where the cobble main road crosses the dirt trails at the pier it lies over them (and z-fights with nothing)', both >= 3 && over === both && ROAD_LIFT.cobble > ROAD_LIFT.dirt && ROAD_DECAL.cobble > 1, `(${both} junction points, cobble at least ${(worstGap * 100).toFixed(1)} cm above dirt)`);
 }
 process.exitCode = checks.every(Boolean) ? 0 : 1;

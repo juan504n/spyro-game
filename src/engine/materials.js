@@ -154,7 +154,7 @@ export function texFromPix(pix, { tile = true } = {}) {
  * @param {boolean} [o.sway]           foliage wind sway
  * @param {number[]} [o.scroll]        uv scroll speed (units/sec)
  * @param {boolean} [o.double]         double-sided
- * @param {boolean} [o.decal]          polygon-offset toward the camera (paths, shadows)
+ * @param {boolean|number} [o.decal]  polygon-offset toward the camera (paths, shadows); a number scales the pull (1.5 beats true)
  */
 export function makeMaterial(o = {}) {
   const mode = o.mode || 'solid';
@@ -194,8 +194,8 @@ export function makeMaterial(o = {}) {
     blendDst: THREE.OneFactor,
     blendEquation: THREE.AddEquation,
     polygonOffset: !!o.decal,
-    polygonOffsetFactor: o.decal ? -2 : 0,
-    polygonOffsetUnits: o.decal ? -2 : 0,
+    polygonOffsetFactor: o.decal ? -2 * (+o.decal || 1) : 0,          // (decal: true = -2; a number scales it, so one decal can win over another at the same height: cobble over dirt)
+    polygonOffsetUnits: o.decal ? -2 * (+o.decal || 1) : 0,
   });
   if (mode === 'half') {
     m.blending = THREE.CustomBlending;

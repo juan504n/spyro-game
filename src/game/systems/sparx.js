@@ -1,5 +1,5 @@
 // Sparx: the dragonfly companion and Spyro's health meter, as in the original. His colour shows how many hits Spyro can take: GOLD (full: three) -> BLUE (two) ->
-// GREEN (one) -> gone (none: the next hit is lights out). Butterflies from defeated Snuffers and scorched bunnies bring him back one colour at a time. While he is with
+// GREEN (one) -> gone (none: the next hit is lights out). Butterflies from defeated Snuffers and scorched bunnies bring him back one colour at a time; the rare blue one (every tenth bunny) brings him all the way back to gold. While he is with
 // Spyro he grabs the gems that are close (see systems/gems.js: no Sparx, no gem pull: gems have to be touched). He is a 3D model (models/creatures/sparx.js), not a sprite.
 import { makeModel } from '../models/fallback.js';
 import { SPARX_BODY } from '../models/creatures/sparx.js';
@@ -38,6 +38,21 @@ export class Sparx {
     this.eatT = 1;
     const c = this.color;
     this.game.fx.gemPickup(this.x, this.y, this.z, c);
+    return true;
+  }
+
+  /** The rare blue butterfly: ALL the way back to full health (gold) at once, from any colour and from gone. Returns true if he took it (false when he was full already). */
+  healAll() {
+    if (this.hp >= this.max) return false;
+    this.hp = this.max;
+    this.eatT = 1;
+    this.grabT = 1;                                        // (a happy flick as well)
+    const fx = this.game.fx;
+    fx.gemPickup(this.x, this.y, this.z, SPARX_BODY[3]);
+    for (let i = 0; i < 18; i++) {                         // a ring of gold and blue sparkles
+      const a = (i / 18) * Math.PI * 2, c = i % 2 ? SPARX_BODY[3] : [0.4, 0.75, 1];
+      fx.spawn({ pool: 'add', sprite: 'spark', x: this.x, y: this.y, z: this.z, vx: Math.cos(a) * 3.2, vy: 0.6 + Math.random() * 1.2, vz: Math.sin(a) * 3.2, gravity: -2, life: 0.8, size: [0.5, 0.06], c0: [...c, 1], c1: [...c, 0] });
+    }
     return true;
   }
 

@@ -215,6 +215,7 @@ await run('sparx', () => {
   hit(); out.fourthHitKills = p.dead;
   G.respawn(); S.frame(1 / 60, 1);
   out.afterRespawn = [S.hp, tone(S.color), p.dead ? 'DEAD' : 'alive'];
+  S.reset(0); out.healAll = [S.healAll(), S.hp, S.healAll()];                              // the blue butterfly: gone -> gold in one go, and nothing more to give
   S.reset(1); out.butterflies = [];
   for (let i = 0; i < 4; i++) { const took = S.heal(); out.butterflies.push(`${took ? 'ate' : 'full'} -> ${S.hp}`); }                      // green -> blue -> gold, then no more
   // gems: 3.5 m away, in the open; with him they are pulled in, without him they stay put until they are touched
@@ -227,12 +228,13 @@ await run('sparx', () => {
   const ok = out.start[0] === 3 && out.start[1] === 'gold'
     && out.hits.map((h) => h.join()).join('|') === '2,blue,alive,2|1,green,alive,1|0,green,alive,1' && out.fourthHitKills
     && out.afterRespawn.join() === '3,gold,alive' && out.butterflies.join() === 'ate -> 2,ate -> 3,full -> 3,full -> 3'
+    && out.healAll.join() === 'true,3,false'
     && out.withSparx && !out.withoutSparx.pulled && out.withoutSparx.stillThere && out.touched;
   return { ok, ...out };
 });
 await run('butterfly', () => {
   // The blue butterflies are 3D models, not sprites: a body and two wings of real geometry that beat (the flock shares ONE material, so a butterfly costs three small draw calls).
-  // A healing butterfly (the bright 'shiny' blue one a bunny or a Snuffer leaves) flutters up and flies to SPARX, who eats it: one colour back. With him gone it flies to Spyro
+  // A healing butterfly (the white one a bunny or a Snuffer leaves) flutters up and flies to SPARX, who eats it: one colour back. With him gone it flies to Spyro
   // instead, and with him at full health it just flutters about and waits.
   const G = __game, p = G.player, S = G.sparx, C = G.critters, out = {};
   const parts = (m) => { const o = { meshes: 0, tris: 0, mats: new Set(), wing: null }; m.root.traverse((x) => { if (x.isMesh) { o.meshes++; o.tris += x.geometry.attributes.position.count / 3; o.mats.add(x.material); } if (x.name === 'wingR' && !x.isMesh) o.wing = x; }); return o; };
@@ -265,10 +267,52 @@ await run('butterfly', () => {
   clear(); S.reset(3); __bot.god();
   const ok = out.ambient.count >= 12 && out.ambient.meshes === '3' && out.ambient.minTris > 150 && /^(azure|cyan|sky|violet)(,(azure|cyan|sky|violet))*$/.test(out.ambient.looks) && out.materials === 1
     && out.beat > 1.2 && out.glide < 0.16
-    && out.toSparx.look === 'shiny' && out.toSparx.eaten && out.toSparx.hp === 2 && out.toSparx.dSparx < 1 && out.toSparx.detached
+    && out.toSparx.look === 'pearl' && out.toSparx.eaten && out.toSparx.hp === 2 && out.toSparx.dSparx < 1 && out.toSparx.detached
     && out.toSparxAside.eaten && out.toSparxAside.hp === 2 && out.toSparxAside.dSparx < 1 && out.toSparxAside.dPlayer > 2.5
     && out.sparxGone.eaten && out.sparxGone.hp === 1 && out.sparxGone.dPlayer < 1.6 && out.sparxGone.sparxShown
     && out.full.waiting;
+  return { ok, ...out };
+});
+await run('blue-butterfly', () => {
+  // As in the original, every tenth bunny burnt or rammed leaves a rare BLUE butterfly (the 10th, the 20th ...): bigger, deep blue and shining, and it brings Sparx ALL the way
+  // back to gold (an ordinary white one gives one colour), from green, and from gone; with Sparx full it waits a minute and a half (an ordinary one 25 s).
+  const G = __game, p = G.player, S = G.sparx, C = G.critters, out = {};
+  if (C.bunnies.length < 22) return { ok: false, reason: `only ${C.bunnies.length} bunnies left to pop` };
+  const clear = () => { while (C.flutter.length) C._kill(C.flutter[0], 0); };
+  clear(); G.stats.bunnies = 0;
+  __bot.place(0, 150, Math.PI); S.reset(1); __bot.tick(90);
+  out.kinds = ''; out.looks = new Set(); out.scale = { blue: 0, white: 0 };
+  for (let i = 1; i <= 20; i++) {
+    C._pop(C.bunnies[0], 0);                                                        // (the very call a burnt or rammed bunny makes)
+    const f = C.flutter.at(-1);
+    out.kinds += f.blue ? 'B' : 'w';
+    out.looks.add(`${f.blue ? 'blue' : 'white'}:${f.model.look}`);
+    const sc = f.model.root.scale.x; if (f.blue) out.scale.blue = sc; else out.scale.white = sc;
+  }
+  out.looks = [...out.looks].sort().join();
+  out.counted = G.stats.bunnies;
+  const fly = (kind, hp, ticks) => {
+    clear(); __bot.place(0, 150, Math.PI); S.reset(hp); __bot.tick(90);
+    C.releaseButterfly(p.x + 1.5, p.y + 0.8, p.z - 3, kind === 'blue');
+    let n = 0;
+    for (; n < ticks && C.flutter.length; n++) __bot.tick(1);
+    __bot.tick(20);
+    return { ticks: n, eaten: C.flutter.length === 0, hp: S.hp, shown: S.vis > 0.5 };
+  };
+  out.blueFromGreen = fly('blue', 1, 420);                                           // green -> gold in one meal
+  out.whiteFromGreen = fly('white', 1, 420);                                         // green -> blue: one colour
+  out.blueFromGone = fly('blue', 0, 420);                                            // gone -> gold, and he is back
+  clear(); __bot.place(0, 150, Math.PI); S.reset(3); __bot.tick(30);
+  C.releaseButterfly(p.x + 1.5, p.y + 0.8, p.z - 3, true); C.releaseButterfly(p.x - 1.5, p.y + 0.8, p.z - 3, false);
+  __bot.tick(60 * 30);                                                               // 30 s with Sparx full: the white one has given up (25 s), the blue one is still there
+  out.waiting = { after30s: C.flutter.map((f) => (f.blue ? 'blue' : 'white')).join() };
+  __bot.tick(60 * 70);                                                               // ... and gone by a minute and a half
+  out.waiting.after100s = C.flutter.length;
+  clear(); S.reset(3); __bot.god();
+  const ok = out.kinds === 'wwwwwwwwwBwwwwwwwwwB' && out.counted === 20 && out.looks === 'blue:shiny,white:pearl' && out.scale.blue > out.scale.white * 1.2
+    && out.blueFromGreen.eaten && out.blueFromGreen.hp === 3 && out.whiteFromGreen.eaten && out.whiteFromGreen.hp === 2
+    && out.blueFromGone.eaten && out.blueFromGone.hp === 3 && out.blueFromGone.shown
+    && out.waiting.after30s === 'blue' && out.waiting.after100s === 0;
   return { ok, ...out };
 });
 await run('one-hit-enemies', () => {

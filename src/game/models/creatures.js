@@ -5,7 +5,7 @@
 // bunny    fodder critter
 // elder    Elder Wick, the lantern keeper
 // sparx    the dragonfly companion and health meter (gold / blue / green)
-// butterfly  the blue butterflies (ambient ones and the healing ones), looks azure | cyan | violet | sky | shiny
+// butterfly  the blue butterflies (ambient ones and the healing ones), looks azure | cyan | violet | sky | pearl | shiny
 import { createSpyro } from './creatures/spyro.js';
 import { createSnuffer } from './creatures/snuffer.js';
 import { createBunny } from './creatures/bunny.js';
@@ -37,7 +37,7 @@ export const CREATURES = {
   butterfly: {
     create: createButterfly,
     size: 0.9,
-    note: 'Blue butterfly in 3D (forewings + hindwings, banded body, antennae). opts { look azure|cyan|violet|sky|shiny, scale, hover, still }. Pose { t, flap 0..1, speed, vy, turn, wing (radians), vis }. anchors: top.',
+    note: 'Blue butterfly in 3D (forewings + hindwings, banded body, antennae). opts { look azure|cyan|violet|sky|pearl|shiny, scale, hover, still }. Pose { t, flap 0..1, speed, vy, turn, wing (radians), vis }. anchors: top.',
   },
   elder: {
     create: createElder,

@@ -56,8 +56,11 @@ off a bell and ramming a thorn hurts you, however hard you try.
 
 Sparx, the dragonfly, is the health bar, after the original: Spyro can take three hits, shown by Sparx's colour. He starts at full health (**gold**), each hit that lands turns him down
 a colour (**gold → blue → green → gone**), and with him gone the next hit is lights out. A scorched or rammed bunny (and a defeated Snuffer, six times in ten or whenever he is down to green or
-gone) releases a butterfly that flutters up for about a second and then flies to Sparx (to Spyro's chest when Sparx is gone, and he pops back when he is healed), and he eats it: each one heals one step (gone → green → blue → gold; with him full the
-butterfly just flutters about and waits, 25 s at most). A new life starts with him gold again.
+gone) releases a white butterfly that flutters up for about a second and then flies to Sparx (to Spyro's chest when Sparx is gone, and he pops back when he is healed), and he eats it: each one heals one step (gone → green → blue → gold; with him full the
+butterfly just flutters about and waits, 25 s at most). As in the original (Spyro 2 and 3: "every 10 fodder that Spyro flames or charges will release a shiny blue butterfly"), **every tenth bunny** flamed or rammed (`stats.bunnies`
+counts them: the 10th, 20th and 30th of the 37) leaves a **blue butterfly** instead: `Sparx.healAll()` takes him from any colour, and from gone, straight to gold (the original's extra life has no place here: there is no life counter). It arrives in a burst of blue sparkles with a soft chime and, the first time,
+a hint line; it is bigger (scale 1.05 against 0.75), the deep saturated `shiny` blue, with a double halo, a denser trail in blue and white with a twinkle of gold now and then, and climbs in a wider spiral for 1.3 s before it sets off (a little faster than a white one). It waits 90 s
+for Sparx to need it (a white one 25 s), and he eats it to the new `butterfly_blue` sound: the butterfly chime run two notes further (A5 to E7) with a long A6 + E7 ring over a shimmer of glitter. A new life starts with him gold again.
 The gem magnet belongs to him (see below): with him gone gems are only picked up by touching them.
 
 ## Ramming and jumping
@@ -98,6 +101,12 @@ On a touch screen it is two fingers, one held on RAM and one tapping JUMP (the p
   The body takes his health colour (gold, blue or green, eased over when it changes) and is lifted at dusk so he glows against the dark; the wings and eyes keep their own colours whatever his health, as in the original's art.
   A chomp squashes him when he eats a butterfly, a flick darts him at a gem he grabs, and a hit flashes and wobbles him. The HUD icon is drawn to match (pink-violet wings, yellow tips, big eyes) in the same three colours.
   The model viewer (`?test=models`) has his test poses: gold, blue, green, zoom, hurt, eat.
+* **The roads are draped on the terrain** (`roads.js`). A road ribbon used to be three lanes (left edge, centre, right edge) that all stood at the height of the road's centre line: on flat ground fine, but on a slope the edges hovered above the
+  ground on the downhill side and were buried on the uphill side, and where two roads overlapped each had its own height. At the pier's landing, where three roads meet on a bank, that read as planks sticking out of the hillside and as cobble eaten into
+  ragged pieces by the dirt trails drawn over it: measured over the whole map 161 of 2066 edge samples stood off the ground by more than 25 cm, 88 by more than 50 cm, up to 2.8 m. Now every ribbon quad is cut against the terrain triangles under it (two a cell, split
+  exactly as `grid.heightAt` and the render mesh split them: a Sutherland-Hodgman clip, with the uv and the tint carried through the cuts, which is exact because they are affine over a ribbon triangle), and each piece is lifted a hair (4 cm for dirt, 6 for cobble, so cobble lies over dirt where two
+  meet, plus a stronger polygon offset for the cobble material) off the surface it lies on. The road is the terrain's own surface in another texture: it follows every bump, can never float or sink, takes the terrain's smooth vertex normals so it is lit like the ground beside it, and
+  the pieces wholly under the lake are dropped. Collinear ribbon points are merged first (straight stretches become one 4.8 m segment) so the cuts stay few: 13 k triangles for all the roads (it was 4 k for the floating ribbons), built in about 0.1 s.
 * **Butterflies:** the flat 16 px sprites (pale blue with a dark outline, a four-frame flap) are gone; every butterfly is a model (`models/creatures/butterfly.js`, registered as `butterfly`, in the model viewer with the poses
   flutter, glide, spread, vee, folded, down, dart). The body is a banded tube behind a furry thorax, a small head with dark eyes and two antennae with clubs. Each side has a forewing (an outline of 13 points, pointed at the tip) and a hindwing (13 points,
   rounder, with a short tail), a shallow cup (they rise 5 cm towards the tip, so the light rolls across them). A wing is a dark rim band, a bright middle that shades from a deep root blue through the main blue to a cyan sheen, and six white dots just
@@ -215,6 +224,12 @@ jump cannot reach), and `tools/touch-ram-jump-test.mjs` does it on an emulated p
 on the running game: he starts gold at full health, three hits turn him blue, green, gone, the fourth kills, a respawn gives gold again, butterflies heal one step at a time and stop at gold, a gem inside the magnet's reach is lobbed in while he is there and is
 left alone once he is gone (and is still collected by touch). It fails with the old start (blue), with the magnet working without him, with no reset at respawn and with the colours swapped. **The landing:** `level-check` samples the ground 16 m
 round the pier's foot and fails if anything but grass, sand, dirt or paving shows up (it was eight textures), checks that nothing beyond the fade changed, that inside it cells only change to those, and that the debug readout names the rule; making the zone smaller fails it.
+
+**Round ten, second half** (the ground pieces that stuck out, and the blue butterflies that heal Sparx completely): `level-check` now builds the roads and checks that every vertex of every road triangle lies on the terrain surface plus its lift
+(worst 0.000 mm off; moving some vertices 30 cm fails it), every triangle faces up, nothing is lost (what is drawn plus what lies under the lake is the whole ribbon; dropping every tenth piece fails it), what the old ribbons did (the numbers above, so the check sees the problem),
+and that at six junction points of the main road and the west trail the cobble lies at least 1.5 cm over the dirt (equal lifts fail it). The bot's `blue-butterfly` scenario pops 20 bunnies through the very call a burnt or rammed one makes and checks the kinds (`wwwwwwwwwBwwwwwwwwwB`, the looks, the sizes, the count), that a
+blue one takes Sparx from green and from gone to gold while a white one gives one colour, and that with him full the blue one is still there after 30 s and gone by 100 s (it fails with every 5th, with a blue butterfly that heals one step, with a 25 s wait, and counting one off); the `sparx` scenario
+checks `healAll()` (gone to gold, then nothing more to give); the new sound renders clean (2.25 s, peak -2 dBFS, silent at both ends).
 
 **Round ten** (Sparx half the size, the blue butterflies redesigned): `tools/butterfly-test.mjs` (headless) checks every look's geometry (finite, real 3D, 0.95 m by 0.7 m, every wing triangle twinned with an underside face in another colour), the shared
 material and geometry, the beat (range, about 4.4 Hz, faster at speed, still in a glide), bursts and glides when left alone, a forced wing angle, bad inputs, vis 0, and the dusk lift. The bot's `butterfly` scenario checks it in the running game: 18 ambient models of

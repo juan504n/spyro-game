@@ -4,6 +4,7 @@
 // with a glitter tail, rendered cleaner than everything else here (which is deliberately 22 kHz and grainy).
 //
 //   butterfly     A5 B5 D6 E6 A6 rising chime with detuned twin bells, sparkle and a bit of room
+//   butterfly_blue  the rare blue butterfly: a fuller run A5 .. E7 with a long A6 + E7 ring and a shimmer of glitter
 //   vase_break    clay crack + low thud + shard crunch (12 ticks) + ceramic tinkles
 //   chest_open    creaking lid, latch click, then a D5 A5 D6 "ta-da" with a D7 glint
 //   snuffer_alert two pulse-wave blips a tritone apart (392 -> 554 Hz) with 30 Hz wobble
@@ -27,6 +28,18 @@ export const ITEM_SFX = {
     names.forEach((nm, i) => parts.push([bell(hz(nm) * 1.003, 0.6, 0.25, 0.5, 0.008), i * 0.09 + 0.01, 0.25]));
     parts.push([noiseFilt(0.9, seedOf('butterfly'), { mode: 'hp', f0: 3000, f1: 7500, q: 0.8, env: (t, x) => Math.pow(Math.sin(Math.PI * Math.min(1, x * 1.1)), 2) * 0.5 }), 0, 0.15]);
     return fin(reverbMono(layer(0.95, parts), 'chamber', 0.35, 0.3), { grit: 0.15 });
+  },
+
+  // The rare blue butterfly (every tenth bunny) is eaten: a longer, fuller version of the butterfly chime. The same pentatonic run two notes further (A5 B5 D6 E6 A6 B6 D7 E7), each bell with
+  // a detuned twin, then a last long ring of A6 + E7 over a shimmer of glitter and a breath of air, so it reads as "something special just happened to Sparx".
+  butterfly_blue() {
+    const names = ['A5', 'B5', 'D6', 'E6', 'A6', 'B6', 'D7', 'E7'];
+    const parts = names.map((nm, i) => [bell(hz(nm), 0.95, 0.4, 0.8, 0.006), i * 0.075, 0.52 + i * 0.06]);
+    names.forEach((nm, i) => parts.push([bell(hz(nm) * 1.004, 0.85, 0.36, 0.55, 0.008), i * 0.075 + 0.012, 0.22]));
+    parts.push([bell(hz('A6'), 1.3, 0.85, 0.5, 0.01), 0.6, 0.34], [bell(hz('E7'), 1.3, 0.8, 0.4, 0.01), 0.63, 0.24]);
+    parts.push([tinkles(1.2, seedOf('butterfly_blue'), 14, 3200, 8500, { tauLo: 0.06, tauHi: 0.16, tMax: 0.9, gain: 0.3 }), 0.1, 1]);
+    parts.push([noiseFilt(0.7, seedOf('butterfly_blue') + 1, { mode: 'hp', f0: 3500, f1: 8500, q: 0.8, env: (t, x) => Math.pow(Math.sin(Math.PI * Math.min(1, x * 1.05)), 2) * 0.4 }), 0.05, 0.5]);
+    return fin(reverbMono(layer(1.9, parts), 'chamber', 0.45, 0.35), { grit: 0.12 });
   },
 
   vase_break() {

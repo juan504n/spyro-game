@@ -1,6 +1,7 @@
-// Meadow bunnies ("fodder"): they hop about, bolt when Spyro gets close, and release a healing butterfly when
-// burnt or rammed. Butterflies flutter up, then seek Sparx (or Spyro, when Sparx is gone) to refill him. The butterflies are 3D models (models/creatures/butterfly.js):
-// the healing ones are the bright 'shiny' blue with a glow and a trail of sparkles, and a flock of ambient ones in every shade of blue drifts about the meadows near Spyro.
+// Meadow bunnies ("fodder"): they hop about, bolt when Spyro gets close, and release a healing butterfly when burnt or rammed. Butterflies flutter up, then seek Sparx (or Spyro,
+// when Sparx is gone) to refill him. As in the original, every tenth bunny leaves something rarer: a BLUE butterfly that brings Sparx all the way back to gold. The butterflies are
+// 3D models (models/creatures/butterfly.js): the ordinary healing ones are white with a soft glow, the blue ones bigger, deep blue and shining, with a sparkle trail and a chime,
+// and a flock of ambient ones in every shade of blue drifts about the meadows near Spyro.
 import { makeModel } from '../models/fallback.js';
 import { WATER_LEVEL } from '../level.js';
 
@@ -9,7 +10,8 @@ const wrap = (a) => { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TA
 const lerp = (a, b, t) => a + (b - a) * t;
 const clamp1 = (v) => (v < -1 ? -1 : v > 1 ? 1 : v);
 const AMBIENT_LOOKS = ['azure', 'sky', 'cyan', 'azure', 'sky', 'violet', 'cyan', 'azure'];      // the ambient butterflies: every shade of blue
-const HEAL_SCALE = 0.75;                                                                      // (a healing butterfly is a little bigger than an ambient one, 0.45 to 0.65)
+const HEAL_SCALE = 0.75, BLUE_SCALE = 1.05;                                                  // (a healing butterfly is a little bigger than an ambient one, 0.45 to 0.65; a blue one bigger still)
+export const BLUE_EVERY = 10;                                                                // (every tenth bunny that is burnt or rammed leaves a blue butterfly)
 
 export class CritterSystem {
   /** spawns: [{ x, z }] one bunny each */
@@ -40,14 +42,21 @@ export class CritterSystem {
     return { model, x: 0, y: 0, z: 0, px: 0, py: 0, pz: 0, vx: 0, vy: 0, vz: 0, yaw: Math.random() * TAU, turn: 0, a: Math.random() * TAU, r: 4 + Math.random() * 8, s: 0.4 + Math.random() * 0.5, phase: Math.random() * 6, home: null, vis: 0 };
   }
 
-  releaseButterfly(x, y, z) {
+  /** A healing butterfly flutters out of (x, y, z). `blue`: the rare one that heals Sparx completely (bigger, deep blue, shining). */
+  releaseButterfly(x, y, z, blue = false) {
     const g = this.game;
-    const model = makeModel(g.assets, 'butterfly', { look: 'shiny', scale: HEAL_SCALE });
+    const model = makeModel(g.assets, 'butterfly', { look: blue ? 'shiny' : 'pearl', scale: blue ? BLUE_SCALE : HEAL_SCALE });
     model.root.position.set(x, y, z);
     model.root.visible = false;
     g.dyn.add(model.root);
-    const glow = g.fx.billboard({ pool: 'add', sprite: 'glow_small', size: 1.0, color: [0.3, 0.6, 1.0], alpha: 0.3 });
-    this.flutter.push({ model, glow, x, y, z, px: x, py: y, pz: z, vx: 0, vy: 2.2, vz: 0, yaw: Math.random() * TAU, turn: 0, vis: 0, t: 0, phase: Math.random() * 6, wait: 0, trail: 0 });
+    const glow = g.fx.billboard({ pool: 'add', sprite: 'glow_small', size: blue ? 1.9 : 0.9, color: blue ? [0.3, 0.6, 1.0] : [0.85, 0.92, 1.0], alpha: blue ? 0.34 : 0.22 });
+    const core = blue ? g.fx.billboard({ pool: 'add', sprite: 'glow_small', size: 0.8, color: [0.7, 0.92, 1.0], alpha: 0.5 }) : null;       // (a bright core in the blue one's halo)
+    this.flutter.push({ model, glow, core, blue, x, y, z, px: x, py: y, pz: z, vx: 0, vy: 2.2, vz: 0, yaw: Math.random() * TAU, turn: 0, vis: 0, t: 0, phase: Math.random() * 6, wait: 0, trail: 0 });
+    if (blue) {
+      g.fx.gemPickup(x, y, z, [0.4, 0.75, 1]);                               // it arrives in a burst of blue sparkles and a chime
+      g.audio?.sfx('butterfly', { vol: 0.55, pitch: 1.3 });
+      if (!this.blueSeen) { this.blueSeen = true; g.hud?.hint('A BLUE BUTTERFLY!  IT HEALS SPARX ALL THE WAY BACK', 5); }
+    }
   }
 
   update(dt, game) {
@@ -136,19 +145,23 @@ export class CritterSystem {
       f.t += dt;
       f.px = f.x; f.py = f.y; f.pz = f.z;
       const toPlayer = Math.hypot(p.x - f.x, p.y + 0.9 - f.y, p.z - f.z);
-      if (f.t < 0.9) { f.vy = 2.4; f.vx = Math.cos(f.t * 5) * 1.6; f.vz = Math.sin(f.t * 5) * 1.6; }
+      const rise = f.blue ? 1.3 : 0.9;                                   // (the blue one climbs in a wider spiral before it sets off)
+      if (f.t < rise) { const r = f.blue ? 2.2 : 1.6; f.vy = 2.4; f.vx = Math.cos(f.t * 5) * r; f.vz = Math.sin(f.t * 5) * r; }
       else if (sx.hp < sx.max && !p.dead) {
         const tx = sparxHere ? sx.x : p.x, ty = sparxHere ? sx.y : p.y + 0.9, tz = sparxHere ? sx.z : p.z;
         const dx = tx - f.x, dy = ty - f.y, dz = tz - f.z;
         const d = Math.hypot(dx, dy, dz) || 1;
-        const s = Math.min(11, 3 + (f.t - 0.9) * 6);
+        const s = f.blue ? Math.min(13, 4 + (f.t - rise) * 7) : Math.min(11, 3 + (f.t - rise) * 6);
         f.vx = dx / d * s + Math.sin(f.t * 7 + f.phase) * 0.8; f.vy = dy / d * s + Math.sin(f.t * 9) * 0.6; f.vz = dz / d * s;
-        if (d < (sparxHere ? 0.6 : 1.3) || (f.t > 6 && toPlayer < 2.5)) { sx.heal(); game.audio?.sfx('butterfly'); game.hud?.pulse('sparx'); this._kill(f, i); continue; }
+        if (d < (sparxHere ? 0.6 : 1.3) || (f.t > 6 && toPlayer < 2.5)) {
+          if (f.blue) { sx.healAll(); game.audio?.sfx('butterfly_blue'); } else { sx.heal(); game.audio?.sfx('butterfly'); }
+          game.hud?.pulse('sparx'); this._kill(f, i); continue;
+        }
       } else {
         // Sparx is full: just flutter about until needed
         f.wait += dt;
         f.vx = Math.cos(f.t * 2 + f.phase) * 1.3; f.vz = Math.sin(f.t * 2.3 + f.phase) * 1.3; f.vy = Math.sin(f.t * 3) * 0.5;
-        if (f.wait > 25) { this._kill(f, i); continue; }
+        if (f.wait > (f.blue ? 90 : 25)) { this._kill(f, i); continue; }                // (a blue one is worth waiting for: it stays a minute and a half)
       }
       f.x += f.vx * dt; f.y += f.vy * dt; f.z += f.vz * dt;
       // it faces the way it flies, and banks into its turns
@@ -156,11 +169,13 @@ export class CritterSystem {
       f.yaw += d * (1 - Math.exp(-7 * dt));
       f.turn = lerp(f.turn, clamp1(d * 1.6), 0.2);
       f.vis = Math.min(1, f.vis + dt * 4);
-      // a trail of sparkles in the same blue
+      // a trail of sparkles: pale for an ordinary butterfly; for a blue one denser, in blue and white, with a twinkle of gold now and then
       f.trail -= dt;
       if (f.trail <= 0) {
-        f.trail = 0.07;
-        game.fx.spawn({ pool: 'add', sprite: 'glow_small', x: f.x, y: f.y, z: f.z, vy: -0.3, life: 0.5, size: [0.3, 0.03], c0: [0.5, 0.85, 1, 0.5], c1: [0.4, 0.7, 1, 0] });
+        f.trail = f.blue ? 0.045 : 0.07;
+        const c = f.blue ? (Math.random() < 0.5 ? [0.4, 0.75, 1] : [0.85, 0.95, 1]) : [0.85, 0.92, 1];
+        game.fx.spawn({ pool: 'add', sprite: 'glow_small', x: f.x, y: f.y, z: f.z, vy: -0.3, life: 0.5, size: [f.blue ? 0.4 : 0.3, 0.03], c0: [...c, 0.5], c1: [...c, 0] });
+        if (f.blue && Math.random() < 0.18) game.fx.spawn({ pool: 'add', sprite: 'spark_small', x: f.x + (Math.random() - 0.5) * 0.5, y: f.y + (Math.random() - 0.5) * 0.4, z: f.z + (Math.random() - 0.5) * 0.5, vy: 0.3, life: 0.6, size: [0.3, 0.05], c0: [1, 0.85, 0.3, 0.9], c1: [1, 0.85, 0.3, 0] });
       }
     }
     // ---- ambient butterflies around the player -------------------------------------------------------------------------
@@ -197,10 +212,11 @@ export class CritterSystem {
     };
     for (const f of this.flutter) {
       place(f);
-      const g = f.glow, r = f.model.root.position;
+      const g = f.glow, r = f.model.root.position, pulse = Math.sin(game.time * (f.blue ? 6 : 8) + f.phase);
       g.x = r.x; g.y = r.y; g.z = r.z;
-      g.alpha = (0.26 + Math.sin(game.time * 8 + f.phase) * 0.08) * f.vis;
+      g.alpha = ((f.blue ? 0.30 : 0.18) + pulse * (f.blue ? 0.08 : 0.06)) * f.vis;
       g.visible = f.vis > 0.02;
+      if (f.core) { f.core.x = r.x; f.core.y = r.y; f.core.z = r.z; f.core.alpha = (0.42 + pulse * 0.12) * f.vis; f.core.visible = g.visible; }
     }
     for (const a of this.ambient) place(a);
   }
@@ -209,16 +225,17 @@ export class CritterSystem {
     const g = this.game;
     g.fx.puff(b.x, b.y + 0.5, b.z, 0.6);
     g.audio?.sfx('bunny_poof', { vol: 0.9 });
-    this.releaseButterfly(b.x, b.y + 0.6, b.z);
+    const n = ++g.stats.bunnies;                                        // (every tenth bunny leaves a blue butterfly: the 10th, the 20th, the 30th)
+    this.releaseButterfly(b.x, b.y + 0.6, b.z, n % BLUE_EVERY === 0);
     b.model.root.parent?.remove(b.model.root);
     b.model.dispose?.();
     b.shadow.dead = true;
     this.bunnies.splice(i, 1);
-    g.stats.bunnies++;
   }
 
   _kill(f, i) {
     f.glow.dead = true;
+    if (f.core) f.core.dead = true;
     f.model.root.parent?.remove(f.model.root);
     f.model.dispose?.();
     this.flutter.splice(i, 1);

@@ -2,10 +2,10 @@
 import * as THREE from 'three';
 import { U } from '../engine/materials.js';
 import { Lighting, atmosphere, dynamicLight } from '../engine/lighting.js';
-import { Builder } from '../engine/builder.js';
 import { generateTerrain } from './terrain.js';
 import { buildTerrainMeshes } from './terrain-mesh.js';
 import { buildWater } from './water.js';
+import { buildRoads, ROAD_DECAL } from './roads.js';
 import { Sky } from './sky.js';
 import { Kit } from './kit.js';
 
@@ -55,22 +55,18 @@ export function* buildWorldSteps(assets, populate) {
   world.scene.add(world.water);
   world.timings.water = performance.now() - t;
 
-  // roads: cobble / dirt ribbons hugging the ground with worn, darker edges
+  // roads: cobble / dirt ribbons DRAPED on the terrain mesh (see roads.js) with worn, darker edges
   t = performance.now();
   world.roads = new THREE.Group();
   world.roads.name = 'roads';
+  const roads = buildRoads(grid, lighting);
+  world.roadStats = roads.stats;
   for (const surface of ['cobble', 'dirt']) {
-    const b = new Builder({ lighting });
-    for (const p of grid.paths) {
-      if (p.surface !== surface) continue;
-      const pts = p.pts.map((q) => [q[0], grid.heightAt(q[0], q[2]) + 0.07, q[2]]);
-      b.ribbon(pts, p.width, { tile: 5, uSpan: p.width / 5, edgeTint: surface === 'cobble' ? [0.78, 0.78, 0.86] : [0.7, 0.66, 0.6], centerTint: [1.05, 1.05, 1.05] });
-    }
-    if (b.triangleCount) {
-      const m = new THREE.Mesh(b.build(), assets.mat(surface, { decal: true }));
-      m.renderOrder = 1;
-      world.roads.add(m);
-    }
+    if (!roads[surface]) continue;
+    const m = new THREE.Mesh(roads[surface].build(), assets.mat(surface, { decal: ROAD_DECAL[surface] }));
+    roads[surface].release();                                          // (the geometry owns typed copies now)
+    m.renderOrder = surface === 'cobble' ? 2 : 1;                      // (cobble over dirt where two roads meet)
+    world.roads.add(m);
   }
   world.scene.add(world.roads);
   world.timings.roads = performance.now() - t;

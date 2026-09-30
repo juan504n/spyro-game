@@ -3,7 +3,8 @@
 // a dusty pale blue, so a butterfly flashes blue and dull as it beats. They beat in bursts and glide between them, the body bobbing with each stroke (the healing ones never stop).
 // Faces +z, origin at the middle of the thorax; about 0.7 m long and 0.95 m across the wings as modelled, drawn at `opts.scale` of that (0.6 by default: ambient ones 0.45 to 0.65, healing ones 0.75).
 //
-// Looks (opts.look): azure (the classic), cyan, violet, sky (pale) and shiny (the healing butterfly: brighter and more saturated; the game adds its own glow).
+// Looks (opts.look): azure (the classic), cyan, violet, sky (pale), pearl (white: the ordinary healing butterfly) and shiny (the rare blue butterfly that heals Sparx completely:
+// brighter and more saturated; the game adds its own glow).
 // Pose contract (all optional): { t, flap 0..1 (1 = beating, 0 = gliding; left out: the butterfly alternates by itself), speed 0..20 (how fast it flies: quicker beats),
 //   vy (climbing / sinking), turn -1..1 (banks into it), wing (radians: hold the wings at this angle, 0 flat, 1.4 folded up; for the viewer and the tests), vis 0..1 (scale: 0 = gone) }
 // opts: look, scale, hover (metres above the origin, for the viewer), still (no random glides: repeatable renders), seed.
@@ -21,6 +22,7 @@ export const BUTTERFLY_LOOKS = {
   cyan:   { root: [0.04, 0.22, 0.42], mid: [0.10, 0.74, 0.92], hi: [0.45, 0.98, 1.00], rim: [0.02, 0.12, 0.30], under: [0.56, 0.80, 0.90], underRim: [0.22, 0.34, 0.50], body: [0.05, 0.14, 0.28], band: [0.14, 0.42, 0.62] },
   violet: { root: [0.20, 0.10, 0.50], mid: [0.48, 0.42, 1.00], hi: [0.78, 0.68, 1.00], rim: [0.09, 0.05, 0.30], under: [0.68, 0.62, 0.92], underRim: [0.34, 0.26, 0.52], body: [0.14, 0.09, 0.32], band: [0.32, 0.26, 0.66] },
   sky:    { root: [0.30, 0.46, 0.84], mid: [0.68, 0.88, 1.00], hi: [0.92, 1.00, 1.00], rim: [0.18, 0.32, 0.66], under: [0.80, 0.88, 0.98], underRim: [0.42, 0.50, 0.70], body: [0.16, 0.20, 0.42], band: [0.36, 0.46, 0.76] },
+  pearl:  { root: [0.50, 0.58, 0.86], mid: [0.90, 0.94, 1.00], hi: [1.00, 1.00, 1.00], rim: [0.42, 0.52, 0.80], under: [0.88, 0.90, 0.98], underRim: [0.55, 0.56, 0.78], body: [0.30, 0.34, 0.58], band: [0.55, 0.62, 0.86] },
   shiny:  { root: [0.05, 0.14, 0.70], mid: [0.10, 0.46, 1.00], hi: [0.28, 0.80, 1.00], rim: [0.03, 0.07, 0.42], under: [0.52, 0.72, 1.00], underRim: [0.22, 0.34, 0.70], body: [0.06, 0.12, 0.44], band: [0.22, 0.48, 0.90] },
 };
 const NIGHT_BOOST = 1.25;                 // (the twilight is dark: lift them so they glow against it, easing back to 1 by daybreak)
