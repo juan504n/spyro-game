@@ -172,6 +172,7 @@ uniform sampler2D uTex;
 uniform vec2 uInRes;
 uniform vec4 uRect;     // x, y, w, h of the picture inside the canvas (device px, origin bottom-left)
 uniform float uCRT;
+uniform float uSmooth;   // 1 = plain bilinear upscale, 0 = crisp "sharp bilinear" (pixels stay square)
 varying vec2 vUv;
 
 void main() {
@@ -181,7 +182,7 @@ void main() {
   vec2 px = uv * uInRes;
   vec2 seam = floor(px + 0.5);
   vec2 dudv = uInRes / uRect.zw;      // internal pixels per device pixel (constant: no derivatives needed)
-  vec2 spx = seam + clamp((px - seam) / dudv, -0.5, 0.5);
+  vec2 spx = uSmooth > 0.5 ? px : seam + clamp((px - seam) / dudv, -0.5, 0.5);
   vec3 c = texture2D(uTex, spx / uInRes).rgb;
   if (uCRT > 0.0) {
     float scan = 0.5 + 0.5 * cos(6.2831853 * (px.y - 0.5));

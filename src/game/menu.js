@@ -65,7 +65,7 @@ export class Menu {
     const gfx = this.game.gfx, dpr = Math.min(window.devicePixelRatio || 1, 3);
     const [x0, y0, rw, rh] = gfx.rect;
     const top = gfx.devH - (y0 + rh);
-    return [(cx * dpr - x0) * gfx.W / rw, (cy * dpr - top) * gfx.H / rh];
+    return [(cx * dpr - x0) * gfx.hud.w / rw, (cy * dpr - top) * gfx.hud.h / rh];      // (HUD layout space, not scene pixels)
   }
 
   /** Mouse hover / click and touch taps pick rows directly. */
@@ -74,7 +74,7 @@ export class Menu {
     if (!P || P.x < 0 || (!P.moved && !P.tap)) return;
     const g = this.game, gfx = g.gfx;
     const [ix, iy] = this._toInternal(P.x, P.y);
-    const L = this.layout(gfx.W, gfx.H, page, items);
+    const L = this.layout(gfx.hud.w, gfx.hud.h, page, items);
     const inside = ix >= L.x && ix <= L.x + L.w && iy >= L.y && iy <= L.y + L.h;
     const row = inside ? Math.floor((iy - (L.rows0 - 2)) / L.rowH) : -1;
     const hit = row >= 0 && row < items.length ? row : -1;

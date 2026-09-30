@@ -1,19 +1,20 @@
 // Renderer: scene -> low-res target -> 15-bit dither + HUD composite -> crisp upscale to the canvas.
 import * as THREE from 'three';
-import { U } from './materials.js';
+import { U, setTextureSmoothing } from './materials.js';
 import { QUANT_FRAG, OUT_FRAG, FULLSCREEN_VERT } from './shaders.js';
 import { Pix } from './textures/pix.js';
 
-const STORE_KEY = 'gloaming-vale/settings/v1';
+const STORE_KEY = 'gloaming-vale/settings/v2';
 
 export const DEFAULT_SETTINGS = {
   display: '4:3',     // '4:3' (authentic 320x240) | 'wide' (240 lines, as many columns as fit)
   scaling: 'auto',    // 'auto' | 'integer' | 'fill'
-  height: 240,        // internal vertical resolution (240 = PS1)
+  height: 480,        // internal vertical resolution (240 = PS1)
+  filter: 'smooth',   // 'smooth' (filtered textures, MSAA, smooth upscale) | 'pixel' (PS1 point sampling)
   crt: 0,             // 0..1 scanlines/mask/vignette
-  dither: 1,          // 15-bit colour + ordered dither
-  snap: 1,            // vertex snapping
-  affine: 1,          // affine texture warping (0..1)
+  dither: 0,          // 15-bit colour + ordered dither
+  snap: 0,            // vertex snapping
+  affine: 0,          // affine texture warping (0..1)
   fps30: false,       // lock rendering to 30 fps like the original
   music: 0.8,
   sfx: 1,
@@ -25,11 +26,12 @@ const clamp01 = (v) => Math.max(0, Math.min(1, v));
 /** Stored settings are untrusted JSON: coerce every field into its valid range (a bad value must never blank the screen). */
 function sanitize(s) {
   const num = (v, d) => (Number.isFinite(+v) && v !== null && v !== '' ? clamp01(+v) : d);
-  s.height = [240, 360, 480].includes(s.height) ? s.height : 240;
+  s.height = [240, 360, 480, 720].includes(s.height) ? s.height : 480;
+  if (s.filter !== 'pixel') s.filter = 'smooth';
   if (s.display !== 'wide') s.display = '4:3';
   if (!['auto', 'integer', 'fill'].includes(s.scaling)) s.scaling = 'auto';
   s.crt = num(s.crt, 0);
-  s.affine = num(s.affine, 1);
+  s.affine = num(s.affine, 0);
   s.music = num(s.music, DEFAULT_SETTINGS.music);
   s.sfx = num(s.sfx, DEFAULT_SETTINGS.sfx);
   s.dither = s.dither ? 1 : 0;
@@ -42,7 +44,7 @@ function sanitize(s) {
 export function loadSettings() {
   const base = { ...DEFAULT_SETTINGS };
   // phones are wider than 4:3 and have no room to waste: start in widescreen (players can still pick 4:3 in the options)
-  try { if ('ontouchstart' in window || navigator.maxTouchPoints > 0) base.display = 'wide'; } catch (e) { /* no window (headless) */ }
+  try { if ('ontouchstart' in window || navigator.maxTouchPoints > 0) { base.display = 'wide'; base.height = 360; } } catch (e) { /* no window (headless) */ }
   try {
     const raw = localStorage.getItem(STORE_KEY);
     if (raw) {
@@ -102,6 +104,7 @@ export class Gfx {
       uniforms: {
         uTex: { value: null },
         uInRes: { value: new THREE.Vector2(320, 240) },
+        uSmooth: { value: 1 },
         uRect: { value: new THREE.Vector4(0, 0, 640, 480) },
         uCRT: { value: 0 },
       },
@@ -125,10 +128,11 @@ export class Gfx {
 
   _allocTargets(W, H) {
     if (this.rtScene) { this.rtScene.dispose(); this.rtFinal.dispose(); this.hudTex?.dispose(); }
+    this._samples = this.settings.filter === 'smooth' ? 4 : 0;
     this.rtScene = new THREE.WebGLRenderTarget(W, H, {
       minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter,
       format: THREE.RGBAFormat, type: THREE.UnsignedByteType,
-      depthBuffer: true, stencilBuffer: false, generateMipmaps: false,
+      depthBuffer: true, stencilBuffer: false, generateMipmaps: false, samples: this._samples,
     });
     this.rtScene.texture.colorSpace = THREE.NoColorSpace;
     this.rtFinal = new THREE.WebGLRenderTarget(W, H, {
@@ -137,9 +141,11 @@ export class Gfx {
       depthBuffer: false, stencilBuffer: false, generateMipmaps: false,
     });
     this.rtFinal.texture.colorSpace = THREE.NoColorSpace;
-    this.hud = new Pix(W, H);
-    this.hudTex = new THREE.DataTexture(new Uint8Array(this.hud.data.buffer), W, H, THREE.RGBAFormat);
-    this.hudTex.magFilter = this.hudTex.minFilter = THREE.NearestFilter;
+    // the HUD lives in a fixed 240-line layout space whatever the scene resolution is (it is just scaled up to the frame)
+    const uiH = 240, uiW = Math.round((W * uiH) / H / 2) * 2;
+    this.hud = new Pix(uiW, uiH);
+    this.hudTex = new THREE.DataTexture(new Uint8Array(this.hud.data.buffer), uiW, uiH, THREE.RGBAFormat);
+    this.hudTex.magFilter = this.hudTex.minFilter = this.settings.filter === 'smooth' ? THREE.LinearFilter : THREE.NearestFilter;
     this.hudTex.flipY = true;
     this.hudTex.generateMipmaps = false;
     this.hudTex.needsUpdate = true;
@@ -154,8 +160,21 @@ export class Gfx {
     this.settings[key] = value;
     saveSettings(this.settings);
     this.applySettings();
-    if (key === 'display' || key === 'scaling' || key === 'height') this.resize(true);
+    if (key === 'display' || key === 'scaling' || key === 'height' || key === 'filter') this.resize(true);
   }
+
+  /** One-click looks: 'smooth' (filtered, 480p, no dither / wobble) or 'ps1' (authentic 240p artefacts). */
+  setLook(look) {
+    const touch = this.settings.display === 'wide' && this.settings.height === 360;
+    Object.assign(this.settings, look === 'ps1'
+      ? { filter: 'pixel', height: 240, dither: 1, snap: 1, affine: 1 }
+      : { filter: 'smooth', height: touch ? 360 : 480, dither: 0, snap: 0, affine: 0 });
+    saveSettings(this.settings);
+    this.applySettings();
+    this.resize(true);
+  }
+
+  get look() { const s = this.settings; return s.filter === 'pixel' && s.height === 240 && s.dither && s.snap ? 'ps1' : s.filter === 'smooth' && !s.dither && !s.snap ? 'smooth' : 'custom'; }
 
   applySettings() {
     const s = this.settings;
@@ -163,6 +182,10 @@ export class Gfx {
     U.uAffine.value = s.affine;
     this.quantMat.uniforms.uDither.value = s.dither ? 1 : 0;
     this.outMat.uniforms.uCRT.value = s.crt;
+    this.outMat.uniforms.uSmooth.value = s.filter === 'smooth' ? 1 : 0;
+    setTextureSmoothing(s.filter === 'smooth');
+    if (this.hudTex) this.hudTex.magFilter = this.hudTex.minFilter = s.filter === 'smooth' ? THREE.LinearFilter : THREE.NearestFilter;
+    if (this.hudTex) this.hudTex.needsUpdate = true;
   }
 
   /** Recompute internal + output sizes from the window. */
@@ -205,7 +228,7 @@ export class Gfx {
     }
     this.rect = rect;
     this.outMat.uniforms.uRect.value.set(rect[0], rect[1], rect[2], rect[3]);
-    if (W !== this.W || H !== this.H) {
+    if (W !== this.W || H !== this.H || this._samples !== (s.filter === 'smooth' ? 4 : 0)) {
       this.W = W; this.H = H;
       this._allocTargets(W, H);
       if (this.onInternalResize) this.onInternalResize(W, H);
