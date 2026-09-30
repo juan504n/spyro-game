@@ -144,13 +144,28 @@ export const QUANT_FRAG = /* glsl */ `
 uniform sampler2D uScene;
 uniform sampler2D uHud;
 uniform float uDither;
+uniform float uVivid;   // 0..1 colour grade: brighter mid-tones and richer colours (the "enhanced" look of emulator footage)
 uniform vec4 uFade;     // rgb = colour, a = amount
 varying vec2 vUv;
+
+// Lift the mid-tones without clipping the highlights, add saturation (dull colours gain more than already-vivid ones, so skies
+// and foliage bloom but skin-like and neutral tones do not go neon), then a light S-curve so the result is not washed out.
+vec3 vividGrade(vec3 c, float k) {
+  c = pow(c, vec3(1.0 / (1.0 + 0.62 * k)));
+  c *= vec3(1.0 + 0.14 * k, 1.0 + 0.10 * k, 1.0 + 0.02 * k);          // a touch warmer: the violet ambient turns grass minty
+  float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b));
+  float sat = (mx - mn) / max(mx, 0.001);
+  float l = dot(c, vec3(0.299, 0.587, 0.114));
+  c = mix(vec3(l), c, 1.0 + k * (0.55 + 0.85 * (1.0 - sat)));
+  c = clamp(c, 0.0, 1.0);
+  return mix(c, c * c * (3.0 - 2.0 * c), 0.25 * k);
+}
 
 const float M[16] = float[16](-4.,0.,-3.,1.,  2.,-2.,3.,-1.,  -3.,1.,-4.,0.,  3.,-1.,2.,-2.);
 
 void main() {
   vec3 c = texture2D(uScene, vUv).rgb;
+  if (uVivid > 0.0) c = vividGrade(c, uVivid);
   c = mix(c, uFade.rgb, uFade.a);
   if (uDither > 0.5) {
     ivec2 p = ivec2(gl_FragCoord.xy);

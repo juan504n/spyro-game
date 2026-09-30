@@ -245,6 +245,7 @@ class App {
         { type: 'choice', label: 'LOOK', options: ['smooth', 'ps1', 'custom'], labels: ['SMOOTH', 'PS1 AUTHENTIC', 'CUSTOM'], get: () => gfx.look, set: (i, opts) => { if (opts[i] !== 'custom') gfx.setLook(opts[i]); } },
         { type: 'choice', label: 'RESOLUTION', options: [240, 360, 480, 720], labels: ['240P PS1', '360P', '480P', '720P'], get: () => gfx.settings.height, set: set('height') },
         { type: 'toggle', label: 'SMOOTH TEXTURES', get: () => gfx.settings.filter === 'smooth', set: (v) => gfx.set('filter', v ? 'smooth' : 'pixel') },
+        { type: 'choice', label: 'COLORS', options: [0, 0.6, 1], labels: ['CLASSIC', 'VIVID', 'EXTRA VIVID'], get: () => gfx.settings.color, set: set('color') },
         { type: 'choice', label: 'CRT FILTER', options: pctOpts, labels: ['OFF', 'LIGHT', 'FULL'], get: () => gfx.settings.crt, set: set('crt') },
         { type: 'toggle', label: '15-BIT DITHER', get: () => !!gfx.settings.dither, set: (v) => gfx.set('dither', v ? 1 : 0) },
         { type: 'toggle', label: 'VERTEX WOBBLE', get: () => !!gfx.settings.snap, set: (v) => gfx.set('snap', v ? 1 : 0) },

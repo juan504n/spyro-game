@@ -15,6 +15,7 @@ export const DEFAULT_SETTINGS = {
   dither: 0,          // 15-bit colour + ordered dither
   snap: 0,            // vertex snapping
   affine: 0,          // affine texture warping (0..1)
+  color: 0.6,         // colour grade: 0 classic (moody dusk) | 0.6 vivid | 1 extra vivid — brighter, richer colours
   fps30: false,       // lock rendering to 30 fps like the original
   music: 0.8,
   sfx: 1,
@@ -32,6 +33,7 @@ function sanitize(s) {
   if (!['auto', 'integer', 'fill'].includes(s.scaling)) s.scaling = 'auto';
   s.crt = num(s.crt, 0);
   s.affine = num(s.affine, 0);
+  s.color = [0, 0.6, 1].reduce((b, v) => (Math.abs(v - num(s.color, 0.6)) < Math.abs(b - num(s.color, 0.6)) ? v : b), 0.6);   // (snapped to a menu step)
   s.music = num(s.music, DEFAULT_SETTINGS.music);
   s.sfx = num(s.sfx, DEFAULT_SETTINGS.sfx);
   s.dither = s.dither ? 1 : 0;
@@ -94,6 +96,7 @@ export class Gfx {
         uScene: { value: null },
         uHud: { value: null },
         uDither: { value: 1 },
+        uVivid: { value: 0 },
         uFade: { value: new THREE.Vector4(0, 0, 0, 0) },
       },
       depthTest: false, depthWrite: false,
@@ -181,6 +184,7 @@ export class Gfx {
     U.uSnap.value = s.snap ? 1 : 0;
     U.uAffine.value = s.affine;
     this.quantMat.uniforms.uDither.value = s.dither ? 1 : 0;
+    this.quantMat.uniforms.uVivid.value = s.color;
     this.outMat.uniforms.uCRT.value = s.crt;
     this.outMat.uniforms.uSmooth.value = s.filter === 'smooth' ? 1 : 0;
     setTextureSmoothing(s.filter === 'smooth');

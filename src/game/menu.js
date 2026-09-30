@@ -52,8 +52,8 @@ export class Menu {
 
   /** Panel geometry in internal pixels (also used for pointer hit-testing and by pages that draw extra lines). */
   layout(W, H, page, items) {
-    const rowH = 13;
     const extraH = page.extra ? page.extra.length * 10 + 6 : 0;         // room for a page's own text block above the rows
+    const rowH = Math.max(10, Math.min(13, Math.floor((H - 16 - 34 - extraH - (page.footer ? 12 : 0)) / Math.max(1, items.length))));   // (long pages tighten up to fit)
     const w = Math.min(W - 24, page.width || 230);
     const h = 34 + extraH + items.length * rowH + (page.footer ? 12 : 0);
     const x = (W - w) >> 1, y = Math.max(8, (H - h) >> 1);
