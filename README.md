@@ -53,7 +53,7 @@ controls appear automatically (the display defaults to widescreen there; **Optio
 | Move | `WASD` / arrows | left stick / d-pad | left thumb (virtual stick) |
 | Jump · glide (hold in the air) | `Space` | `A` / cross | JUMP |
 | Breathe fire | `J` / `F` / left click | `X` / square | FIRE |
-| Charge (ram) | `K` / `Shift` / right click | `B` / circle | RAM |
+| Charge (ram) — hold | `K` / `Shift` / right click | `B` / circle | RAM |
 | Camera | mouse (after clicking) · `Q`/`E` | right stick · bumpers | right thumb drag |
 | Re-centre camera | `R` | `Y` / triangle | — |
 | Pause / options | `Esc` / `P` | Start | ‖ button |
@@ -76,7 +76,7 @@ the whole valley is lit twice (dusk and daybreak) and the world cross-fades betw
   and *thorn* Snuffers (spiked — don't ram them, burn them).
 * **Sparx** the dragonfly is your health bar: blue → green → yellow → gone. Bunnies you scorch become healing
   butterflies.
-* **Gems** are worth 1 / 2 / 5 / 10 / 25 (red, green, blue, gold, purple). Vases, chests, cracked walls and enemies drop
+* **Gems** are worth 1 / 2 / 5 / 10 / 25 (red, green, blue, gold, purple): cut stones whose facets flash as they spin. Vases, chests, cracked walls and enemies drop
   them, plus hand-placed trails and a few well-hidden treasures. Total: **700**.
 * Ending the level shows a results screen (three stars) and drops you back into free roam.
 

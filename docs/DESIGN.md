@@ -63,6 +63,9 @@ Sparx, the dragonfly, is the health bar: three hits, shown by his colour. Scorch
 * **Time of day:** one moon-lit *gloaming* light and one *daybreak* light. Vertex colours store both; a uniform blends them.
 * **Textures:** 62 tiny tiles (16–64 px), drawn in code from a limited palette, sampled with nearest filtering.
 * **Geometry:** hand-built from primitives in code. Chunky silhouettes, few vertices per model, texture detail does the work.
+* **Gems:** cut stones of 48 flat facets (table, crown, girdle, two-tier pavilion). The gem shader ignores the scene light and uses two fixed
+  lights plus a specular glint, so the facets flash as a gem spins, at dusk and at daybreak alike. Nearby gems twinkle with white four-point
+  stars now and then (big ones more often). Five hues: red, green, blue, gold and purple, bigger for higher values.
 * **Camera:** chase camera at a fixed distance that pulls in when something blocks it, plus authored cinematic shots for the title, intro and finale.
 * **The hero:** readable at 33 pixels tall, so the design is silhouette and colour blocks first: a gold crest and ringed brown horns on a big
   purple head, maroon wings with gold bones, a pale gold banded chest and an orange tail tip. The neck is thick and upright with the head

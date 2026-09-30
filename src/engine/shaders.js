@@ -43,6 +43,9 @@ varying vec2 vUvP;
 varying vec2 vUvA;
 varying vec4 vCol;
 varying float vFog;
+#ifdef GEM
+varying vec3 vSpec;
+#endif
 
 ${SNAP}
 
@@ -85,6 +88,16 @@ void main() {
       float ndl = max(dot(n, uSunDir), 0.0);
       col.rgb *= (uAmb + uSunCol * ndl) * 0.5;
     #endif
+    #ifdef GEM
+      // gems ignore the scene light: two fixed world lights shade the facets (so they flash as the gem spins) and a
+      // specular glint adds the white sparkle. Gems only rotate and scale uniformly, so mat3(mm) is fine for normals.
+      vec3 gn = normalize(mat3(mm) * normal);
+      vec3 vd = normalize(cameraPosition - wp.xyz);
+      vec3 l1 = normalize(vec3(-0.5, 0.8, 0.55));
+      vec3 l2 = normalize(vec3(0.7, 0.2, -0.5));
+      col.rgb *= 0.20 + 0.46 * max(dot(gn, l1), 0.0) + 0.22 * max(dot(gn, l2), 0.0);
+      vSpec = vec3(1.0, 0.97, 0.9) * (pow(max(dot(gn, normalize(l1 + vd)), 0.0), 14.0) * 0.95 + pow(max(dot(gn, normalize(l2 + vd)), 0.0), 14.0) * 0.4);
+    #endif
     #ifdef USE_INSTANCING_COLOR
       col.rgb *= instanceColor;
     #endif
@@ -110,6 +123,9 @@ varying vec2 vUvP;
 varying vec2 vUvA;
 varying vec4 vCol;
 varying float vFog;
+#ifdef GEM
+varying vec3 vSpec;
+#endif
 
 void main() {
   // affine mapping: vUvA holds uv*w; the rasteriser divides by interpolated 1/w, we multiply it back
@@ -120,6 +136,9 @@ void main() {
     if (t.a < 0.5) discard;
   #endif
   vec3 c = t.rgb * vCol.rgb * 2.0 * uColorMul + uFlash;
+  #ifdef GEM
+    c += vSpec;
+  #endif
   c = min(c, vec3(1.0));
   float f = vFog * uFogAmt;
   #ifdef FOG_ADD

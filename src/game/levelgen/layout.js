@@ -62,7 +62,7 @@ export function layoutVillage(ctx) {
   // gameplay: the elder, tutorial nooks, the hearth beacon
   gp.npcs.push({ id: 'elder', name: 'ELDER WICK', model: 'elder', x: -5, z: 136, yaw: Math.PI * 0.75 });
   gp.hints.push({ x: 0, z: 154, r: 7, text: 'PRESS SPACE TO JUMP  -  HOLD IT IN THE AIR TO GLIDE', touch: 'TAP JUMP  -  HOLD IT IN THE AIR TO GLIDE', pad: 'PRESS A TO JUMP  -  HOLD IT IN THE AIR TO GLIDE', dur: 7 });
-  gp.hints.push({ x: 0, z: 136, r: 8, text: 'J OR CLICK: BREATHE FIRE   K OR SHIFT: CHARGE', touch: 'FIRE: BREATHE FIRE   RAM: CHARGE', pad: 'X: BREATHE FIRE   B: CHARGE', dur: 7 });
+  gp.hints.push({ x: 0, z: 136, r: 8, text: 'J OR CLICK: BREATHE FIRE   HOLD K OR SHIFT: CHARGE', touch: 'FIRE: BREATHE FIRE   HOLD RAM: CHARGE', pad: 'X: BREATHE FIRE   HOLD B: CHARGE', dur: 7 });
   ctx.addVase(-14, 116, [1, 1, 2]); ctx.addVase(16, 112, [1, 2]); ctx.addVase(26, 128, [2, 2]); ctx.addVase(-28, 146, [1, 1, 1]);
   ctx.addVase(-3, 160, [1, 1]); ctx.addVase(3, 161, [1, 1]);
   ctx.addBunnies(-22, 158, 3, 4); ctx.addBunnies(24, 154, 2, 4);

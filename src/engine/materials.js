@@ -163,6 +163,7 @@ export function makeMaterial(o = {}) {
   if (o.lit) defines.LIT = 1;
   if (o.sprite) defines.SPRITE = 1;
   if (o.sway) defines.SWAY = 1;
+  if (o.gem) defines.GEM = 1;       // faceted gems: fixed-light facet shading + specular glint (instanced, per-instance hue)
   if (mode === 'cutout') defines.CUTOUT = 1;
   if (mode === 'half') defines.HALF = 1;
   if (mode === 'add') defines.ADD = 1;

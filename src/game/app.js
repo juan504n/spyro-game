@@ -219,10 +219,10 @@ class App {
   controlsPage() {
     const dev = this.game.input.lastDevice;
     const lines = dev === 'touch'
-      ? ['MOVE ........ LEFT THUMB', 'JUMP ........ JUMP  (HOLD IN AIR: GLIDE)', 'FIRE ........ FIRE BUTTON', 'CHARGE ...... RAM BUTTON', 'CAMERA ...... DRAG THE RIGHT SIDE', 'TALK ........ TALK BUTTON   PAUSE ... II']
+      ? ['MOVE ........ LEFT THUMB', 'JUMP ........ JUMP  (HOLD IN AIR: GLIDE)', 'FIRE ........ FIRE BUTTON', 'CHARGE ...... HOLD THE RAM BUTTON', 'CAMERA ...... DRAG THE RIGHT SIDE', 'TALK ........ TALK BUTTON   PAUSE ... II']
       : dev === 'pad'
-        ? ['MOVE ........ LEFT STICK / D-PAD', 'JUMP ........ A  (HOLD IN AIR: GLIDE)', 'FIRE ........ X', 'CHARGE ...... B', 'CAMERA ...... RIGHT STICK / BUMPERS', 'TALK ........ RT   PAUSE ... START']
-        : ['MOVE ........ WASD / ARROWS', 'JUMP ........ SPACE  (HOLD IN AIR: GLIDE)', 'FIRE ........ J / F / LEFT CLICK', 'CHARGE ...... K / SHIFT / RIGHT CLICK', 'CAMERA ...... MOUSE / Q E   R: RESET', 'TALK ........ ENTER   PAUSE ... ESC'];
+        ? ['MOVE ........ LEFT STICK / D-PAD', 'JUMP ........ A  (HOLD IN AIR: GLIDE)', 'FIRE ........ X', 'CHARGE ...... HOLD B', 'CAMERA ...... RIGHT STICK / BUMPERS', 'TALK ........ RT   PAUSE ... START']
+        : ['MOVE ........ WASD / ARROWS', 'JUMP ........ SPACE  (HOLD IN AIR: GLIDE)', 'FIRE ........ J / F / LEFT CLICK', 'CHARGE ...... HOLD K / SHIFT / RIGHT CLICK', 'CAMERA ...... MOUSE / Q E   R: RESET', 'TALK ........ ENTER   PAUSE ... ESC'];
     return {
       title: 'CONTROLS', width: 280, items: [{ type: 'action', label: 'BACK', action: (m) => m.close() }], footer: '',
       extra: lines,

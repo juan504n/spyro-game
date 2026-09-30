@@ -12,7 +12,7 @@ const P = {
   runSpeed: 11.5, accel: 62, brake: 75, airAccel: 34, airDrag: 1.6,
   gravity: 40, jumpV: 15.2, maxFall: 42, coyote: 0.11, jumpBuffer: 0.13,
   glideSpeed: 13.5, glideFall: 3.1, glideAccel: 7,
-  chargeSpeed: 24, chargeTime: 1.05, chargeCooldown: 0.45,
+  chargeSpeed: 24, chargeCooldown: 0.12,       // (a charge lasts exactly as long as the button is held)
   flameTime: 0.42, flameCooldown: 0.10, flameRange: 6.6, flameHalfAngle: 0.68,
   turnGround: 17, turnAir: 9, turnGlide: 2.7, turnCharge: 1.5, turnFlame: 6,
   hurtStun: 0.38, invuln: 1.9,
@@ -123,6 +123,8 @@ export class Player {
 
     // ---- ability inputs -------------------------------------------------------------------------------------------
     if (ctl && input.pressed('jump')) this.bufferT = P.jumpBuffer;
+    // charging lasts only while the charge button is held: let go (or lose control) and it stops at once
+    if (this.chargeT > 0 && !(ctl && input.down('charge'))) this._endCharge();
 
     if (ctl) {
       // start glide: press jump while airborne — but a press just above the ground is a buffered jump, not a glide
@@ -131,8 +133,8 @@ export class Player {
         this.gliding = true; this.bufferT = 0; this.emit('glide');
       }
       if (this.gliding && !input.down('jump')) this.gliding = false;
-      if (input.pressed('charge') && this.chargeCd <= 0 && this.chargeT <= 0 && !this.gliding && this.flameT <= 0) {
-        this.chargeT = P.chargeTime; this.emit('charge');
+      if (input.pressed('charge') && input.down('charge') && this.chargeCd <= 0 && this.chargeT <= 0 && !this.gliding && this.flameT <= 0) {
+        this.chargeT = 1e-4; this.emit('charge');           // (chargeT = seconds charged so far; > 0 means "charging")
         // charge in the input direction if steering, else forward
         if (mag > 0.3) this.yaw = Math.atan2(wx, wz);
       }
@@ -165,11 +167,9 @@ export class Player {
       const k = Math.exp(-3.2 * dt);
       this.vx *= k; this.vz *= k;
     } else if (this.chargeT > 0) {
-      this.chargeT -= dt;
-      const sp = P.chargeSpeed * (this.chargeT < 0.2 ? 0.55 + this.chargeT * 2.25 : 1);
-      this.vx = lerp(this.vx, fx * sp, Math.min(1, dt * 14));
-      this.vz = lerp(this.vz, fz * sp, Math.min(1, dt * 14));
-      if (this.chargeT <= 0) { this.chargeT = 0; this.chargeCd = P.chargeCooldown; }
+      this.chargeT += dt;
+      this.vx = lerp(this.vx, fx * P.chargeSpeed, Math.min(1, dt * 14));
+      this.vz = lerp(this.vz, fz * P.chargeSpeed, Math.min(1, dt * 14));
     } else if (this.gliding) {
       const t = 1 - Math.exp(-P.glideAccel * dt);
       this.vx = lerp(this.vx, fx * P.glideSpeed, t);
@@ -366,6 +366,13 @@ export class Player {
     this.gliding = false; this.chargeT = 0; this.flameT = 0; this.waterT = 0; this.inWater = false; this.grounded = false; this.hurtT = 0;
     this.invulnT = Math.max(this.invulnT, 1.2);
     this.emit('respawn', fromHazard);
+  }
+
+  /** Stop charging: no lingering dash — the speed drops back to a normal run right away. */
+  _endCharge() {
+    this.chargeT = 0; this.chargeCd = P.chargeCooldown;
+    const s = Math.hypot(this.vx, this.vz);
+    if (s > P.runSpeed) { const k = P.runSpeed / s; this.vx *= k; this.vz *= k; }
   }
 
   _chargeHitWall(contact) {

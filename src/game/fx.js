@@ -291,8 +291,14 @@ export class Fx {
     this.spawn({ pool: 'add', sprite: 'gem_glint', x, y, z, life: 0.28, size: [size, size * 0.3], c0: [1, 1, 1, 1], c1: [1, 1, 1, 0] });
   }
 
+  /** A four-point star twinkle (the white sparkle that pops on gems). */
+  twinkle(x, y, z, size = 1) {
+    this.spawn({ pool: 'add', sprite: 'spark', x, y, z, life: 0.45, size: [size * 1.3, size * 0.2], c0: [1, 1, 0.96, 1], c1: [1, 0.95, 0.8, 0], rot: this.rnd(-0.35, 0.35) });
+  }
+
   gemPickup(x, y, z, color) {
     this.spawn({ pool: 'add', sprite: 'lens_star', x, y, z, life: 0.32, size: [0.6, 1.9], c0: [...color, 1], c1: [...color, 0] });
+    this.twinkle(x, y + 0.1, z, 1.5);
     for (let i = 0; i < 5; i++) {
       const a = Math.random() * Math.PI * 2;
       this.spawn({ pool: 'add', sprite: 'spark_small', x, y, z, vx: Math.cos(a) * this.rnd(1, 3), vy: this.rnd(2, 5), vz: Math.sin(a) * this.rnd(1, 3), gravity: -12, life: this.rnd(0.35, 0.6), size: [0.3, 0.08], c0: [...color, 1], c1: [...color, 0] });

@@ -3,20 +3,53 @@ import * as THREE from 'three';
 import { Builder } from '../../engine/builder.js';
 
 export const GEM_TYPES = {
-  1: { name: 'red', color: [0.98, 0.16, 0.16], size: 0.55, snd: 'gem_red' },
-  2: { name: 'green', color: [0.12, 0.9, 0.35], size: 0.62, snd: 'gem_green' },
-  5: { name: 'blue', color: [0.25, 0.48, 1.0], size: 0.72, snd: 'gem_blue' },
-  10: { name: 'gold', color: [1.0, 0.82, 0.12], size: 0.85, snd: 'gem_gold' },
-  25: { name: 'purple', color: [0.78, 0.3, 1.0], size: 1.05, snd: 'gem_purple' },
+  1: { name: 'red', color: [1.0, 0.13, 0.20], size: 0.62, snd: 'gem_red' },
+  2: { name: 'green', color: [0.10, 0.95, 0.38], size: 0.70, snd: 'gem_green' },
+  5: { name: 'blue', color: [0.22, 0.50, 1.0], size: 0.80, snd: 'gem_blue' },
+  10: { name: 'gold', color: [1.0, 0.80, 0.10], size: 0.92, snd: 'gem_gold' },
+  25: { name: 'purple', color: [0.82, 0.28, 1.0], size: 1.12, snd: 'gem_purple' },
 };
 
 const dummy = new THREE.Object3D();
 const col = new THREE.Color();
 
+/**
+ * A cut gem in 48 flat facets (Spyro-style): a hexagonal table, a crown of alternating triangles, a short girdle band and a
+ * two-tier pavilion down to the point. Each facet carries a baked brightness; the gem shader lights them with two fixed lights
+ * and a specular glint, so the facets flash as the gem spins. Vertex colours are white-ish tints, the hue is per instance.
+ */
 function gemGeometry() {
   const b = new Builder({ lit: true });
-  // classic brilliant-cut silhouette: pointed pavilion, girdle, flat table
-  b.lathe([[0, -0.5], [0.36, -0.02], [0.4, 0.1], [0.25, 0.34], [0, 0.34]], 6, { color: [1, 1, 1], smooth: false });
+  const N = 6, TAU = Math.PI * 2;
+  const ring = (r, y, off = 0) => Array.from({ length: N }, (_, i) => [r * Math.sin((i / N) * TAU + off), y, r * Math.cos((i / N) * TAU + off)]);
+  const HALF = Math.PI / N;
+  const T = ring(0.25, 0.36, HALF);       // table (turned half a step against the girdle: the crown becomes alternating triangles)
+  const G = ring(0.52, 0.11);              // girdle top
+  const H = ring(0.52, 0.0);               // girdle bottom
+  const M = ring(0.27, -0.30, HALF);      // pavilion mid ring
+  const tip = [0, -0.66, 0];
+  const cen = [0, -0.05, 0];
+  const facet = (a, c, d, k) => {
+    // wind counter-clockwise seen from outside, flat normal, baked tint k (0..1 of the tint range)
+    const u = [c[0] - a[0], c[1] - a[1], c[2] - a[2]], v = [d[0] - a[0], d[1] - a[1], d[2] - a[2]];
+    let n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+    const mid = [(a[0] + c[0] + d[0]) / 3 - cen[0], (a[1] + c[1] + d[1]) / 3 - cen[1], (a[2] + c[2] + d[2]) / 3 - cen[2]];
+    if (n[0] * mid[0] + n[1] * mid[1] + n[2] * mid[2] < 0) { const t = c; c = d; d = t; n = [-n[0], -n[1], -n[2]]; }
+    const l = Math.hypot(n[0], n[1], n[2]) || 1;
+    n = [n[0] / l, n[1] / l, n[2] / l];
+    const t = [k, k, k];
+    b.tri(a, c, d, [0, 0], [0, 0], [0, 0], { tints: [t, t, t] }, [n, n, n]);
+  };
+  for (let i = 0; i < N; i++) {
+    const j = (i + 1) % N, im = (i + N - 1) % N;
+    facet([0, 0.36, 0], T[i], T[j], 1.0);                 // table
+    facet(T[im], G[i], T[i], 0.92);                       // crown: triangles pointing down to the girdle ...
+    facet(T[i], G[i], G[j], i % 2 ? 0.74 : 0.84);         // ... and up to the table
+    facet(G[i], H[i], H[j], 0.62); facet(G[i], H[j], G[j], 0.62);      // girdle band
+    facet(H[i], H[j], M[i], i % 2 ? 0.66 : 0.78);         // pavilion, upper tier
+    facet(H[j], M[j], M[i], i % 2 ? 0.52 : 0.6);
+    facet(M[i], M[j], tip, i % 2 ? 0.42 : 0.55);          // pavilion, lower tier
+  }
   const g = b.build();
   g.computeBoundingSphere();
   return g;
@@ -30,8 +63,7 @@ export class GemField {
     const DYN = 160;
     this.capacity = list.length + DYN;
     const geo = gemGeometry();
-    const mat = game.assets.mat(null, { lit: true, unique: true });
-    mat.uniforms.uColorMul.value.setRGB(1.9, 1.9, 1.9);
+    const mat = game.assets.mat(null, { gem: true, day: false, unique: true });
     this.mesh = new THREE.InstancedMesh(geo, mat, this.capacity);
     this.mesh.frustumCulled = false;
     this.mesh.count = this.capacity;
@@ -139,8 +171,12 @@ export class GemField {
       dummy.updateMatrix();
       this.mesh.setMatrixAt(it.i, dummy.matrix);
       dirty = true;
-      // occasional glint on nearby gems
-      if (dx * dx + dz * dz < 900 && Math.random() < 0.0009 * (it.value >= 5 ? 6 : 1)) game.fx.glint(it.x + (Math.random() - 0.5) * 0.3, it.y + 0.3, it.z + (Math.random() - 0.5) * 0.3, 0.8 + it.size * 0.4);
+      // sparkle: nearby gems pop a star twinkle or a cross glint now and then (big gems more often)
+      if (dx * dx + dz * dz < 900 && Math.random() < dt * (it.value >= 5 ? 0.9 : 0.4)) {
+        const ox = (Math.random() - 0.5) * 0.5 * it.size, oy = (0.15 + Math.random() * 0.4) * it.size, oz = (Math.random() - 0.5) * 0.5 * it.size;
+        if (Math.random() < 0.6) game.fx.twinkle(it.x + ox, it.y + oy, it.z + oz, 0.7 + it.size * 0.7);
+        else game.fx.glint(it.x + ox, it.y + oy, it.z + oz, 0.8 + it.size * 0.4);
+      }
     }
     if (dirty) this.mesh.instanceMatrix.needsUpdate = true;
   }
