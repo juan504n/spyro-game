@@ -13,6 +13,7 @@
 // at the code. The ground texture comes from the same rules the terrain mesh was built with (terrainPicker), with the rule's name.
 import { WATER_LEVEL } from './level.js';
 import { terrainPicker } from './terrain-mesh.js';
+import { drawnRoadAt } from './roads.js';
 
 /** Which build is running: a hash of the source and the build date, set by tools/build-single.mjs ('dev' when running from the dev server). */
 export const BUILD = typeof __GV_BUILD__ !== 'undefined' ? __GV_BUILD__ : 'dev';
@@ -96,6 +97,7 @@ export function groundAt(grid, x, z) {
     slope: Math.acos(Math.max(-1, Math.min(1, nn[1]))) * DEG,
     normal: [nn[0], nn[1], nn[2]],
     tex: tex.tex, why: tex.why, cell: [tex.i, tex.j, tex.tri],
+    drawn: drawnRoadAt(grid, x, z),                        // the road ribbon drawn over the ground here ({ id, surface }), or null
     road: pi >= 0 && pd < 8 ? { id: grid.paths[pi].id, surface: grid.paths[pi].surface, d: Math.max(0, pd) } : null,
     river: grid.riverDist[k] < 6 ? grid.riverDist[k] : null,
     lake: Math.hypot((x - L.lake.x) / L.lake.rx, (z - L.lake.z) / L.lake.rz),
@@ -219,7 +221,7 @@ export function castRay(game, o, d, maxD = 240) {
   if (!hit) return { kind: 'none', t: maxD, x: o.x + d.x * maxD, y: o.y + d.y * maxD, z: o.z + d.z * maxD };
   hit.x = o.x + d.x * hit.t; hit.y = o.y + d.y * hit.t; hit.z = o.z + d.z * hit.t;
   if (hit.kind === 'water') hit.y = WATER_LEVEL;
-  if (hit.kind === 'terrain') { const g = groundAt(grid, hit.x, hit.z); hit.tex = g.tex; hit.why = g.why; hit.slope = g.slope; hit.cell = g.cell; }
+  if (hit.kind === 'terrain') { const g = groundAt(grid, hit.x, hit.z); hit.tex = g.tex; hit.why = g.why; hit.slope = g.slope; hit.cell = g.cell; hit.road = g.drawn; }
   return hit;
 }
 
@@ -309,13 +311,13 @@ export function format(data, level = 1) {
   row('POS', `X ${f2(p.x)}  Y ${f2(p.y)}  Z ${f2(p.z)}`, 'pos');
   row('FACE', `${data.compass} ${Math.round(data.heading)}  spd ${f1(data.speed)}  ${data.state}${data.grounded ? '' : ' (air)'}`);
   row('AREA', `${data.area.name}${data.area.inside ? '' : ` ${Math.round(data.area.d)} m away`}${g.road ? `  road ${g.road.id}${g.road.d < 0.5 ? '' : ` ${f1(g.road.d)} m`}` : ''}${g.river !== null ? `  river ${f1(g.river)} m` : ''}`);
-  row('FLOOR', `${g.tex} (${g.why})  slope ${Math.round(g.slope)}  y ${f2(g.h)}  cell ${g.cell[0]},${g.cell[1]}${g.water > 0 ? `  water ${f1(g.water)} deep` : ''}`);
+  row('FLOOR', `${g.drawn ? `${g.drawn.surface} road ${g.drawn.id}, over ` : ''}${g.tex} (${g.why})  slope ${Math.round(g.slope)}  y ${f2(g.h)}  cell ${g.cell[0]},${g.cell[1]}${g.water > 0 ? `  water ${f1(g.water)} deep` : ''}`);
   if (data.stand.kind === 'collider') row('STAND', `on ${colliderName(data.stand.c)}  top y ${f2(data.stand.c.y1)}`);
   if (data.aim) {
     const a = data.aim;
     if (a.kind === 'none') row('AIM', 'nothing in range (sky)', 'dim');
     else {
-      const what = a.kind === 'terrain' ? `ground ${a.tex}` : a.kind === 'water' ? 'water surface' : `collider ${colliderName(a.c)}`;
+      const what = a.kind === 'terrain' ? `ground ${a.road ? `${a.road.surface} road ${a.road.id} over ` : ''}${a.tex}` : a.kind === 'water' ? 'water surface' : `collider ${colliderName(a.c)}`;
       const tag = a.pinned ? 'PIN' : 'AIM';
       row(tag, `X ${f1(a.x)}  Y ${f1(a.y)}  Z ${f1(a.z)}  ${Math.round(a.t)} m`, 'aim');
       row('', `${what}${a.kind === 'terrain' ? ` (${a.why}) cell ${a.cell ? a.cell[0] + ',' + a.cell[1] : ''}` : ''}${a.kind === 'collider' ? `  ${colliderText(a.c)}` : ''}`, 'aim');

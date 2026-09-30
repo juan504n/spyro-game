@@ -5,7 +5,10 @@ import { WATER_LEVEL } from '../src/game/level.js';
 import { isleObjects, shortfall } from '../src/game/levelgen/islands.js';
 import { colliderDist } from '../src/game/debuginfo.js';
 import { terrainPicker } from '../src/game/terrain-mesh.js';
-import { buildRoads, ROAD_LIFT, ROAD_DECAL } from '../src/game/roads.js';
+import { buildRoads, ROAD_LIFT, ROAD_DECAL, ROAD_MAX_SLOPE } from '../src/game/roads.js';
+import { buildRiverWater } from '../src/game/water.js';
+import { riverWaterLength } from '../src/game/river.js';
+import { RIVER_ZONE } from '../src/game/terrain-mesh.js';
 
 const { grid, kit, dryCtx: ctx, gp, ms, lighting } = buildHeadless();
 console.log('populate ms', Math.round(ms), '(terrain + both passes, headless)');
@@ -153,7 +156,7 @@ const check = (name, ok, detail) => { checks.push(ok); console.log(ok ? 'PASS' :
   const land = L.landing;
   const pick = terrainPicker(grid);
   const before = terrainPicker(Object.create(grid, { level: { value: { ...L, landing: undefined } } }));          // the same ground without the zone: what it was
-  const calm = new Set(['grass_a', 'sand', 'dirt', 'flagstone']);
+  const calm = new Set(['grass_a', 'sand', 'dirt', 'cobble', 'flagstone']);
   const NEED = 16;                                                                  // the lawn must hold at least this far round the pier's foot (the junction of the roads and the shore either side of the dock)
   const inZone = new Set(), wasInZone = new Set(), band = { changed: 0, calmer: 0 };
   let outside = 0, moved = 0;
@@ -191,7 +194,7 @@ const check = (name, ok, detail) => { checks.push(ok); console.log(ok ? 'PASS' :
   check('every road vertex lies on the terrain surface (plus its lift): no edge hovers, none is buried', nan === 0 && worst < 0.002, `(${tris.length} triangles, ${verts} vertices, worst ${(worst * 1000).toFixed(3)} mm off)`);
   check('... every road triangle faces up', down === 0, `(${down} face down)`);
   const st = roads.stats;
-  check('... and the roads are all there: what is drawn plus what lies under the lake is the whole ribbon', Math.abs(st.draped + st.submerged - st.footprint) < 0.005 * st.footprint && st.submerged < 0.01 * st.footprint, `(${st.footprint.toFixed(0)} m2 of road, ${st.draped.toFixed(0)} drawn, ${st.submerged.toFixed(1)} under the lake)`);
+  check('... and the roads are all there: what is drawn, what lies under water and the few metres on ground too steep for a road are the whole ribbon', Math.abs(st.draped + st.submerged + st.steep - st.footprint) < 0.005 * st.footprint && st.submerged < 0.02 * st.footprint && st.steep < 0.02 * st.footprint, `(${st.footprint.toFixed(0)} m2 of road, ${st.draped.toFixed(0)} drawn, ${st.submerged.toFixed(0)} under water, ${st.steep.toFixed(0)} on ground steeper than ${(ROAD_MAX_SLOPE * 57.3).toFixed(0)} degrees)`);
   // what the old ribbons did, for the record: the lanes at the centre line's height
   let lanes = 0, off25 = 0, off50 = 0, far = 0;
   for (const p of grid.paths) for (let i = 0; i < p.pts.length; i++) {
@@ -211,5 +214,153 @@ const check = (name, ok, detail) => { checks.push(ok); console.log(ok ? 'PASS' :
     if (c !== null && d !== null) { both++; worstGap = Math.min(worstGap, c - d); if (c - d >= 0.015) over++; }
   }
   check('where the cobble main road crosses the dirt trails at the pier it lies over them (and z-fights with nothing)', both >= 3 && over === both && ROAD_LIFT.cobble > ROAD_LIFT.dirt && ROAD_DECAL.cobble > 1, `(${both} junction points, cobble at least ${(worstGap * 100).toFixed(1)} cm above dirt)`);
+}
+{
+  // ---- roads that meet are one surface ---------------------------------------------------------------------------------------------------------------------------------------------------------------
+  // Two roads of a kind that overlap (a trail joining the main road, a fork, a bend folding over itself) used to be two layers with their own texture directions and their own darker edges: the
+  // seam of one road's edge showed across the other's middle and, at the same height, the layers fought (a sawtooth). Now the texture is mapped from the world and the edge shading comes from
+  // the distance to the nearest edge of ANY road of the kind, so wherever two triangles of one kind cover a point they must agree on both.
+  const roads = buildRoads(grid, lighting);
+  let badUv = 0, verts = 0;
+  const tris = { cobble: [], dirt: [] };
+  for (const surface of ['cobble', 'dirt']) {
+    const b = roads[surface];
+    if (!b) continue;
+    for (let i = 0; i < b.pos.length; i += 9) {
+      const T = [0, 1, 2].map((k) => ({ x: b.pos[i + k * 3], y: b.pos[i + k * 3 + 1], z: b.pos[i + k * 3 + 2], u: b.uvs[(i / 3 + k) * 2], v: b.uvs[(i / 3 + k) * 2 + 1], c: b.colA[(i / 3 + k) * 4] / 255 }));
+      for (const p of T) { verts++; if (Math.abs(p.u - p.x / 5) > 1e-4 || Math.abs(p.v - p.z / 5) > 1e-4) badUv++; }
+      tris[surface].push(T);
+    }
+  }
+  check('every road vertex maps its texture from the world (u = x / 5, v = z / 5), so two layers of one road can never disagree about it', badUv === 0, `(${verts} vertices, ${badUv} off)`);
+  let covered2 = 0, worstTint = 0, tested = 0;
+  for (const surface of ['cobble', 'dirt']) {
+    const T = tris[surface], CS = 6, hash = new Map();
+    T.forEach((t, ti) => { const xs = t.map((p) => p.x), zs = t.map((p) => p.z); for (let cx = Math.floor(Math.min(...xs) / CS); cx <= Math.floor(Math.max(...xs) / CS); cx++) for (let cz = Math.floor(Math.min(...zs) / CS); cz <= Math.floor(Math.max(...zs) / CS); cz++) { const k = cx + ',' + cz; if (!hash.has(k)) hash.set(k, []); hash.get(k).push(ti); } });
+    const cover = (x, z) => {
+      const out = [];
+      for (const ti of hash.get(Math.floor(x / CS) + ',' + Math.floor(z / CS)) || []) {
+        const [A, B, C] = T[ti];
+        const d = (B.z - C.z) * (A.x - C.x) + (C.x - B.x) * (A.z - C.z);
+        const w0 = ((B.z - C.z) * (x - C.x) + (C.x - B.x) * (z - C.z)) / d, w1 = ((C.z - A.z) * (x - C.x) + (A.x - C.x) * (z - C.z)) / d, w2 = 1 - w0 - w1;
+        if (w0 > 1e-6 && w1 > 1e-6 && w2 > 1e-6) out.push({ tint: w0 * A.c + w1 * B.c + w2 * C.c });
+      }
+      return out;
+    };
+    let seed = 777; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    for (const p of grid.paths) {
+      if (p.surface !== surface) continue;
+      for (let n = 0; n < 500; n++) {
+        const q = p.pts[Math.floor(rnd() * p.pts.length)], a = rnd() * 6.283, r = rnd() * p.width * 0.75;
+        const hit = cover(q[0] + Math.cos(a) * r, q[2] + Math.sin(a) * r);
+        tested++;
+        if (hit.length < 2) continue;
+        covered2++;
+        const ts = hit.map((h) => h.tint);
+        worstTint = Math.max(worstTint, Math.max(...ts) - Math.min(...ts));
+      }
+    }
+  }
+  check('where two layers of one kind of road lie on top of each other they look the same (same texture point, same worn-edge shading)', covered2 > 150 && worstTint < 0.08, `(${covered2} of ${tested} sampled points are covered twice or more, the shading differs by at most ${worstTint.toFixed(3)})`);
+
+  // ---- the ground beside a road is the ground ------------------------------------------------------------------------------------------------------------------------------------------------------
+  // A terrain triangle carries the road's texture only when a ribbon covers ALL of it (and the ground is gentle enough for a road): the dirt used to spread over whole cells round a road, a ragged
+  // stair-step beside the ribbon's smooth edge. (It is the one rule that can give the terrain 'dirt' or 'cobble', so the converse is checked as well.)
+  const pick = terrainPicker(grid);
+  const inside = (x, z) => grid.paths.some((pp) => pp.surface !== 'flagstone' && (() => { let best = Infinity; for (let k = 0; k < pp.pts.length - 1; k++) { const a = pp.pts[k], b = pp.pts[k + 1], vx = b[0] - a[0], vz = b[2] - a[2], l2 = vx * vx + vz * vz || 1; const t = Math.max(0, Math.min(1, ((x - a[0]) * vx + (z - a[2]) * vz) / l2)); best = Math.min(best, Math.hypot(x - (a[0] + vx * t), z - (a[2] + vz * t))); } return best <= pp.width / 2 + 0.6; })());
+  let roadTris = 0, strays = 0, strayAt = '';
+  for (let j = 0; j < grid.n; j++) for (let i = 0; i < grid.n; i++) {
+    const x = -grid.half + i * grid.cell;
+    if (x < -60 || x > 120 || j * grid.cell - grid.half < -130 || j * grid.cell - grid.half > 150) continue;       // (the regions the roads run through: keeps the brute force short)
+    for (const t of pick.tris(i, j)) {
+      if (t.tex !== 'dirt' && t.tex !== 'cobble') continue;
+      roadTris++;
+      if (!t.p.every((c) => inside(c[0], c[2]))) { strays++; if (!strayAt) strayAt = `${t.p[0][0].toFixed(0)}, ${t.p[0][2].toFixed(0)}`; }
+    }
+  }
+  check('every terrain triangle that is textured as a road lies entirely under a road ribbon (no ragged dirt beside one)', roadTris > 100 && strays === 0, `(${roadTris} triangles, ${strays} stray${strays ? ', first at ' + strayAt : ''})`);
+  const legacy = { ...pick };                                                  // (the old rule: the cell's average distance to a road decides)
+  let oldStrays = 0, oldTris = 0;
+  const pd = grid.pathDist, s1 = grid.n + 1;
+  for (let j = 0; j < grid.n; j++) for (let i = 0; i < grid.n; i++) {
+    const x = -grid.half + i * grid.cell, z = -grid.half + j * grid.cell;
+    if (x < -60 || x > 120 || z < -130 || z > 150) continue;
+    if ((pd[j * s1 + i] + pd[j * s1 + i + 1] + pd[(j + 1) * s1 + i] + pd[(j + 1) * s1 + i + 1]) / 4 < 0.3) { oldTris++; if (![[i, j], [i + 1, j], [i, j + 1], [i + 1, j + 1]].every(([a, b]) => inside(-grid.half + a * grid.cell, -grid.half + b * grid.cell))) oldStrays++; }
+  }
+  void legacy;
+  check('(the old rule painted dirt on cells only partly under a road, often: the check sees the problem)', oldStrays > oldTris * 0.2, `(${oldStrays} of ${oldTris} cells)`);
+}
+{
+  // ---- the river ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  // Its water used to be a flat ribbon 7.9 m wide over a channel that is wider: on 107 of its 110 edge samples the edge hung 0.2 to 1.3 m above the bank, so translucent sheets floated in front of
+  // the banks, and near the lake it floated over a dry hollow. Now the water is cut to the terrain: it exists exactly where the ground is below its surface.
+  const { builder, stats } = buildRiverWater(grid, lighting);
+  const P = builder.pos, r = grid.rivers[0], m = riverWaterLength(L, r.pts);
+  let deepest = 0, above = 0, nanW = 0;
+  for (let i = 0; i < P.length; i += 3) {
+    if (![P[i], P[i + 1], P[i + 2]].every(Number.isFinite)) { nanW++; continue; }
+    const depth = P[i + 1] - grid.heightAt(P[i], P[i + 2]);
+    deepest = Math.max(deepest, depth); if (depth < -0.002) above++;
+  }
+  check('the river water never lies under the ground, and is never deeper than the carved channel (1.5 m under its profile, less the 0.12 the water sits below it)', nanW === 0 && above === 0 && deepest < 1.5, `(${P.length / 9} triangles; deepest ${deepest.toFixed(2)} m)`);
+  // raster check: beside every edge of the water the ground is at or above the water; no water wall anywhere but the ribbon's two ends
+  const tri = [];
+  for (let i = 0; i < P.length; i += 9) tri.push([[P[i], P[i + 1], P[i + 2]], [P[i + 3], P[i + 4], P[i + 5]], [P[i + 6], P[i + 7], P[i + 8]]]);
+  const CS = 4, hash = new Map();
+  tri.forEach((t, ti) => { const xs = t.map((p) => p[0]), zs = t.map((p) => p[2]); for (let cx = Math.floor(Math.min(...xs) / CS); cx <= Math.floor(Math.max(...xs) / CS); cx++) for (let cz = Math.floor(Math.min(...zs) / CS); cz <= Math.floor(Math.max(...zs) / CS); cz++) { const k = cx + ',' + cz; if (!hash.has(k)) hash.set(k, []); hash.get(k).push(ti); } });
+  const waterAt = (x, z) => {
+    for (const ti of hash.get(Math.floor(x / CS) + ',' + Math.floor(z / CS)) || []) {
+      const [A, B, C] = tri[ti], d = (B[2] - C[2]) * (A[0] - C[0]) + (C[0] - B[0]) * (A[2] - C[2]);
+      const w0 = ((B[2] - C[2]) * (x - C[0]) + (C[0] - B[0]) * (z - C[2])) / d, w1 = ((C[2] - A[2]) * (x - C[0]) + (A[0] - C[0]) * (z - C[2])) / d, w2 = 1 - w0 - w1;
+      if (w0 >= -1e-9 && w1 >= -1e-9 && w2 >= -1e-9) return w0 * A[1] + w1 * B[1] + w2 * C[1];
+    }
+    return null;
+  };
+  const first = r.pts[0], last = r.pts[m - 1], STEP = 0.2;
+  let edge = 0, walls = 0, worstWall = 0;
+  for (let x = 30; x <= 82; x += STEP) for (let z = -74; z <= 6; z += STEP) {
+    if (waterAt(x, z) !== null) continue;
+    let nb = null;
+    for (const [dx, dz] of [[STEP, 0], [-STEP, 0], [0, STEP], [0, -STEP]]) { const v = waterAt(x + dx, z + dz); if (v !== null) { nb = v; break; } }
+    if (nb === null) continue;
+    edge++;
+    if (Math.hypot(x - first[0], z - first[2]) < 9 || Math.hypot(x - last[0], z - last[2]) < 9) continue;          // (the two ends of the ribbon: the waterfall's pool and the lake)
+    const gap = nb - grid.heightAt(x, z);
+    if (gap > 0.3) { walls++; worstWall = Math.max(worstWall, gap); }
+  }
+  check('the water stops only at the waterline: nowhere does it end with the ground still below it (no hanging edge, no sheet floating over a bank)', edge > 400 && walls === 0, `(${edge} samples along its edge, ${walls} with ground more than 30 cm below the water beside it${walls ? `, worst ${worstWall.toFixed(2)} m` : ''})`);
+  // what the old ribbon did (its edge lanes at the profile height, 7.9 m wide)
+  let hang = 0, lanesN = 0;
+  r.pts.forEach((p, i) => {
+    const a = r.pts[Math.max(i - 1, 0)], c = r.pts[Math.min(i + 1, r.pts.length - 1)];
+    let fx = c[0] - a[0], fz = c[2] - a[2]; const l = Math.hypot(fx, fz) || 1; fx /= l; fz /= l;
+    for (const k of [-1, 1]) { const x = p[0] - fz * ((r.width + 1.4) / 2) * k, z = p[2] + fx * ((r.width + 1.4) / 2) * k; lanesN++; if (p[1] - 0.12 - grid.heightAt(x, z) > 0.15) hang++; }
+  });
+  check('(the old ribbon hung more than 15 cm above the ground along nearly all of both its edges: the check sees the problem)', hang > lanesN * 0.8, `(${hang} of ${lanesN} edge samples)`);
+  // the mouth: the water's surface comes down to the lake's own level where the river ends, and never rises on the way
+  const surf = r.surf.slice(0, m);
+  let rises = 0; for (let i = 1; i < surf.length; i++) if (surf[i] > surf[i - 1] + 1e-6) rises++;
+  check('the river flows downhill into the lake and meets it without a step (its surface ends at the lake level, and never rises along the way)', Math.abs(surf.at(-1) - WATER_LEVEL) < 0.02 && rises === 0, `(${surf[0].toFixed(2)} at the source, ${surf.at(-1).toFixed(3)} at the lake; ${rises} rises; the profile it is carved from ends ${(r.pts[m - 1][1] - 0.12).toFixed(2)} above it)`);
+  // ---- its banks ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  const pick = terrainPicker(grid);
+  const old = terrainPicker(Object.create(grid, { riverSurf: { value: undefined } }));                      // the same ground without the river rules: what it was
+  let rock = 0, oldRock = 0, near = 0, bedWrong = 0, bed = 0;
+  for (let j = 0; j < grid.n; j++) for (let i = 0; i < grid.n; i++) {
+    const x = -grid.half + i * grid.cell, z = -grid.half + j * grid.cell;
+    if (x < 30 || x > 85 || z < -80 || z > 8) continue;
+    const k = j * (grid.n + 1) + i, rd = (grid.riverDist[k] + grid.riverDist[k + 1] + grid.riverDist[k + grid.n + 1] + grid.riverDist[k + grid.n + 2]) / 4;
+    if (rd >= RIVER_ZONE) continue;
+    const a = pick.tris(i, j), b = old.tris(i, j);
+    for (let q = 0; q < 2; q++) {
+      near++;
+      if (/cliff/.test(a[q].tex) && a[q].slope < 1.35) rock++;
+      if (/cliff/.test(b[q].tex)) oldRock++;
+      const rs = grid.riverSurf[k];
+      if (a[q].why === 'river bed') { bed++; if (a[q].tex !== 'sand') bedWrong++; }
+      void rs;
+    }
+  }
+  check('the river banks are not rock: no cliff texture on the banks unless the ground there is all but vertical (over 77 degrees)', rock === 0 && near > 100 && bed > 20 && bedWrong === 0, `(${near} triangles by the river, ${rock} rocky; ${bed} river-bed triangles, all sand)`);
+  check('(the old rules made walls of purple rock of the carved banks: the check sees the problem)', oldRock > 20, `(${oldRock} of ${near} triangles)`);
 }
 process.exitCode = checks.every(Boolean) ? 0 : 1;

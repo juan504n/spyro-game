@@ -3,6 +3,7 @@
 // exactly what is drawn.
 import { valueNoise, fbm } from '../engine/textures/pix.js';
 import { LEVEL, WORLD, WATER_LEVEL } from './level.js';
+import { riverSurface, RIVER_SHOULDER } from './river.js';
 
 const clamp = (v, a = 0, b = 1) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -175,7 +176,8 @@ export function generateTerrain(L = LEVEL, W = WORLD) {
   const pathIdx = new Int8Array(s * s).fill(-1);
   const riverDist = new Float32Array(s * s).fill(999);
 
-  const carve = (dense, width, shoulder, depth, distArr, idArr, id) => {
+  // `extra` (optional): one value per dense point; `extraOut` receives, for every lattice point the carve reaches, that value at the nearest point of the line (the river's surface height)
+  const carve = (dense, width, shoulder, depth, distArr, idArr, id, extra, extraOut) => {
     let minx = Infinity, maxx = -Infinity, minz = Infinity, maxz = -Infinity;
     for (const p of dense) { minx = Math.min(minx, p[0]); maxx = Math.max(maxx, p[0]); minz = Math.min(minz, p[2]); maxz = Math.max(maxz, p[2]); }
     const pad = width / 2 + shoulder + 1;
@@ -185,14 +187,14 @@ export function generateTerrain(L = LEVEL, W = WORLD) {
     for (let j = j0; j <= j1; j++) {
       for (let i = i0; i <= i1; i++) {
         const x = -half + i * cell, z = -half + j * cell;
-        let best = Infinity, by = 0;
+        let best = Infinity, by = 0, bx = 0;
         for (let k = 0; k < dense.length - 1; k++) {
           const a = dense[k], b = dense[k + 1];
           const vx = b[0] - a[0], vz = b[2] - a[2];
           const l2 = vx * vx + vz * vz || 1;
           const t = clamp(((x - a[0]) * vx + (z - a[2]) * vz) / l2);
           const d = Math.hypot(x - (a[0] + vx * t), z - (a[2] + vz * t));
-          if (d < best) { best = d; by = lerp(a[1], b[1], t); }
+          if (d < best) { best = d; by = lerp(a[1], b[1], t); if (extra) bx = lerp(extra[k], extra[k + 1], t); }
         }
         const w = 1 - smooth(hw, hw + shoulder, best);
         if (w > 0) {
@@ -200,6 +202,7 @@ export function generateTerrain(L = LEVEL, W = WORLD) {
           H[idx] = lerp(H[idx], by - depth, w);
         }
         if (best - hw < distArr[j * s + i]) { distArr[j * s + i] = best - hw; if (idArr) idArr[j * s + i] = id; }
+        if (extraOut && best - hw < shoulder + 3) extraOut[j * s + i] = bx;
       }
     }
   };
@@ -211,14 +214,16 @@ export function generateTerrain(L = LEVEL, W = WORLD) {
     paths.push({ id: p.id, surface: p.surface, width: p.width, pts: dense });
   });
   const rivers = [];
+  const riverSurf = new Float32Array(s * s).fill(NaN);        // the drawn water height round each river (NaN elsewhere): what the ground textures near the water go by, see river.js
   for (const r of L.rivers) {
     const dense = pathProfile(r.pts, baseSample, 1.6);
     // river surface height is pinned; bed is 1.4 below
-    carve(dense, r.width, 3.0, 1.5, riverDist, null, 0);
-    rivers.push({ id: r.id, width: r.width, pts: dense });
+    const surf = dense.map((p) => riverSurface(L, p[0], p[2], p[1], WATER_LEVEL));
+    carve(dense, r.width, RIVER_SHOULDER, 1.5, riverDist, null, 0, surf, riverSurf);
+    rivers.push({ id: r.id, width: r.width, pts: dense, surf });
   }
 
-  const grid = { n, cell, half, size: n * cell, heights: H, paths, rivers, pathDist, pathIdx, riverDist, level: L };
+  const grid = { n, cell, half, size: n * cell, heights: H, paths, rivers, pathDist, pathIdx, riverDist, riverSurf, level: L };
 
   /** Ground height matching the render mesh triangulation. */
   grid.heightAt = (x, z) => {

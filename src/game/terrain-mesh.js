@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { Builder } from '../engine/builder.js';
 import { valueNoise, fbm } from '../engine/textures/pix.js';
 import { WATER_LEVEL } from './level.js';
+import { ROAD_MAX_SLOPE } from './roads.js';
 
 const clamp = (v, a = 0, b = 1) => (v < a ? a : v > b ? b : v);
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
@@ -20,8 +21,13 @@ export const GROUND_TILE = 6;
  *   at(x, z)    the triangle under a world position: { tex, why, slope, i, j, tri }
  * `why` names the rule that chose the texture (a short lowercase phrase).
  */
+/** how close to the river (metres from its edge, averaged over a cell's corners) the ground is its bank: the carve's shoulder is 3 m wide */
+export const RIVER_ZONE = 3.4;
+/** a road texture goes on a terrain triangle only when the road ribbon covers all of it (a corner this far inside the ribbon's edge counts: the ribbon is 0.5 m narrower than the carve) */
+export const UNDER_ROAD = -0.4;
+
 export function terrainPicker(grid) {
-  const { n, cell, half, heights: H, pathDist } = grid;
+  const { n, cell, half, heights: H, pathDist, riverDist, riverSurf } = grid;
   const L = grid.level;
   const s = n + 1;
   const V = L.valley;
@@ -29,7 +35,7 @@ export function terrainPicker(grid) {
   const lake = L.lake;
   const flowerAt = (x, z) => fbm(nFlower, x * 0.04 + 3, z * 0.04, 2);
   const land = L.landing;
-  const pickRule = (x, z, h, slope, nx, nz, i, j, pd, surface) => {
+  const pickRule = (x, z, h, slope, nx, nz, i, j, pd, surface, underRoad, rd, rs, hTop) => {
     const dL = Math.hypot((x - lake.x) / lake.rx, (z - lake.z) / lake.rz);
     const r = hash01(i, j);
     // The pier's landing is ONE calm lawn. The rules below pick moss or grass cell by cell along a shore, scatter pebbles, flower cells and patches of a second
@@ -40,6 +46,16 @@ export function terrainPicker(grid) {
     const tidy = land !== undefined && dLand < land.r + land.fade && (dLand < land.r || r > (dLand - land.r) / land.fade);
     if (h < WATER_LEVEL + 0.05 && dL < 1.6) return ['sand', 'lake floor'];
     if (h < WATER_LEVEL + 0.8 && dL < 1.45 && slope < 0.5) return [r < 0.22 && h > WATER_LEVEL + 0.1 && !tidy ? 'shore_pebbles' : 'sand', 'lake shore'];
+    // A road lies over the ground it runs on (roads.js drapes it on the terrain mesh): only the triangles the ribbon covers entirely carry its texture, so the road's edge is the
+    // ribbon's smooth one and not a stair-step of dirt cells beside it.
+    if (underRoad) return [underRoad, 'under a road'];
+    // The river (river.js): sand on its bed and along the water's edge, grass on the banks, however steep the carve makes them: they used to turn into walls of purple rock (and, where
+    // a road ran along the top, into a wedge of dirt over a wall).
+    if (rs !== undefined && rd < RIVER_ZONE) {
+      if (hTop < rs + 0.05) return ['sand', 'river bed'];                                            // (all of it under the water)
+      if (hTop < rs + 0.6 && slope < 1.1) return [r < 0.3 ? 'shore_pebbles' : 'sand', 'river shore'];   // (a thin band along the water's edge, not the whole bank)
+      if (slope > 0.45 && slope < 1.35) return ['grass_b', 'river bank, slope > 0.45'];                 // (only a wall that is all but vertical stays rock)
+    }
     // (the Dawn Gate's surroundings are all one rock: the red cascade rock used to start ten metres from its pillars, and a
     // random mix of rock and grass on the steep flanks of its forecourt looked torn)
     const nearGate = Math.hypot(x - L.gate.x, z - L.gate.z) < 34;
@@ -52,7 +68,6 @@ export function terrainPicker(grid) {
     if (h > 42) return ['far_rock', 'very high, y > 42'];
     if (Math.hypot(x - L.village.x, z - (L.village.z - 4)) < 9.5) return ['flagstone', 'village plaza'];
     if (surface === 'flagstone' && pd < 1.2) return ['flagstone', 'paved forecourt'];                // a paved forecourt is paved right through (the cells are coarser than the paving)
-    if (pd < 0.3) return ['dirt', 'on a road'];
     const K = L.hollow;
     if (Math.hypot(x - K.x, z - K.z) < K.r * 0.9) return ['moss', 'crystal hollow'];
     if (tidy) return ['grass_a', 'the pier\'s landing lawn: one calm grass'];
@@ -72,6 +87,15 @@ export function terrainPicker(grid) {
     let near = j * s + i;
     for (const k of [j * s + i + 1, (j + 1) * s + i, (j + 1) * s + i + 1]) if (pathDist[k] < pathDist[near]) near = k;
     const surface = grid.pathIdx[near] >= 0 ? grid.paths[grid.pathIdx[near]].surface : '';
+    // the river: how far the cell is from its edge, and the drawn surface height by the corner nearest the water
+    const corners4 = [j * s + i, j * s + i + 1, (j + 1) * s + i, (j + 1) * s + i + 1];
+    const rd = (riverDist[corners4[0]] + riverDist[corners4[1]] + riverDist[corners4[2]] + riverDist[corners4[3]]) / 4;
+    let rs;
+    if (riverSurf && rd < RIVER_ZONE) {
+      let nr = corners4[0];
+      for (const k of corners4) if (riverDist[k] < riverDist[nr]) nr = k;
+      if (Number.isFinite(riverSurf[nr])) rs = riverSurf[nr];
+    }
     const split = ((i + j) & 1) === 0 ? [[A, D, B, [i, j], [i + 1, j + 1], [i + 1, j]], [A, C, D, [i, j], [i, j + 1], [i + 1, j + 1]]]
       : [[A, C, B, [i, j], [i, j + 1], [i + 1, j]], [B, C, D, [i + 1, j], [i, j + 1], [i + 1, j + 1]]];
     return split.map(([p0, p1, p2, i0, i1, i2]) => {
@@ -80,7 +104,10 @@ export function terrainPicker(grid) {
       let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
       const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
       const slope = Math.acos(clamp(Math.abs(ny)));
-      const [tex, why] = pickRule(cx, cz, ch, slope, nx, nz, i, j, pd, surface);
+      // under a road: all three corners are inside the ribbon (dirt and cobble roads have one; a paved forecourt is the terrain's own texture)
+      const pdTri = Math.max(pathDist[i0[1] * s + i0[0]], pathDist[i1[1] * s + i1[0]], pathDist[i2[1] * s + i2[0]]);
+      const underRoad = pdTri <= UNDER_ROAD && slope <= ROAD_MAX_SLOPE && (surface === 'dirt' || surface === 'cobble') ? surface : null;     // (a road is not drawn on ground steeper than that: see roads.js)
+      const [tex, why] = pickRule(cx, cz, ch, slope, nx, nz, i, j, pd, surface, underRoad, rd, rs, Math.max(p0[1], p1[1], p2[1]));
       return { p: [p0, p1, p2], idx: [i0, i1, i2], slope, tex, why };
     });
   };

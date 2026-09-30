@@ -98,7 +98,7 @@ Coordinates are the level's own, in metres: **X = east, Z = south, Y = up** (Spy
 | --- | --- |
 | `POS` | Spyro's X / Y / Z |
 | `FACE`, `AREA` | compass heading, speed, what he is doing; the named place (Hearth Village, Windmill Hill, Sky Isle 2 ...) and the road or stream he is on |
-| `FLOOR` | the ground texture and the rule that chose it (`cliff (steep, slope > 0.74)`), the slope and the ground height — the rules are the ones the terrain mesh is built with |
+| `FLOOR` | the ground texture and the rule that chose it (`cliff (steep, slope > 0.74)`), the slope and the ground height — the rules are the ones the terrain mesh is built with; on a road it says so first (`cobble road main, over cobble (under a road)`), since a road is a ribbon drawn over the ground |
 | `AIM` / `PIN` | where the crosshair (or the tapped spot) points: X / Y / Z and distance, and what is there (ground texture with its rule and grid cell, water, or a collider and the prop it belongs to; over flat ground, the nearest prop). Aim at the glitch itself, not only at Spyro: this is the point to fix |
 | `PROP`, `OBJ`, `COLL` | the nearest props, gameplay things (chest, vase, Snuffer, beacon ...) and collision shape, each with its distance, clock direction (12h is straight ahead) and X / Z, and **`[layoutVillage]`**: the function in `src/game/levelgen` that placed it |
 | full mode | game state (beacons, gems, checkpoint), camera, input, performance, view size and touch support, and the last errors |
@@ -182,7 +182,8 @@ src/engine/          renderer + PS1 pipeline (shaders, materials, gfx, builder, 
 src/game/
   level.js           the design source of truth: landmarks, roads, hills, beacon order
   terrain*.js        analytic heightfield, road/river carving, per-triangle texturing, water
-  roads.js           the cobble and dirt roads, draped exactly on the terrain mesh (cut against its triangles, so they never hover or sink)
+  roads.js drape.js  the cobble and dirt roads, draped exactly on the terrain mesh (cut against its triangles, so they never hover or sink) and merged where they meet (one texture, one worn-edge shading)
+  river.js water.js  the river's drawn surface (it meets the lake without a step) and its water, cut to the banks so it stops exactly at the waterline
   props/  models/    procedural scenery, architecture, hero, creatures and interactive objects
   levelgen/          deterministic placement of props, enemies, gems, hints (islands.js plans the floating isles' decor clear of what stands on them)
   player.js camera.js collision.js   kinematic controller, chase camera, heightfield + collider world
@@ -213,7 +214,7 @@ node tools/menu-test.mjs      # menus: the phone MENU button and finger-sized ro
 node tools/touch-ram-jump-test.mjs   # ram + jump on an emulated phone through real touches: a finger held on RAM, another tapping JUMP, then lifting RAM (needs the dev server)
 node tools/where.mjs X Z   # what is at a spot (X = east, Z = south, as debug mode shows them): area, ground texture + rule, nearby props / gameplay things / collision shapes with the layout function and file:line that placed them
 node tools/build-id.mjs       # the build id debug mode shows: a hash of src/ plus the date
-node tools/level-check.mjs    # populates the level headlessly: gem economy (700), counts, and placement checks (shrine chest seated on its island, Dawn Gate forecourt dry and gentle, sky-isle decor clear of the mushroom / chests / enemies / beacon, nothing solid standing on a chest, vase, brazier, mushroom, NPC or enemy spawn, Mirrormere's short wide dock with a clear run-off and its lily pads: big, spaced, easy hops, the pier's landing lawn: one calm grass, sand and the roads' dirt instead of a mosaic of textures, and the roads draped on the terrain: every vertex on the surface, cobble over dirt where they meet)
+node tools/level-check.mjs    # populates the level headlessly: gem economy (700), counts, and placement checks (shrine chest seated on its island, Dawn Gate forecourt dry and gentle, sky-isle decor clear of the mushroom / chests / enemies / beacon, nothing solid standing on a chest, vase, brazier, mushroom, NPC or enemy spawn, Mirrormere's short wide dock with a clear run-off and its lily pads: big, spaced, easy hops, the pier's landing lawn: one calm grass, sand and the roads' dirt instead of a mosaic of textures, the roads draped on the terrain (every vertex on the surface, cobble over dirt where they meet) and merged (same texture point and shading where two lie on top of each other, no ragged dirt beside a road), and the river: its water stops exactly at the waterline, meets the lake at its level, and its banks are sand and grass, never rock)
 node tools/shot.mjs / play.mjs / probe.mjs   # Playwright screenshots, scripted play-throughs, state probes
 node tools/model-sheet.mjs out.png --only spyro --poses idle,run,glide --views side   # contact sheets of an actor from any angle / pose
 node tools/charge-test.mjs | gem-flight-test.mjs | gem-counter-test.mjs | gem-sound-test.mjs

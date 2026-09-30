@@ -8,6 +8,7 @@
 import { buildHeadless } from './headless-world.mjs';
 import { LEVEL, WATER_LEVEL } from '../src/game/level.js';
 import { buildTerrainMeshes } from '../src/game/terrain-mesh.js';
+import { buildRoads } from '../src/game/roads.js';
 import * as D from '../src/game/debuginfo.js';
 
 let failed = 0;
@@ -71,6 +72,46 @@ const game = { grid, collision, gameplay: gp, level: LEVEL, player };
   }
   check('the readout names the texture of the terrain triangle under the point', tested > 1200 && wrong === 0, `(${tested} points, ${wrong} wrong, ${ambiguous} on an edge, ${none} outside the mesh)`);
   check('... and it did so across the realm (many textures and many rules were exercised)', Object.keys(seen).length >= 8 && Object.keys(why).length >= 10, `(${Object.keys(seen).length} textures: ${Object.keys(seen).join(' ')}; ${Object.keys(why).length} rules)`);
+}
+
+// ---- the road drawn over the ground ---------------------------------------------------------------------------------------------------------
+// A road is a ribbon laid over the terrain (roads.js), so standing on one the ground the readout names is the road, over whatever texture the terrain has there. The road the readout reports is
+// checked against the ribbon mesh itself: a point is on a road exactly when a triangle of it covers the point (only the pieces left out for being on a steep bank or under water can differ, at their edges).
+{
+  const roads = buildRoads(grid, lighting);
+  const T = [], CS = 6, hash = new Map();
+  for (const surface of ['cobble', 'dirt']) {
+    const b = roads[surface];
+    if (!b) continue;
+    for (let i = 0; i < b.pos.length; i += 9) T.push({ surface, A: [b.pos[i], b.pos[i + 2]], B: [b.pos[i + 3], b.pos[i + 5]], C: [b.pos[i + 6], b.pos[i + 8]] });
+  }
+  T.forEach((t, ti) => { const xs = [t.A[0], t.B[0], t.C[0]], zs = [t.A[1], t.B[1], t.C[1]]; for (let cx = Math.floor(Math.min(...xs) / CS); cx <= Math.floor(Math.max(...xs) / CS); cx++) for (let cz = Math.floor(Math.min(...zs) / CS); cz <= Math.floor(Math.max(...zs) / CS); cz++) { const k = cx + ',' + cz; if (!hash.has(k)) hash.set(k, []); hash.get(k).push(ti); } });
+  const cover = (x, z) => {
+    let hit = null;
+    for (const ti of hash.get(Math.floor(x / CS) + ',' + Math.floor(z / CS)) || []) {
+      const { A, B, C, surface } = T[ti], d = (B[1] - C[1]) * (A[0] - C[0]) + (C[0] - B[0]) * (A[1] - C[1]);
+      const w0 = ((B[1] - C[1]) * (x - C[0]) + (C[0] - B[0]) * (z - C[1])) / d, w1 = ((C[1] - A[1]) * (x - C[0]) + (A[0] - C[0]) * (z - C[1])) / d;
+      if (w0 > 0 && w1 > 0 && 1 - w0 - w1 > 0) hit = hit === 'cobble' ? hit : surface;
+    }
+    return hit;
+  };
+  let seed = 4242; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  let n = 0, agree = 0, onRoad = 0, wrongKind = 0;
+  for (const p of grid.paths) {
+    if (p.surface === 'flagstone') continue;
+    for (let k = 0; k < 250; k++) {
+      const q = p.pts[Math.floor(rnd() * p.pts.length)], a = rnd() * 6.283, hw = p.width / 2, r = rnd() < 0.5 ? rnd() * hw * 0.8 : hw * 1.25 + rnd() * hw;        // (well inside the road or well outside it: the edge itself is not the point)
+      const x = q[0] + Math.cos(a) * r, z = q[2] + Math.sin(a) * r;
+      const g = D.groundAt(grid, x, z), c = cover(x, z);
+      n++;
+      if ((g.drawn !== null) === (c !== null)) agree++;
+      if (g.drawn) { onRoad++; if (c && g.drawn.surface !== c) wrongKind++; }
+    }
+  }
+  check('the readout reports the road drawn over the ground exactly where a triangle of the road mesh covers the point', n > 2000 && agree >= n * 0.99 && onRoad > 1000 && wrongKind === 0, `(${n} points near roads, ${agree} agree, ${onRoad} on a road, ${wrongKind} of the wrong kind)`);
+  const onMain = D.groundAt(grid, 0, 112), beside = D.groundAt(grid, 9, 112);
+  const fmt = (g) => D.format({ build: 'test', pos: { x: 0, y: 0, z: 0 }, compass: 'N', heading: 0, speed: 0, state: 'idle', grounded: true, area: { name: 'X', inside: true, d: 0 }, ground: g, stand: { kind: 'terrain' }, props: [], things: [], colliders: [], hints: [], aim: null, extra: {}, yaw: 0 }, 1).find((r) => r.tag === 'FLOOR').text;
+  check('FLOOR says so: "cobble road main, over <the ground>" on the main road, the plain ground beside it', /^cobble road main, over /.test(fmt(onMain)) && !/road/.test(fmt(beside).replace(/under a road/, '')), `(${fmt(onMain)} | ${fmt(beside)})`);
 }
 
 // ---- the aim ray ---------------------------------------------------------------------------------------------------------------------------
@@ -162,7 +203,7 @@ const game = { grid, collision, gameplay: gp, level: LEVEL, player };
   check('POS row is the player position to two decimals', row(compact, 'POS') === `X ${player.x.toFixed(2)}  Y ${player.y.toFixed(2)}  Z ${player.z.toFixed(2)}`, `(${row(compact, 'POS')})`);
   check('rows: the build, the facing, the area, the floor, the aim', ['DEBUG', 'FACE', 'AREA', 'FLOOR', 'AIM'].every((t) => row(compact, t)), `(${compact.map((r) => r.tag).join(' ')})`);
   check('rows name the layout function that placed what is nearby', /\[layout[A-Za-z]+\]/.test(text), `(${text.split('\n').find((s) => /\[layout/.test(s))})`);
-  check('FLOOR names the rule behind the texture', /\(default grass\)|\(on a road\)|\(village plaza\)/.test(row(compact, 'FLOOR')), `(${row(compact, 'FLOOR')})`);
+  check('FLOOR names the rule behind the texture', /\(default grass\)|\(under a road\)|\(village plaza\)/.test(row(compact, 'FLOOR')), `(${row(compact, 'FLOOR')})`);
   check('full mode adds rows only when the extras are given, compact never lists them', full.length >= compact.length && !compact.some((r) => ['CAM', 'INPUT', 'PERF', 'GAME'].includes(r.tag)));
   const fx = D.format(D.collect(game, { pose, errorCount: 2, game: 'g', cam: 'c', input: 'i', perf: 'p', gpu: 'u', view: 'v', errors: ['error: boom'] }), 2);
   check('full mode shows game, camera, input, performance, view and the errors', ['GAME', 'CAM', 'INPUT', 'PERF', 'GPU', 'VIEW', 'ERR'].every((t) => row(fx, t)), `(${fx.map((r) => r.tag).join(' ')})`);
