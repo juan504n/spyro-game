@@ -1,5 +1,5 @@
 // Reachability QA: drives the real player controller headlessly through every road and objective route.
-// Usage: node tools/bot.mjs [scenario ...]   (default: all)  — needs the dev server on :5173 (GV_HMR=0 recommended)
+// Usage: node tools/bot.mjs [scenario ...]   (default: all)  — needs the dev server on :5173 (GV_HMR=0 recommended; GV_URL=file:///.../docs/index.html tests a built file instead)
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,7 +9,7 @@ const want = process.argv.slice(2);
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 640, height: 480 } });
 page.on('pageerror', (e) => console.log('[pageerror]', e.message.slice(0, 300)));
-await page.goto('http://127.0.0.1:5173/?skip=1&preserve=1');
+await page.goto((process.env.GV_URL || 'http://127.0.0.1:5173/') + '?skip=1&preserve=1');
 await page.waitForFunction(() => window.__ready || window.__error, null, { timeout: 120000 });
 await page.addScriptTag({ path: path.join(here, 'bot-inject.js') });
 await page.waitForTimeout(1500);
@@ -33,12 +33,38 @@ await run('ring-west', () => { __bot.place(-80, 62, 3.14); return __bot.follow('
 await run('ring-east', () => { __bot.place(76, 58, 3.14); return __bot.follow('ringE', 0.0, 1, 3); });
 await run('summit-road', () => { if (__game.objects.barrier) __game.objects.barrier.c.solid = false; __bot.place(0, -86, 0); return __bot.follow('summit', 0.0, 1, 3); });
 await run('island-stones', () => {
-  const L = __game.level;
+  const G = __game, L = G.level;
   __bot.place(-4, 74, Math.PI);
-  const pts = [[-4, 66], [-6, 58], [-2, 52.5], [-7, 47], [-3, 42], [-8, 37.5], [-6, 32], [L.island.x, L.island.z + 5]];   // (the shrine's standing stones ring the island: go through a gap)
+  const pads = G.gameplay.placed.filter((p) => p.name === 'stepping_stone').sort((a, b) => b.z - a.z);   // the lily-pad crossing, the dock's end first
+  const pts = [[-4, 68], ...pads.map((p) => [p.x, p.z]), [-3.7, 33.5], [L.island.x, L.island.z + 5]];     // (the shrine's monoliths ring the island: go through the gap they leave to the south)
   const out = [];
   for (const [x, z] of pts) { const r = __bot.goto(x, z, { tol: 1.4, timeout: 10 }); out.push(r.ok ? 'ok' : r.reason); if (!r.ok) return { ok: false, out, at: [x, z], ...__bot.state() }; }
   return { ok: true, out, end: __bot.state() };
+});
+await run('dock-hop', () => {
+  // The lily-pad crossing has to be easy: from a standstill on the dock's far end (west edge, middle, east edge) one plain jump (no glide) lands on
+  // the first pad, and the same from the near rim of each pad to the next one (and from the last pad to the island's beach).
+  const G = __game, p = G.player;
+  const pads = G.gameplay.placed.filter((q) => q.name === 'stepping_stone').sort((a, b) => b.z - a.z);
+  const on = () => (p.dead ? 'dead' : p.grounded && p.groundKind === 'collider' && p.groundC && p.groundC.prop ? p.groundC.prop.name : p.grounded ? p.groundKind : 'air');
+  const out = [];
+  const hop = (label, x, z, y, tx, tz, want) => {
+    __bot.place(x, z, Math.atan2(tx - x, tz - z), y);
+    const r = __bot.goto(tx, tz, { tol: 1.4, timeout: 5, auto: false, jumpNow: true });
+    for (let i = 0; i < 180 && !p.grounded && !p.dead; i++) __bot.tick();                // (goto returns once above the target: let it land)
+    const at = on();
+    out.push(`${label}: ${r.ok && at === want ? 'ok' : 'FAIL ' + (r.reason || at) + ' at ' + r.x + ',' + r.z}`);
+    return r.ok && at === want;
+  };
+  let ok = true;
+  for (const x of [-6.4, -4, -1.6]) ok = hop(`dock x${x}`, x, 66.9, 0.3, pads[0].x, pads[0].z, 'stepping_stone') && ok;
+  const R = 3.0;                                                                        // (a start 0.4 m inside the rim of the pad)
+  for (let i = 0; i < pads.length; i++) {
+    const a = pads[i], b = pads[i + 1] || { x: -3.7, z: 33.5 };
+    const d = Math.hypot(b.x - a.x, b.z - a.z), ux = (b.x - a.x) / d, uz = (b.z - a.z) / d;
+    ok = hop(i + 1 < pads.length ? `pad ${i + 1} -> ${i + 2}` : `pad ${i + 1} -> island`, a.x + ux * R, a.z + uz * R, 0.45, b.x, b.z, i + 1 < pads.length ? 'stepping_stone' : 'terrain') && ok;
+  }
+  return { ok, out };
 });
 await run('mesa-launch', () => {
   const M = __game.level.mesa, i1 = __game.level.isles[0];

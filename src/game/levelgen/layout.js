@@ -1,6 +1,7 @@
 // The hand-authored part of Gloaming Vale: every landmark, encounter and secret. Positions come from level.js;
 // everything here is expressed in world coordinates and validated against the terrain by ctx.h()/ctx.slope().
 import { WATER_LEVEL } from '../level.js';
+import { lilyLayout, LILY_R } from '../props/nature/ground.js';
 
 const TAU = Math.PI * 2;
 
@@ -73,12 +74,15 @@ export function layoutVillage(ctx) {
 export function layoutLake(ctx) {
   const { L, gp, put, rng, h } = ctx;
   const I = L.island;
-  // pier + boat on the south shore, stepping stones across to the island
+  // pier + boat on the south shore, then the lily-pad crossing out to the island. The pier is short (8 m) and wide (5.6 m) with its lamp on one edge, so
+  // there is a broad clear run-off at its end; the three big round pads (stepping stones with a 3.4 m radius top, twice the old ones) each sit about
+  // 3 m of open water from the next (and from the pier's end), so every hop is short. The middle pad is a touch to the east, the last one lines up with
+  // the gap in the shrine's ring of monoliths. (They are put down after the shoreline dressing below, for a reason given there.)
   const shoreZ = L.lake.z + L.lake.rz * 0.99;
-  put('pier', -4, shoreZ + 3, { rot: Math.PI, len: 12 }, 4);
+  const PIER = { x: -4, z: shoreZ + 3, len: 8, width: 5.6 };
+  const CROSSING = [[-4.6, 60.2], [-2.6, 50.2], [-4, 40.5]];
+  put('pier', PIER.x, PIER.z, { rot: Math.PI, len: PIER.len, width: PIER.width, span: PIER.len }, 4);
   put('boat', -10.5, shoreZ - 2, { rot: 0.6 }, 3);
-  const stones = [[-6, 58], [-2, 52.5], [-7, 47], [-3, 42]];
-  for (const [x, z] of stones) put('stepping_stone', x, z, { h: WATER_LEVEL + 0.45 - h(x, z) }, 1.8);
   // shrine on the island. Its level top is only ~4 m across and the shore falls away steeply under the ring, so everything is
   // placed in polar terms round the beacon (angle 0 = east, 90 = south). The monoliths are turned to leave a gap towards the
   // stepping stones (south) and towards Heron Point (north); the crystals, the tree and the bush sit in the other gaps.
@@ -102,16 +106,28 @@ export function layoutLake(ctx) {
     const a = rng.float(0, TAU);
     const d = rng.float(0.94, 1.03);
     const x = L.lake.x + Math.cos(a) * L.lake.rx * d, z = L.lake.z + Math.sin(a) * L.lake.rz * d;
-    if (ctx.pathDist(x, z) < 3.4 || !ctx.occ.free(x, z, 1.6) || Math.hypot(x - (-4), z - (shoreZ + 3)) < 9) continue;
+    if (ctx.pathDist(x, z) < 3.4 || !ctx.occ.free(x, z, 1.6) || Math.hypot(x - PIER.x, z - PIER.z) < 9) continue;
     if (put('reeds', x, z, { rot: rng.float(0, TAU), r: 2.6, count: 9 }, 1.6)) placed++;
   }
+  // Lily-pad patches, sixteen of them: where they go is rolled from the level's shared rng exactly as it always was (so nothing after this line moves), then each
+  // patch lays out its own big pads with a private rng. Every pad is a walkable platform, so it stays in deep enough water, clear of the pier, the boat,
+  // the crossing and every pad already laid, and at least 1.6 m from its neighbours.
+  const taken = [[PIER.x, PIER.z - 1.2, 3.6], [PIER.x, PIER.z - 4, 3.6], [PIER.x, PIER.z - 6.8, 3.6], [-10.5, shoreZ - 2, 2.4], ...CROSSING.map(([x, z]) => [x, z, 3.4])];
+  const floats = (x, z, R) => [[0, 0], [R, 0], [-R, 0], [0, R], [0, -R]].every(([ox, oz]) => h(x + ox, z + oz) < WATER_LEVEL - 0.35);
   placed = 0;
   for (let t = 0; t < 400 && placed < 16; t++) {
     const a = rng.float(0, TAU), d = rng.float(0.5, 0.92);
     const x = L.lake.x + Math.cos(a) * L.lake.rx * d, z = L.lake.z + Math.sin(a) * L.lake.rz * d;
     if (Math.hypot(x - I.x, z - I.z) < I.r + 3 || h(x, z) > WATER_LEVEL - 0.6 || !ctx.occ.free(x, z, 2)) continue;
-    if (put('lilypads', x, z, { r: 2.2, count: 6, y: WATER_LEVEL + 0.04 }, 2)) placed++;
+    const pads = lilyLayout(ctx.kit.rng(x, z, 104), 5, 5.5, {
+      ok: (px, pz, R) => floats(x + px, z + pz, R) && taken.every(([tx, tz, tr]) => Math.hypot(x + px - tx, z + pz - tz) > R + tr + 1.6),
+    });
+    for (const [px, pz, sz] of pads) taken.push([x + px, z + pz, sz * LILY_R]);
+    if (put('lilypads', x, z, { pads, y: WATER_LEVEL + 0.16, span: 12 }, 2)) placed++;
   }
+  // The crossing itself, last: putting the pads down earlier would stamp the shared occupancy map before the patches above are picked, which changes which candidates are
+  // accepted, how many draws that takes, and so every random pick after them (the whole realm's scatter would come out differently).
+  for (const [x, z] of CROSSING) put('stepping_stone', x, z, { top: 3.4, h: WATER_LEVEL + 0.45 - h(x, z), span: 7 }, 3.6);
   // heron point headland: rock spires + a lookout tree
   put('rock_spire', L.heron.x + 4, L.heron.z - 3, { rot: 0.4 }, 3);
   put('rock_spire', L.heron.x - 5, L.heron.z + 2, { rot: 1.2, scale: 0.8 }, 3);

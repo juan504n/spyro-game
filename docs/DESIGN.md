@@ -32,7 +32,7 @@ flowchart LR
 | # | Beacon | Skill it teaches | Obstacle |
 | - | --- | --- | --- |
 | I | Hearth | fire breath | none; the elder explains the premise |
-| II | Isle | jumping | a reef of stepping stones across the lake (or glide from Heron Point) |
+| II | Isle | jumping | from a short, wide dock, three big round lily-pad stones across the lake, each an easy hop (2 to 3.4 m of open water) from the last (or glide from Heron Point) |
 | III | Mill | fire on a target, stairs | three braziers along the spiral road raise the portcullis to the tower stair |
 | IV | Sky | bounce, glide | a launch mushroom on the mesa, then a chain of floating isles that bob |
 | V | Dawn | endurance | the Dawn Gate stays sealed until four lanterns burn (a ward around the mountain, shown by drifting violet motes, stops anyone walking or gliding round the arch), then a cobbled road spirals up to the observatory |
@@ -156,6 +156,14 @@ stands on them. (Each isle gets a crystal cluster, a lantern tree and some flowe
 away, and on Sky Isle 3 a crystal cluster sat on the chest. `levelgen/islands.js` now plans them: the same first pick as before, redrawn while it is too close to the mushroom, a chest,
 an enemy's spawn, the beacon or a gem, from the isle's own generator so nothing else in the realm moves.) A second check finds any prop collider standing on a chest, vase, brazier, mushroom, NPC
 or enemy spawn anywhere in the realm; it caught an enemy in the Crystal Hollow spawning inside a crystal cluster, now moved to a free spot.
+
+A third group covers Mirrormere's dock and lily pads, each asked for after playing it. The dock was 12 m long and 3.2 m wide with its lamp post dead centre on the far end, exactly where you run off and
+jump; it is now 8 m by 5.6 m with the lamp on its east edge, 1.4 m back from the end, and the check walks the strip in front of the end looking for anything solid. The pads you hop across (the
+stepping stones) had a 1.7 m radius top and were about 6.5 m apart; there are now three with a 3.4 m radius (twice the size) and 2 to 3.4 m of open water between the dock, each pad and the island's
+beach (checked as 1.5 to 4.5 m), so they neither crowd nor stretch a jump (a run reaches 8.7 m). The decorative lily pads doubled too (2.6-4.2 m across), and each is now a walkable platform floating
+over water at least 0.3 m deep, kept 1.6 m from its neighbours and clear of the dock, the boat and the crossing. Those pad layouts are planned in `layoutLake` from a private generator, and the 16
+patches are still picked from the shared random stream exactly as before, so nothing else in the realm moved (a before and after dump of every prop and gameplay record differs only in the four old
+stones and the three new ones). The bot's `dock-hop` scenario jumps from a standstill on the dock's west edge, middle and east edge to the first pad, then pad to pad and on to the beach, with no glide.
 
 `tools/debuginfo-test.mjs` (no server) builds the level headlessly and checks the debug readout against independent computations: the texture it reports is the texture of the
 terrain mesh triangle under the point (1500 scattered points, all eleven textures and 16 rules), the aim ray against known ground, houses, a pier and the water, the nearest prop and

@@ -105,17 +105,46 @@ export function reeds(kit, { x, z, rot = 0, scale = 1, y, r: rad, count }) {
   });
 }
 
-/** Lilypads floating at y (pass the water level). Some carry a blossom. */
-export function lilypads(kit, { x, z, rot = 0, scale = 1, y, r: rad, count }) {
-  rad = num(rad, 3.5, 0.8, 14); count = int(count, 8, 1, 24);
+/** A lily pad's walkable radius as a fraction of its card size (the leaf is about 0.44 of the card across; a hair less keeps the edge honest). */
+export const LILY_R = 0.4;
+
+/**
+ * Lay out up to `count` lily pads inside a disc of radius `rad` (metres, relative to the patch centre): each 2.6-4.2 m across, and their
+ * edges at least `gap` apart so there is always room to hop from one to the next. `ok(x, z, R)` can veto a spot (R = the pad's radius).
+ * Draws only from `r`, so give it a private rng (kit.rng), never the level's shared one.  -> [[dx, dz, size], ...]
+ */
+export function lilyLayout(r, count, rad, { gap = 1.6, ok = () => true } = {}) {
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    for (let t = 0; t < 30; t++) {
+      const a = r.float(0, TAU), d = Math.sqrt(r.next()) * rad, s = r.float(2.6, 4.2);
+      const x = Math.cos(a) * d, z = Math.sin(a) * d, R = s * LILY_R;
+      if (out.some((q) => Math.hypot(x - q[0], z - q[1]) < R + q[2] * LILY_R + gap)) continue;
+      if (!ok(x, z, R)) continue;
+      out.push([x, z, s]);
+      break;
+    }
+  }
+  return out;
+}
+
+/**
+ * Lily pads floating at y (pass the water level + a hair): big ones (2.6-4.2 m across) with room between them, and each is a walkable platform
+ * (collider tag 'lilypad', top a hair above the water), so they can be hopped across like stepping stones. Some carry a blossom.
+ * `pads` = [[dx, dz, size], ...] puts them exactly (the lake level plans them so that no two patches overlap, none sits on the pier or the
+ * crossing and all of them float in deep enough water); without it the prop lays out `count` pads inside radius `r` itself, wherever it is put.
+ */
+export function lilypads(kit, { x, z, rot = 0, scale = 1, y, r: rad, count, pads }) {
+  rad = num(rad, 5.5, 0.8, 14); count = int(count, 5, 1, 24);
   const r = kit.rng(x, z, 103);
   const cut = swayOK(kit, x, z, y, SWAY_GROUND) ? CUT : CUT_STATIC;
   kit.at(x, z, { rot, scale, y }, () => {
+    const list = Array.isArray(pads) ? pads : lilyLayout(r, count, rad);
     const pad = kit.b('lilypad', { mode: 'cutout', double: true });
-    scatter(r, count, rad, 1.9).forEach((p, i) => {
-      const s = r.float(1.3, 2.1);
-      flat(pad, p[0], 0.05, p[1], s, r.float(0, TAU), { color: vary(r, 1.0, 0.08) });
-      if (i % 4 === 1) card(kit.b('flower_pink', cut), p[0], 0.05, p[1], 0.7, 0.7, r.float(0, 3), { lean: 0, color: [1.15, 1.1, 1.1] });
+    list.forEach(([px, pz, s], i) => {
+      flat(pad, px, 0.05, pz, s, r.float(0, TAU), { color: vary(r, 1.0, 0.08) });
+      if (i % 4 === 1) card(kit.b('flower_pink', cut), px, 0.05, pz, 1.3, 1.3, r.float(0, 3), { lean: 0, color: [1.15, 1.1, 1.1] });
+      kit.cyl(px, pz, s * LILY_R, -0.6, 0.06, { top: true, tag: 'lilypad' });
     });
   });
 }
@@ -175,7 +204,7 @@ export const GROUND = {
   tuft_patch: { fn: tuftPatch, size: 5, note: 'clumps of tall grass; r, count, teal', defaults: { r: 2.6, count: 12 } },
   fern_patch: { fn: fernPatch, size: 5, note: 'fern rosettes; r, count', defaults: { r: 2.4, count: 3 } },
   reeds: { fn: reeds, size: 4, note: 'cattail reeds at the water edge (pass y = shore level); r, count', defaults: { r: 2, count: 8 } },
-  lilypads: { fn: lilypads, size: 7, note: 'lilypads on the water (PASS y = water level); r, count', defaults: { r: 3.5, count: 8 } },
+  lilypads: { fn: lilypads, size: 12, note: 'a patch of big lily pads (2.6-4.2 m across, gaps of 1.6+ m) on the water (PASS y = a little above the water level: the water surface draws over anything within a few centimetres of it, so Mirrormere uses +0.16); r (patch radius, default 5.5), count (default 5), or exact pads [[dx, dz, size], ...] (the level plans those, keeping them over deep water). Each pad is a walkable collider (tag lilypad, top 0.06 above y), so they can be hopped across', defaults: { r: 5.5, count: 5 } },
   fallen_log: { fn: fallenLog, size: 7, note: 'fallen log along local x with moss, walkable top; len', defaults: { len: 6.2 }, anchors: { top: [0, 1.4, 0] } },
   stump: { fn: stump, size: 3.4, note: 'tree stump with mossy top, walkable', defaults: {}, anchors: { top: [0, 1.25, 0] } },
 };

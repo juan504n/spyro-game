@@ -108,16 +108,17 @@ export function bridgeStone(kit, p) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// pier : wooden pier along +Z from the origin (deck top at y = 0.55), 3.2 wide, lamp post at the end
+// pier : wooden pier along +Z from the origin (deck top at y = 0.55), `width` wide (3.2 by default), lamp post on one edge near the end
 // ---------------------------------------------------------------------------------------------------------------
 export function pier(kit, p) {
   const { x, z, rot = 0, scale = 1, y, len = 14 } = p;
+  const W = clamp(Number.isFinite(p.width) ? p.width : 3.2, 1.6, 12) / 2;      // half the deck width
   kit.at(x, z, { rot, scale, y }, () => {
     // near the lake (origin close to WATER_LEVEL) the deck sits 0.3 above the water whatever the shore height; on the
     // gallery lawn (or with an explicit deck param) it is 0.55 above the origin
     const oy = kit.origin.y;
     const yT = p.deck ?? (oy < WATER_LEVEL + 3 ? (WATER_LEVEL + 0.3 - oy) / scale : 0.55);
-    const W = 1.6, th = 0.25;
+    const th = 0.25;
     const wp = kit.b('wood_plank'), wb = kit.b('wood_beam');
     const warm = [1.02, 0.94, 0.88];
     const nseg = Math.max(2, Math.round(len / 2.5));
@@ -148,12 +149,13 @@ export function pier(kit, p) {
     for (const sx of [1, -1]) {
       wb.box(sx * (W - 0.32), yT + 0.5, len - 0.3, 0.42, 1.0, 0.42, { tile: 2.4, color: [0.85, 0.74, 0.66], faces: ['+z', '-z', '+x', '-x', '+y'] });
     }
-    // lamp post at the end
-    lampHead(kit, 0, len - 0.6, yT, { h: 3.6, glow: true });
+    // lamp post on one edge, a little way back from the end: the middle of the far end is where you run off (and jump), so nothing stands there
+    const lx = (p.lampSide === 1 ? 1 : -1) * (W - 0.5), lz = len - 1.4;
+    lampHead(kit, lx, lz, yT, { h: 3.6, glow: true });
     // colliders
     kit.box(0, len / 2, W, len / 2, yT - 0.4, yT, { top: true, tag: 'pier' });
-    kit.cyl(0, len - 0.6, 0.3, yT, yT + 3.6, { tag: 'lamp' });
-    kit.caster(0, len / 2, 1.6, 0.6, 0.2);
+    kit.cyl(lx, lz, 0.3, yT, yT + 3.6, { tag: 'lamp' });
+    kit.caster(0, len / 2, Math.min(W, len / 2), 0.6, 0.2);
   });
 }
 
@@ -318,7 +320,7 @@ export const STRUCTURES = {
   },
   pier: {
     fn: pier, size: 20,
-    note: 'Wooden pier running along +Z from the origin (param len=14, 3.2 wide). Deck top: if the origin is near the lake (ground y < WATER_LEVEL+3) the deck is at world WATER_LEVEL+0.3 whatever the shore height (the first metres may sink into a higher bank); otherwise 0.55 above the origin; override with param deck (local y). Posts go 4.2 below the deck; lamp post + lantern glow at the end (z=len-0.6, on the centre line). One walkable deck collider (top:true). Place the origin ~3 units inland of the shore and rot so +Z points over the water.',
+    note: 'Wooden pier running along +Z from the origin (params len=14, width=3.2; Mirrormere uses len 8, width 5.6). Deck top: if the origin is near the lake (ground y < WATER_LEVEL+3) the deck is at world WATER_LEVEL+0.3 whatever the shore height (the first metres may sink into a higher bank); otherwise 0.55 above the origin; override with param deck (local y). Posts go 4.2 below the deck; lamp post + lantern glow on the local -X edge, 1.4 back from the end (x=-(width/2-0.5), z=len-1.4; lampSide:1 puts it on the +X edge) so the middle of the far end, where you run off and jump, stays clear. One walkable deck collider (top:true). Place the origin ~3 units inland of the shore and rot so +Z points over the water.',
     defaults: { len: 14 },
   },
   stairs: {

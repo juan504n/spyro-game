@@ -87,4 +87,61 @@ const check = (name, ok, detail) => { checks.push(ok); console.log(ok ? 'PASS' :
   }
   check('no prop stands on a chest, vase, brazier, bounce mushroom or NPC, and no enemy spawns inside one', clashes.length === 0, `(${things.length} things checked${clashes.length ? ': ' + clashes.join('; ') : ''})`);
 }
+{
+  // Mirrormere's dock and lily-pad crossing. Each of these was asked for after playing it: the dock was long and narrow with its lamp post dead centre on
+  // the far end (right where you run off and jump), and the pads were small and close. Now: a short wide dock, a clear run-off, and pads twice as big
+  // with open water between them that is still an easy hop.
+  const pierRec = gp.placed.find((p) => p.name === 'pier' && p.src === 'layoutLake');
+  const pier = kit.colliders.find((c) => c.prop === pierRec && c.tag === 'pier');
+  const lamp = kit.colliders.find((c) => c.prop === pierRec && c.tag === 'lamp');
+  const boat = kit.colliders.filter((c) => c.prop && c.prop.name === 'boat');
+  const pierLen = pier.hz * 2, pierWidth = pier.hx * 2;
+  check('the dock is short and wide (it was 12 m x 3.2 m)', pierLen <= 9 && pierWidth >= 5, `(${pierLen.toFixed(1)} m long, ${pierWidth.toFixed(1)} m wide)`);
+  // the far end, and the strip a player runs along to jump off it: nothing solid may stand in it (the lamp used to, dead centre)
+  const ux = Math.sin(pier.rot), uz = Math.cos(pier.rot);                                     // (the deck runs along local +z; the far end is at +hz)
+  const end = [pier.x + ux * pier.hz, pier.z + uz * pier.hz];
+  const deckTop = pier.y1, blockers = [];
+  for (let t = -3.5; t <= 1.5; t += 0.25) for (const off of [-1.4, -0.7, 0, 0.7, 1.4]) {
+    const px = end[0] + ux * t - uz * off, pz = end[1] + uz * t + ux * off;
+    for (const c of kit.colliders) {
+      if (c.top || !(c.y0 < deckTop + 1.4 && c.y1 > deckTop + 0.1)) continue;                 // (only what a body standing on the deck would hit)
+      if (colliderDist(c, px, pz) < 0.55) blockers.push(`${c.tag || c.prop?.name || c.type} at ${c.x.toFixed(1)}, ${c.z.toFixed(1)}`);
+    }
+  }
+  check('nothing solid blocks the run-off at the end of the dock', blockers.length === 0, `(${[...new Set(blockers)].join('; ') || 'clear'})`);
+  const off = Math.abs((lamp.x - pier.x) * -uz + (lamp.z - pier.z) * ux), back = (end[0] - lamp.x) * ux + (end[1] - lamp.z) * uz;
+  check('the dock\'s lamp post stands on its edge, off the centre line', off >= 1.5 && back >= 0.8 && colliderDist(pier, lamp.x, lamp.z) === 0, `(${off.toFixed(1)} m off the centre line, ${back.toFixed(1)} m back from the end)`);
+
+  // the crossing: stepping stones (the pads you hop across), from the dock out to the island
+  const stones = kit.colliders.filter((c) => c.prop && c.prop.name === 'stepping_stone').sort((a, b) => b.z - a.z);
+  check('the crossing has three round pads, each twice the old size (radius 3.4, was 1.7) and just above the water', stones.length === 3 && stones.every((c) => c.r >= 3.3 && c.top && Math.abs(c.y1 - (WATER_LEVEL + 0.45)) < 0.05), `(${stones.length} pads, radii ${stones.map((c) => c.r.toFixed(1)).join(', ')})`);
+  // every hop is an easy one: open water between the edges (no crowding) but well under a jump's reach (8.7 m at a run; these are 3 m)
+  const gaps = [];
+  let from = (x, z) => colliderDist(pier, x, z);
+  stones.forEach((c, i) => {
+    gaps.push(from(c.x, c.z) - c.r);
+    from = (x, z) => Math.hypot(x - c.x, z - c.z) - c.r;
+  });
+  {                                                                                            // the last pad to the island's beach: walk from it towards the beacon until the ground is dry
+    const c = stones.at(-1), I = L.island, d = Math.hypot(I.x - c.x, I.z - c.z);
+    let t = c.r;
+    while (t < d && grid.heightAt(c.x + (I.x - c.x) * t / d, c.z + (I.z - c.z) * t / d) < WATER_LEVEL + 0.15) t += 0.1;
+    gaps.push(t - c.r);
+  }
+  check('every hop across the crossing (dock -> pad -> pad -> pad -> beach) is 1.5 to 4.5 m of open water', gaps.every((g) => g >= 1.5 && g <= 4.5), `(gaps ${gaps.map((g) => g.toFixed(1)).join(', ')} m)`);
+  // the pads and the decor lily pads are all walkable platforms floating in deep enough water, with room between them and clear of the dock and the boat
+  const lily = kit.colliders.filter((c) => c.tag === 'lilypad');
+  const platforms = [...lily, ...stones];
+  const shallow = platforms.filter((c) => [[0, 0], [c.r, 0], [-c.r, 0], [0, c.r], [0, -c.r]].some(([ox, oz]) => grid.heightAt(c.x + ox, c.z + oz) > WATER_LEVEL - 0.3));
+  check('all lily pads (and the crossing pads) float over water at least 0.3 m deep', platforms.length > 20 && shallow.length === 0, `(${platforms.length} pads; ${shallow.map((c) => `${c.x.toFixed(1)}, ${c.z.toFixed(1)}`).join('; ') || 'none in the shallows'})`);
+  let closest = Infinity, closeAt = '';
+  for (let i = 0; i < platforms.length; i++) for (let j = i + 1; j < platforms.length; j++) {
+    const g = Math.hypot(platforms[i].x - platforms[j].x, platforms[i].z - platforms[j].z) - platforms[i].r - platforms[j].r;
+    if (g < closest) { closest = g; closeAt = `${platforms[i].x.toFixed(1)}, ${platforms[i].z.toFixed(1)}`; }
+  }
+  const nearDock = platforms.map((c) => Math.min(colliderDist(pier, c.x, c.z), ...boat.map((b) => colliderDist(b, c.x, c.z))) - c.r);
+  check('there is open water between every two pads, and between the pads and the dock and boat (at least 1.4 m)', closest >= 1.4 && Math.min(...nearDock) >= 1.4, `(closest pair ${closest.toFixed(1)} m at ${closeAt}; closest to the dock or boat ${Math.min(...nearDock).toFixed(1)} m)`);
+  const R = lily.map((c) => c.r);
+  check('the decor lily pads are twice the old size (2.6-4.2 m across, was 1.3-2.1)', lily.length >= 40 && Math.min(...R) >= 1.0 && R.reduce((a, b) => a + b, 0) / R.length >= 1.3, `(${lily.length} pads, radius ${Math.min(...R).toFixed(2)}-${Math.max(...R).toFixed(2)} m)`);
+}
 process.exitCode = checks.every(Boolean) ? 0 : 1;

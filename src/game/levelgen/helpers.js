@@ -64,11 +64,13 @@ export function makeCtx(kit, world, seed = 9127) {
   /**
    * Place a registered prop (no terrain checks). Returns true if placed. Every placement is recorded ({ name, x, y, z, size, src }) in
    * gp.placed, and stamped on the colliders the prop registers, so the debug readout can say which prop it is and which layout made it.
+   * `params.span` (a number of metres) overrides the registry's footprint diameter in that record: a stepping stone with a wider top, a shorter pier...
+   * (Not `size`: trees take that as their own 's' | 'm' | 'l' parameter.)
    */
   ctx.put = (name, x, z, params = {}, footprint = 0) => {
     if (!ctx.has(name)) return false;
     const e = PROPS[name];
-    const rec = { name, x, z, y: params.y ?? grid.heightAt(x, z), rot: params.rot || 0, size: e.size || 4, src: ctx.stage };
+    const rec = { name, x, z, y: params.y ?? grid.heightAt(x, z), rot: params.rot || 0, size: (typeof params.span === 'number' && params.span > 0 ? params.span : e.size) || 4, src: ctx.stage };
     kit.cur = rec;
     e.fn(kit, { ...(e.defaults || {}), x, z, ...params });
     kit.cur = null;

@@ -111,7 +111,7 @@ the whole valley is lit twice (dusk and daybreak) and the world cross-fades betw
 | # | Beacon | Where | What it asks of you |
 | - | --- | --- | --- |
 | I | Hearth | Hearth Village, spawn | Tutorial: jump, glide, fire. |
-| II | Isle | Mirrormere lake | Hop the stepping-stone reef to the shrine island. |
+| II | Isle | Mirrormere lake | Run off the end of the dock and hop the three big lily-pad stones across to the shrine island. |
 | III | Mill | Windmill hill (spiral road) | Light the three braziers to raise the portcullis. |
 | IV | Sky | Floating isles | Bounce off the mesa mushroom, then glide island to island. |
 | V | Dawn | Observatory at the top of the spiral mountain | The Dawn Gate only opens once four beacons burn. |
@@ -185,7 +185,7 @@ docs/index.html      the built single-file game
 
 ```bash
 npm run qa                    # prop lint + reachability bot + full story playthrough (needs the dev server running)
-node tools/bot.mjs            # headless reachability bot: drives the real controller along every road/route
+node tools/bot.mjs            # headless reachability bot: drives the real controller along every road/route (and hops the dock's lily-pad crossing from a standing start)
 node tools/playthrough.mjs    # every beacon, the brazier puzzle, sky-isle glide chain, Dawn Gate, finale
 node tools/monkey.mjs [runs] [secs]   # random-input soak test: exceptions, NaNs, players escaping the world
 node tools/terrain-map.mjs    # top-down map of the realm with slopes and paths -> terrain-map.png
@@ -198,7 +198,7 @@ node tools/debug-test.mjs     # debug mode in the browser: F3, X/Y/Z = the playe
 node tools/menu-test.mjs      # menus: the phone MENU button and finger-sized rows through real touches, sub-pages, thumb controls hiding, keyboard and mouse on a desktop (needs the dev server)
 node tools/where.mjs X Z   # what is at a spot (X = east, Z = south, as debug mode shows them): area, ground texture + rule, nearby props / gameplay things / collision shapes with the layout function and file:line that placed them
 node tools/build-id.mjs       # the build id debug mode shows: a hash of src/ plus the date
-node tools/level-check.mjs    # populates the level headlessly: gem economy (700), counts, and placement checks (shrine chest seated on its island, Dawn Gate forecourt dry and gentle, sky-isle decor clear of the mushroom / chests / enemies / beacon, nothing solid standing on a chest, vase, brazier, mushroom, NPC or enemy spawn)
+node tools/level-check.mjs    # populates the level headlessly: gem economy (700), counts, and placement checks (shrine chest seated on its island, Dawn Gate forecourt dry and gentle, sky-isle decor clear of the mushroom / chests / enemies / beacon, nothing solid standing on a chest, vase, brazier, mushroom, NPC or enemy spawn, and Mirrormere's short wide dock with a clear run-off and its lily pads: big, spaced, easy hops)
 node tools/shot.mjs / play.mjs / probe.mjs   # Playwright screenshots, scripted play-throughs, state probes
 node tools/model-sheet.mjs out.png --only spyro --poses idle,run,glide --views side   # contact sheets of an actor from any angle / pose
 node tools/charge-test.mjs | gem-flight-test.mjs | gem-counter-test.mjs | gem-sound-test.mjs

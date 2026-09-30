@@ -1,6 +1,6 @@
 // Full story playthrough with the real controller (fast-forwarded, no rendering): every beacon, the brazier puzzle,
 // the sky-isle glide chain, the Dawn Gate barrier, the observatory climb and the sunrise finale.
-// Usage: node tools/playthrough.mjs    — needs the dev server on :5173 (GV_HMR=0 recommended)
+// Usage: node tools/playthrough.mjs    — needs the dev server on :5173 (GV_HMR=0 recommended; GV_URL=file:///.../docs/index.html tests a built file instead)
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,7 +9,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 640, height: 480 } });
 page.on('pageerror', (e) => console.log('[pageerror]', e.message.slice(0, 300)));
-await page.goto('http://127.0.0.1:5173/?skip=1&preserve=1');
+await page.goto((process.env.GV_URL || 'http://127.0.0.1:5173/') + '?skip=1&preserve=1');
 await page.waitForFunction(() => window.__ready || window.__error, null, { timeout: 120000 });
 await page.addScriptTag({ path: path.join(here, 'bot-inject.js') });
 await page.waitForTimeout(1200);
@@ -69,7 +69,8 @@ await run('1 hearth beacon', () => {
 await run('2 isle beacon', () => {
   const G = __game, L = G.level, b = __pt.beacon('isle');
   __bot.place(-4, 74, Math.PI);
-  const r = __pt.route([[-4, 66], [-6, 58], [-2, 52.5], [-7, 47], [-3, 42], [-8, 37.5], [-6, 32]], { tol: 1.4, timeout: 12 });
+  const pads = G.gameplay.placed.filter((p) => p.name === 'stepping_stone').sort((a, b) => b.z - a.z);   // the lily-pad crossing, the dock's end first
+  const r = __pt.route([[-4, 68], ...pads.map((p) => [p.x, p.z]), [-3.7, 33.5]], { tol: 1.4, timeout: 12 });
   if (!r.ok) return { ...r, phase: 'stones' };
   const f = __pt.burn(b.x, b.z, () => b.litFlag, { tol: 3.4 });
   return { ...f, lit: G.stats.beacons, day: +G.dayTarget.toFixed(2) };

@@ -127,26 +127,31 @@ export function rockSpire(kit, { x, z, rot = 0, scale = 1, y, h, warm, shards })
   });
 }
 
-/** Little rock pillar to hop across the lake: flat top at local y = h, walkable collider (top radius 1.7). */
-export function steppingStone(kit, { x, z, rot = 0, scale = 1, y, h, warm }) {
+/**
+ * Rock pillar to hop across the lake: flat mossy top at local y = h, walkable collider of radius `top` (1.7 by default; the pillar keeps
+ * its height and everything round it grows with the radius). Mirrormere's lily-pad crossing uses top 3.4.
+ */
+export function steppingStone(kit, { x, z, rot = 0, scale = 1, y, h, top: topR, warm }) {
   h = num(h, 4.6, 0.8, 14); warm = !!warm;
+  const k = num(topR, 1.7, 0.8, 8) / 1.7;
   const r = kit.rng(x, z, 73);
   const pal = stonePal(warm);
   kit.at(x, z, { rot, scale, y }, () => {
     const b = kit.b(stoneTex(warm));
     const sides = 9;
-    const rings = [[-0.8, 2.7], [h * 0.35, 2.15], [h * 0.75, 1.95], [h, 1.78]];
+    const rings = [[-0.8, 2.7 * k], [h * 0.35, 2.15 * k], [h * 0.75, 1.95 * k], [h, 1.78 * k]];
     const ang = [];
     for (let i = 0; i < sides; i++) ang.push(((i + r.float(-0.12, 0.12)) / sides) * TAU);
     const jit = ang.map(() => 1 + r.float(-0.07, 0.07));
     const P = rings.map(([yy, rr], j) => ang.map((a, i) => [Math.sin(a) * rr * (j === rings.length - 1 ? 1 : jit[i]), yy, Math.cos(a) * rr * (j === rings.length - 1 ? 1 : jit[i])]));
     const color = shade(-0.8, [pal.dark[0] * 0.85, pal.dark[1] * 0.85, pal.dark[2] * 0.95], h, pal.light, 0.05);
     const totalH = h + 0.8;                     // one texture repeat over the whole height: the mossy strip lands under the cap
+    const reps = Math.max(1, Math.round(5 * k));   // (whole repeats round the pillar, so the seam closes; a wider pillar gets more of them)
     for (let j = 0; j < rings.length - 1; j++) {
       for (let i = 0; i < sides; i++) {
         const i2 = (i + 1) % sides;
         const BL = P[j][i], BR = P[j][i2], TR = P[j + 1][i2], TL = P[j + 1][i];
-        const u0 = (i / sides) * 5, u1 = ((i + 1) / sides) * 5, v0 = (BL[1] + 0.8) / totalH, v1 = (TL[1] + 0.8) / totalH;
+        const u0 = (i / sides) * reps, u1 = ((i + 1) / sides) * reps, v0 = (BL[1] + 0.8) / totalH, v1 = (TL[1] + 0.8) / totalH;
         b.tri(BL, BR, TR, [u0, v0], [u1, v0], [u1, v1], { color });
         b.tri(BL, TR, TL, [u0, v0], [u1, v1], [u0, v1], { color });
       }
@@ -159,8 +164,8 @@ export function steppingStone(kit, { x, z, rot = 0, scale = 1, y, h, warm }) {
       const A = top[i], B = top[(i + 1) % sides];
       m.tri(c, A, B, [c[0] / 3.5, c[2] / 3.5], [A[0] / 3.5, A[2] / 3.5], [B[0] / 3.5, B[2] / 3.5], { color: [0.92, 1.0, 0.82] }, [0, 1, 0]);
     }
-    kit.cyl(0, 0, 1.7, -0.8, h, { top: true });
-    kit.caster(0, 0, 1.9, h, 0.2);
+    kit.cyl(0, 0, 1.7 * k, -0.8, h, { top: true });
+    kit.caster(0, 0, 1.9 * k, h, 0.2);
   });
 }
 
@@ -228,7 +233,7 @@ export const ROCKS = {
   rock_cluster: { fn: rockCluster, size: 7, note: 'half-buried boulder cluster with mossy caps; count 2-5, warm:true for sandstone, size scale', defaults: { count: 3 } },
   boulder_big: { fn: boulderBig, size: 9, note: 'big 5-7 wide boulder with satellites', defaults: {} },
   rock_spire: { fn: rockSpire, size: 8, note: 'tall jagged rock spire 10-16 (h param) with shards', defaults: {} },
-  stepping_stone: { fn: steppingStone, size: 5, note: 'rock pillar with flat mossy top at y=h (walkable, r 1.7); origin at the bed', defaults: { h: 4.6 }, anchors: { top: [0, 4.6, 0] } },
+  stepping_stone: { fn: steppingStone, size: 5, note: 'rock pillar with flat mossy top at y=h (walkable, radius param top = 1.7 by default; Mirrormere\'s lily-pad crossing uses 3.4); origin at the bed', defaults: { h: 4.6 }, anchors: { top: [0, 4.6, 0] } },
   rock_arch: { fn: rockArch, size: 12, note: 'natural rock arch ~9 wide (w, h, warm); walk through along local z', defaults: { w: 9, h: 6.2 }, anchors: { gap: [0, 0, 0] } },
   cliff_outcrop: { fn: cliffOutcrop, size: 14, note: 'wall of faceted rock columns; len, h, warm', defaults: { len: 14, h: 6 } },
 };
