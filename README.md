@@ -65,7 +65,8 @@ controls appear automatically (the display defaults to widescreen there; **Optio
 (a ram jump clears about 18 m, a plain running jump 8.7 m) and lands still ramming for as long as the ram button stays down; letting go of it ends the charge at once, in the air too.
 (He can't glide while ramming.)
 
-**On a phone** the game has a labelled **MENU** button at the top centre, on the title screen and in play. It opens the pause menu (resume, camera, debug mode,
+**On a phone** the game has a labelled **MENU** button at the top centre of the picture, on the title screen and in play (in a portrait window the picture is centred, and the button stays at its top edge; where the platform
+covers the top of the page, a notch or an app that shows the page under its own header (`env(safe-area-inset-top)`), the button sits below that). It opens the pause menu (resume, camera, debug mode,
 options, controls, restart, quit); while a menu is open the button reads **RESUME** / **BACK**, and tapping outside the panel goes back too. The menu rows are finger-sized
 (about 40 px each): Options is a short list of sub-pages (Camera & aim, Graphics → More graphics, Debug), and the thumb controls (move circle, JUMP, FIRE, RAM, CAM)
 hide while a menu or a cutscene is showing.
@@ -220,7 +221,8 @@ node tools/butterfly-test.mjs # the blue butterfly model, headless: finite two-s
 node tools/control-test.mjs   # touch stick maths, the fire aim assist and the ram jump (hold RAM, tap JUMP) through the real Player; no server needed
 node tools/debuginfo-test.mjs # debug readout, headless: ground texture = the terrain mesh's texture under 1500 points, aim ray, nearest props / colliders vs brute force, provenance of every prop / collider / record
 node tools/debug-test.mjs     # debug mode in the browser: F3, X/Y/Z = the player's, aim on the camera's ray, collider wireframes, errors, phone layout (needs the dev server)
-node tools/menu-test.mjs      # menus: the phone MENU button and finger-sized rows through real touches, sub-pages, thumb controls hiding, keyboard and mouse on a desktop (needs the dev server)
+node tools/menu-test.mjs      # menus: the phone MENU button and finger-sized rows through real touches, sub-pages, thumb controls hiding, the button staying at the top of the picture whatever safe-area inset the platform reports (emulated), keyboard and mouse on a desktop (needs the dev server)
+node tools/touch-layout-test.mjs   # where the MENU button sits and how much room the title and the menus leave for it, in ten window sizes with insets of 0 to 120 px (no server)
 node tools/touch-ram-jump-test.mjs   # ram + jump on an emulated phone through real touches: a finger held on RAM, another tapping JUMP, then lifting RAM (needs the dev server)
 node tools/where.mjs X Z   # what is at a spot (X = east, Z = south, as debug mode shows them): area, ground texture + rule, nearby props / gameplay things / collision shapes with the layout function and file:line that placed them
 node tools/build-id.mjs       # the build id debug mode shows: a hash of src/ plus the date

@@ -13,6 +13,17 @@ const KEYMAP = {
 
 const TOUCH_LOOK = 0.0042;      // camera radians per pixel of a right-thumb drag (mouse: 0.0032). It was 0.006, which swung the view too far for a small flick.
 
+/** The touch MENU button is a pill this tall (CSS px: Apple's 44 for a finger target). */
+export const MENU_BTN_H = 44;
+
+/**
+ * Where the touch MENU button's top edge is on the page (CSS px): 4 lines of the HUD below the top edge of the game frame, so it sits in the same place relative to the HUD on any window,
+ * but never closer than 8 px to the top of the page, and below whatever the platform covers there (`f.safeTop`, see Gfx.frameCss: a notch, the header of an app that shows the page under it).
+ * `f` = gfx.frameCss(). The frame's own top is already a position on the page: the safe-area inset only matters where the frame reaches up into it (a landscape window), and must not be
+ * added on top (a centred portrait frame lies far below it: the button sat in the middle of the picture, over the title logo and the view ahead).
+ */
+export const menuButtonTop = (f) => Math.max(8 + f.safeTop, Math.round(f.top + 4 * f.unit));
+
 export class Input {
   constructor(canvas) {
     this.canvas = canvas;
@@ -165,7 +176,7 @@ export class Input {
     const menu = document.createElement('div');
     menu.setAttribute('role', 'button');
     menu.setAttribute('aria-label', 'Menu');
-    menu.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);top:8px;min-width:104px;height:44px;box-sizing:border-box;padding:0 18px;border-radius:22px;background:rgba(36,20,72,.86);border:2px solid #ffc03c;color:#fff4b0;font:bold 16px monospace;letter-spacing:.08em;display:flex;align-items:center;justify-content:center;gap:9px;pointer-events:auto;touch-action:none;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;text-shadow:0 2px 0 #000;box-shadow:0 2px 0 rgba(0,0,0,.55)';
+    menu.style.cssText = `position:absolute;left:50%;transform:translateX(-50%);top:8px;min-width:104px;height:${MENU_BTN_H}px;box-sizing:border-box;padding:0 18px;border-radius:22px;background:rgba(36,20,72,.86);border:2px solid #ffc03c;color:#fff4b0;font:bold 16px monospace;letter-spacing:.08em;display:flex;align-items:center;justify-content:center;gap:9px;pointer-events:auto;touch-action:none;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;text-shadow:0 2px 0 #000;box-shadow:0 2px 0 rgba(0,0,0,.55)`;
     const bars = document.createElement('span');
     const bar = 'linear-gradient(#fff4b0,#fff4b0)';
     bars.style.cssText = `width:18px;height:14px;flex:none;background:${bar} 0 0/100% 3px no-repeat,${bar} 0 50%/100% 3px no-repeat,${bar} 0 100%/100% 3px no-repeat`;
@@ -284,16 +295,14 @@ export class Input {
     if (this.camBtn) this.camBtn.style.opacity = '.72';
   }
 
-  /** Anchor the MENU button to the game frame (call when the frame or window changes): top centre, a little below the frame's top edge. */
+  /** Anchor the MENU button to the game frame (called every frame, `f` = gfx.frameCss(); it only touches the page when the frame or the platform's safe area moved): top centre, a little below the frame's top edge (see menuButtonTop). */
   layoutTouch(f) {
     if (!this.menuBtn) return;
-    const key = `${Math.round(f.left)},${Math.round(f.top)},${Math.round(f.width)},${Math.round(f.unit * 100)}`;
-    if (key === this._frameKey) return;
-    this._frameKey = key;
-    const top = Math.max(8, Math.round(f.top + 4 * f.unit));
+    const left = Math.round(f.left + f.width / 2), top = menuButtonTop(f);
+    if (left === this._menuX && top === this._menuY) return;
+    this._menuX = left; this._menuY = top;
+    this.menuBtn.style.left = `${left}px`;
     this.menuBtn.style.top = `${top}px`;
-    this.menuBtn.style.top = `calc(${top}px + env(safe-area-inset-top,0px))`;
-    this.menuBtn.style.left = `${Math.round(f.left + f.width / 2)}px`;
   }
 
   setTouchVisible(v) { if (this.touchRoot) this.touchRoot.style.display = v ? 'block' : 'none'; }

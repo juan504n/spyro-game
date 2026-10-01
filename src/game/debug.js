@@ -156,7 +156,8 @@ export class DebugHud {
     ex.perf = `${Math.round(this.fps)} fps ${f1(this.ms)} ms  tris ${Math.round(info.render.triangles / 100) / 10}k  calls ${info.render.calls}${gfx.settings.fps30 ? '  (30 fps lock)' : ''}`;
     ex.gpu = `${gfx.W}x${gfx.H} x${f2(gfx.scale)}  ${gfx.settings.display} ${gfx.settings.height}p ${gfx.look}  geo ${info.memory.geometries} tex ${info.memory.textures}`;
     const plat = /iPhone|iPad|Android|Windows|Macintosh|Linux/.exec(navigator.userAgent);
-    ex.view = `${window.innerWidth}x${window.innerHeight} dpr ${f2(window.devicePixelRatio || 1)}  ${plat ? plat[0] : 'browser'}  ${isTouchDevice() ? 'touch' : 'no touch'} (${navigator.maxTouchPoints | 0} pts)`;
+    gfx.frameCss();                                                // (reads the platform's top inset into gfx.safeTopRaw)
+    ex.view = `${window.innerWidth}x${window.innerHeight} dpr ${f2(window.devicePixelRatio || 1)}  ${plat ? plat[0] : 'browser'}  ${isTouchDevice() ? 'touch' : 'no touch'} (${navigator.maxTouchPoints | 0} pts)${gfx.safeTopRaw > 0 ? `  safe top ${f1(gfx.safeTopRaw)}` : ''}`;
     ex.errors = errorLines();
     return ex;
   }

@@ -1,8 +1,9 @@
 // Menu test. On an emulated phone, through real touch events (CDP): the MENU button is there and labelled on the title and in play, it opens
 // and closes the menu, the menu rows are finger-sized and tappable (choices, toggles, sub-pages, PLAY), the panel stays clear of the button,
 // the thumb controls (JUMP / FIRE / RAM / CAM) hide while a menu is open and come back, nothing stays held, the cutscenes show no buttons,
-// and a browser that hides its touch support still gets the button with its first touch. On a desktop window: Esc and the keyboard reach
-// every page, and a mouse click on a row does not capture the mouse.
+// the button stays at the top of the picture whatever safe-area inset the platform reports (an app that shows the page under its header says
+// 74 px; emulated through CDP), and a browser that hides its touch support still gets the button with its first touch. On a desktop window:
+// Esc and the keyboard reach every page, and a mouse click on a row does not capture the mouse.
 //   node tools/menu-test.mjs             (needs the dev server on :5173, GV_HMR=0 recommended; GV_URL=file:///.../docs/index.html tests a built file;
 //                                         GV_SHOTS=/some/dir also saves screenshots)
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
@@ -22,15 +23,19 @@ async function settleAudio(page) {
   await page.waitForTimeout(500);
 }
 let failed = 0;
-const only = process.env.GV_ONLY || '';           // GV_ONLY=title|play|portrait|desktop|late runs just that part
+const only = process.env.GV_ONLY || '';           // GV_ONLY=title|play|portrait|safe|desktop|late runs just that part
 const check = (name, ok, detail) => { if (!ok) failed++; console.log(ok ? 'PASS' : 'FAIL', name, detail || ''); };
 
 // (frames are simulated without drawing them: the software renderer needs about a second to draw one, and the page's main thread is then busy for that long, which holds up the
 //  next touch event; a tap made right after a drawn frame would look like a long press. Screenshots call __draw() first.)
-async function open(url, vp) {
+async function open(url, vp, insets = null) {
   const ctx = await browser.newContext({ viewport: vp, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.log('[pageerror]', e.message.slice(0, 300)));
+  const cdp = await ctx.newCDPSession(page);
+  // the platform's safe area (a notch, an app's header drawn over the page): what env(safe-area-inset-*) says in the page; it can change while the page is open
+  const setInsets = (i) => cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 0, bottom: 0, left: 0, right: 0, ...i } });
+  if (insets) await setInsets(insets);
   await page.goto(base + url);
   await page.waitForFunction(() => window.__ready || window.__error, null, { timeout: 120000 });
   await page.waitForTimeout(1500);
@@ -42,10 +47,9 @@ async function open(url, vp) {
     window.__frame = (n = 1, dt = 1 / 60) => { for (let i = 0; i < n; i++) { __app.gfx.clearHud(); __app.update(dt); } }; window.__draw = () => { const g = __app.gfx; g.render(__app.scene, __app.camera, __app.overlay); g.renderer.getContext().finish(); };
   });
   await page.waitForTimeout(1500);                                     // (let the frame that was already in flight finish)
-  const cdp = await ctx.newCDPSession(page);
   const touch = (type, pts, at) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y, id = 0]) => ({ x, y, id })), ...(at ? { timestamp: at } : {}) });
   const tap = async (x, y) => { const t = Date.now() / 1000; await touch('touchStart', [[x, y]], t); await touch('touchEnd', [], t + 0.05); await page.evaluate(() => __frame(3)); };       // (a 50 ms tap by the events' own clock, whatever the browser's delivery lag)
-  return { ctx, page, touch, tap };
+  return { ctx, page, touch, tap, setInsets };
 }
 
 const clearOfButton = (R, u) => R.panel.top >= u.rect.bottom - 1;             // (CSS px: the menu panel starts below the MENU button)
@@ -235,6 +239,89 @@ if (!only || only === 'portrait') {
     check('portrait title: the MENU button is on screen and the thumb controls are not', ut.menuShown && !ut.padsShown && ut.rect.left >= 0 && ut.rect.right <= ut.vw && ut.rect.bottom <= ut.vh, `(at ${Math.round(ut.rect.x)},${Math.round(ut.rect.y)})`);
     await shot(t.page, 'title-portrait');
     await t.ctx.close();
+  }
+}
+
+// ---- the platform's safe area: an app that shows the page under its own header ----------------------------------------------------------------
+// Such an app reports the header's height as the safe-area inset at the top (env(safe-area-inset-top): the claude.ai app seems to say about 74 px; a notch says 47 to 59). The button sits at the top
+// of the game frame, which is already a position on the page, so in a portrait window (the frame centred, far below the inset) the inset must not move it: it was added on top, and on such a phone the
+// button sat in the middle of the picture, over the title logo and the view ahead. Where the frame reaches up into the inset (a landscape window) the button goes below it, and the title and the
+// menus keep clear of it.
+if (!only || only === 'safe') {
+  const near = (a, b, tol) => Math.abs(a - b) <= tol;
+  /** the frame, the button's rectangle and the window, in CSS px */
+  const geom = (page) => page.evaluate(() => {
+    const f = __app.gfx.frameCss(), r = __game.input.menuBtn.getBoundingClientRect();
+    return { f, rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom, x: r.left + r.width / 2, y: r.top + r.height / 2 }, vw: innerWidth, vh: innerHeight };
+  });
+  /** how many pixels of the HUD (the title's logo and texts, the gem counter ...) lie under the button */
+  const hudUnder = (page) => page.evaluate(() => {
+    const app = __app, hud = app.gfx.hud, r = __game.input.menuBtn.getBoundingClientRect();
+    const [x0, y0] = app.menu._toInternal(r.left, r.top), [x1, y1] = app.menu._toInternal(r.right, r.bottom);
+    let n = 0;
+    for (let y = Math.max(0, Math.floor(y0)); y < Math.min(hud.h, Math.ceil(y1)); y++) for (let x = Math.max(0, Math.floor(x0)); x < Math.min(hud.w, Math.ceil(x1)); x++) if (hud.data[(y * hud.w + x) * 4 + 3]) n++;
+    return n;
+  });
+
+  // portrait, the title: the inset reaches the page, and does not move the button
+  let at0 = 0;
+  for (const T of [0, 47, 74]) {
+    const { ctx, page, tap } = await open('?preserve=1', { width: 430, height: 866 }, { top: T, bottom: 34 });
+    await page.evaluate(() => __frame(4));
+    const g = await geom(page), under = await hudUnder(page), want = 4 * g.f.unit;
+    if (T === 0) at0 = g.rect.top;
+    check(`portrait 430x866, ${T} px inset: the page sees it`, near(g.f.safeTop, T, 0.5), `(safeTop ${g.f.safeTop.toFixed(1)})`);
+    check('... the button is 4 lines below the picture\'s top edge, and the inset does not move it', near(g.rect.top - g.f.top, want, 1.5) && near(g.rect.top, at0, 0.5), `(${(g.rect.top - g.f.top).toFixed(1)} px below the picture's top edge, wanted ${want.toFixed(1)}; y ${g.rect.top.toFixed(1)}, ${at0.toFixed(1)} without an inset)`);
+    check('... and nothing of the title (logo, texts) lies under it', under === 0, `(${under} HUD pixels under the button)`);
+    if (T > 0) check('(the old placement, the inset added on top of the frame\'s own position, put it this far into the picture: the check sees the problem)', T > 3 * want, `(${T} px lower than ${want.toFixed(1)})`);
+    await tap(g.rect.x, g.rect.y);
+    const u = await ui(page), R = await rows(page);
+    check('... a tap on it opens the menu, whose panel starts below it', u.state === 'title-options' && clearOfButton(R, u), `(state ${u.state}; the panel starts at y ${Math.round(R.panel.top)}, the button ends at ${Math.round(u.rect.bottom)})`);
+    if (T === 74) await shot(page, 'title-portrait-inset');
+    await ctx.close();
+  }
+
+  // portrait, in play: the same, and the thumb controls keep clear of the home indicator (the bottom inset, which they do count)
+  {
+    const { ctx, page } = await open('?skip=1&preserve=1', { width: 430, height: 866 }, { top: 74, bottom: 34 });
+    await page.evaluate(() => __frame(20));
+    const g = await geom(page), under = await hudUnder(page);
+    const pads = await page.evaluate(() => [...__game.input._pads.children].map((e) => { const r = e.getBoundingClientRect(); return { t: e.textContent, bottom: r.bottom }; }));
+    const jump = pads.find((p) => p.t === 'JUMP');
+    check('portrait in play, 74 px inset: the button is at the picture\'s top edge, over no HUD', near(g.rect.top - g.f.top, 4 * g.f.unit, 1.5) && under === 0, `(${(g.rect.top - g.f.top).toFixed(1)} px below the top edge, ${under} HUD pixels under it)`);
+    check('... and JUMP stays above the home indicator (34 px inset at the bottom)', jump && jump.bottom <= g.vh - 34 + 0.5, `(its bottom edge at ${jump && jump.bottom.toFixed(0)} of ${g.vh})`);
+    // a phone bug report needs the inset: the full debug readout names it in its VIEW row (and says nothing where the platform covers nothing)
+    const view = (pg) => pg.evaluate(() => { __app.gfx.set('debug', 2); __frame(8); const l = __debug.text().split('\n').find((r) => r.startsWith('VIEW')); __app.gfx.set('debug', 0); return l || ''; });
+    const v74 = await view(page);
+    check('the full debug readout names the inset in its VIEW row', /safe top 74\.0/.test(v74), `(${v74})`);
+    await shot(page, 'play-portrait-inset');
+    await ctx.close();
+  }
+
+  // landscape: the picture reaches the top of the window, so the inset counts; it can change while the page is open (an app showing or hiding its header, a rotation)
+  {
+    const { ctx, page, tap, setInsets } = await open('?preserve=1', { width: 844, height: 330 }, { top: 24 });        // (a phone's landscape viewport with the browser's own bars: 330 px tall, so the picture fills it)
+    await page.evaluate(() => __frame(4));
+    let g = await geom(page), under = await hudUnder(page);
+    check('landscape 844x330, 24 px inset: the picture reaches the top of the window, the button sits 8 px below the inset', near(g.f.top, 0, 0.5) && near(g.rect.top, 32, 1), `(picture from y ${g.f.top.toFixed(1)}, button from y ${g.rect.top.toFixed(1)})`);
+    check('... nothing of the title lies under it', under === 0, `(${under} HUD pixels)`);
+    const place = async (T) => { await setInsets({ top: T }); await page.evaluate(() => __frame(3)); g = await geom(page); under = await hudUnder(page); };
+    await place(0);
+    check('the inset goes away while the page is open: the button moves back up to 8 px', near(g.rect.top, 8, 1) && under === 0, `(y ${g.rect.top.toFixed(1)}, ${under} HUD pixels under it)`);
+    const v0 = await page.evaluate(() => { __app.gfx.set('debug', 2); __frame(8); const l = __debug.text().split('\n').find((r) => r.startsWith('VIEW')); __app.gfx.set('debug', 0); return l || ''; });
+    check('... and the debug readout stops naming one', v0.length > 0 && !/safe top/.test(v0), `(${v0})`);
+    await place(47);
+    check('a 47 px inset appears: the button moves down to 55 px', near(g.rect.top, 55, 1) && under === 0, `(y ${g.rect.top.toFixed(1)}, ${under} HUD pixels under it)`);
+    await tap(g.rect.x, g.rect.y);
+    let u = await ui(page), R = await rows(page);
+    check('... a tap on it opens the menu, whose panel starts below the button', u.state === 'title-options' && clearOfButton(R, u), `(state ${u.state}; the panel starts at y ${Math.round(R.panel.top)}, the button ends at ${Math.round(u.rect.bottom)})`);
+    await tap(u.rect.x, u.rect.y);                                     // (BACK: the menu closes)
+    await place(300);
+    check('an absurd inset (300 px) counts for at most a quarter of the picture\'s height, so the HUD is not pushed out of the frame', near(g.f.safeTop, g.f.height / 4, 0.5) && near(g.rect.top, 8 + g.f.height / 4, 1) && under === 0, `(counted ${g.f.safeTop.toFixed(1)} px of ${g.f.height.toFixed(0)}; button from y ${g.rect.top.toFixed(1)})`);
+    await tap(g.rect.x, g.rect.y);
+    u = await ui(page); R = await rows(page);
+    check('... and the menu opened then still starts below the button', u.state === 'title-options' && clearOfButton(R, u), `(state ${u.state}; the panel starts at y ${Math.round(R.panel.top)}, the button ends at ${Math.round(u.rect.bottom)})`);
+    await ctx.close();
   }
 }
 

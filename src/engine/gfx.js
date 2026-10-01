@@ -267,7 +267,26 @@ export class Gfx {
   frameCss() {
     const dpr = Math.min(window.devicePixelRatio || 1, 3);
     const [x0, y0, rw, rh] = this.rect;
-    return { left: x0 / dpr, top: (this.devH - (y0 + rh)) / dpr, width: rw / dpr, height: rh / dpr, unit: rh / dpr / this.hud.h, dpr };
+    return { left: x0 / dpr, top: (this.devH - (y0 + rh)) / dpr, width: rw / dpr, height: rh / dpr, unit: rh / dpr / this.hud.h, dpr, safeTop: this._safeTop(rh / dpr) };
+  }
+
+  /**
+   * How much of the top edge of the page the platform covers, in CSS pixels (`env(safe-area-inset-top)`: a notch, or the header of an app that shows the page underneath it; 0 in an
+   * ordinary browser window). CSS is the only place that value can be asked for, so a hidden box carries it as padding and it is read back. Read every time, since nothing announces a
+   * change of inset. At most a quarter of the frame's height counts: a real notch or header is far smaller, and a bogus value must not push the touch button and the HUD out of the frame.
+   */
+  _safeTop(frameH) {
+    let p = this._safeProbe;
+    if (!p) {
+      p = this._safeProbe = document.createElement('div');
+      p.setAttribute('aria-hidden', 'true');
+      p.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;margin:0;border:0;padding:0;visibility:hidden;pointer-events:none';
+      p.style.paddingTop = 'env(safe-area-inset-top, 0px)';       // (a browser without env() drops this: the padding stays 0)
+      document.body.appendChild(p);
+    }
+    const v = parseFloat(getComputedStyle(p).paddingTop);
+    this.safeTopRaw = v > 0 ? v : 0;                              // (what the platform said, for the debug readout)
+    return v > 0 ? Math.min(v, frameH / 4) : 0;
   }
 
   clearHud() { this.hud.data.fill(0); }
