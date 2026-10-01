@@ -222,8 +222,8 @@ await check('secret-is-kept', async () => {
   await ff(0.5);
   const s1 = await saved();
   await load('?world=home&skip=1');
-  const r = await ev(() => { const g = window.__game, N = g.npcs.npcs[0]; N.talks = 5; return { secrets: window.__app.progress.home.secrets.slice(), lines: g.npcs.lines(N) }; });
-  return { ok: s1.home.secrets.join() === 'pond' && r.secrets.join() === 'pond' && /1 OF 3 SECRETS/.test(r.lines.join(' ')), stored: s1.home.secrets, after: r.secrets, lines: r.lines.slice(-1) };
+  const r = await ev(() => { const g = window.__game, N = g.npcs.npcs[0]; N.talks = 5; return { secrets: window.__app.progress.home.secrets.slice(), lines: g.npcs.lines(N), total: g.objects.chests.filter((q) => q.secret).length }; });
+  return { ok: s1.home.secrets.join() === 'pond' && r.secrets.join() === 'pond' && r.total === 5 && new RegExp(`1 OF ${r.total} SECRETS`).test(r.lines.join(' ')), stored: s1.home.secrets, after: r.secrets, total: r.total, lines: r.lines.slice(-1) };
 });
 
 // ---- and by the title screen's menu, from the vale's title ----------------------------------------------------------------
