@@ -87,6 +87,7 @@ export const WORLD_TEXTURE_NOTES = {
   lantern_glass_on: '16x16 radiant amber panes with a near-white core in a brass cage; swap in when a lantern is lit (leave vertex colour bright).',
   barrier: 'Tiling violet hex-cell energy shimmer; use transparent/additive and scroll slowly; 32px = 3 units.',
   portal: 'Tiling violet/cyan/white vortices; rotate or scroll the UVs, additive; 32px = the disc diameter or smaller.',
+  portal_swirl: 'NOT tiled, 64x64 black-backed vortex of three arms (violet -> cyan -> white) round a bright core, fading to black at the rim: additive, over a dark veil; turn it by rotating the UVs.',
   beam: '16x64 greyscale light shaft, dark at the edges: additive, tint with vertex colours, scroll V for a shimmer; stretch along V.',
   sun_glow: 'NOT tiled, 32x32 greyscale radial glow for an additive billboard behind the sun or lantern flames.',
   // sky

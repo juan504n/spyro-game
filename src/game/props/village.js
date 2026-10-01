@@ -9,6 +9,7 @@ import { TOWERS } from './village/towers.js';
 import { STRUCTURES } from './village/structures.js';
 import { SMALL } from './village/small.js';
 import { EXTRAS } from './village/extras.js';
+import { REALM } from './village/realm.js';
 import { makeDev } from './village/dev.js';
 
 const CORE = {
@@ -18,6 +19,7 @@ const CORE = {
   ...STRUCTURES,
   ...SMALL,
   ...EXTRAS,
+  ...REALM,
 };
 
 const wantDev = typeof location !== 'undefined' && /[?&]vdev\b/.test(location.search);

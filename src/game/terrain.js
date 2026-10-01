@@ -163,15 +163,20 @@ function pathProfile(ctrl, sample, spacing = 1.6) {
   return pts.map((p, i) => [p[0], y[i], p[1]]); // -> [x, y, z]
 }
 
-export function generateTerrain(L = LEVEL, W = WORLD) {
+/**
+ * The heightfield of a level (its roads and rivers carved in). Gloaming Vale's own ground is baseHeight; a level with a different landscape brings its own
+ * `L.height(x, z, L)` (and, if its world is not the realm's 384 m square, `L.world = { size, cell }`).
+ */
+export function generateTerrain(L = LEVEL, W = L.world || WORLD) {
   const cell = W.cell;
   const n = Math.round(W.size / cell);
   const s = n + 1;
   const half = (n * cell) / 2;
   const H = new Float32Array(s * s);
-  for (let j = 0; j < s; j++) for (let i = 0; i < s; i++) H[j * s + i] = baseHeight(-half + i * cell, -half + j * cell, L);
+  const heightFn = L.height || baseHeight;
+  for (let j = 0; j < s; j++) for (let i = 0; i < s; i++) H[j * s + i] = heightFn(-half + i * cell, -half + j * cell, L);
 
-  const baseSample = (x, z) => baseHeight(x, z, L);
+  const baseSample = (x, z) => heightFn(x, z, L);
   const pathDist = new Float32Array(s * s).fill(999);   // distance to nearest path EDGE (negative = on the path)
   const pathIdx = new Int8Array(s * s).fill(-1);
   const riverDist = new Float32Array(s * s).fill(999);

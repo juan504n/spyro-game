@@ -76,6 +76,13 @@ class Wires {
     this.seg(x - r, y, z, x + r, y, z, color); this.seg(x, y - r, z, x, y + r, z, color); this.seg(x, y, z - r, x, y, z + r, color);
   }
 
+  /** let go of the lines (the world they were drawn in is being replaced) */
+  dispose() {
+    this.lines.removeFromParent();
+    this.geo.dispose();
+    this.mat.dispose();
+  }
+
   begin() { this.n = 0; }
   end() {
     this.geo.setDrawRange(0, this.n * 2);
@@ -101,6 +108,19 @@ export class DebugHud {
     this.wires = new Wires(this.game.scene);
     this._cd = new THREE.Vector3();
     window.__debug = { hud: this, data: () => this.last, text: () => toText(this.rows), refresh: () => { this.refresh(true); return this.last; } };
+  }
+
+  /** The game on screen changed (a trip through a portal): the readout follows it. */
+  rebind(game) {
+    this.game = game;
+    this.wires.dispose();
+    this.wires = new Wires(game.scene);
+    this.pin = null;
+    this.acc = 1;
+    this.shown = -1;
+    this.last = null;
+    this._tapSeen = tapCount(this.app);
+    this._layoutKey = this._textKey = this._markKey = null;
   }
 
   _build() {

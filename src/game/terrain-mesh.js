@@ -89,18 +89,21 @@ export function terrainPicker(grid) {
     }
     // (the Dawn Gate's surroundings are all one rock: the red cascade rock used to start ten metres from its pillars, and a
     // random mix of rock and grass on the steep flanks of its forecourt looked torn)
-    const nearGate = Math.hypot(x - L.gate.x, z - L.gate.z) < 34;
-    const warm = !nearGate && (Math.hypot(x - L.mesa.x, z - L.mesa.z) < 60 || Math.hypot(x - L.cascade.x, z - L.cascade.z) < 55 || Math.hypot(x - L.heron.x, z - L.heron.z) < 25);
+    const near = (f, r) => !!f && Math.hypot(x - f.x, z - f.z) < r;           // (a level without that landmark simply has no such zone)
+    const nearGate = near(L.gate, 34);
+    const warm = !nearGate && (near(L.mesa, 60) || near(L.cascade, 55) || near(L.heron, 25));
     if (vrAt(x, z) > 0.965 && slope > 0.3) return ['far_rock', 'valley rim, slope > 0.3'];
     const steep = tidy ? 1.05 : 0.74;                                  // (the landing's road embankments are not cliffs until they really are)
     if (slope > steep) return [warm ? 'cliff_warm' : 'cliff', `steep, slope > ${steep}`];
     if (h > 30 && slope > 0.42) return [warm ? 'cliff_warm' : 'cliff', 'high and sloping, y > 30 and slope > 0.42'];
     if (!tidy && slope > 0.5 && (slope > rockLimit(x, z) || nearGate)) return [warm ? 'cliff_warm' : 'cliff', nearGate ? 'sloping near the Dawn Gate, slope > 0.5' : 'sloping, rock and grass patches, slope > 0.5'];
     if (h > 42) return ['far_rock', 'very high, y > 42'];
-    if (Math.hypot(x - L.village.x, z - (L.village.z - 4)) < 9.5) return ['flagstone', 'village plaza'];
+    // a level with grounds of its own (a paved court, garden beds...) names them here: L.groundRule(x, z, h, slope, { r, surface, pd }) -> [texture, rule] or nothing
+    if (L.groundRule) { const c = L.groundRule(x, z, h, slope, { r, surface, pd }); if (c) return c; }
+    if (L.village && Math.hypot(x - L.village.x, z - (L.village.z - 4)) < 9.5) return ['flagstone', 'village plaza'];
     if (surface === 'flagstone' && pd < 1.2) return ['flagstone', 'paved forecourt'];                // a paved forecourt is paved right through (the cells are coarser than the paving)
     const K = L.hollow;
-    if (Math.hypot(x - K.x, z - K.z) < K.r * 0.9) return ['moss', 'crystal hollow'];
+    if (K && Math.hypot(x - K.x, z - K.z) < K.r * 0.9) return ['moss', 'crystal hollow'];
     if (tidy) return ['grass_a', 'the pier\'s landing lawn: one calm grass'];
     if (dL < 1.5 && h < 1.5) return [r < 0.5 ? 'moss' : 'grass_b', 'lake margin'];
     const f = flowerAt(x, z);

@@ -17,7 +17,7 @@ export { SR } from './synth.js';
 export const STINGER_NAMES = ['lantern', 'sunrise', 'complete', 'gameover'];
 
 /** Relative cost of heavier sfx (everything else counts as 1). */
-const WEIGHT = { lantern_ignite: 3, ui_start: 2, barrier_open: 2, lantern_beam: 2, portal_hum: 2, waterfall: 2, windmill: 2, gem_purple: 2 };
+const WEIGHT = { lantern_ignite: 3, ui_start: 2, barrier_open: 2, lantern_beam: 2, portal_hum: 2, portal_open: 2, portal_enter: 2, waterfall: 2, windmill: 2, gem_purple: 2 };
 
 /**
  * All render jobs in load order: [{ name, weight, run() }]. Weights sum to the progress total.

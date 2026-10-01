@@ -161,6 +161,11 @@ export class Fx {
     this.rng = Math.random;
   }
 
+  /** Let go of the effects' materials (their geometries go with the scene's). */
+  dispose() {
+    for (const b of [...Object.values(this.bufs), this.decalHalf, this.decalAdd]) b.mesh.material.dispose();
+  }
+
   // ---- low level ---------------------------------------------------------------------------------------------------
   /**
    * Spawn a transient particle. o: { pool:'add'|'half'|'cut', sprite | frames:[names], fps, loop, x,y,z, vx,vy,vz,

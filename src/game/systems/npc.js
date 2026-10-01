@@ -1,5 +1,6 @@
 // Story NPCs (Elder Wick), hint zones and context prompts.
 import { makeModel } from '../models/fallback.js';
+import { homeLines } from '../home/dialogue.js';
 
 const wrap = (a) => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
 
@@ -23,8 +24,9 @@ export class NpcSystem {
     this.prompt = null;
   }
 
-  /** Elder Wick's line for the current progress (called when you talk to him). */
+  /** What an NPC says now (called when you talk to them): a character with a `script` has its own (the homeworld's), Elder Wick of the realm follows the lanterns. */
   lines(npc) {
+    if (npc.script === 'home_elder') return homeLines(this.game, npc);
     const s = this.game.stats;
     if (s.beacons >= 5) return ['THE SUN IS UP AND THE VALE IS SAFE! YOU ARE A TRUE LANTERN KEEPER, SPYRO.'];
     if (s.beacons >= 4) return ['THE DAWN GATE HAS DISSOLVED! CLIMB THE MOUNTAIN TO THE OBSERVATORY AND LIGHT THE GREAT BEACON!'];

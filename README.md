@@ -1,6 +1,6 @@
 # Gloaming Vale — a PS1-style Spyro DLC realm in three.js
 
-*Lantern Keepers Pack · one new realm · 700 gems · 5 beacons · no asset files — it is all code.*
+*Lantern Keepers Pack · a realm, a homeworld and the portal between them · 700 + 250 gems · 5 beacons · no asset files — it is all code.*
 
 A fan-made, unofficial tribute to the PlayStation-era Spyro games. It is a complete, playable platformer level
 built with [three.js](https://threejs.org/) and rendered through a custom pipeline that reproduces the look of the
@@ -139,7 +139,32 @@ the whole valley is lit twice (dusk and daybreak) and the world cross-fades betw
   them, plus hand-placed trails and a few well-hidden treasures. Total: **700**. While Sparx is with you (and only then), gems within a few metres are drawn in
   on a curved lob (up, then down into Spyro, like the original), and every pickup makes a chunky yellow gem count hop and float in the corner
   for a couple of seconds.
-* Ending the level shows a results screen (three stars) and drops you back into free roam.
+* Ending the level shows a results screen (three stars) and drops you back into free roam, with a portal open above the lantern (below).
+
+### The portal home
+
+The last beacon does two things: the sun comes up, and a **portal pops open on top of the lantern**: a swirl of violet light that blooms in the lantern room's dome, right above the Great Beacon, while the camera slips in
+under it to watch. It hangs far out of any jump's reach, so the light carries you: a **ring of light on the lantern room's floor** marks where the beacon's beam comes down, and **a jump made inside the ring** lifts Spyro up the beam, spiralling round the
+lantern, into the portal and out of the realm (the screen fades to white, the next world is built behind a loading bar, and he steps out of the Gloaming Vale door in Dawnhaven). The results screen mentions it, and a hint appears as you walk up to the ring.
+(From outside the observatory's dome hides the portal; the beacon's golden beam rises through it all the same.) Going back through Dawnhaven's door finds the vale **restored**: the sun up, every lantern and brazier burning, the mill's portcullis and the Dawn Gate open, and the portal over the Great Beacon open from the start (no finale plays again).
+The rest is as on the first visit, so the gems, vases, chests and Snuffers are there to be had again and the best gem count can be bettered (it is kept when you leave by the portal).
+
+## The homeworld: Dawnhaven
+
+In the series a *homeworld* is the hub that connects the levels (the *realms*): a place of its own with a portal to each realm, secrets to find, and someone to talk to. **Dawnhaven** is that for the Lantern Keepers: a sunlit valley (always daybreak), about half
+the ground of Gloaming Vale's (47 000 m² of valley against 97 000), with 250 gems of its own. You arrive through the portal over the Great Beacon, and the doors on its plaza lead back out.
+
+| Where | What it is |
+| --- | --- |
+| **The plaza** | A flagstone court with a fountain, benches, a signpost whose boards point at the doors, a market, banners and bunting across every road. **Elder Wick**, who came ahead to look after the place, stands by the fountain and talks (it follows your progress: the realms restored, a hint towards a secret you have not found, how many you have). |
+| **Five doors** | Round the plaza like the points of a star, each on a raised terrace at the end of a cobbled road, each a stone arch with a banner on each pillar, a rune plate and torches. **Gloaming Vale**'s is awake (a swirl of violet light; it turns **gold** once you have restored the realm: a lantern lights on the HUD for each one). The other four, **Frostbloom Hollow, Tideglass Reach, Emberfall Crags and Skyweaver Spires**, still sleep: a slab of stone and a dim swirl, and what they are called when you come near. Walking into an awake door's light changes the world. |
+| **The Guardian's Gate** | At the head of the north road: two colossal runed pillars and a violet field in a gorge of rock. It is sealed for now (the Elder says it will open when the lanterns of every realm burn, and four of the five realms still sleep): the teaser for a guardian to come. |
+| **Dawn Pond** | A pond under a waterfall in the west, with reeds and lily pads. **Secret:** three stepping stones from the south shore lead to a little islet and its chest. |
+| **The windmill** | On a hill in the east, its sails turning, with a dirt road coiling up the hill. **Secret:** the wooden stair up the mill leads to a lookout with a chest and a purple gem. |
+| **The hidden garden** | South-east of the plaza, a round glade ringed by 9 m of rock and open only along a strip closed by a **cracked wall**. **Secret:** ram the wall (hold RAM and run at it); the garden has a chest, flowers and a purple gem. |
+
+What the hero keeps between worlds is saved in the browser (`localStorage`, key `gloaming-vale/progress/v1`: which realms are restored with their best gem counts, and which of the three secrets were found; where storage is unavailable the game plays the same and forgets).
+The title menu offers **VISIT DAWNHAVEN** once a realm is restored, and `?world=home` opens the page in Dawnhaven (and `?skip=1` skips the title in the realm as before).
 
 ## The hero
 
@@ -192,7 +217,10 @@ src/engine/          renderer + PS1 pipeline (shaders, materials, gfx, builder, 
   audio/             procedural PS1-SPU-style synth: music (dusk + daybreak variants), ambience, stingers, ~60 sound assets
                      (the gem chimes are the exception: clean 48 kHz stereo, see sfx-gems.js)
 src/game/
-  level.js           the design source of truth: landmarks, roads, hills, beacon order
+  level.js           the design source of truth for Gloaming Vale: landmarks, roads, hills, beacon order
+  realms.js          the worlds: a realm (Gloaming Vale) or a homeworld (Dawnhaven), each a level + the script that populates it + its hour
+  progress.js        what the hero keeps between worlds (realms restored, secrets found): localStorage, sanitised
+  home/              Dawnhaven: level.js (its own heightfield, the five doors, roads, secrets), layout.js (the hand-authored placement), dialogue.js (the Elder)
   terrain*.js        analytic heightfield, road/river carving, per-triangle texturing, water
   roads.js drape.js  the cobble and dirt roads, draped exactly on the terrain mesh (cut against its triangles, so they never hover or sink) and merged where they meet (one texture, one worn-edge shading)
   river.js water.js  the river's drawn surface (it meets the lake without a step) and its water, cut to the banks so it stops exactly at the waterline
@@ -200,7 +228,7 @@ src/game/
   levelgen/          deterministic placement of props, enemies, gems, hints (islands.js plans the floating isles' decor clear of what stands on them)
   player.js camera.js collision.js   kinematic controller, chase camera, heightfield + collider world
   gemcounter.js      the floating, bouncing 3D gem count: extruded numerals drawn as a second little scene over the world
-  systems/           gems, Sparx, beacons, enemies, critters, NPC, objects, ambience
+  systems/           gems, Sparx, beacons, enemies, critters, NPC, objects, ambience, portals (the doors and the ring above the Great Beacon: pop-up, trigger, the ride up the beam)
   app.js hud.js menu.js cinematics.js   title → intro → play → finale → results, HUD, menus (finger-sized rows on touch), options
   debug.js debuginfo.js   debug mode: the readout / crosshair / collider wireframes, and the pure functions behind the readout
 tools/               QA + dev tooling (see below)
@@ -226,6 +254,9 @@ node tools/debug-test.mjs     # debug mode in the browser: F3, X/Y/Z = the playe
 node tools/menu-test.mjs      # menus: the phone MENU button and finger-sized rows through real touches, sub-pages, thumb controls hiding, the upright layout (the picture at the top, the button under it, no "turn your phone sideways" text) with the platform's safe-area inset emulated, keyboard and mouse on a desktop (needs the dev server)
 node tools/touch-layout-test.mjs   # where the picture sits in a window (centred; at the top, below the platform's inset, on an upright touch screen: 30000 window / setting combinations compared with the old layout) and where the MENU button goes (under the picture, clear of the thumb controls, or on its top edge), in every window size (no server)
 node tools/touch-ram-jump-test.mjs   # ram + jump on an emulated phone through real touches: a finger held on RAM, another tapping JUMP, then lifting RAM (needs the dev server)
+node tools/home-check.mjs     # Dawnhaven, headless (no server): five doors on level terraces with their roads, the arrival clear of the door's trigger, three secrets (a chest each), a flood fill over the ground with the real slope limit and colliders: the hidden garden is sealed while its wall stands and open once it is broken, the Guardian's gate holds, the valley floor is one walkable world, no gem or vase inside a solid prop, no prop on a road, the gem total a round number
+node tools/home-bot.mjs       # Dawnhaven with the real controller (needs the dev server): every road, the awake door's trip event, the sleeping doors stopping the hero, the gate held from five sides, the stepping stones to the islet and its chest, the windmill road and stair to the lookout, the garden sealed from eight sides and opened by a ram, each of the three chests opened by fire and its secret kept, the Elder's talk (with the hint for a secret not yet found), the gems picked up along the spokes
+node tools/portal-test.mjs    # the whole round trip in the browser: light every lantern, the portal pops open above the beacon, a jump outside the ring does nothing, a jump inside it carries the hero up the beam, the white fade, Dawnhaven (progress saved, the door gold, the Elder), back through the door to the restored vale, no GPU memory left behind after two trips, and the title menu's VISIT DAWNHAVEN (needs the dev server)
 node tools/where.mjs X Z   # what is at a spot (X = east, Z = south, as debug mode shows them): area, ground texture + rule, nearby props / gameplay things / collision shapes with the layout function and file:line that placed them
 node tools/build-id.mjs       # the build id debug mode shows: a hash of src/ plus the date
 node tools/level-check.mjs    # populates the level headlessly: gem economy (700), counts, and placement checks (shrine chest seated on its island, Dawn Gate forecourt dry and gentle, sky-isle decor clear of the mushroom / chests / enemies / beacon, nothing solid standing on a chest, vase, brazier, mushroom, NPC or enemy spawn, Mirrormere's short wide dock with a clear run-off and its lily pads: big, spaced, easy hops, the pier's landing lawn: one calm grass, sand and the roads' dirt instead of a mosaic of textures, the roads draped on the terrain (every vertex on the surface, cobble over dirt where they meet) and merged (same texture point and shading where two lie on top of each other, no ragged dirt beside a road or past its end, every ribbon whole up to its flat end), the ground textures laid on without smearing (no grass stretched more than 1.75 times on a steep bank) with rock and grass in patches rather than a coin toss per cell, and the river: its water stops exactly at the waterline, meets the lake at its level, and its banks are sand and grass, never rock)

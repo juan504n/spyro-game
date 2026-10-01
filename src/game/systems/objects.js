@@ -46,7 +46,7 @@ export class ObjectSystem {
     // the wall round the gate: the ward that stops the hero going round the arch (Player._boundary) drawn as a semi-translucent violet wall on the very circle it holds him
     // at, so it is seen rather than bumped into. It is part of the gate's spell: it dissolves with the gate's field.
     this.ward = null;
-    if (d.barrier) {
+    if (d.barrier && g.level.summit) {
       const S = g.level.summit;
       const w = makeModel(g.assets, 'ward_wall', { cx: S.x, cz: S.z, radius: WARD_RADIUS, gateX: d.barrier.x, heightAt: (x, z) => col.heightAt(x, z) });
       g.dyn.add(w.root);
@@ -141,6 +141,7 @@ export class ObjectSystem {
     g.gems.burst(c.x, c.y + 1.0, c.z, c.gems && c.gems.length ? c.gems : [10], 1.1);
     g.fx.gemPickup(c.x, c.y + 1.0, c.z, [1, 0.85, 0.3]);
     g.stats.chests++;
+    g.emit('chest', c);
   }
 
   _breakWall(w) {
@@ -153,6 +154,7 @@ export class ObjectSystem {
     g.cam.shake(0.4, 0.35);
     if (w.gems && w.gems.length) g.gems.burst(w.x, w.y + 1.4, w.z, w.gems, 1);
     g.stats.walls++;
+    g.emit('wall', w);
   }
 
   _lightBrazier(b) {
@@ -175,6 +177,22 @@ export class ObjectSystem {
     this.barrier.target = 1;
     this.game.audio?.sfx('barrier_open', { vol: 1 });
     this.game.cam.shake(0.5, 1.2);
+  }
+
+  /**
+   * The puzzle is solved already (a realm the hero has saved, entered again: Game._restore): the braziers burn, the mill's portcullis is up and the Dawn Gate's field is gone,
+   * the models already at rest (they ease towards what they are told, which would show as a gate sliding open under the fade-in).
+   */
+  restore() {
+    const settle = (m, pose) => { for (let i = 0; i < 90; i++) m.update?.(1 / 30, { t: this.game.time, ...pose }); };
+    for (const b of this.braziers) { b.lit = true; b.l = 1; }
+    if (this.portcullis) { const pc = this.portcullis; pc.open = pc.target = 1; pc.c.solid = false; settle(pc.model, { open: 1 }); }
+    if (this.barrier) {
+      const b = this.barrier, pl = this.game.player;
+      b.open = b.target = 1; b.c.solid = false;
+      settle(b.model, { open: 1 });
+      if (this.ward) settle(this.ward.model, { open: 1, px: pl.x, pz: pl.z });
+    }
   }
 
   update(dt, game) {

@@ -45,6 +45,7 @@ export function clock(yaw, x, z, tx, tz) {
 // ---- areas ---------------------------------------------------------------------------------------------------------
 /** The named places of the realm, from the level design: [name, x, z, radius, y]; y is only set for the floating isles (walkable top). */
 export function areas(L) {
+  if (L.areas) return L.areas;                                    // (a level of its own names its places itself)
   return [
     ['HEARTH VILLAGE', L.village.x, L.village.z, L.village.r],
     ['REALM PORTAL', L.portal.x, L.portal.z, L.portal.r],
@@ -70,12 +71,12 @@ export function areaAt(L, x, z, y) {
   let inside = null;
   for (const a of list) if (Math.hypot(x - a[1], z - a[2]) <= a[3] && (!inside || a[3] < inside[3])) inside = a;
   if (inside) return { name: inside[0], inside: true, d: 0 };
-  const dl = Math.hypot((x - L.lake.x) / L.lake.rx, (z - L.lake.z) / L.lake.rz);
-  if (dl < 1) return { name: 'MIRRORMERE', inside: true, d: 0 };
+  const dl = Math.hypot((x - L.lake.x) / L.lake.rx, (z - L.lake.z) / L.lake.rz), lakeName = L.lake.name || 'MIRRORMERE';
+  if (dl < 1) return { name: lakeName, inside: true, d: 0 };
   let best = null, bd = Infinity;
   for (const a of list) { const d = Math.hypot(x - a[1], z - a[2]) - a[3]; if (d < bd) { bd = d; best = a; } }
   const dm = (dl - 1) * Math.min(L.lake.rx, L.lake.rz);
-  if (dm < bd) return { name: 'MIRRORMERE', inside: false, d: dm };
+  if (dm < bd) return { name: lakeName, inside: false, d: dm };
   return { name: best[0], inside: false, d: bd };
 }
 

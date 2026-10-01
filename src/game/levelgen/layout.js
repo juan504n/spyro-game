@@ -302,6 +302,13 @@ export function layoutNorth(ctx) {
   put('tower_observatory', S.x, S.z, { rot: 0 }, 14);
   const beacon = ctx.anchor('tower_observatory', 'beacon', S.x, S.z, { rot: 0 });
   gp.beacons.push({ id: 'dawn', name: 'GREAT BEACON', x: beacon ? beacon[0] : S.x, y: beacon ? beacon[1] : h(S.x, S.z) + 24, z: beacon ? beacon[2] : S.z, yaw: 0, big: true });
+  // the ring of light that opens above the Great Beacon when the last lantern burns (systems/portals.js): it hangs out of a jump's reach, so a ring of light on the lantern room's
+  // floor marks where its beam comes down, and a jump made inside it lets the light carry the hero up into the portal, and out of the realm to Dawnhaven (the homeworld)
+  {
+    const b = gp.beacons[gp.beacons.length - 1];
+    gp.portals.push({ id: 'dawn', name: 'DAWNHAVEN', tag: 'HOMEWORLD OF THE LANTERN KEEPERS', kind: 'lift', shape: 'ring', flat: true, x: b.x, y: b.y - 1.0, z: b.z, yaw: 0, r: 2.6, cy: 16.5, catchR: 5.4, color: [0.78, 0.62, 1.0], target: 'home', state: 'closed' });
+    gp.soundSources.push({ name: 'portal_hum', x: b.x, y: b.y + 15.5, z: b.z, range: 70, vol: 1.5, when: 'portal:dawn' });
+  }
   const road = ctx.grid.paths.find((p) => p.id === 'summit');
   let dist = 0, next = 10, side = 1;
   for (let i = 1; i < road.pts.length; i++) {

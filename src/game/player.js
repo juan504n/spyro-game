@@ -52,11 +52,14 @@ export class Player {
     this.on = {};                    // event hooks: jump, land, glide, flame, charge, chargeHit, hurt, die, respawn, splash, step, bounce, wall
     this.mouth = { x: 0, y: 0, z: 0 };
     this.dirx = 0; this.dirz = 1;    // facing vector
+    this.carry = null;               // a path that owns the hero's position (a beam of light carrying him into a portal: see systems/portals.js)
+    this.vanish = false;             // ... and the end of that ride: he has gone into the light
   }
 
   emit(name, a, b) { const f = this.on[name]; if (f) f(a, b); }
 
   place(x, y, z, yaw) {
+    this.carry = null; this.vanish = false;
     this.x = this.px = x; this.y = this.py = y; this.z = this.pz = z;
     this.yaw = this.pyaw = yaw;
     this.vx = this.vy = this.vz = 0;
@@ -103,6 +106,7 @@ export class Player {
     this.px = this.x; this.py = this.y; this.pz = this.z; this.pyaw = this.yaw;
     const col = this.game.collision;
 
+    if (this.carry) { this._carried(dt); return; }
     if (this.dead) { this._updateDead(dt); this._pose(dt, 0); return; }
 
     this.invulnT = Math.max(0, this.invulnT - dt);
@@ -300,6 +304,26 @@ export class Player {
     if (this.flameT > 0 && this.model && this.model.mouthWorld) this.model.mouthWorld(this.x, this.y, this.z, this.yaw, this.mouth);
   }
 
+  /**
+   * Carried by a beam of light: `carry.at(k)` -> [x, y, z, yaw] gives the position `k` (0..1) of the way through the ride of `carry.dur` seconds. Nothing else moves the hero
+   * meanwhile (no gravity, no collisions: he flies up through the dome); he rides with his wings out and is gone from `carry.vanish` on.
+   */
+  _carried(dt) {
+    const c = this.carry;
+    c.t += dt;
+    const k = clamp(c.t / c.dur, 0, 1);
+    const [x, y, z, yaw] = c.at(k);
+    this.vy = (y - this.y) / Math.max(dt, 1e-4);
+    this.x = x; this.y = y; this.z = z; this.yaw = yaw;
+    this.vx = this.vz = 0;
+    this.grounded = false; this.gliding = true; this.steep = false;
+    this.chargeT = 0; this.flameT = 0; this.hurtT = 0; this.waterT = 0; this.inWater = false;
+    this.dirx = Math.sin(yaw); this.dirz = Math.cos(yaw);
+    this.vanish = c.vanish !== undefined && k >= c.vanish;
+    this._pose(dt, 0);
+    if (k >= 1 && c.onDone) { const done = c.onDone; c.onDone = null; done(); }
+  }
+
   /** Things worth breathing fire at: unlit braziers and beacons, awake Snuffers, and vases / chests still to be broken open. */
   _aimTargets() {
     const g = this.game, out = this._aimList || (this._aimList = []);
@@ -357,9 +381,9 @@ export class Player {
       if (vn > 0) { this.vx -= nx * vn; this.vz -= nz * vn; }
     }
     // The Dawn Gate stands in open ground: while its barrier holds, a ward seals the whole summit precinct for the hero.
-    const barrier = this.game.objects?.barrier;
-    if (barrier && barrier.c.solid) {
-      const S = this.game.level.summit, R = WARD_RADIUS;
+    const barrier = this.game.objects?.barrier, S = this.game.level.summit;
+    if (barrier && barrier.c.solid && S) {
+      const R = WARD_RADIUS;
       const wx = this.x - S.x, wz = this.z - S.z, wd = Math.hypot(wx, wz) || 1e-4;
       if (wd < R) {
         const nx = wx / wd, nz = wz / wd;
@@ -442,8 +466,8 @@ export class Player {
     m.root.position.set(lerp(this.px, this.x, alpha), lerp(this.py, this.y, alpha), lerp(this.pz, this.z, alpha));
     m.root.rotation.y = this.pyaw + angDiff(this.yaw, this.pyaw) * alpha;
     // blink while invulnerable (i-frames); always visible during the hit stun itself
-    const blinkOff = this.invulnT > 0 && !this.dead && this.hurtT <= 0 && ((this.time * 14) | 0) % 2 === 0;
-    m.root.visible = !blinkOff;
+    const blinkOff = this.invulnT > 0 && !this.dead && this.hurtT <= 0 && !this.carry && ((this.time * 14) | 0) % 2 === 0;
+    m.root.visible = !blinkOff && !this.vanish;
   }
 
   renderPos(alpha, out = {}) {

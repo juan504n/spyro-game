@@ -1,6 +1,6 @@
 # Lantern Keepers Pack — design notes for *Gloaming Vale*
 
-A one-realm DLC for a PS1-era 3D platformer. This file is the pitch and the level design; the README covers how to run it and how the renderer works.
+A one-realm DLC for a PS1-era 3D platformer, with the homeworld its portal leads to. This file is the pitch and the level design; the README covers how to run it and how the renderer works.
 
 ## Pitch
 
@@ -27,6 +27,8 @@ flowchart LR
   L & M & S -->|4 lit| G{Dawn Gate}
   G --> T[Spiral mountain road] --> O[Observatory<br/>Beacon V]
   O --> Sunrise([Sunrise finale])
+  Sunrise --> P{{Portal over the last lantern}} --> H[Dawnhaven<br/>the homeworld]
+  H -->|Gloaming Vale door| V
 ```
 
 | # | Beacon | Skill it teaches | Obstacle |
@@ -41,6 +43,41 @@ The two long trails leave the village on opposite sides of the lake and meet aga
 sides of its paved forecourt (a flagstone apron that climbs gently to the threshold), so the valley is a loop and no route is
 a dead end. Heron Point, a red-rock headland on the lake's north shore, has its own trail: it is the launch
 pad for the long glide out to the island shrine.
+
+## Worlds: realms and the homeworld
+
+In the series a **homeworld** is the hub that connects the levels (a portal to each, secrets to find, someone to talk to) and a **realm** is a standalone level entered through one of its portals. The pack keeps the split.
+`src/game/realms.js` lists the worlds, each a level descriptor plus the script that populates it: **Gloaming Vale**, a *realm* (its hour follows its lanterns), and **Dawnhaven**, the *homeworld* (always daybreak). Every world is a `Game` of its own,
+built on the page's shared `Input` (the touch controls and the listeners belong to the page, not to a world), `Assets` and audio. Nothing of Gloaming Vale's level generation changed (the same random draws in the same order: a dump of every prop and
+gameplay record and a hash of the terrain's triangle textures are identical to before the homeworld), so the portal's records are the only new thing in it.
+
+**The portal.** The last beacon lights the sun and, 3.4 s into the finale, a portal pops open on top of the lantern (`models/objects/portal.js`: a swirl of violet light in a ring, a spring that overshoots as it opens, a spark burst and a chime), while the camera
+slips into the lantern room and looks up. It hangs 16.5 m over the room's floor, far out of a jump's reach (about 3 m), so the light carries the hero: a ring of light on the floor (5.4 m round the lantern's axis) marks where the beacon's beam comes down, a hint appears
+2.5 m before it, and a **jump made inside the ring** starts `Player.carry`, a scripted ride (no control, no damage): a spiral round the lantern (it stands on the axis, a straight ride would pass through it) of one and a half turns, 1.6 s plus 0.06 s per metre of rise, the hero
+vanishing into the light just before the end, the camera staying down in the room and tipping up after him with the view widening. A jump anywhere else on the floor is only a jump, and before the last lantern burns there is no ring. (From outside the observatory the dome hides the
+portal: it is drawn back-face culled, opaque from outside and invisible from inside; the golden beam still rises through it.)
+
+**A trip.** At 62 % of the ride the portal raises the `'portal'` event and `App.travelTo` takes over: the state becomes `traveling`, the screen fades to **white** (a portal; everything else fades to black) while the old world keeps running under the fade, then the old world is
+let go of (`Game.dispose`: every geometry of the world and the counter's overlay, the effects' materials, the sprite atlas texture and the counter's materials; the shared textures and materials stay), the new one is built the real way behind the loading bar, adopted (menus, events, debug readout) and arrived in:
+the white clears away on the hero where the way from the old world comes out (`gameplay.arrivals[from]`: 11 m in front of the Gloaming Vale door in Dawnhaven, off its trigger and with the doors near him already announced), the name of the place comes up and a chime sounds. A door is the same trip the other way: walking into an awake door's light (crossing the plane of the swirl)
+raises the same event.
+
+**The way back is restored.** A realm the hero has saved is found **restored** when he returns through the homeworld's door (`Game._restore`): the day is 1, every lantern burns (no `beacon` events, so no banners and no finale), the braziers are lit, the mill's portcullis and the Dawn Gate stand open with their models at rest (not sliding open under the fade-in),
+and the portal over the Great Beacon is open from the start, so the way home is always there. The rest is as on the first visit (the gems, vases, chests and Snuffers), the mode is free roam, and the best gem count is kept when he leaves by the portal. A realm started from the title is played afresh.
+
+**Dawnhaven** (250 gems of its own; a world's gems are counted by that world, the realm's economy is still 700):
+
+| Place | What it is |
+| --- | --- |
+| Plaza | flagstone court with a fountain, a market, benches and a signpost; **Elder Wick** talks in turn (`home/dialogue.js`): a welcome that knows whether a realm is restored, the doors that sleep and the gate; on later visits how many realms are restored; then a hint towards a secret not yet found and how many of the three are |
+| Five doors | arches on raised terraces 72 m from the plaza, at the end of cobbled roads (Gloaming Vale awake, turning gold once restored; Frostbloom Hollow, Tideglass Reach, Emberfall Crags and Skyweaver Spires asleep: stone in the opening and a dim swirl) |
+| Guardian's Gate | at the head of the north road, sealed between two buttresses of rock: the teaser for the next world |
+| Pond | a waterfall and three stepping stones (hops of at most 5.2 m, a jump carries 8) to an islet and its chest: secret 1 |
+| Windmill hill | a dirt road coiling up the hill, then the mill's wooden stair to a lookout with a chest: secret 2 |
+| Hidden garden | a glade ringed by 9 m of rock, open only along a strip closed by a cracked wall to be rammed: secret 3 |
+
+The hero keeps between worlds (`progress.js`, `localStorage`, sanitised on load; the game plays the same where storage is unavailable): which realms are restored with their best gem counts and which secrets were found. The title menu offers **VISIT DAWNHAVEN** once a realm is restored,
+and `?world=home` opens the page there.
 
 ## Enemies
 
@@ -256,6 +293,18 @@ jump cannot reach), and `tools/touch-ram-jump-test.mjs` does it on an emulated p
 on the running game: he starts gold at full health, three hits turn him blue, green, gone, the fourth kills, a respawn gives gold again, butterflies heal one step at a time and stop at gold, a gem inside the magnet's reach is lobbed in while he is there and is
 left alone once he is gone (and is still collected by touch). It fails with the old start (blue), with the magnet working without him, with no reset at respawn and with the colours swapped. **The landing:** `level-check` samples the ground 16 m
 round the pier's foot and fails if anything but grass, sand, dirt or paving shows up (it was eight textures), checks that nothing beyond the fade changed, that inside it cells only change to those, and that the debug readout names the rule; making the zone smaller fails it.
+
+**Round seventeen** (the portal over the Great Beacon and the homeworld): three tools, all new. `tools/home-check.mjs` (no server; the shared headless world is `buildHeadless('home')`) builds Dawnhaven and checks it against independent computations: five doors, each on a level terrace (ground 4.5 to 4.6 m) with a cobbled road to its dais (9.0 m from the door, steepest 0.19 rad)
+and the opening free in the awake one and shut with stone in the four that sleep; the hero's arrival 11.0 m in front of the Gloaming Vale door, off its trigger; three secrets with a chest each, standing on firm ground; the three stepping stones to the islet (hops of at most 5.2 m, a jump carries 8); the hidden garden **sealed** while its cracked wall stands and open once it is broken, with the chest inside;
+the Guardian's gate holding (the field and the gorge, and with the field gone he could walk through: so the field is what stops him); a flood fill over the ground with the game's own slope limit and the colliders the game adds at run time (chests, vases, walls, the barrier, the Elder), from the arrival to every door's dais, the Elder, the court before the gate and up the windmill road, and the valley floor one world (3444 of 3455 dry cells within 88 m reachable, none in a pocket);
+no prop in the middle of a road, no gem or vase inside a solid prop, no gem on the pond's bed, everything to collect on the valley floor, sand only by the pond, no stray rock on the meadow, the plaza and the court paved, and the gems adding up to a round 250. `tools/home-bot.mjs` drives the real controller through it (15 scenarios): every spoke road end to end (about 34 gems picked up on the way),
+the north road, the arrival, the awake door's `'portal'` event, the four sleeping doors stopping the hero without a trip, the gate held from five sides (also by gliding off the mountains), the stepping stones, the windmill road and its 17 steps to the lookout, the garden sealed from eight sides and opened by a ram, **each of the three chests opened by fire and its secret kept**, the Elder's turns and the count of secrets.
+`tools/portal-test.mjs` runs the whole trip in the running game with real keys (19 checks): no ring and no lift before the last lantern; the finale opens the portal (and saves the realm as restored); a jump 6.6 m from the axis is only a jump (the ring is 5.4 m); a jump inside it carries the hero up (the control is locked at once and he rises more than 3 m in the next 0.8 s), raises one `'portal'` event and the screen goes **white**;
+Dawnhaven receives him (the lantern on the HUD, the Gloaming door gold and the only awake one, 11 m from it, the Elder, the name of the place); the title menu offers VISIT DAWNHAVEN (and from the vale's title screen it takes him there); the door starts the trip back; the vale is **restored** (day 1, five lanterns and the braziers burning, the portcullis and the Dawn Gate up with their models at rest, the ward gone, the portal open and settled, free roam, no finale, no banner of a lantern lit,
+the gems, vases and Snuffers as on the first visit); the ride home again keeps the best gem count; and **nothing is left on the GPU between trips**: the same world built a second time costs exactly what the first did (239 geometries and 75 textures, after everything is drawn once so that the count does not depend on where the camera looked); `?world=home` opens in Dawnhaven with its lantern, a secret found is kept across a reload, and the page raised no error.
+Each was mutation-checked (the mutation applied to the source, the run, the file restored): no atlas dispose (a texture left behind for every world let go of), no restore, each of the three parts of the restore on its own, the restore never asked for, a restored vale in play mode, the ring too big and too small, a black fade, a door that never shines gold, the best gem count not kept, no ride, the portal open before the finale, no `'portal'` event on the ride, the homeworld's lanterns uncounted
+each fail at least one check (16 mutations); the seventeenth, the arrival at the realm's spawn instead of the door's arrival, changes nothing because the two are the same place in Dawnhaven today. Problems the tests found on the way: a first windmill hill so near the valley's rim that the road climbed the mountain wall (the hill moved in, and the road now ends at the stair's foot), the gate passable between the pillar's collider and the rock (the buttresses reshaped), a ring of light of 4.6 m radius that a spot 5.1 m from the axis was outside of (5.4 m now),
+the banner of the Gloaming door announcing itself on arrival (the doors near the hero are announced already), and a bot scenario that depended on the one before it (it counted gems another had picked up). Gloaming Vale itself is untouched: a dump of every prop and gameplay record and a hash of the 51200 terrain triangles' textures are identical to before the round. The test run is in headless Chromium with a software renderer, so the frame rates a phone or a GPU would give were not measured.
 
 **Round sixteen** (the upright phone layout): a 4:3 picture as wide as a phone's screen is small, and centred in a tall window it floated in the middle of the screen with the thumbs' black on both sides of it. Now a touch screen held upright (a window taller than wide)
 keeps the picture at the TOP: `frameLayout` (the frame's size and place, pulled out of `Gfx.resize()` so it can be tested without a browser) puts it under the platform's top inset (`env(safe-area-inset-top)`: a notch, or the header of an app that shows the page under it)

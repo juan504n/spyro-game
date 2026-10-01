@@ -1,7 +1,11 @@
 // Application flow: loading -> title -> intro fly-through -> play <-> pause -> finale (sunrise) -> results -> free roam.
 import * as THREE from 'three';
 import { Game } from './game.js';
-import { populate } from './levelgen/index.js';
+import { REALMS } from './realms.js';
+import { Assets } from './assets.js';
+import { Input } from './input.js';
+import { loadProgress, noteRealmDone, noteRealmGems, noteSecret, realmsDone } from './progress.js';
+import { DOORS, SECRETS } from './home/level.js';
 import { Menu, touchClear } from './menu.js';
 import { CAM_MODES } from './camera.js';
 import { Hud } from './hud.js';
@@ -59,6 +63,8 @@ class App {
     this.audioReady = false;
     this.results = null;
     this.deferReady = true;
+    this.progress = loadProgress();          // the realms restored and the secrets found, kept between visits (progress.js)
+    this.travel = null;                      // a trip through a portal in progress: { id (where to), from, phase: 'out' | 'load', color }
   }
 
   /** the frame size changed (called by main.js after Gfx re-created its targets): keep the 3D counter matched to it */
@@ -67,34 +73,55 @@ class App {
   async start() {
     const gfx = this.gfx;
     this.audio = await loadAudio();
-    const game = new Game(gfx, { populate, audio: this.audio });
-    this.game = game;
-    await game.build((frac, label) => { this.load = { frac, label }; return new Promise((r) => setTimeout(r, 16)); });
-    game.externalPoll = true;
-    game.resize(gfx.W, gfx.H);
-    game.counter.resize(gfx.hud.w, gfx.W / gfx.H);
-    this.overlay = game.overlay;
-    this.scene = game.scene;
-    this.camera = game.camera;
-    this.menu = new Menu(game);
-    this.debug = new DebugHud(this);                 // debug mode's readout / crosshair / wireframes (drawn only when the setting is on)
-    try { this.logo = makeLogo(['GLOAMING', 'VALE'], { scale: [4, 4], top: '#fff4b0', bottom: '#f0901c', wobble: 1 }); } catch (e) { console.warn('logo failed', e); }
-    game.on('finale', () => this.startFinale());
-    window.__game = game;
-    window.__app = this;
-    // first user gesture unlocks audio
-    game.input.onGesture = () => this.unlockAudio();
-
+    this.assets = new Assets();
+    this.input = new Input(gfx.canvas);          // (the page's: the controls and the listeners outlive any one world)
     const q = this.params;
-    if (q.has('day')) { game.day = game.dayTarget = parseFloat(q.get('day')); }
+    const first = q.get('world') === 'home' ? 'home' : 'gloaming';
+    const game = await this._build(first, null);
+    this._adopt(game);
+    try { this.logo = makeLogo(['GLOAMING', 'VALE'], { scale: [4, 4], top: '#fff4b0', bottom: '#f0901c', wobble: 1 }); } catch (e) { console.warn('logo failed', e); }
+    window.__app = this;
+
+    if (q.has('day') && game.realm.day === null) { game.day = game.dayTarget = parseFloat(q.get('day')); }
     if (q.has('at')) {
       const [x, z, yaw] = q.get('at').split(',').map(Number);
       game.player.place(x, game.grid.heightAt(x, z) + 0.05, z, yaw ?? 0);
       game.checkpoint = { x, y: game.player.y, z, yaw: yaw ?? 0 };
     }
     if (q.has('skip')) this.beginPlay(true);
+    else if (first === 'home') this.beginPlay(false);        // (the title screen belongs to the realm: the homeworld is entered straight away)
     else this.enterTitle();
     window.__ready = true;
+  }
+
+  /** Build the world of a realm (REALMS id) on the page's shared input, assets and audio, painting the loading bar as it goes. */
+  async _build(id, from) {
+    const gfx = this.gfx;
+    // a realm the hero has saved is found restored when he comes back to it through the homeworld (Game._restore); started from the title it is played afresh
+    const restored = REALMS[id].kind === 'realm' && from === 'home' && !!(this.progress.realms[id] && this.progress.realms[id].done);
+    const game = new Game(gfx, { realm: REALMS[id], assets: this.assets, audio: this.audio, input: this.input, progress: this.progress, from, restored });
+    await game.build((frac, label) => { this.load = { frac, label }; return new Promise((r) => setTimeout(r, 16)); });
+    game.externalPoll = true;
+    game.resize(gfx.W, gfx.H);
+    game.counter.resize(gfx.hud.w, gfx.W / gfx.H);
+    return game;
+  }
+
+  /** Make a built world the one on screen: what the renderer draws, the menus, the debug readout and the events the app answers. */
+  _adopt(game) {
+    this.game = game;
+    this.scene = game.scene;
+    this.camera = game.camera;
+    this.overlay = game.overlay;
+    this.menu = new Menu(game);
+    if (this.debug) this.debug.rebind(game);
+    else this.debug = new DebugHud(this);              // debug mode's readout / crosshair / wireframes (drawn only when the setting is on)
+    game.on('finale', () => this.startFinale());
+    game.on('portal', (d) => this._onPortal(d));
+    game.on('chest', (c) => { if (c.secret) this._secretFound(c.secret); });
+    window.__game = game;
+    game.input.onGesture = () => this.unlockAudio();         // the first user gesture unlocks audio
+    this.audio?.setDay?.(game.day);
   }
 
   unlockAudio() {
@@ -141,7 +168,7 @@ class App {
     g.mode = 'play';
     g.fade.a = instant ? 0 : 1;
     g.fadeTo(0, 1.6);
-    if (!instant) g.hud.banner('GLOAMING VALE', 'LANTERN KEEPERS REALM', 4.2);
+    if (!instant) g.hud.banner(g.realm.name, g.realm.tagline, 4.2);
     const dev = g.input.lastDevice;
     g.hud.hint(dev === 'touch' ? 'STICK MOVES   JUMP / GLIDE   FIRE   RAM   TAP MENU FOR OPTIONS' : dev === 'pad' ? 'STICK MOVE   A JUMP / GLIDE   X FIRE   B CHARGE' : 'WASD MOVE   SPACE JUMP / GLIDE   J FIRE   K CHARGE', 7);
   }
@@ -157,9 +184,16 @@ class App {
     g.dayTarget = 1;
     g.hud.hintState = null;
     this.audio?.stinger?.('sunrise');
-    g.hud.banner('THE SUN RISES!', '', 4.5);
-    g.after(5.2, () => { g.hud.banner('GLOAMING VALE IS SAVED', 'THANK YOU, SPYRO', 5); });
-    g.cam.playCinematic(finaleShot(g, b), 13, () => this.showResults());
+    const portal0 = g.portals?.get('dawn');
+    g.hud.banner('THE SUN RISES!', '', portal0 ? 3.2 : 4.5);
+    // the light of the last lantern opens a portal above it, to Dawnhaven: it pops into being while the camera is in the lantern room, looking up
+    const portal = g.portals?.get('dawn');
+    if (portal) {
+      g.after(3.4, () => g.portals.pop('dawn'));
+      g.after(3.6, () => { g.hud.banner('A PORTAL HAS OPENED', 'ABOVE THE GREAT BEACON', 3.2); });
+      g.after(7.6, () => { g.hud.banner('GLOAMING VALE IS SAVED', 'THANK YOU, SPYRO', 4); });
+    } else g.after(5.2, () => { g.hud.banner('GLOAMING VALE IS SAVED', 'THANK YOU, SPYRO', 3.6); });
+    g.cam.playCinematic(finaleShot(g, b, portal ? portal.def : null), 13, () => this.showResults());
     g.player.cheer = true;
   }
 
@@ -173,9 +207,10 @@ class App {
     const st = g.stats;
     const pct = st.gems / st.gemsTotal;
     this.results = { pct, stars: pct >= 0.95 ? 3 : pct >= 0.6 ? 2 : 1 };
+    noteRealmDone(this.progress, g.realm.id, { gems: st.gems, gemsTotal: st.gemsTotal, time: st.time });     // (restored for good: Dawnhaven's door to it shines gold from now on)
     // hold the final wide shot of the sunrise sweep
-    const shot = finaleShot(g, g.beacons.list[g.beacons.list.length - 1]);
-    g.cam.playCinematic((t) => shot(t, 1), 1e9);
+    const shot = finaleShot(g, g.beacons.list[g.beacons.list.length - 1], g.portals?.get('dawn')?.def || null);
+    g.cam.playCinematic(() => shot(13, 1), 1e9);
   }
 
   resumeFromResults() {
@@ -187,7 +222,96 @@ class App {
     g.player.locked = false;
     g.player.cheer = false;
     g.hud.visible = true;
-    g.hud.banner('FREE ROAM', 'COLLECT EVERY GEM!', 3.5);
+    g.hud.banner('FREE ROAM', g.portals?.isOpen('dawn') ? 'THE PORTAL ABOVE THE BEACON LEADS TO DAWNHAVEN' : 'COLLECT EVERY GEM!', 4);
+  }
+
+  // ---- travelling between worlds ------------------------------------------------------------------------------------------------
+  /** A portal was entered (see systems/portals.js): go where it leads. */
+  _onPortal(d) {
+    if (this.state === 'traveling' || !d.target) return;
+    const g = this.game, st = g.stats;
+    // the gems picked up since the finale (or in a restored visit) count if they beat the best so far
+    if (g.realm.kind === 'realm' && this.progress.realms[g.realm.id]) noteRealmGems(this.progress, g.realm.id, st.gems, st.gemsTotal);
+    this.travelTo(d.target);
+  }
+
+  /**
+   * Leave this world for another (REALMS id): the screen fades out (to white: it is a portal), the old world is let go of, the new one is built behind the loading bar and swapped in,
+   * and the screen fades back in on the hero where the way from the old world comes out. Driven from update(): phase 'out' while the old world still runs under the fade, 'load' while the
+   * new one is built.
+   */
+  travelTo(id, { from = this.game.realm.id, color = [1, 1, 1] } = {}) {
+    if (this.state === 'traveling' || !REALMS[id]) return;
+    const g = this.game;
+    this.menu.closeAll();
+    g.input.menuOpen = false;
+    g.paused = false;
+    this.travel = { id, from, phase: 'out', color, t: 0 };
+    this.state = 'traveling';
+    g.player.locked = true;
+    g.locked = true;
+    g.hud.hintState = null;
+    g.fadeTo(1, 1.7, color);
+    this.audio?.duck?.(0.35, 2.4);
+    this.audio?.setMuffled?.(false);
+  }
+
+  _updateTravel(dt) {
+    const tr = this.travel, gfx = this.gfx;
+    this._syncTouchUI();
+    if (tr.phase === 'out') {
+      const g = this.game, input = g.input;
+      input.poll();
+      input.snapshot();
+      tr.t += dt;
+      this.debug?.update(dt);
+      g.update(dt);
+      if (g.fade.a >= 0.995 && tr.t > 0.4) { tr.phase = 'load'; this._swap(tr); }
+    } else Hud.drawLoading(gfx.hud, this.load.frac, this.load.label);
+  }
+
+  /** Replace the world on screen with another: free the old one's GPU memory first (the heaviest thing there is), build the new one, and arrive in it. */
+  async _swap(tr) {
+    const old = this.game;
+    this.scene = new THREE.Scene();                     // (nothing to draw but the loading bar while the new world is built)
+    this.overlay = null;
+    old.dispose();
+    this.load = { frac: 0, label: REALMS[tr.id].kind === 'homeworld' ? 'ENTERING DAWNHAVEN' : 'ENTERING THE REALM' };
+    let game;
+    try { game = await this._build(tr.id, tr.from); } catch (e) { console.error(e); window.__error = String((e && e.stack) || e); return; }
+    this._adopt(game);
+    this._arrive(game, tr);
+  }
+
+  /** The hero steps out of the portal into the new world: the screen is still white and clears away, the name of the place comes up. */
+  _arrive(game, tr) {
+    const g = game, p = g.player;
+    this.state = 'play';
+    this.travel = null;
+    g.mode = g.restored ? 'complete' : 'play';             // (a restored realm is free roam: nothing in it is to be told again)
+    g.hud.visible = true;
+    g.player.locked = false;
+    g.locked = false;
+    g.cam.stopCinematic();
+    g.cam.snapBehind(p);
+    g.fade.a = 1;
+    g.fade.color = tr.color;
+    g.fadeTo(0, 1.1);
+    g.hud.banner(g.realm.name, g.restored ? 'RESTORED  -  THE SUN IS UP' : g.realm.tagline, 4.2);
+    g.fx.puff(p.x, p.y + 0.6, p.z, 1.2);
+    this.audio?.sfx('portal_arrive', { vol: 0.9 });
+    if (g.realm.kind === 'homeworld') g.hud.hint(`${realmsDone(this.progress)} OF ${DOORS.length} REALMS RESTORED  -  TALK TO THE ELDER AND FIND THE SECRETS`, 6.5);
+    else if (g.restored) g.hud.hint('THE PORTAL ABOVE THE GREAT BEACON LEADS BACK TO DAWNHAVEN', 6.5);
+  }
+
+  /** A secret of Dawnhaven (a chest) was opened: remembered for good. */
+  _secretFound(id) {
+    if (!noteSecret(this.progress, id)) return;
+    const found = this.progress.home.secrets.length;
+    const def = SECRETS.find((s) => s.id === id);
+    const g = this.game;
+    this.audio?.stinger?.('lantern');
+    g.hud.banner('SECRET FOUND!', `${def ? def.name : id}  -  ${found} OF ${SECRETS.length}`, 3.6);
   }
 
   openPause() {
@@ -225,7 +349,7 @@ class App {
         this._debugRow(),
         { type: 'action', label: 'OPTIONS', more: true, action: (m) => m.open(this.optionsPage()) },
         { type: 'action', label: 'CONTROLS', more: true, action: (m) => m.open(this.controlsPage()) },
-        { type: 'action', label: 'RESTART REALM', action: () => { location.href = location.pathname + '?skip=1'; } },
+        { type: 'action', label: this.game.realm.kind === 'homeworld' ? 'RESTART DAWNHAVEN' : 'RESTART REALM', action: () => { location.href = location.pathname + (this.game.realm.kind === 'homeworld' ? '?world=home' : '?skip=1'); } },
         { type: 'action', label: 'QUIT TO TITLE', action: () => { location.href = location.pathname; } },
       ],
     };
@@ -237,6 +361,7 @@ class App {
       title: 'MENU', width: 210, closable: true,
       items: [
         { type: 'action', label: 'PLAY', action: (m) => { m.closeAll(); this.startIntro(); } },
+        { type: 'action', label: 'VISIT DAWNHAVEN', hidden: () => !realmsDone(this.progress), action: (m) => { m.closeAll(); this.state = 'play'; this.travelTo('home', { from: null }); } },
         { type: 'action', label: 'OPTIONS', more: true, action: (m) => m.open(this.optionsPage()) },
         { type: 'action', label: 'CONTROLS', more: true, action: (m) => m.open(this.controlsPage()) },
         this._debugRow(),
@@ -381,7 +506,7 @@ class App {
       case 'title-options': menu = 'BACK'; break;
       case 'paused': menu = this.menu.stack.length > 1 ? 'BACK' : 'RESUME'; break;
       case 'play': controls = true; menu = g.hud.talking ? null : 'MENU'; break;
-      default: break;                       // loading, intro, finale, results: taps only, no buttons
+      default: break;                       // loading, traveling, intro, finale, results: taps only, no buttons
     }
     this.gfx.setTouchLayout(true);                 // (the touch controls exist: a window held upright keeps the picture at the top, with the thumbs' room below it)
     g.input.layoutTouch(this.gfx.frameCss());
@@ -396,6 +521,7 @@ class App {
       Hud.drawLoading(gfx.hud, this.load.frac, this.load.label);
       return;
     }
+    if (this.state === 'traveling') { this._updateTravel(dt); return; }
     const g = this.game;
     const input = g.input;
     input.poll();
@@ -502,7 +628,8 @@ class App {
   _drawResults() {
     const pix = this.gfx.hud, W = pix.w, H = pix.h;
     const g = this.game, st = g.stats;
-    const w = 220, h = 138, x = (W - w) >> 1, y = (H - h) >> 1;
+    const portal = !!g.portals?.isOpen('dawn');            // (the light above the Great Beacon: a line more tells the way on)
+    const w = 220, h = portal ? 152 : 138, x = (W - w) >> 1, y = (H - h) >> 1;
     drawPanel(pix, x, y, w, h, { style: 'menu' });
     drawText(pix, 'REALM RESTORED!', W >> 1, y + 9, { style: 'grad', scale: 2, align: 'center', colors: GOLD, outlineColor: INK });
     const rows = [
@@ -517,6 +644,7 @@ class App {
       drawText(pix, k, x + 22, y + 34 + i * 12, { style: 'outline', color: '#c8bce8', outlineColor: INK });
       drawText(pix, v, x + w - 22, y + 34 + i * 12, { style: 'outline', color: '#fff4b0', outlineColor: INK, align: 'right' });
     });
+    if (portal) drawText(pix, 'THE PORTAL TO DAWNHAVEN IS OPEN', W >> 1, y + 34 + rows.length * 12 + 2, { style: 'outline', align: 'center', color: '#d6b8ff', outlineColor: INK });
     const icons = g.hud.icons;
     for (let i = 0; i < 3; i++) {
       const on = i < this.results.stars && this.resultsT > 0.5 + i * 0.4;

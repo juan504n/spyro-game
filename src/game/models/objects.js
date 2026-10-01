@@ -12,6 +12,7 @@ import { createWard } from './objects/ward.js';
 import { createPortcullis } from './objects/portcullis.js';
 import { createLightBeam } from './objects/beam.js';
 import { createCrackedWall } from './objects/wall.js';
+import { createPortal } from './objects/portal.js';
 
 export const OBJECTS = {
   beacon: {
@@ -68,5 +69,10 @@ export const OBJECTS = {
     create: createCrackedWall,
     size: 6,
     note: 'breakable stone wall panel opts.w x opts.h (6x5) x 1, jagged top, painted cracks, wobble(k), shardColors',
+  },
+  realm_portal: {
+    create: createPortal,
+    size: 6,
+    note: 'swirl of light filling a doorway between worlds (XY plane, double sided, +Z front): opts shape "ring" (radius r) | "arch" (half-width r, straight part hs, origin at the arch\'s springing), color [r,g,b], rim; setOpen(k) pops it open / closed, setSealed(b) a dormant dim veil, setColor(c), update(dt, { t, boost })',
   },
 };

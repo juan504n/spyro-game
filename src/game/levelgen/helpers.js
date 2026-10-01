@@ -38,7 +38,7 @@ export function makeCtx(kit, world, seed = 9127) {
   const s = grid.n + 1;
   const ctx = {
     kit, world, grid, rng, occ, L: grid.level,
-    gp: { gems: [], vases: [], chests: [], walls: [], braziers: [], mushrooms: [], enemies: [], bunnies: [], npcs: [], hints: [], beacons: [], islands: [], extraGems: [], soundSources: [], placed: [] },
+    gp: { gems: [], vases: [], chests: [], walls: [], braziers: [], mushrooms: [], enemies: [], bunnies: [], npcs: [], hints: [], beacons: [], islands: [], extraGems: [], soundSources: [], placed: [], portals: [] },
     counts: {},
     stage: 'populate',       // which part of the level script is running (populate() sets it per layout function): recorded on everything placed, for the debug readout
     h: (x, z) => grid.heightAt(x, z),
@@ -83,7 +83,8 @@ export function makeCtx(kit, world, seed = 9127) {
   /** Would a prop of `radius` fit here on decent ground? */
   ctx.ok = (x, z, o = {}) => {
     const { r = 1.5, maxSlope = 0.42, minH = WATER_LEVEL + 0.9, maxH = 999, path = 2.2, river = 3, lake = 1.08 } = o;
-    if (Math.abs(x) > 185 || Math.abs(z) > 185) return false;
+    const lim = grid.half - 7;                              // (185 in the realm's 384 m square)
+    if (Math.abs(x) > lim || Math.abs(z) > lim) return false;
     const h = grid.heightAt(x, z);
     if (h < minH || h > maxH) return false;
     if (ctx.slope(x, z) > maxSlope) return false;

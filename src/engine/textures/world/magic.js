@@ -153,6 +153,28 @@ function paintPortal() {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Portal swirl: ONE big vortex of three arms, wound tight towards a bright core and fading to black at the rim. Not tiled: it is the disc of a portal (black adds nothing, so it is
+// used additively, over a dark veil), turned by rotating its UVs.
+// ---------------------------------------------------------------------------------------------
+function paintPortalSwirl() {
+  const N = 64, TAU = Math.PI * 2;
+  const c = new Canvas(N, N, false, '#000000');
+  const ramp = ['#000000', V[0], V[1], V[2], V[3], CY[3], CY[4], '#ffffff'];
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const dx = (x + 0.5 - N / 2) / (N / 2), dy = (y + 0.5 - N / 2) / (N / 2), r = Math.hypot(dx, dy);
+      if (r >= 1) continue;
+      const ph = (Math.atan2(dy, dx) / TAU) * 3 + Math.log(r + 0.1) * 1.5;      // three arms, wound tighter towards the middle
+      const a = ph - Math.floor(ph);
+      const arm = Math.pow(Math.max(0, 1 - Math.abs(a - 0.5) * 2), 1.2);
+      const v = clamp(arm * Math.pow(1 - r, 0.4) * 0.95 + Math.pow(clamp(1 - r / 0.2), 1.5), 0, 1);
+      c.dot(x, y, dpick(ramp, v, x, y, 1));
+    }
+  }
+  return c;
+}
+
+// ---------------------------------------------------------------------------------------------
 // Beam: greyscale light shaft. Edges fade to black with dithering; used additively, tinted by vertex colours.
 // ---------------------------------------------------------------------------------------------
 const GREY = ['#000000', '#1c1c24', '#3c3c4c', '#66667a', '#9494ac', '#c8c8dc', '#f0f0ff', '#ffffff'];
@@ -197,6 +219,7 @@ export function magicTextures() {
     lantern_glass_on: rec(paintLantern(true), false, false),
     barrier: rec(paintBarrier(), true, false, { roll: 'xy' }),
     portal: rec(paintPortal(), true, false, { roll: 'xy' }),
+    portal_swirl: rec(paintPortalSwirl(), false, false),
     beam: rec(paintBeam(), true, false),
     sun_glow: rec(paintSunGlow(), false, false),
   };

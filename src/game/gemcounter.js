@@ -144,6 +144,12 @@ export class GemCounter {
     this.resize(320, 4 / 3);
   }
 
+  /** Let go of the counter's own geometries and materials (every numeral's, not only the ones on show: the slots swap them as the count changes). */
+  dispose() {
+    for (const g of [...this.geos, this.icon.geometry]) g.dispose();
+    for (const m of [this.digitMat, this.iconMat, this.shadowMat]) m.dispose();
+  }
+
   /** Match the overlay camera to the frame: `uiW` is the HUD layout width (240 lines tall), `aspect` = internal width / height. */
   resize(uiW, aspect) {
     this.uiW = uiW;

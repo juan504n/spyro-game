@@ -6,6 +6,9 @@
 //   barrier_open    2.0 s  swelling 90 -> 200 Hz rumble + 42 Hz growl, then glass shatter at 0.85 s
 //   gate_creak      0.95 s two stick-slip creaks (110 -> 190 Hz and 220 -> 330 Hz) + wooden thunk
 //   brazier_light   0.55 s fire whomp: swept low-passed noise + 90 -> 50 Hz boom + crackle
+//   portal_open     1.9 s  a portal pops open: four sines gliding up with a 7 Hz shimmer + a rising band of air, an A-major add9 bell chord and a low boom at the pop, sparkles
+//   portal_enter    1.1 s  stepping into the light: rising whoosh (a swept band of noise) + a three-partial tone gliding up an octave, a D chime chord at the end, sparkles
+//   portal_arrive   0.9 s  coming out of one: a falling band of air with a soft A-E-A bell chord and a few sparkles
 //   portal_hum      LOOP 2 s  110 Hz drone, detuned pairs beating at 1 Hz, FM swirl at 660 Hz; every
 //                             partial has a whole number of cycles per loop so the seam is exact
 //   waterfall       LOOP 3 s  pink + band + brown noise layers with slow periodic level drift
@@ -86,6 +89,35 @@ export const WORLD_SFX = {
     }
     const shim = loopNoise(sec, seedOf('portal_hum'), { mode: 'bp', f0: 1100, fMod: 600, q: 3, cut: [[1, 1, 0]], amp: [[2, 1, 0.3]], floor: 0.3 });
     return loopFinish(layer(sec, [[hum, 0, 1], [lvl(shim, 0.06), 0, 1]]), -12, 0.1);
+  },
+
+  portal_open() {
+    const s = seedOf('portal_open');
+    const base = hz('A4');
+    const rise = [1, 1.5, 2, 3].map((r, i) => [sweep(1.7, base * r * 0.5, base * r * 1.25, { curve: 1.6, env: (t, x) => pkSin(x, 1.3) * (1 + 0.25 * Math.sin(TAU * 7 * t + i)) }), 0, 0.42 / (1 + i * 0.25)]);
+    const air = noiseFilt(1.6, s, { mode: 'bp', f0: 600, f1: 5200, q: 1.0, env: (t, x) => pkSin(x, 1.6) });
+    const chord = [['A5', 0.55], ['E6', 0.62], ['A6', 0.7], ['C#7', 0.78]].map(([nm, t], i) => [bell(hz(nm), 1.2, 0.5, 0.9, 0.04), t, 0.5 - i * 0.06]);
+    const sparks = tinkles(1.5, s + 1, 16, 2400, 7000, { tauLo: 0.05, tauHi: 0.2, tMax: 1.3, gain: 0.3 });
+    const b = layer(1.9, [...rise, [lvl(air, 0.18), 0, 1], ...chord, [thump(0.7, 80, 40, 0.07, 0.2), 0.5, 0.9], [sparks, 0.2, 0.6]]);
+    return fin(reverbMono(b, 'chamber', 0.42, 0.3), { grit: 0.2, fadeOut: 260 });
+  },
+
+  portal_enter() {
+    const s = seedOf('portal_enter');
+    const whoosh = noiseFilt(1.1, s, { mode: 'bp', f0: 300, f1: 6000, q: 0.9, curve: 1.4, env: (t, x) => pkSin(x, 0.9) });
+    const tone = [1, 2, 3].map((r, i) => [sweep(1.1, hz('D4') * r, hz('D5') * r, { curve: 1.8, env: (t, x) => pkSin(x, 1.2) }), 0, 0.35 / (1 + i * 0.4)]);
+    const chime = [['D6', 0.5], ['A6', 0.56], ['D7', 0.62]].map(([nm, t]) => [bell(hz(nm), 0.8, 0.4, 0.8, 0.03), t, 0.42]);
+    const sparks = tinkles(1.0, s + 1, 14, 3000, 8000, { tauLo: 0.04, tauHi: 0.12, tMax: 0.9, gain: 0.3 });
+    const b = layer(1.1, [[lvl(whoosh, 0.3), 0, 1], ...tone, ...chime, [sparks, 0.3, 0.6]]);
+    return fin(reverbMono(b, 'chamber', 0.4, 0.25), { grit: 0.2, fadeOut: 200 });
+  },
+
+  portal_arrive() {
+    const s = seedOf('portal_arrive');
+    const air = noiseFilt(0.9, s, { mode: 'bp', f0: 4200, f1: 900, q: 0.8, env: (t, x) => pkSin(x, 1.1) });
+    const chord = [['A5', 0], ['E6', 0.05], ['A6', 0.1]].map(([nm, t], i) => [bell(hz(nm), 0.9, 0.45, 0.8, 0.03), t, 0.45 - i * 0.07]);
+    const sparks = tinkles(0.8, s + 1, 10, 3000, 7500, { tauLo: 0.05, tauHi: 0.15, tMax: 0.6, gain: 0.25 });
+    return fin(reverbMono(layer(0.9, [[lvl(air, 0.22), 0, 1], ...chord, [sparks, 0.05, 0.6]]), 'room', 0.35, 0.2), { grit: 0.15, fadeOut: 180 });
   },
 
   waterfall() {

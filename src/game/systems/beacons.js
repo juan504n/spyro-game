@@ -42,6 +42,19 @@ export class BeaconSystem {
 
   get(id) { return this.list.find((b) => b.def.id === id); }
 
+  /** Every lantern burns already, with none of the ceremony (a realm the hero has saved, entered again: Game._restore). */
+  restore() {
+    const g = this.game;
+    for (const b of this.list) {
+      b.litFlag = true;
+      b.lit = 1;
+      for (const w of b.wisps) w.h.visible = false;
+    }
+    this.lit = this.list.length;
+    g.stats.beacons = this.lit;
+    g.dayTarget = g.day = DAY_STEPS[Math.min(this.lit, DAY_STEPS.length - 1)];
+  }
+
   /** Flame world position of a beacon. */
   flamePos(b, out = v3) {
     const a = b.model.anchors?.flame;

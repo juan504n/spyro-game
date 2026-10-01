@@ -3,6 +3,7 @@ import { LEVEL } from './level.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const ease = (t) => t * t * (3 - 2 * t);
+const lerp = (a, b, t) => a + (b - a) * t;
 
 function cr(p0, p1, p2, p3, t) {
   const t2 = t * t, t3 = t2 * t;
@@ -47,8 +48,12 @@ export function introShot(game) {
   };
 }
 
-/** Sunrise finale: pull back from the Great Beacon and sweep out over the awakening valley. */
-export function finaleShot(game, beacon) {
+/**
+ * Sunrise finale: pull back from the Great Beacon and sweep out over the awakening valley. With the portal that opens above the lantern (`portal`: its record in the gameplay data,
+ * see systems/portals.js) the shot begins differently: the camera slips in through the arch to the lantern room's floor and tips up to watch the ring of light bloom over the lamp,
+ * and from `lead` seconds on it joins the pull-back (blended, so that nothing jumps).
+ */
+export function finaleShot(game, beacon, portal = null, dur = 13, lead = 6.2) {
   const bx = beacon.x, by = beacon.y + 6, bz = beacon.z;
   const camPts = [
     [bx + 2, by + 1, bz + 10], [bx + 16, by + 8, bz + 18], [bx + 30, by + 26, bz + 10], [bx + 12, by + 44, bz + 44], [bx - 10, by + 40, bz + 110],
@@ -56,8 +61,23 @@ export function finaleShot(game, beacon) {
   const lookPts = [
     [bx, by + 2, bz], [bx, by + 6, bz], [bx, by - 4, bz + 30], [bx, by - 32, bz + 100], [bx + 4, by - 44, bz + 200],
   ];
-  return (t, k) => {
+  const sweep = (t, k) => {
     const u = ease(clamp(k, 0, 1));
     return { pos: splineAt(camPts, u), look: splineAt(lookPts, u), fov: 56 + 12 * u };
+  };
+  if (!portal) return sweep;
+  const cy = portal.y + portal.cy, B = beacon.y;
+  // in through the arch that faces south (the gap between two pillars) and up to the floor beside the lamp
+  const inPos = [[bx + 2.5, B + 7, bz + 9.5], [bx + 2.0, B + 3.2, bz + 7.4], [bx + 1.7, B + 0.2, bz + 6.5]];
+  const inLook = [[bx, B + 8.5, bz], [bx, B + 11, bz], [bx, cy - 0.5, bz]];
+  const end = { pos: inPos[2], look: inLook[2], fov: 70 };
+  return (t, k) => {
+    if (t < lead) {
+      const u = ease(clamp(t / lead, 0, 1));
+      return { pos: splineAt(inPos, u), look: splineAt(inLook, u), fov: lerp(56, 70, u) };
+    }
+    const k2 = (t - lead) / Math.max(1e-3, dur - lead), a = sweep(0, k2);
+    const w = ease(clamp((t - lead) / 1.8, 0, 1));
+    return { pos: [0, 1, 2].map((i) => lerp(end.pos[i], a.pos[i], w)), look: [0, 1, 2].map((i) => lerp(end.look[i], a.look[i], w)), fov: lerp(end.fov, a.fov, w) };
   };
 }

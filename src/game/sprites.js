@@ -45,6 +45,9 @@ export class SpriteAtlas {
     this.texture = texFromPix(atlas, { tile: false });
   }
 
+  /** Let go of the atlas texture (a world builds its own). */
+  dispose() { this.texture.dispose(); }
+
   has(name) { return this.ids.has(name); }
   id(name) {
     const i = this.ids.get(name);

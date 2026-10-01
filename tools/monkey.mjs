@@ -1,5 +1,6 @@
 // Monkey test: random inputs (move, jump, glide, fire, charge) from many start points with the real game loop, looking for
 // exceptions, NaNs, players escaping the world and camera glitches.   node tools/monkey.mjs [runs=8] [seconds=90]
+// GV_QUERY picks the world ("?skip=1" is Gloaming Vale, "?world=home&skip=1" is Dawnhaven); GV_URL=file:///.../docs/index.html tests a built file.
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,7 +12,7 @@ const page = await browser.newPage({ viewport: { width: 640, height: 480 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message.slice(0, 300)));
 page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text().slice(0, 300)); });
-await page.goto('http://127.0.0.1:5173/?skip=1&preserve=1');
+await page.goto((process.env.GV_URL || 'http://127.0.0.1:5173/') + (process.env.GV_QUERY || '?skip=1') + '&preserve=1');
 await page.waitForFunction(() => window.__ready || window.__error, null, { timeout: 120000 });
 await page.addScriptTag({ path: path.join(here, 'bot-inject.js') });
 await page.waitForTimeout(1200);

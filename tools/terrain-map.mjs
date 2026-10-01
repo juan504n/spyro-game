@@ -1,15 +1,19 @@
-// Dumps a top-down map of the realm (hillshade, water, roads, walkability, landmarks) to a PNG for layout review.
+// Dumps a top-down map of a world (hillshade, water, roads, walkability, landmarks) to a PNG for layout review.
+//   node tools/terrain-map.mjs [out.png] [home]     (the realm by default; `home` maps Dawnhaven, the homeworld)
 import { generateTerrain } from '../src/game/terrain.js';
 import { LEVEL, WATER_LEVEL } from '../src/game/level.js';
+import { HOME, DOORS } from '../src/game/home/level.js';
 import { Pix } from '../src/engine/textures/pix.js';
 import { writePNG } from './png.mjs';
 
 const out = process.argv[2] || 'terrain-map.png';
+const isHome = process.argv[3] === 'home';
+const WL = isHome ? HOME : LEVEL;
 const t0 = performance.now();
-const g = generateTerrain();
+const g = generateTerrain(WL);
 console.log('terrain generated in', Math.round(performance.now() - t0), 'ms; grid', g.n + 1, 'x', g.n + 1);
 const S = 2;               // px per world unit
-const N = g.size * S;
+const N = Math.ceil(g.size * S);
 const p = new Pix(N, N);
 let minH = 1e9, maxH = -1e9;
 for (const h of g.heights) { minH = Math.min(minH, h); maxH = Math.max(maxH, h); }
@@ -40,9 +44,15 @@ for (const pa of g.paths) {
   for (let k = 0; k < pa.pts.length; k++) { const [x, y, z] = pa.pts[k]; const [px, py] = W2(x, z); p.circle(px, py, Math.max(1, pa.width * S * 0.28), col); }
 }
 for (const r of g.rivers) for (const [x, y, z] of r.pts) { const [px, py] = W2(x, z); p.circle(px, py, r.width * S * 0.3, [90, 200, 255, 255]); }
-for (const l of LEVEL.lanterns) { const [px, py] = W2(l.x, l.z); p.circle(px, py, 7, [255, 230, 60, 255]); p.circle(px, py, 4, [255, 120, 20, 255]); }
-for (const i of LEVEL.isles) { const [px, py] = W2(i.x, i.z); p.circle(px, py, i.r * S, [255, 90, 255, 255], false); }
-{ const [px, py] = W2(LEVEL.spawn.x, LEVEL.spawn.z); p.circle(px, py, 6, [255, 255, 255, 255]); p.circle(px, py, 3, [0, 0, 0, 255]); }
+if (isHome) {
+  for (const d of DOORS) { const [px, py] = W2(d.x, d.z); p.circle(px, py, 7, d.target ? [255, 230, 60, 255] : [150, 150, 255, 255]); p.circle(px, py, 4, [255, 120, 20, 255]); }
+  { const [px, py] = W2(0, 0); p.circle(px, py, HOME.plaza.r * S, [255, 255, 255, 255], false); }
+  { const [px, py] = W2(HOME.guard.x, HOME.guard.z); p.circle(px, py, 6, [255, 60, 60, 255]); }
+} else {
+  for (const l of LEVEL.lanterns) { const [px, py] = W2(l.x, l.z); p.circle(px, py, 7, [255, 230, 60, 255]); p.circle(px, py, 4, [255, 120, 20, 255]); }
+  for (const i of LEVEL.isles) { const [px, py] = W2(i.x, i.z); p.circle(px, py, i.r * S, [255, 90, 255, 255], false); }
+}
+{ const [px, py] = W2(WL.spawn.x, WL.spawn.z); p.circle(px, py, 6, [255, 255, 255, 255]); p.circle(px, py, 3, [0, 0, 0, 255]); }
 // 50-unit grid ticks
 for (let k = -150; k <= 150; k += 50) { const [a] = W2(k, 0); p.vline(a, 0, 6, [255, 255, 255, 255]); p.hline(0, a, 6, [255, 255, 255, 255]); }
 writePNG(out, N, N, p.data);
@@ -58,6 +68,7 @@ for (const pa of g.paths) {
   let len = 0; for (let k = 0; k < pa.pts.length - 1; k++) len += Math.hypot(pa.pts[k + 1][0] - pa.pts[k][0], pa.pts[k + 1][2] - pa.pts[k][2]);
   console.log(pa.id.padEnd(8), 'len', String(Math.round(len)).padStart(4), 'maxSlope', maxSlope.toFixed(1) + '°', 'start y', pa.pts[0][1].toFixed(1), 'end y', pa.pts[pa.pts.length - 1][1].toFixed(1));
 }
-for (const l of LEVEL.lanterns) console.log('lantern', l.id.padEnd(7), 'ground y', g.heightAt(l.x, l.z).toFixed(2));
-console.log('spawn ground y', g.heightAt(LEVEL.spawn.x, LEVEL.spawn.z).toFixed(2));
+if (isHome) for (const d of DOORS) console.log('door', d.id.padEnd(10), 'ground y', g.heightAt(d.x, d.z).toFixed(2));
+else for (const l of LEVEL.lanterns) console.log('lantern', l.id.padEnd(7), 'ground y', g.heightAt(l.x, l.z).toFixed(2));
+console.log('spawn ground y', g.heightAt(WL.spawn.x, WL.spawn.z).toFixed(2));
 console.log('saved', out);

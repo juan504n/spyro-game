@@ -6,7 +6,7 @@ import { Input } from './input.js';
 import { Collision } from './collision.js';
 import { GameCamera, CAM_MODES } from './camera.js';
 import { Player } from './player.js';
-import { LEVEL } from './level.js';
+import { REALMS } from './realms.js';
 import { buildWorldAsync } from './world.js';
 import { makeModel } from './models/fallback.js';
 import { SpriteAtlas } from './sprites.js';
@@ -21,6 +21,8 @@ import { CritterSystem } from './systems/critters.js';
 import { ObjectSystem } from './systems/objects.js';
 import { Ambient } from './systems/ambient.js';
 import { NpcSystem } from './systems/npc.js';
+import { PortalSystem } from './systems/portals.js';
+import { realmsDone } from './progress.js';
 
 export const STEP = 1 / 60;
 const CAMERA_HINT = {
@@ -33,15 +35,21 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
 export class Game {
   /**
    * @param {import('../engine/gfx.js').Gfx} gfx
-   * @param {object} [opts] { populate(kit, world), assets, audio, systems: bool }
+   * @param {object} [opts] { realm (a REALMS entry: the level to build; default Gloaming Vale), populate(kit, world) (overrides the realm's),
+   *   assets, audio, input (kept across worlds: the touch controls and the listeners belong to the page, not to a world), progress (see progress.js),
+   *   from (the id of the realm the hero comes from: where he arrives), restored (a realm the hero has already saved: see _restore), systems: bool }
    */
   constructor(gfx, opts = {}) {
     this.gfx = gfx;
-    this.level = LEVEL;
+    this.realm = opts.realm || REALMS.gloaming;
+    this.level = this.realm.level;
     this.assets = opts.assets || new Assets();
     this.audio = opts.audio || null;
-    this.input = new Input(gfx.canvas);
-    this.populate = opts.populate || null;
+    this.input = opts.input || new Input(gfx.canvas);
+    this.progress = opts.progress || null;
+    this.from = opts.from || null;
+    this.restored = !!opts.restored;
+    this.populate = opts.populate || this.realm.populate || null;
     this.withSystems = opts.systems !== false;
     this.time = 0;
     this.acc = 0;
@@ -60,7 +68,7 @@ export class Game {
     this.stats = { gems: 0, gemsTotal: 400, beacons: 0, enemies: 0, bunnies: 0, vases: 0, chests: 0, walls: 0, deaths: 0, time: 0 };
     this.checkpoint = null;
     this.loops = {};
-    this.fade = { a: 0, target: 0, speed: 2 };
+    this.fade = { a: 0, target: 0, speed: 2, color: [0, 0, 0] };       // (a portal fades to white, everything else to black)
     this.deathT = 0;
     this.finale = null;
     this.externalPoll = false;
@@ -69,9 +77,9 @@ export class Game {
   /** Build world + systems. Async so a loading screen can paint between phases. */
   async build(progress = () => {}) {
     const t0 = performance.now();
-    await progress(0.05, 'SCULPTING VALE');
+    await progress(0.05, this.level.labels?.[0] || 'SCULPTING VALE');
     await tick();
-    this.world = await buildWorldAsync(this.assets, this.populate, progress);
+    this.world = await buildWorldAsync(this.assets, this.populate, progress, this.level);
     this.grid = this.world.grid;
     this.gameplay = this.world.gameplay || {};
     await progress(0.45, 'RAISING THE VILLAGE');
@@ -86,13 +94,17 @@ export class Game {
     this.counter = new GemCounter(this);           // the floating, bouncing gem count (a 3D overlay drawn over the world)
     this.overlay = this.counter.overlay;
     if (this.gameplay.gemsTotal) this.stats.gemsTotal = this.gameplay.gemsTotal;
+    // a world with a fixed hour (the homeworld is always at daybreak) starts and stays there; the realm's day follows its lanterns
+    if (this.realm.day !== undefined && this.realm.day !== null) this.day = this.dayTarget = this.realm.day;
+    // what the lanterns on the HUD count: the beacons of a realm, the restored realms in the homeworld
+    if (this.realm.kind === 'homeworld' && this.progress) this.stats.beacons = realmsDone(this.progress);
 
-    // hero
+    // hero (he arrives where the realm he came from has its door, if the level says so)
     const spy = makeModel(this.assets, 'spyro');
     this.model = spy;
     this.dyn.add(spy.root);
     this.player = new Player(this, spy);
-    const sp = this.gameplay.spawn || this.level.spawn;
+    const sp = (this.from && this.gameplay.arrivals && this.gameplay.arrivals[this.from]) || this.gameplay.spawn || this.level.spawn;
     const gy = this.grid.heightAt(sp.x, sp.z);
     this.player.place(sp.x, (sp.y ?? gy) + 0.05, sp.z, sp.yaw);
     this.checkpoint = { x: sp.x, y: (sp.y ?? gy) + 0.05, z: sp.z, yaw: sp.yaw };
@@ -111,13 +123,48 @@ export class Game {
       this.objects = new ObjectSystem(this, { vases: gp.vases, chests: gp.chests, walls: gp.walls, braziers: gp.braziers, portcullis: gp.portcullis, barrier: gp.barrier, mushrooms: gp.mushrooms, sails: gp.sails, islands: gp.islands });
       this.ambient = new Ambient(this, this.world.lights || [], this.world.emitters || []);
       this.npcs = new NpcSystem(this, gp.npcs || [], gp.hints || []);
+      this.portals = new PortalSystem(this, gp.portals || []);
       // step order: abilities/AI first, then pickups
-      this.systems = [this.sparx, this.beacons, this.enemies, this.critters, this.objects, this.gems, this.ambient, this.npcs];
+      this.systems = [this.sparx, this.beacons, this.enemies, this.critters, this.objects, this.gems, this.ambient, this.npcs, this.portals];
       this.on('beacon', (b, n) => this.onBeacon(b, n));
+      if (this.restored) this._restore();
     }
     this.buildTime = performance.now() - t0;
     await progress(1, 'READY');
     return this;
+  }
+
+  /**
+   * A realm the hero has already saved, entered again through the homeworld's door, is as he left it: the sun is up, its lanterns burn, the braziers are lit, the mill's gate and
+   * the Dawn Gate stand open and the portal over the Great Beacon is open (the way back to Dawnhaven). None of it plays out again (no banners, no finale), and the rest is untouched:
+   * the gems, vases, chests and Snuffers are as on the first visit, so the best gem count can still be improved.
+   */
+  _restore() {
+    this.day = this.dayTarget = 1;
+    this.beacons?.restore();
+    this.objects?.restore();
+    this.portals?.restore();
+  }
+
+  /**
+   * Let go of this world's GPU memory when another one takes its place: every geometry of the world, the dynamic group and the gem counter's overlay, the effects' materials,
+   * the sprite atlas and the counter's materials (the world's textures and materials come from the shared Assets and stay), the looping sounds, and the timers.
+   * The Input, the audio and the Assets belong to the page and live on.
+   */
+  dispose() {
+    for (const k of Object.keys(this.loops)) { this.loops[k]?.stop?.(0.05); this.loops[k] = null; }
+    for (const s of this.systems) s.dispose?.();
+    this.timers.length = 0;
+    this.events = {};
+    const geos = new Set();
+    const walk = (root) => root && root.traverse((o) => { if (o.geometry) geos.add(o.geometry); });
+    walk(this.scene); walk(this.overlay?.scene);
+    for (const g of geos) g.dispose();
+    this.fx?.dispose();
+    this.counter?.dispose();
+    this.atlas?.dispose();
+    this.systems = [];
+    this.disposed = true;
   }
 
   on(name, fn) { (this.events[name] ||= []).push(fn); }
@@ -143,7 +190,7 @@ export class Game {
     p.on.drown = () => {
       fx.splash(p.x, 0, p.z, 1.8); sfx('splash', { vol: 1 });
       const k = this.level.lake, inLake = Math.hypot((p.x - k.x) / k.rx, (p.z - k.z) / k.rz) < 1.25;
-      this.hud.hint(inLake ? 'MIRRORMERE IS TOO DEEP! FIND THE STONES OR GLIDE' : 'THE WATER IS TOO DEEP HERE. FIND ANOTHER WAY', 4);
+      this.hud.hint(inLake ? (k.deepHint || 'MIRRORMERE IS TOO DEEP! FIND THE STONES OR GLIDE') : 'THE WATER IS TOO DEEP HERE. FIND ANOTHER WAY', 4);
     };
     p.on.respawn = () => { sfx('respawn', { vol: 0.8 }); fx.puff(p.x, p.y + 0.5, p.z, 0.8); };
     p.on.wall = (c) => { sfx('charge_hit', { vol: 1 }); this.cam.shake(0.35, 0.25); fx.hitSpark(p.x + p.dirx, p.y + 0.6, p.z + p.dirz, 1.3); fx.puff(p.x + p.dirx * 1.2, p.y + 0.6, p.z + p.dirz * 1.2, 0.6); void c; };
@@ -200,7 +247,8 @@ export class Game {
     this.hud.dialogue(name, pages, () => { this.locked = false; this.player.locked = false; onDone?.(); });
   }
 
-  fadeTo(a, speed = 2) { this.fade.target = a; this.fade.speed = speed; }
+  /** Fade the screen to `a` (0 clear .. 1 covered) at `speed` per second; `color` = [r, g, b] 0..1 (black by default, white for a portal). */
+  fadeTo(a, speed = 2, color = null) { this.fade.target = a; this.fade.speed = speed; if (color) this.fade.color = color; }
 
   /** Run `fn` after `sec` seconds of game time (pausing the game pauses the timer). */
   after(sec, fn) { this.timers.push({ t: sec, fn }); }
@@ -287,7 +335,7 @@ export class Game {
     // fade overlay
     const f = this.fade;
     f.a += Math.sign(f.target - f.a) * Math.min(Math.abs(f.target - f.a), f.speed * dt);
-    this.gfx.fade.set(0, 0, 0, f.a);
+    this.gfx.fade.set(f.color[0], f.color[1], f.color[2], f.a);
     this.counter.update(paused ? 0 : dt, this.hud.visible);
     this.hud.draw(this.gfx.hud);
   }

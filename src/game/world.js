@@ -18,14 +18,15 @@ const _dl = {};
  * A generator: it yields [progress 0..1, label] between phases so an async caller can repaint a loading bar; the world is
  * its return value. Use buildWorld() (synchronous) or buildWorldAsync().
  */
-export function* buildWorldSteps(assets, populate) {
+export function* buildWorldSteps(assets, populate, level) {
   const t0 = performance.now();
-  const grid = generateTerrain();
+  const grid = generateTerrain(level);
+  const label = level?.labels || [];
   const lighting = new Lighting();
   lighting.attach(grid);
   const world = { grid, lighting, scene: new THREE.Scene(), timings: {} };
   world.timings.terrain = performance.now() - t0;
-  yield [0.12, 'SCULPTING VALE'];
+  yield [0.12, label[0] || 'SCULPTING VALE'];
 
   // dry pass: props register shadow casters, colliders, glow lights and emitters
   const kit = new Kit({ assets, lighting, grid });
@@ -35,12 +36,12 @@ export function* buildWorldSteps(assets, populate) {
   world.emitters = kit.emitters;
   kit.setPass('dry');
   if (populate) populate(kit, world);
-  yield [0.2, 'PLANTING TREES'];
+  yield [0.2, label[1] || 'PLANTING TREES'];
 
   let t = performance.now();
   lighting.bake();
   world.timings.bake = performance.now() - t;
-  yield [0.27, 'PAINTING THE GLOAMING'];
+  yield [0.27, label[2] || 'PAINTING THE GLOAMING'];
 
   t = performance.now();
   const terr = buildTerrainMeshes(grid, lighting, assets);
@@ -48,7 +49,7 @@ export function* buildWorldSteps(assets, populate) {
   world.terrainStats = terr.stats;
   world.scene.add(terr.group);
   world.timings.terrainMesh = performance.now() - t;
-  yield [0.33, 'RAISING HILLS'];
+  yield [0.33, label[3] || 'RAISING HILLS'];
 
   t = performance.now();
   world.water = buildWater(grid, lighting, assets);
@@ -70,7 +71,7 @@ export function* buildWorldSteps(assets, populate) {
   }
   world.scene.add(world.roads);
   world.timings.roads = performance.now() - t;
-  yield [0.36, 'FILLING MIRRORMERE'];
+  yield [0.36, label[4] || 'FILLING MIRRORMERE'];
 
   // wet pass: props emit lit geometry using the baked shadow maps
   t = performance.now();
@@ -106,15 +107,15 @@ export function* buildWorldSteps(assets, populate) {
   return world;
 }
 
-/** Synchronous build (dev scenes). */
-export function buildWorld(assets, populate) {
-  const it = buildWorldSteps(assets, populate);
+/** Synchronous build (dev scenes). `level` = a level definition (default: Gloaming Vale's, see level.js). */
+export function buildWorld(assets, populate, level) {
+  const it = buildWorldSteps(assets, populate, level);
   for (;;) { const r = it.next(); if (r.done) return r.value; }
 }
 
 /** Build with a chance to repaint between phases: `progress(frac, label)` may return a promise. */
-export async function buildWorldAsync(assets, populate, progress = () => {}) {
-  const it = buildWorldSteps(assets, populate);
+export async function buildWorldAsync(assets, populate, progress = () => {}, level) {
+  const it = buildWorldSteps(assets, populate, level);
   for (;;) {
     const r = it.next();
     if (r.done) return r.value;

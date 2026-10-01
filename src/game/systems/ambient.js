@@ -28,13 +28,18 @@ export class Ambient {
     this.wardHitAcc = 0;
   }
 
+  /** Let go of the looping beds (the world is being replaced). */
+  dispose() {
+    for (const S of this.sources) if (S.loop) { S.loop.stop(0.2); S.loop = null; }
+  }
+
   /** Distance-attenuated, camera-panned looping beds. */
   _soundscape(game) {
     const a = game.audio;
     if (!a || !a.ready) return;
     const cam = game.camera, e = cam.matrixWorld.elements, cp = cam.position;
     for (const S of this.sources) {
-      const live = S.when === 'barrier' ? game.objects?.barrier?.target === 0 : true;
+      const live = S.when === 'barrier' ? game.objects?.barrier?.target === 0 : S.when && S.when.startsWith('portal:') ? !!game.portals?.isOpen(S.when.slice(7)) : true;
       const dx = S.x - cp.x, dy = S.y - cp.y, dz = S.z - cp.z;
       const d = Math.hypot(dx, dy, dz);
       const k = live && d < S.range ? (1 - d / S.range) ** 1.7 : 0;
@@ -51,9 +56,9 @@ export class Ambient {
    * motes near the hero, and a shower of sparks where he leans on it.
    */
   _ward(dt, game) {
-    const bar = game.objects?.barrier, p = game.player;
-    if (!bar || !bar.c.solid || p.dead) return;
-    const S = game.level.summit, wx = p.x - S.x, wz = p.z - S.z;
+    const bar = game.objects?.barrier, p = game.player, S = game.level.summit;
+    if (!bar || !bar.c.solid || p.dead || !S) return;
+    const wx = p.x - S.x, wz = p.z - S.z;
     const near = Math.hypot(wx, wz) - WARD_RADIUS;                   // > 0 outside the ward
     if (near < 0.6 && near > -1) {
       this.wardHitAcc += dt * 34;

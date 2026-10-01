@@ -19,6 +19,7 @@ const SPEC = {
   portcullis: { color: [0.3, 0.3, 0.35], r: 2, h: 5, shape: 'box' },
   light_beam: { color: [1, 0.85, 0.5], r: 1.6, h: 60, shape: 'cyl' },
   cracked_wall: { color: [0.6, 0.55, 0.6], r: 3, h: 5, shape: 'box' },
+  realm_portal: { color: [0.55, 0.4, 0.95], r: 2.4, h: 4.8, shape: 'box' },
 };
 
 function fallback(assets, name, opts) {
@@ -30,7 +31,7 @@ function fallback(assets, name, opts) {
   else if (spec.shape === 'sphere') b.push().translate(0, spec.h / 2, 0).sphere(spec.r, 8, 6, { color: c }).pop();
   else if (spec.shape === 'box') b.box(0, h / 2, 0, spec.r * (name === 'cracked_wall' || name === 'barrier' ? 2 : 1.2), h, name === 'barrier' ? 0.3 : spec.r, { color: c });
   else b.cyl(spec.r, spec.r * 0.8, h, 8, { color: c, caps: 'top' });
-  const mesh = new THREE.Mesh(b.build(), assets.mat(null, { lit: true, unique: true, mode: name === 'barrier' || name === 'light_beam' ? 'half' : undefined }));
+  const mesh = new THREE.Mesh(b.build(), assets.mat(null, { lit: true, unique: true, mode: name === 'barrier' || name === 'light_beam' || name === 'realm_portal' ? 'half' : undefined }));
   const root = new THREE.Group();
   root.add(mesh);
   const model = {
