@@ -1,7 +1,7 @@
 // Tiny menu system drawn into the HUD overlay: pages of items (action / toggle / choice / slider).
 import { drawText, measureText } from '../engine/textures/font.js';
 import { drawPanel } from '../engine/textures/ui.js';
-import { MENU_BTN_H, menuButtonTop } from './input.js';
+import { MENU_BTN_H, menuButtonPlace } from './input.js';
 
 const GOLD = ['#fff4b0', '#ffc03c', '#e07818'];
 const INK = '#120c1c';
@@ -10,10 +10,14 @@ export const TOUCH_ROW_PX = 40;
 
 /**
  * HUD lines at the top of the game frame that the touch MENU button covers (plus a little air): menus and the title logo start below
- * them. `f` = gfx.frameCss(). From the frame's top edge down to the button's bottom edge, wherever the button is (menuButtonTop: 4 lines
- * below the frame's top, at least 8 px from the top of the page and below the platform's safe area).
+ * them. `f` = gfx.frameCss(). None when the button sits under the picture (the usual 8); otherwise from the frame's top edge down to the
+ * button's bottom edge, wherever the button is (menuButtonPlace: 4 lines below the frame's top, at least 8 px from the top of the page
+ * and below the platform's safe area).
  */
-export function touchClear(f) { return Math.ceil((menuButtonTop(f) - f.top + MENU_BTN_H) / f.unit + 3); }
+export function touchClear(f) {
+  const p = menuButtonPlace(f);
+  return p.below ? 8 : Math.ceil((p.top - f.top + MENU_BTN_H) / f.unit + 3);
+}
 
 export class Menu {
   /** @param {object} app { game, icons } — pages are pushed with open() */

@@ -268,7 +268,7 @@ class App {
   controlsPage() {
     const dev = this.game.input.lastDevice;
     const lines = dev === 'touch'
-      ? ['MOVE ........ LEFT THUMB (THE CIRCLE)', 'JUMP ........ JUMP  (HOLD IN AIR: GLIDE)', 'FIRE ........ FIRE BUTTON (AIMS FOR YOU)', 'CHARGE ...... HOLD THE RAM BUTTON', 'RAM JUMP .... HOLD RAM, TAP JUMP', 'CAMERA ...... DRAG THE RIGHT SIDE', 'CAM BUTTON .. TAP: BEHIND ME  HOLD: MODE', 'TALK ........ TALK BUTTON', 'MENU ........ MENU BUTTON (TOP CENTRE)', 'DEBUG ....... MENU > DEBUG MODE']
+      ? ['MOVE ........ LEFT THUMB (THE CIRCLE)', 'JUMP ........ JUMP  (HOLD IN AIR: GLIDE)', 'FIRE ........ FIRE BUTTON (AIMS FOR YOU)', 'CHARGE ...... HOLD THE RAM BUTTON', 'RAM JUMP .... HOLD RAM, TAP JUMP', 'CAMERA ...... DRAG THE RIGHT SIDE', 'CAM BUTTON .. TAP: BEHIND ME  HOLD: MODE', 'TALK ........ TALK BUTTON', 'MENU ........ MENU BUTTON', 'DEBUG ....... MENU > DEBUG MODE']
       : dev === 'pad'
         ? ['MOVE ........ LEFT STICK / D-PAD', 'JUMP ........ A  (HOLD IN AIR: GLIDE)', 'FIRE ........ X', 'CHARGE ...... HOLD B', 'RAM JUMP .... HOLD B, TAP A', 'CAMERA ...... RIGHT STICK / BUMPERS', 'BEHIND ME ... Y   MODE: PAUSE > CAMERA', 'TALK ........ RT   PAUSE ... START', 'DEBUG ....... PAUSE > DEBUG MODE']
         : ['MOVE ........ WASD / ARROWS', 'JUMP ........ SPACE  (HOLD IN AIR: GLIDE)', 'FIRE ........ J / F / LEFT CLICK', 'CHARGE ...... HOLD K / SHIFT / RIGHT CLICK', 'RAM JUMP .... HOLD K, TAP SPACE', 'CAMERA ...... MOUSE / Q E', 'BEHIND ME ... R   CAMERA MODE ... C', 'TALK ........ ENTER   PAUSE ... ESC', 'DEBUG MODE .. F3  (OFF / COMPACT / FULL)'];
@@ -383,6 +383,7 @@ class App {
       case 'play': controls = true; menu = g.hud.talking ? null : 'MENU'; break;
       default: break;                       // loading, intro, finale, results: taps only, no buttons
     }
+    this.gfx.setTouchLayout(true);                 // (the touch controls exist: a window held upright keeps the picture at the top, with the thumbs' room below it)
     g.input.layoutTouch(this.gfx.frameCss());
     g.input.setTouchUI(controls, menu);
   }

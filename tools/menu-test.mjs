@@ -52,7 +52,18 @@ async function open(url, vp, insets = null) {
   return { ctx, page, touch, tap, setInsets };
 }
 
-const clearOfButton = (R, u) => R.panel.top >= u.rect.bottom - 1;             // (CSS px: the menu panel starts below the MENU button)
+const near = (a, b, tol) => Math.abs(a - b) <= tol;
+const clearOfButton = (R, u) => R.panel.top >= u.rect.bottom - 1 || R.panel.bottom <= u.rect.top + 1;             // (CSS px: the menu panel and the MENU button do not overlap: the panel starts below the button when it sits on the picture's top edge, and ends above it when it sits under the picture)
+/** the frame (gfx.frameCss()), the MENU button's rectangle and the window, in CSS px */
+const geom = (page) => page.evaluate(() => {
+  const f = __app.gfx.frameCss(), r = __game.input.menuBtn.getBoundingClientRect();
+  return { f, rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom, x: r.left + r.width / 2, y: r.top + r.height / 2 }, vw: innerWidth, vh: innerHeight };
+});
+/** the thumb controls shown now: name and rectangle (CSS px) */
+const padRects = (page) => page.evaluate(() => [...__game.input._pads.children].filter((e) => e.style.display !== 'none').map((e) => { const r = e.getBoundingClientRect(); return { t: e.textContent, left: r.left, right: r.right, top: r.top, bottom: r.bottom }; }));
+const overlaps = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+/** is there any visible text saying "turn your phone sideways"? */
+const sidewaysText = (page) => page.evaluate(() => [...document.body.querySelectorAll('*')].some((e) => e.tagName !== 'SCRIPT' && /SIDEWAYS/i.test(e.childNodes.length && [...e.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join(''))));
 const shot = async (page, name) => { if (shots) { await page.evaluate(() => { __frame(2); __draw(); }); await page.screenshot({ path: path.join(shots, name + '.png') }); } };
 
 /** the CSS-pixel rectangle of MENU row `i` on the open page, and the panel's, from the game's own layout */
@@ -219,41 +230,42 @@ if (!only || only === 'play') {
   await ctx.close();
 }
 
-// ---- portrait: the button is still there and reachable -------------------------------------------------------------------------------------
+// ---- portrait: the picture sits in the upper part of the screen, the MENU button under it -------------------------------------------------------
+// A phone held upright keeps the 4:3 picture at the top of the window (centred, it floated in the middle of the screen), with the black below it for the thumbs and the MENU button right under the
+// picture, where it covers none of the view. There is no "turn your phone sideways" text.
 if (!only || only === 'portrait') {
   const { ctx, page, tap } = await open('?skip=1&preserve=1', { width: 390, height: 844 });
   await page.evaluate(() => __frame(20));
-  let u = await ui(page);
-  check('portrait: the MENU button is on screen', u.menuShown && u.rect.left >= 0 && u.rect.right <= u.vw && u.rect.top >= 0 && u.rect.bottom <= u.vh, `(at ${Math.round(u.rect.x)},${Math.round(u.rect.y)})`);
+  let g = await geom(page), u = await ui(page);
+  check('portrait: the picture sits at the top of the screen, wholly in its upper half', near(g.f.top, 8, 0.5) && g.f.top + g.f.height <= g.vh / 2 && near(g.f.left + g.f.width / 2, g.vw / 2, 0.5), `(the picture from y ${g.f.top.toFixed(1)} to ${(g.f.top + g.f.height).toFixed(1)} of ${g.vh})`);
+  check('portrait: the MENU button is on screen, centred under the picture', u.menuShown && u.rect.left >= 0 && u.rect.right <= u.vw && u.rect.bottom <= u.vh && near(g.rect.top - (g.f.top + g.f.height), 24, 1.5) && near(g.rect.x, g.vw / 2, 1), `(at ${Math.round(u.rect.x)},${Math.round(u.rect.y)}; ${(g.rect.top - (g.f.top + g.f.height)).toFixed(1)} px below the picture)`);
+  const pads = await padRects(page);
+  check('... clear of the thumb controls (JUMP, FIRE, RAM, CAM)', pads.length >= 4 && !pads.some((p) => overlaps(g.rect, p)), `(${pads.map((p) => p.t).join(' ')})`);
+  check('... and nothing says "turn your phone sideways"', !(await sidewaysText(page)));
   await tap(u.rect.x, u.rect.y);
   u = await ui(page);
-  check('portrait: it opens the menu', u.state === 'paused');
+  check('portrait: a tap on it opens the menu', u.state === 'paused');
   const R = await rows(page);
-  check('portrait: the menu fits the screen, below the button', R.panel.left >= 0 && R.panel.right <= u.vw && R.panel.bottom <= u.vh && clearOfButton(R, u), `(rows ${R.rowPx.toFixed(1)} px)`);
+  check('portrait: the menu fits inside the picture, finger-sized, clear of the button', R.panel.left >= g.f.left && R.panel.right <= g.f.left + g.f.width && R.panel.top >= g.f.top && R.panel.bottom <= g.f.top + g.f.height && R.rowPx >= 34 && clearOfButton(R, u), `(rows ${R.rowPx.toFixed(1)} px, the panel from y ${Math.round(R.panel.top)} to ${Math.round(R.panel.bottom)})`);
   await shot(page, 'pause-portrait');
   await ctx.close();
   {
-    // the title in portrait: the button is above the logo, the logo below it, nothing overlapping
+    // the title in portrait: the button under the picture, no thumb controls, and the title laid out as on any screen (nothing is kept clear for the button)
     const t = await open('?preserve=1', { width: 390, height: 844 });
-    const ut = await ui(t.page);
-    check('portrait title: the MENU button is on screen and the thumb controls are not', ut.menuShown && !ut.padsShown && ut.rect.left >= 0 && ut.rect.right <= ut.vw && ut.rect.bottom <= ut.vh, `(at ${Math.round(ut.rect.x)},${Math.round(ut.rect.y)})`);
+    await t.page.evaluate(() => __frame(4));
+    const gt = await geom(t.page), ut = await ui(t.page);
+    check('portrait title: the MENU button is under the picture and the thumb controls are not shown', ut.menuShown && !ut.padsShown && gt.rect.top >= gt.f.top + gt.f.height + 20 && ut.rect.left >= 0 && ut.rect.right <= ut.vw && ut.rect.bottom <= ut.vh, `(at ${Math.round(ut.rect.x)},${Math.round(ut.rect.y)})`);
+    check('... and the title\'s logo starts 8% down the picture, as on any screen', await t.page.evaluate(() => { const hud = __app.gfx.hud, w = hud.w; for (let y = 0; y < hud.h; y++) for (let x = 0; x < w; x++) if (hud.data[(y * w + x) * 4 + 3]) return y >= 8 && y <= Math.round(hud.h * 0.08) + 4; return false; }), '');
     await shot(t.page, 'title-portrait');
     await t.ctx.close();
   }
 }
 
 // ---- the platform's safe area: an app that shows the page under its own header ----------------------------------------------------------------
-// Such an app reports the header's height as the safe-area inset at the top (env(safe-area-inset-top): the claude.ai app seems to say about 74 px; a notch says 47 to 59). The button sits at the top
-// of the game frame, which is already a position on the page, so in a portrait window (the frame centred, far below the inset) the inset must not move it: it was added on top, and on such a phone the
-// button sat in the middle of the picture, over the title logo and the view ahead. Where the frame reaches up into the inset (a landscape window) the button goes below it, and the title and the
-// menus keep clear of it.
+// Such an app reports the header's height as the safe-area inset at the top (env(safe-area-inset-top): the claude.ai app seems to say about 74 px; a notch says 47 to 59). Held upright, the picture sits
+// just below it (the inset and 8 px), never lower than its centred place, with the MENU button under it. (The inset was once added on top of the button's place on the picture: it sat in the middle of
+// the picture, over the title logo and the view ahead.) Where the picture reaches up into the inset (a landscape window) the button sits below it, and the title and the menus keep clear of it.
 if (!only || only === 'safe') {
-  const near = (a, b, tol) => Math.abs(a - b) <= tol;
-  /** the frame, the button's rectangle and the window, in CSS px */
-  const geom = (page) => page.evaluate(() => {
-    const f = __app.gfx.frameCss(), r = __game.input.menuBtn.getBoundingClientRect();
-    return { f, rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom, x: r.left + r.width / 2, y: r.top + r.height / 2 }, vw: innerWidth, vh: innerHeight };
-  });
   /** how many pixels of the HUD (the title's logo and texts, the gem counter ...) lie under the button */
   const hudUnder = (page) => page.evaluate(() => {
     const app = __app, hud = app.gfx.hud, r = __game.input.menuBtn.getBoundingClientRect();
@@ -263,38 +275,54 @@ if (!only || only === 'safe') {
     return n;
   });
 
-  // portrait, the title: the inset reaches the page, and does not move the button
-  let at0 = 0;
+  // portrait, the title: the inset reaches the page, the picture sits just below it, the button under the picture
   for (const T of [0, 47, 74]) {
     const { ctx, page, tap } = await open('?preserve=1', { width: 430, height: 866 }, { top: T, bottom: 34 });
     await page.evaluate(() => __frame(4));
-    const g = await geom(page), under = await hudUnder(page), want = 4 * g.f.unit;
-    if (T === 0) at0 = g.rect.top;
+    const g = await geom(page), bottom = g.f.top + g.f.height, centred = (g.vh - g.f.height) / 2;
     check(`portrait 430x866, ${T} px inset: the page sees it`, near(g.f.safeTop, T, 0.5), `(safeTop ${g.f.safeTop.toFixed(1)})`);
-    check('... the button is 4 lines below the picture\'s top edge, and the inset does not move it', near(g.rect.top - g.f.top, want, 1.5) && near(g.rect.top, at0, 0.5), `(${(g.rect.top - g.f.top).toFixed(1)} px below the picture's top edge, wanted ${want.toFixed(1)}; y ${g.rect.top.toFixed(1)}, ${at0.toFixed(1)} without an inset)`);
-    check('... and nothing of the title (logo, texts) lies under it', under === 0, `(${under} HUD pixels under the button)`);
-    if (T > 0) check('(the old placement, the inset added on top of the frame\'s own position, put it this far into the picture: the check sees the problem)', T > 3 * want, `(${T} px lower than ${want.toFixed(1)})`);
+    check('... the picture sits 8 px below it, in the upper half of the screen', near(g.f.top, Math.min(T + 8, centred), 0.5) && bottom <= g.vh / 2 + 0.5, `(the picture from y ${g.f.top.toFixed(1)} to ${bottom.toFixed(1)} of ${g.vh})`);
+    check('... and the MENU button is centred under it, 24 px below its bottom edge', near(g.rect.top - bottom, 24, 1.5) && near(g.rect.x, g.vw / 2, 1), `(y ${g.rect.top.toFixed(1)} to ${g.rect.bottom.toFixed(1)})`);
+    if (T > 0) check('(centred, as the picture used to be, it would have floated across the middle of the screen: the check sees the problem)', centred < g.vh / 2 && centred + g.f.height > g.vh / 2, `(${centred.toFixed(0)} to ${(centred + g.f.height).toFixed(0)} of ${g.vh})`);
     await tap(g.rect.x, g.rect.y);
     const u = await ui(page), R = await rows(page);
-    check('... a tap on it opens the menu, whose panel starts below it', u.state === 'title-options' && clearOfButton(R, u), `(state ${u.state}; the panel starts at y ${Math.round(R.panel.top)}, the button ends at ${Math.round(u.rect.bottom)})`);
+    check('... a tap on it opens the menu, which lies inside the picture and clear of the button', u.state === 'title-options' && R.panel.top >= g.f.top && R.panel.bottom <= bottom && clearOfButton(R, u), `(state ${u.state}; the panel from y ${Math.round(R.panel.top)} to ${Math.round(R.panel.bottom)})`);
     if (T === 74) await shot(page, 'title-portrait-inset');
     await ctx.close();
   }
 
-  // portrait, in play: the same, and the thumb controls keep clear of the home indicator (the bottom inset, which they do count)
+  // portrait, in play: the same, the button clear of the thumb controls, and they keep clear of the home indicator (the bottom inset, which they do count)
   {
     const { ctx, page } = await open('?skip=1&preserve=1', { width: 430, height: 866 }, { top: 74, bottom: 34 });
     await page.evaluate(() => __frame(20));
-    const g = await geom(page), under = await hudUnder(page);
-    const pads = await page.evaluate(() => [...__game.input._pads.children].map((e) => { const r = e.getBoundingClientRect(); return { t: e.textContent, bottom: r.bottom }; }));
+    const g = await geom(page), pads = await padRects(page);
     const jump = pads.find((p) => p.t === 'JUMP');
-    check('portrait in play, 74 px inset: the button is at the picture\'s top edge, over no HUD', near(g.rect.top - g.f.top, 4 * g.f.unit, 1.5) && under === 0, `(${(g.rect.top - g.f.top).toFixed(1)} px below the top edge, ${under} HUD pixels under it)`);
-    check('... and JUMP stays above the home indicator (34 px inset at the bottom)', jump && jump.bottom <= g.vh - 34 + 0.5, `(its bottom edge at ${jump && jump.bottom.toFixed(0)} of ${g.vh})`);
+    check('portrait in play, 74 px inset: the picture from y 82, the button under it', near(g.f.top, 82, 0.5) && near(g.rect.top - (g.f.top + g.f.height), 24, 1.5), `(the picture from y ${g.f.top.toFixed(1)}; the button from y ${g.rect.top.toFixed(1)})`);
+    check('... the button clear of the thumb controls, and JUMP above the home indicator (34 px inset at the bottom)', pads.length >= 4 && !pads.some((p) => overlaps(g.rect, p)) && jump && jump.bottom <= g.vh - 34 + 0.5, `(JUMP's bottom edge at ${jump && jump.bottom.toFixed(0)} of ${g.vh})`);
     // a phone bug report needs the inset: the full debug readout names it in its VIEW row (and says nothing where the platform covers nothing)
     const view = (pg) => pg.evaluate(() => { __app.gfx.set('debug', 2); __frame(8); const l = __debug.text().split('\n').find((r) => r.startsWith('VIEW')); __app.gfx.set('debug', 0); return l || ''; });
     const v74 = await view(page);
     check('the full debug readout names the inset in its VIEW row', /safe top 74\.0/.test(v74), `(${v74})`);
     await shot(page, 'play-portrait-inset');
+    await ctx.close();
+  }
+
+  // the real loop notices an inset that appears while the page is open (an app showing its header): the picture moves down below it, the button with it
+  {
+    const ctx = await browser.newContext({ viewport: { width: 430, height: 866 }, hasTouch: true, isMobile: true, deviceScaleFactor: 1 });
+    const page = await ctx.newPage();
+    page.on('pageerror', (e) => console.log('[pageerror]', e.message.slice(0, 300)));
+    const cdp = await ctx.newCDPSession(page);
+    const set = (top) => cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom: 34, left: 0, right: 0 } });
+    await set(0);
+    await page.goto(base + '?preserve=1');
+    await page.waitForFunction(() => window.__ready || window.__error, null, { timeout: 120000 });
+    const top0 = await page.evaluate(() => __app.gfx.frameCss().top);
+    await set(74);
+    const moved = await page.waitForFunction(() => Math.abs(__app.gfx.frameCss().top - 82) < 1, null, { timeout: 60000, polling: 250 }).then(() => true, () => false);
+    await page.waitForFunction(() => { const f = __app.gfx.frameCss(), r = __game.input.menuBtn.getBoundingClientRect(); return Math.abs(r.top - (f.top + f.height + 24)) < 1.5; }, null, { timeout: 60000, polling: 250 }).catch(() => {});
+    const g = await geom(page);
+    check('an inset that appears while the page is open: the picture moves from y 8 down to y 82, and the button follows it', near(top0, 8, 0.5) && moved && near(g.rect.top - (g.f.top + g.f.height), 24, 1.5), `(the picture from y ${top0.toFixed(1)} to ${g.f.top.toFixed(1)}; the button ${(g.rect.top - (g.f.top + g.f.height)).toFixed(1)} px below it)`);
     await ctx.close();
   }
 
@@ -425,6 +453,25 @@ if (!only || only === 'late') {
   await page.evaluate(() => __frame(3));
   const u = await page.evaluate(() => { const i = __game.input; const b = i.menuBtn; return { made: !!i.touchRoot, shown: !!b && b.style.display !== 'none', label: b && i._menuLabel.textContent, w: b && b.getBoundingClientRect().width }; });
   check('... the first touch creates the on-screen controls, MENU included', u.made && u.shown && u.label === 'MENU' && u.w > 80, `(${JSON.stringify(u)})`);
+  await ctx.close();
+}
+if (!only || only === 'late') {
+  // the same upright: the picture is centred until the first touch, then it moves up to the top and the button goes under it
+  const ctx = await browser.newContext({ viewport: { width: 430, height: 866 }, deviceScaleFactor: 2 });         // (no touch support reported)
+  const page = await ctx.newPage();
+  page.on('pageerror', (e) => console.log('[pageerror]', e.message.slice(0, 300)));
+  await page.goto(base + '?preserve=1');
+  await page.waitForFunction(() => window.__ready || window.__error, null, { timeout: 120000 });
+  await page.waitForTimeout(1500);
+  await settleAudio(page);
+  await page.evaluate(() => { window.requestAnimationFrame = () => 0; window.__frame = (n = 1, dt = 1 / 60) => { for (let i = 0; i < n; i++) { __app.gfx.clearHud(); __app.update(dt); } }; });
+  await page.evaluate(() => __frame(3));
+  const before = await page.evaluate(() => __app.gfx.frameCss());
+  check('upright, no touch support reported: the picture is centred (a desktop window)', near(before.top, (866 - before.height) / 2, 0.6), `(from y ${before.top.toFixed(1)})`);
+  await page.evaluate(() => window.dispatchEvent(new Event('touchstart', { bubbles: true, cancelable: true })));
+  await page.evaluate(() => __frame(3));
+  const g = await geom(page);
+  check('... the first touch moves it up to the top of the window, and the MENU button goes under it', near(g.f.top, 8, 0.5) && near(g.rect.top - (g.f.top + g.f.height), 24, 1.5), `(the picture from y ${g.f.top.toFixed(1)}; the button ${(g.rect.top - (g.f.top + g.f.height)).toFixed(1)} px below it)`);
   await ctx.close();
 }
 

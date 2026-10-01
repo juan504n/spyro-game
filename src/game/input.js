@@ -13,16 +13,38 @@ const KEYMAP = {
 
 const TOUCH_LOOK = 0.0042;      // camera radians per pixel of a right-thumb drag (mouse: 0.0032). It was 0.006, which swung the view too far for a small flick.
 
-/** The touch MENU button is a pill this tall (CSS px: Apple's 44 for a finger target). */
+/** The thumb controls: [right, bottom, size] in CSS px from the window's right and bottom edges (the platform's safe areas come on top of those). */
+export const PADS = { JUMP: [26, 34, 74], FIRE: [112, 24, 62], RAM: [26, 124, 62], CAM: [30, 196, 46], TALK: [112, 96, 58] };
+
+/** The touch MENU button is a pill this tall (CSS px: Apple's 44 for a finger target) and about this wide. */
 export const MENU_BTN_H = 44;
+export const MENU_BTN_W = 112;
+/** CSS px between the bottom edge of the picture and the MENU button when the button sits under the picture */
+export const MENU_BELOW_GAP = 24;
+const PAD_CLEAR = 6;            // (air kept between the button and a thumb control)
+
+/** the rectangle a thumb control covers in the window, in CSS px; `f` = gfx.frameCss() */
+export function padRect(name, f) {
+  const [r, b, size] = PADS[name];
+  const right = f.winW - (r + f.safeRight), bottom = f.winH - (b + f.safeBottom);
+  return { left: right - size, right, top: bottom - size, bottom };
+}
 
 /**
- * Where the touch MENU button's top edge is on the page (CSS px): 4 lines of the HUD below the top edge of the game frame, so it sits in the same place relative to the HUD on any window,
- * but never closer than 8 px to the top of the page, and below whatever the platform covers there (`f.safeTop`, see Gfx.frameCss: a notch, the header of an app that shows the page under it).
- * `f` = gfx.frameCss(). The frame's own top is already a position on the page: the safe-area inset only matters where the frame reaches up into it (a landscape window), and must not be
- * added on top (a centred portrait frame lies far below it: the button sat in the middle of the picture, over the title logo and the view ahead).
+ * Where the touch MENU button goes: { x (its centre), top, below } in CSS px on the page. `f` = gfx.frameCss().
+ * Held upright, a phone's picture sits at the top of the window and the black under it is empty: the button goes there, centred under the picture (`below`: it covers none of the view, and the
+ * title and the menus need no room kept for it). Where the window leaves no such room, or the thumb controls are in the way (a landscape window: the picture fills it), it sits on the picture's top
+ * edge instead: 4 lines of the HUD below it, but never closer than 8 px to the top of the page, and below whatever the platform covers there (`f.safeTop`: a notch, the header of an app that shows the
+ * page under it). The frame's own top is already a position on the page: the inset must not be added on top of it (it once was: the button sat in the middle of a portrait picture).
  */
-export const menuButtonTop = (f) => Math.max(8 + f.safeTop, Math.round(f.top + 4 * f.unit));
+export function menuButtonPlace(f) {
+  const x = Math.round(f.left + f.width / 2), under = Math.round(f.top + f.height + MENU_BELOW_GAP);
+  const box = { left: x - MENU_BTN_W / 2, right: x + MENU_BTN_W / 2, top: under, bottom: under + MENU_BTN_H };
+  const hits = (a, b) => a.left < b.right + PAD_CLEAR && a.right > b.left - PAD_CLEAR && a.top < b.bottom + PAD_CLEAR && a.bottom > b.top - PAD_CLEAR;
+  const room = box.left >= 0 && box.right <= f.winW && box.bottom <= f.winH - f.safeBottom && !Object.keys(PADS).some((n) => hits(box, padRect(n, f)));
+  if (room) return { x, top: under, below: true };
+  return { x, top: Math.max(8 + f.safeTop, Math.round(f.top + 4 * f.unit)), below: false };
+}
 
 export class Input {
   constructor(canvas) {
@@ -154,12 +176,12 @@ export class Input {
       pads.appendChild(b);
       return b;
     };
-    mk('JUMP', 26, 34, 74, 'jump', 'rgba(60,150,90,.55)');
-    mk('FIRE', 112, 24, 62, 'flame', 'rgba(220,110,30,.55)');
-    mk('RAM', 26, 124, 62, 'charge', 'rgba(140,70,200,.55)');
+    mk('JUMP', ...PADS.JUMP, 'jump', 'rgba(60,150,90,.55)');
+    mk('FIRE', ...PADS.FIRE, 'flame', 'rgba(220,110,30,.55)');
+    mk('RAM', ...PADS.RAM, 'charge', 'rgba(140,70,200,.55)');
     // CAM: a tap swings the camera back behind Spyro (the R key); holding it for a moment switches the camera mode (the C key)
     {
-      const cam = mk('CAM', 30, 196, 46, null, 'rgba(50,130,190,.55)');
+      const cam = mk('CAM', ...PADS.CAM, null, 'rgba(50,130,190,.55)');
       let timer = 0, long = false;
       const down = (e) => { e.preventDefault(); this.lastDevice = 'touch'; this.anyKey = true; long = false; cam.style.opacity = '1'; clearTimeout(timer); timer = setTimeout(() => { long = true; this._press('camMode'); this._release('camMode'); }, 600); };
       const up = (e) => { e.preventDefault(); cam.style.opacity = '.72'; clearTimeout(timer); if (!long && e.type === 'touchend') { this._press('camReset'); this._release('camReset'); } };
@@ -168,7 +190,7 @@ export class Input {
       cam.addEventListener('touchcancel', up, { passive: false });
       this.camBtn = cam;
     }
-    this.talkBtn = mk('TALK', 112, 96, 58, 'talk', 'rgba(50,110,200,.65)');    // only shown next to someone who wants to talk
+    this.talkBtn = mk('TALK', ...PADS.TALK, 'talk', 'rgba(50,110,200,.65)');    // only shown next to someone who wants to talk
     this.talkBtn.style.display = 'none';
 
     // MENU: a plain, labelled button at the top centre (the game's pause menu: options, controls, debug mode, quit). It is the way to
@@ -202,13 +224,6 @@ export class Input {
     ring.appendChild(nub);
     root.appendChild(ring);
     this._ring = ring; this._nub = nub;
-    // portrait phones get a tiny frame: suggest landscape
-    const rot = document.createElement('div');
-    rot.textContent = 'TURN YOUR PHONE SIDEWAYS FOR A BIGGER VIEW';
-    rot.style.cssText = 'position:absolute;left:50%;top:9%;transform:translateX(-50%);width:74vw;text-align:center;color:#e8e0ff;font:bold 13px monospace;letter-spacing:.06em;text-shadow:0 2px 0 #000;background:rgba(20,10,40,.62);border:2px solid rgba(255,255,255,.35);padding:8px 10px;border-radius:8px;pointer-events:none';
-    root.appendChild(rot);
-    const orient = () => { rot.style.display = window.innerHeight > window.innerWidth * 1.15 ? 'block' : 'none'; };
-    window.addEventListener('resize', orient); orient();
     document.body.appendChild(root);
     this.touchRoot = root;
     this._pads = pads;
@@ -295,14 +310,14 @@ export class Input {
     if (this.camBtn) this.camBtn.style.opacity = '.72';
   }
 
-  /** Anchor the MENU button to the game frame (called every frame, `f` = gfx.frameCss(); it only touches the page when the frame or the platform's safe area moved): top centre, a little below the frame's top edge (see menuButtonTop). */
+  /** Place the MENU button (called every frame, `f` = gfx.frameCss(); it only touches the page when the button moves): under the picture, or on its top edge (see menuButtonPlace). */
   layoutTouch(f) {
     if (!this.menuBtn) return;
-    const left = Math.round(f.left + f.width / 2), top = menuButtonTop(f);
-    if (left === this._menuX && top === this._menuY) return;
-    this._menuX = left; this._menuY = top;
-    this.menuBtn.style.left = `${left}px`;
-    this.menuBtn.style.top = `${top}px`;
+    const p = menuButtonPlace(f);
+    if (p.x === this._menuX && p.top === this._menuY) return;
+    this._menuX = p.x; this._menuY = p.top;
+    this.menuBtn.style.left = `${p.x}px`;
+    this.menuBtn.style.top = `${p.top}px`;
   }
 
   setTouchVisible(v) { if (this.touchRoot) this.touchRoot.style.display = v ? 'block' : 'none'; }

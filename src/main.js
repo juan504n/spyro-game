@@ -51,11 +51,11 @@ async function boot() {
 
   let last = performance.now();
   let acc30 = 0;
-  // window.resize does not fire when only the pixel ratio changes (a window dragged between displays): watch for it
+  // window.resize does not fire when only the pixel ratio changes (a window dragged between displays), nor when the platform's safe area changes (an app showing or hiding its header): watch for both
   let seenDpr = window.devicePixelRatio, seenW = window.innerWidth, seenH = window.innerHeight;
   const frame = (now) => {
     requestAnimationFrame(frame);
-    if (window.devicePixelRatio !== seenDpr || window.innerWidth !== seenW || window.innerHeight !== seenH) {
+    if (window.devicePixelRatio !== seenDpr || window.innerWidth !== seenW || window.innerHeight !== seenH || gfx.insetChanged()) {
       seenDpr = window.devicePixelRatio; seenW = window.innerWidth; seenH = window.innerHeight;
       gfx.resize();
     }

@@ -81,6 +81,64 @@ export function saveSettings(s) {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); } catch (e) { /* ignore */ }
 }
 
+/** CSS px between the platform's top inset and the picture, on a touch screen held upright (see frameLayout) */
+export const TOUCH_TOP_MARGIN = 8;
+
+/**
+ * Where the game frame goes in a window of devW x devH device pixels, for the settings `s`: the internal width W, the upscale factor `scale` and the rectangle `rect` = [x, y (from the bottom), w, h] the picture fills.
+ * The picture is centred, except on a touch screen (`o.touch`) held upright (a window taller than it is wide): there it sits at the TOP, under the platform's top safe area (`o.inset`, device px: a notch, or the
+ * header of an app that shows the page under it) and `o.margin`. A 4:3 picture as wide as a phone's screen is small, and the black below it is where the thumbs are, with the MENU button right under the picture; centred, it
+ * would float in the middle of the screen. It never goes lower than its centred place.
+ */
+export function frameLayout(devW, devH, s, o = {}) {
+  const H = s.height;
+  let W, scale, rect;
+  const wide = s.display === 'wide' && devW / devH > 4 / 3;      // (a portrait window falls back to the letterboxed 4:3 frame)
+  if (wide) {
+    const sInt = Math.floor(devH / H);          // 0 when the window is shorter than one internal frame: then just fit
+    const useInt = sInt >= 1 && (s.scaling === 'integer' || (s.scaling === 'auto' && (sInt * H) / devH >= 0.82));
+    if (useInt) {
+      scale = sInt;
+      W = THREE.MathUtils.clamp(Math.floor(devW / scale), (H * 4) / 3, H * 2.4);
+      W = Math.floor(W / 2) * 2;
+      const rw = W * scale, rh = H * scale;
+      rect = [Math.floor((devW - rw) / 2), Math.floor((devH - rh) / 2), rw, rh];
+    } else {
+      scale = devH / H;
+      W = THREE.MathUtils.clamp(Math.round(devW / scale), (H * 4) / 3, H * 2.4);
+      W = Math.floor(W / 2) * 2;
+      rect = [0, 0, devW, devH];
+    }
+  } else {
+    W = Math.round((H * 4) / 3);
+    const sMax = Math.min(devW / W, devH / H);
+    const sInt = Math.floor(sMax);              // 0 in a window smaller than one internal frame: then just fit
+    const useInt = sInt >= 1 && (s.scaling === 'integer' || (s.scaling === 'auto' && sInt / sMax >= 0.85));
+    scale = useInt ? sInt : sMax;
+    const rw = Math.round(W * scale), rh = Math.round(H * scale);
+    let y = Math.floor((devH - rh) / 2);
+    if (o.touch && devH > devW) {
+      const top = Math.min(Math.max(0, Math.round((o.inset || 0) + (o.margin || 0))), Math.max(0, devH - rh - y));      // (the distance from the window's top: never more than the centred place has)
+      y = devH - rh - top;
+    }
+    rect = [Math.floor((devW - rw) / 2), y, rw, rh];
+  }
+  return { W, scale, rect };
+}
+
+/**
+ * The frame as DOM overlays see it, in CSS pixels (what Gfx.frameCss() returns): `rect` = frameLayout's [x, y from the bottom, w, h] in a window of devW x devH device pixels at `dpr`, `hudH` the HUD's lines (240), `ins` the platform's
+ * safe-area insets in CSS px. `unit` is one HUD line, `winW` x `winH` the window, `safeTop` the top inset as far as it counts (at most a quarter of the frame's height: a real notch or header is far smaller, and a bogus value must not push the
+ * touch button and the HUD out of the frame), `safeRight` / `safeBottom` / `safeLeft` the other edges.
+ */
+export function frameBox(rect, devW, devH, hudH, ins, dpr) {
+  const [x0, y0, rw, rh] = rect;
+  return {
+    left: x0 / dpr, top: (devH - (y0 + rh)) / dpr, width: rw / dpr, height: rh / dpr, unit: rh / dpr / hudH, dpr,
+    winW: devW / dpr, winH: devH / dpr, safeTop: Math.min(ins.top, rh / dpr / 4), safeRight: ins.right, safeBottom: ins.bottom, safeLeft: ins.left,
+  };
+}
+
 export class Gfx {
   constructor(canvas, { preserve = false } = {}) {
     this.canvas = canvas;
@@ -103,6 +161,7 @@ export class Gfx {
     this.devW = 0;                 // (0 = "canvas not sized yet": resize() must always set the drawing buffer on first call)
     this.devH = 0;
     this.rect = [0, 0, 640, 480];
+    this.touchLayout = isTouchDevice();      // (a touch screen held upright keeps the picture at the top of the window: see frameLayout; the app sets it again once the touch controls exist)
     this.onInternalResize = null;
 
     // full-screen triangle-pair used by both post passes
@@ -219,32 +278,9 @@ export class Gfx {
     const devH = Math.max(2, Math.round(window.innerHeight * dpr));
     const s = this.settings;
     const H = s.height;
-    let W, scale, rect;
-    const wide = s.display === 'wide' && devW / devH > 4 / 3;      // (a portrait window falls back to the letterboxed 4:3 frame)
-    if (wide) {
-      const sInt = Math.floor(devH / H);          // 0 when the window is shorter than one internal frame: then just fit
-      const useInt = sInt >= 1 && (s.scaling === 'integer' || (s.scaling === 'auto' && (sInt * H) / devH >= 0.82));
-      if (useInt) {
-        scale = sInt;
-        W = THREE.MathUtils.clamp(Math.floor(devW / scale), (H * 4) / 3, H * 2.4);
-        W = Math.floor(W / 2) * 2;
-        const rw = W * scale, rh = H * scale;
-        rect = [Math.floor((devW - rw) / 2), Math.floor((devH - rh) / 2), rw, rh];
-      } else {
-        scale = devH / H;
-        W = THREE.MathUtils.clamp(Math.round(devW / scale), (H * 4) / 3, H * 2.4);
-        W = Math.floor(W / 2) * 2;
-        rect = [0, 0, devW, devH];
-      }
-    } else {
-      W = Math.round((H * 4) / 3);
-      const sMax = Math.min(devW / W, devH / H);
-      const sInt = Math.floor(sMax);              // 0 in a window smaller than one internal frame: then just fit
-      const useInt = sInt >= 1 && (s.scaling === 'integer' || (s.scaling === 'auto' && sInt / sMax >= 0.85));
-      scale = useInt ? sInt : sMax;
-      const rw = Math.round(W * scale), rh = Math.round(H * scale);
-      rect = [Math.floor((devW - rw) / 2), Math.floor((devH - rh) / 2), rw, rh];
-    }
+    const inset = this.insets().top;
+    this._insetSeen = inset;
+    const { W, scale, rect } = frameLayout(devW, devH, s, { touch: this.touchLayout, inset: inset * dpr, margin: TOUCH_TOP_MARGIN * dpr });
     this.scale = scale;
     if (devW !== this.devW || devH !== this.devH || force) {
       this.devW = devW; this.devH = devH;
@@ -262,31 +298,38 @@ export class Gfx {
   /**
    * Where the game frame is on the page, in CSS pixels, and how big one HUD layout unit is (the HUD is a fixed 240 lines high, so
    * `unit` = frame height / 240). DOM overlays (the touch MENU button, the debug readout) anchor to this so they sit in the same place
-   * relative to the HUD on a phone, a tablet and a desktop window.
+   * relative to the HUD on a phone, a tablet and a desktop window. See frameBox for the fields.
    */
   frameCss() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 3);
-    const [x0, y0, rw, rh] = this.rect;
-    return { left: x0 / dpr, top: (this.devH - (y0 + rh)) / dpr, width: rw / dpr, height: rh / dpr, unit: rh / dpr / this.hud.h, dpr, safeTop: this._safeTop(rh / dpr) };
+    return frameBox(this.rect, this.devW, this.devH, this.hud.h, this.insets(), Math.min(window.devicePixelRatio || 1, 3));
   }
 
   /**
-   * How much of the top edge of the page the platform covers, in CSS pixels (`env(safe-area-inset-top)`: a notch, or the header of an app that shows the page underneath it; 0 in an
-   * ordinary browser window). CSS is the only place that value can be asked for, so a hidden box carries it as padding and it is read back. Read every time, since nothing announces a
-   * change of inset. At most a quarter of the frame's height counts: a real notch or header is far smaller, and a bogus value must not push the touch button and the HUD out of the frame.
+   * The platform's safe-area insets, in CSS pixels: how much of each edge of the page it covers (`env(safe-area-inset-*)`: a notch, the home indicator, or the header of an app that shows the page underneath it; all 0 in
+   * an ordinary browser window). CSS is the only place those values can be asked for, so a hidden box carries them as padding and they are read back. Read on every call, since nothing announces a change of inset.
    */
-  _safeTop(frameH) {
+  insets() {
     let p = this._safeProbe;
     if (!p) {
       p = this._safeProbe = document.createElement('div');
       p.setAttribute('aria-hidden', 'true');
       p.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;margin:0;border:0;padding:0;visibility:hidden;pointer-events:none';
-      p.style.paddingTop = 'env(safe-area-inset-top, 0px)';       // (a browser without env() drops this: the padding stays 0)
+      p.style.padding = 'env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px)';       // (a browser without env() drops this: the padding stays 0)
       document.body.appendChild(p);
     }
-    const v = parseFloat(getComputedStyle(p).paddingTop);
-    this.safeTopRaw = v > 0 ? v : 0;                              // (what the platform said, for the debug readout)
-    return v > 0 ? Math.min(v, frameH / 4) : 0;
+    const c = getComputedStyle(p), n = (v) => (parseFloat(v) > 0 ? parseFloat(v) : 0);
+    return (this.safe = { top: n(c.paddingTop), right: n(c.paddingRight), bottom: n(c.paddingBottom), left: n(c.paddingLeft) });
+  }
+
+  /** Has the platform's top inset changed since the frame was last laid out? Only a touch layout depends on it (nothing announces a change: main.js asks every frame). */
+  insetChanged() { return this.touchLayout && this.insets().top !== this._insetSeen; }
+
+  /** Keep the picture at the top of a window held upright (touch screens), or centre it (see frameLayout). */
+  setTouchLayout(on) {
+    on = !!on;
+    if (on === this.touchLayout) return;
+    this.touchLayout = on;
+    this.resize();
   }
 
   clearHud() { this.hud.data.fill(0); }
