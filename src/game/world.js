@@ -26,6 +26,14 @@ export function* buildWorldSteps(assets, populate, level) {
   lighting.attach(grid);
   const world = { grid, lighting, scene: new THREE.Scene(), timings: {} };
   world.timings.terrain = performance.now() - t0;
+  // rock masses that are not part of the heightfield (a level's mountains with caves in them, see massif.js): sampled now, so that the light bake and the props already know them
+  world.massifs = [];
+  if (level?.massifs) {
+    const tm = performance.now();
+    for (const m of level.massifs(grid, level)) world.massifs.push(m.prepare());
+    lighting.massifs = world.massifs;
+    world.timings.massifField = performance.now() - tm;
+  }
   yield [0.12, label[0] || 'SCULPTING VALE'];
 
   // dry pass: props register shadow casters, colliders, glow lights and emitters
@@ -49,6 +57,19 @@ export function* buildWorldSteps(assets, populate, level) {
   world.terrainStats = terr.stats;
   world.scene.add(terr.group);
   world.timings.terrainMesh = performance.now() - t;
+  if (world.massifs.length) {
+    t = performance.now();
+    world.massifMeshes = new THREE.Group();
+    world.massifMeshes.name = 'massifs';
+    world.massifStats = {};
+    for (const m of world.massifs) {
+      const b = m.build(assets, grid, kit.lights);              // (after the dry pass: the glow lights the props registered light the rock round them)
+      world.massifMeshes.add(b.group);
+      world.massifStats[m.id] = b.stats;
+    }
+    world.scene.add(world.massifMeshes);
+    world.timings.massifMesh = performance.now() - t;
+  }
   yield [0.33, label[3] || 'RAISING HILLS'];
 
   t = performance.now();
@@ -90,7 +111,7 @@ export function* buildWorldSteps(assets, populate, level) {
   world.day = 0;
 
   /** Per-frame environment: sky, fog and dynamic-light uniforms from `day`. */
-  world.updateEnvironment = (camera, day, time, dt) => {
+  world.updateEnvironment = (camera, day, time, dt, indoor = 0) => {
     world.day = day;
     const atm = atmosphere(day);
     world.atm = atm;
@@ -99,6 +120,11 @@ export function* buildWorldSteps(assets, populate, level) {
     U.uFogColor.value.setRGB(atm.fog[0], atm.fog[1], atm.fog[2]);
     U.uFogRange.value.set(130 + 30 * day, 400 + 30 * day);
     dynamicLight(day, _dl);
+    if (indoor > 0.001) {
+      // inside a cave the hero and everything else lit on the fly is lit like the rock round him: the sun is shut out, the sky's ambient dimmed
+      const k = indoor;
+      for (let i = 0; i < 3; i++) { _dl.sunCol[i] *= 1 - 0.8 * k; _dl.amb[i] *= 1 - 0.42 * k; }
+    }
     U.uSunDir.value.set(_dl.sunDir[0], _dl.sunDir[1], _dl.sunDir[2]);
     U.uSunCol.value.setRGB(_dl.sunCol[0], _dl.sunCol[1], _dl.sunCol[2]);
     U.uAmb.value.setRGB(_dl.amb[0], _dl.amb[1], _dl.amb[2]);

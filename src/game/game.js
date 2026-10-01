@@ -70,6 +70,7 @@ export class Game {
     this.loops = {};
     this.fade = { a: 0, target: 0, speed: 2, color: [0, 0, 0] };       // (a portal fades to white, everything else to black)
     this.deathT = 0;
+    this.enclosure = 0;          // how deep inside a cave the hero is, 0..1 (smoothed): the camera comes closer, the dynamic light dims
     this.finale = null;
     this.externalPoll = false;
   }
@@ -84,7 +85,7 @@ export class Game {
     this.gameplay = this.world.gameplay || {};
     await progress(0.45, 'RAISING THE VILLAGE');
     await tick();
-    this.collision = new Collision(this.grid, this.world.colliders);
+    this.collision = new Collision(this.grid, this.world.colliders, this.world.massifs || []);
     this.scene = this.world.scene;
     this.scene.add(this.dyn);
     this.cam = new GameCamera(this.camera, this);
@@ -288,6 +289,7 @@ export class Game {
       if (this.input.pressed('camMode')) this.cycleCameraMode();
     }
     p.update(dt, this.input, this.cam.yaw);
+    if (this.collision.solids.length) this.enclosure += (this.collision.enclosure(p.x, p.y + 1.2, p.z) - this.enclosure) * (1 - Math.exp(-dt * 5));
     // flame breath particles
     if (p.flameT > 0 && !p.dead) this.fx.flameBreath(p.mouth.x, p.mouth.y, p.mouth.z, p.dirx, p.dirz, 1);
     for (const s of this.systems) if (s.update) s.update(dt, this);
@@ -323,13 +325,13 @@ export class Game {
     // blob shadow under the hero
     const sh = this.shadow;
     const rp = p.renderPos(alpha, this._rp || (this._rp = {}));
-    const gy = p.groundKind === 'collider' ? p.y : this.collision.support(rp.x, rp.z, rp.y + 0.5, 0.5).y;
+    const gy = p.groundKind === 'collider' || p.groundKind === 'solid' ? p.y : this.collision.support(rp.x, rp.z, rp.y + 0.5, 0.5).y;
     sh.x = rp.x; sh.z = rp.z; sh.y = gy + 0.08;
     const h = Math.max(0, rp.y - gy);
     sh.r = 0.85 + h * 0.06; sh.alpha = Math.max(0.15, 0.85 - h * 0.09);
     sh.visible = !p.dead || p.deadT < 1.4;
     if (!paused) for (const s of this.systems) if (s.frame) s.frame(dt, alpha, this);
-    this.world.updateEnvironment(this.camera, this.day, this.time, dt);
+    this.world.updateEnvironment(this.camera, this.day, this.time, dt, this.enclosure);
     this.fx.update(paused ? 0 : dt, this.camera);
     this.audio?.setDay?.(this.day);
     // fade overlay

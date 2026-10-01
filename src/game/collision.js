@@ -16,8 +16,10 @@ export const SLOPE_WALK = 0.56;      // min normal.y considered walkable (~56 de
 export const CAM_BLOCK_SIZE = 2.4;
 
 export class Collision {
-  constructor(grid, colliders = []) {
+  /** `solids`: the level's massifs (massif.js): rock that is not a heightfield, asked about wherever a collider is */
+  constructor(grid, colliders = [], solids = []) {
     this.grid = grid;
+    this.solids = solids;
     this.colliders = [];
     this.cell = 8;
     this.buckets = new Map();
@@ -62,11 +64,11 @@ export class Collision {
 
   /**
    * Best supporting surface under (x,z) for something whose feet are at feetY: the highest standable surface with
-   * y <= feetY + stepUp. Returns { y, kind, c } (kind = 'terrain' | 'collider').
+   * y <= feetY + stepUp. Returns { y, kind, c } (kind = 'terrain' | 'collider' | 'solid'; a solid's surface also brings its normal as `n`: { nx, ny, nz }).
    */
   support(x, z, feetY, stepUp) {
     let y = this.grid.heightAt(x, z);
-    let kind = 'terrain', hit = null;
+    let kind = 'terrain', hit = null, n;
     const list = this.near(x, z);
     for (let k = 0; k < list.length; k++) {
       const c = list[k];
@@ -75,7 +77,13 @@ export class Collision {
       if (c.y1 <= y) continue;
       if (this.inside(c, x, z, -0.02)) { y = c.y1; kind = 'collider'; hit = c; }
     }
-    return { y, kind, c: hit };
+    for (let k = 0; k < this.solids.length; k++) {
+      const m = this.solids[k];
+      if (!m.inBoxXZ(x, z)) continue;
+      const g = m.ground(x, z, feetY, stepUp);
+      if (g && g.y > y) { y = g.y; kind = 'solid'; hit = m; n = g; }
+    }
+    return n ? { y, kind, c: hit, n } : { y, kind, c: hit };
   }
 
   /** Terrain normal (walkability) at x,z. */
@@ -124,6 +132,10 @@ export class Collision {
         contact = { c, nx, nz };
       }
     }
+    for (let k = 0; k < this.solids.length; k++) {
+      const m = this.solids[k].push(ent, feetY, h, stepUp);
+      if (m) contact = m;
+    }
     return contact;
   }
 
@@ -135,7 +147,15 @@ export class Collision {
       if (!c.solid || (camOnly && !c.cam) || y < c.y0 - pad || y > c.y1 + pad) continue;
       if (this.inside(c, x, z, pad)) return c;
     }
+    for (let k = 0; k < this.solids.length; k++) if (this.solids[k].hitsPoint(x, y, z, pad)) return this.solids[k];
     return null;
+  }
+
+  /** how enclosed a point is by rock (0 in the open .. 1 deep in a cave): the camera comes in closer, and the hero is lit more dimly, the higher it is */
+  enclosure(x, y, z) {
+    let e = 0;
+    for (let k = 0; k < this.solids.length; k++) e = Math.max(e, this.solids[k].enclosure(x, y, z));
+    return e;
   }
 
   /**
@@ -151,6 +171,29 @@ export class Collision {
     const hit = (t) => {
       const x = ax + (bx - ax) * t, y = ay + (by - ay) * t, z = az + (bz - az) * t;
       return this.grid.heightAt(x, z) + pad > y || !!this.blocking(x, y, z, pad * 0.5, camOnly);
+    };
+    for (let i = 1; i <= steps; i++) {
+      if (!hit(i / steps)) continue;
+      let lo = (i - 1) / steps, hi = i / steps;
+      for (let k = 0; k < 5; k++) { const mid = (lo + hi) / 2; if (hit(mid)) hi = mid; else lo = mid; }
+      return lo;
+    }
+    return 1;
+  }
+
+  /**
+   * The same march for the level's rock masses only (massif.js): the fraction 0..1 of the first one met, or 1. The camera uses it to be held back by a mountain's wall even
+   * where it would otherwise keep its minimum distance (a ledge road winding round a mountain has the rock right beside it).
+   */
+  solidFraction(ax, ay, az, bx, by, bz, pad = 0.3) {
+    const ms = this.solids;
+    if (!ms.length) return 1;
+    const len = Math.hypot(bx - ax, by - ay, bz - az);
+    const steps = Math.max(2, Math.ceil(len / 0.5));
+    const hit = (t) => {
+      const x = ax + (bx - ax) * t, y = ay + (by - ay) * t, z = az + (bz - az) * t;
+      for (let k = 0; k < ms.length; k++) if (ms[k].hitsPoint(x, y, z, pad)) return true;
+      return false;
     };
     for (let i = 1; i <= steps; i++) {
       if (!hit(i / steps)) continue;

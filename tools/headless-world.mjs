@@ -18,6 +18,8 @@ export function buildHeadless(which = 'gloaming') {
   const lighting = new Lighting();
   lighting.attach(grid);
   const world = { grid, lighting, timings: {}, scene: { add() {} } };
+  world.massifs = level.massifs ? level.massifs(grid, level).map((m) => m.prepare()) : [];       // (the rock masses: their field and collision, no meshes without GPU assets)
+  lighting.massifs = world.massifs;
   const kit = new Kit({ assets: null, lighting, grid });
   world.kit = kit;
   world.colliders = kit.colliders;          // (as world.js does: the wet pass adds the isles' colliders to it)
@@ -28,6 +30,6 @@ export function buildHeadless(which = 'gloaming') {
   lighting.bake();
   kit.setPass('wet');
   const wetCtx = populate(kit, world);
-  const collision = new Collision(grid, kit.colliders);
+  const collision = new Collision(grid, kit.colliders, world.massifs);
   return { grid, lighting, world, kit, dryCtx, wetCtx, collision, gp: world.gameplay, level, ms: performance.now() - t0 };
 }

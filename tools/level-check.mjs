@@ -4,7 +4,7 @@ import { buildHeadless } from './headless-world.mjs';
 import { WATER_LEVEL } from '../src/game/level.js';
 import { isleObjects, shortfall } from '../src/game/levelgen/islands.js';
 import { colliderDist } from '../src/game/debuginfo.js';
-import { terrainPicker, uvProjection, projectUV, triangleNormal, rockLimit, GROUND_TILE, UNDER_ROAD } from '../src/game/terrain-mesh.js';
+import { terrainPicker, uvProjection, projectUV, triangleNormal, rockLimit, GROUND_TILE, UNDER_ROAD, buildTerrainMeshes } from '../src/game/terrain-mesh.js';
 import { buildRoads, ROAD_LIFT, ROAD_DECAL, ROAD_MAX_SLOPE } from '../src/game/roads.js';
 import { buildRiverWater } from '../src/game/water.js';
 import { riverWaterLength } from '../src/game/river.js';
@@ -472,5 +472,17 @@ const check = (name, ok, detail) => { checks.push(ok); console.log(ok ? 'PASS' :
   }
   check('the river banks are not rock: no cliff texture on the banks unless the ground there is all but vertical (over 77 degrees)', rock === 0 && near > 100 && bed > 20 && bedWrong === 0, `(${near} triangles by the river, ${rock} rocky; ${bed} river-bed triangles, all sand)`);
   check('(the old rules made walls of purple rock of the carved banks: the check sees the problem)', oldRock > 20, `(${oldRock} of ${near} triangles)`);
+}
+
+// ---- the realm's terrain mesh is what the rules chose --------------------------------------------------------------------------------
+{
+  // A level that names its steep slope (the homeworld) has the border of its rock cut along a contour, which makes more triangles than the rules chose; the realm names none, and its mesh must be
+  // exactly what the picker says: two triangles for each cell, each with its own texture.
+  const group = buildTerrainMeshes(grid, lighting, { mat: (nm) => ({ name: nm }) }).group, byTex = {};
+  let tris = 0;
+  for (const m of group.children) { const c = m.geometry.getAttribute('position').count / 3; byTex[m.name.slice('terrain:'.length)] = c; tris += c; }
+  const picker = terrainPicker(grid), want = {};
+  for (let j = 0; j < grid.n; j++) for (let i = 0; i < grid.n; i++) for (const t of picker.tris(i, j)) want[t.tex] = (want[t.tex] || 0) + 1;
+  check('the realm\'s terrain mesh is exactly what the rules chose (no triangle is cut: only a level with a steep slope of its own cuts its borders)', grid.level.steepSlope === undefined && tris === grid.n * grid.n * 2 && Object.keys(want).every((k) => want[k] === byTex[k]), `(${tris} triangles for ${grid.n * grid.n} cells)`);
 }
 process.exitCode = checks.every(Boolean) ? 0 : 1;

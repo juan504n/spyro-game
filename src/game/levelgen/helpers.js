@@ -92,6 +92,7 @@ export function makeCtx(kit, world, seed = 9127) {
     if (ctx.riverDist(x, z) < river) return false;
     if (ctx.lakeD(x, z) < lake) return false;
     if (!occ.free(x, z, r)) return false;
+    if (world.massifs && world.massifs.length) for (const m of world.massifs) if (m.inBoxXZ(x, z, r) && (m.dist(x, h + 1.0, z) < r + 0.6 || m.roofed(x, h, z))) return false;      // (a prop does not stand in a mountain, nor in its caves: those are dressed by hand)
     return true;
   };
 

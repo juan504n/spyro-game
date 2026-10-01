@@ -24,6 +24,7 @@ const CAM = {
   clearance: 0.6,   // m: how far above the ground the line from Spyro to the camera stays
   maxPitch: 1.1,    // rad (63 deg): the highest the camera climbs to look over rising ground; beyond that it comes closer instead
   minPull: 0.62,    // the share of its distance the camera always keeps, whatever gets in the way (it used to come within 1.4 m)
+  minPullCave: 0.3, // ... inside a cave (game.enclosure 1): the walls are close, so it may come much closer
 };
 
 /**
@@ -168,7 +169,9 @@ export class GameCamera {
     // and other small props are ignored) pulls the camera in a little: never closer than CAM.minPull of its distance, in over ~0.1 s,
     // and back out only after the way has been clear for a while.
     const f = col.rayFraction(ax, ay, az, ax + ox, ay + oy, az + oz, 0.45, true);
-    const want = Math.max(f, CAM.minPull);
+    let keep = CAM.minPull + (CAM.minPullCave - CAM.minPull) * (this.game.enclosure || 0);
+    if (col.solids.length) { const fs = col.solidFraction(ax, ay, az, ax + ox, ay + oy, az + oz, 0.45); if (fs < keep) keep = Math.max(CAM.minPullCave * 0.7, fs); }      // (a mountain's wall holds it back whatever the minimum is)
+    const want = Math.max(f, keep);
     if (this.snapNext) { this.pull = want; this.clearT = 0; }
     if (want < this.pull) { this.pull = lerp(this.pull, want, 1 - Math.exp(-9 * dt)); this.clearT = 0; }
     else if (want < 1 && want < this.pull + 0.02) this.clearT = 0;           // (still up against the same obstruction: keep the distance)
@@ -182,6 +185,11 @@ export class GameCamera {
       this.off.x = lerp(this.off.x, ox, k); this.off.y = lerp(this.off.y, oy, k); this.off.z = lerp(this.off.z, oz, k);
     }
     this.pos.set(ax + this.off.x, ay + this.off.y, az + this.off.z);
+    if (col.solids.length) {
+      // the smoothing may lag a wall that appears at once (a ledge road winding round a mountain): the camera is never inside the rock, whatever it is doing
+      const fs = col.solidFraction(ax, ay, az, this.pos.x, this.pos.y, this.pos.z, 0.3);
+      if (fs < 1) { const k = Math.max(fs, 0.12); this.pos.set(ax + (this.pos.x - ax) * k, ay + (this.pos.y - ay) * k, az + (this.pos.z - az) * k); }
+    }
     const gh = col.heightAt(this.pos.x, this.pos.z) + 0.85;
     if (this.pos.y < gh) this.pos.y = gh;
     // look a little ahead of the player so the framing feels intentional. The lead is smoothed: it used to follow Spyro's

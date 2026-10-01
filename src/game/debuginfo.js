@@ -191,9 +191,9 @@ export function nearestThings(game, x, y, z, n = 3, maxD = 60) {
 }
 
 /** The hint zones (tutorial signs) Spyro stands in. */
-export function hintZonesAt(game, x, z) {
+export function hintZonesAt(game, x, z, y) {
   const list = game.npcs ? game.npcs.hints : (game.gameplay && game.gameplay.hints) || [];
-  return list.filter((h) => Math.hypot(h.x - x, h.z - z) <= (h.r || 6)).map((h) => ({ text: h.text, src: h.src }));
+  return list.filter((h) => Math.hypot(h.x - x, h.z - z) <= (h.r || 6) && (h.y0 === undefined || y === undefined || (y >= h.y0 && y <= h.y1))).map((h) => ({ text: h.text, src: h.src }));
 }
 
 // ---- the ray through the middle of the screen --------------------------------------------------------------------------
@@ -284,7 +284,7 @@ export function collect(game, extra = {}) {
     props: nearestProps(placed, p.x, p.z, 3, 60, p.y),
     things: nearestThings(game, p.x, p.y, p.z, 3),
     colliders: nearestColliders(game.collision, p.x, p.z, 2, 14, p.y),
-    hints: hintZonesAt(game, p.x, p.z),
+    hints: hintZonesAt(game, p.x, p.z, p.y),
     aim: null,
     extra,
   };
@@ -307,6 +307,7 @@ const src = (r) => (r && r.src ? ` [${r.src}]` : '');
 
 /** "cyl r0.55 y 3.2-7.4" / "box 2.0x1.3 y 0.0-1.8" */
 export function colliderText(c) {
+  if (c.type === 'massif') return `rock mass ${c.id}`;
   const shape = c.type === 'cyl' ? `cyl r${f2(c.r)}` : `box ${f1(c.hx * 2)}x${f1(c.hz * 2)}`;
   return `${shape} y ${f1(c.y0)}-${f1(c.y1)}${c.top ? ' top' : ''}${c.solid === false ? ' (off)' : ''}`;
 }

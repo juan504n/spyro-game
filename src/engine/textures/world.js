@@ -38,8 +38,11 @@ export const WORLD_TEXTURE_NOTES = {
   shore_pebbles: 'Wet grey-blue/brown pebbles for the waterline strip; 32px = 3 units.',
   cobble: 'Warm lavender-grey cobblestone path with mossy gaps; 32px = 3 units (stones ~0.7 unit).',
   flagstone: 'Plaza slabs, 2x2 per tile with worn corners and cracks; 32px = 4 units (2-unit slabs).',
+  ice: 'Pale blue ice: 3x3 big plates under a skin of frost with dark blue cracks, a bright lip on each plate\'s lit edge, a few glints; 32px = 4 units (the floor of the homeworld\'s Frost Grotto).',
   cliff: 'Vertical rock face for wall projection: strata run along U, fissures along V, moss hangs from the TOP edge (row 0) with a few specks at the bottom so it wraps; 32px = 4 units, repeat V a whole number of times per wall.',
   cliff_warm: 'Sandstone variant of cliff; same orientation and scale.',
+  cliff_bare: 'cliff without the moss lip along each band: for tall faces (the homeworld\'s mountains and its Crag), where a lip every 4 m would stripe the wall; same orientation and scale.',
+  cliff_warm_bare: 'Sandstone variant of cliff_bare (the Ember Canyon\'s walls).',
   far_rock: 'Three close colours, no fine detail, for distant mountains so they read smooth under fog; 32px = 16+ units.',
   rune_ring: 'NOT tiled. Dark slab with a pale glowing rune ring; a decal quad ~6 units wide under each lantern plinth (ring radius = 0.8 of the half width, centre hub is dark).',
   // buildings

@@ -119,11 +119,15 @@ export class Kit {
    * Glow point (lamp / crystal / window): the game adds an additive halo sprite and a light pool on the ground.
    * color = [r,g,b] 0..1, size = halo diameter, pool = ground-pool radius (0 = none).
    */
-  glow(lx, ly, lz, { color = [1, 0.8, 0.4], size = 4, pool = 0, flicker = 0 } = {}) {
+  glow(lx, ly, lz, { color = [1, 0.8, 0.4], size = 4, pool = 0, flicker = 0, lightR, lightK } = {}) {
     if (this.pass !== 'dry') return;
     const [wx, wz] = this.toWorld(lx, lz);
     const o = this.origin;
-    this.lights.push({ x: wx, y: o.y + ly * o.scale, z: wz, color, size: size * o.scale, pool: pool * o.scale, flicker, groundY: o.y });
+    // (inside a massif - a cave - the glow also lights the rock round it: lightR = how far, lightK = how strongly; see massif.js)
+    const l = { x: wx, y: o.y + ly * o.scale, z: wz, color, size: size * o.scale, pool: pool * o.scale, flicker, groundY: o.y };
+    if (lightR !== undefined) l.lightR = lightR * o.scale;
+    if (lightK !== undefined) l.lightK = lightK;
+    this.lights.push(l);
   }
 
   /**

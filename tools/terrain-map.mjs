@@ -3,6 +3,7 @@
 import { generateTerrain } from '../src/game/terrain.js';
 import { LEVEL, WATER_LEVEL } from '../src/game/level.js';
 import { HOME, DOORS } from '../src/game/home/level.js';
+import { TUNNELS, CHAMBERS, RAMP, MOUNDS, SUMMIT } from '../src/game/home/crag.js';
 import { Pix } from '../src/engine/textures/pix.js';
 import { writePNG } from './png.mjs';
 
@@ -12,7 +13,7 @@ const WL = isHome ? HOME : LEVEL;
 const t0 = performance.now();
 const g = generateTerrain(WL);
 console.log('terrain generated in', Math.round(performance.now() - t0), 'ms; grid', g.n + 1, 'x', g.n + 1);
-const S = 2;               // px per world unit
+const S = isHome ? 2 : 2;               // px per world unit
 const N = Math.ceil(g.size * S);
 const p = new Pix(N, N);
 let minH = 1e9, maxH = -1e9;
@@ -46,8 +47,13 @@ for (const pa of g.paths) {
 for (const r of g.rivers) for (const [x, y, z] of r.pts) { const [px, py] = W2(x, z); p.circle(px, py, r.width * S * 0.3, [90, 200, 255, 255]); }
 if (isHome) {
   for (const d of DOORS) { const [px, py] = W2(d.x, d.z); p.circle(px, py, 7, d.target ? [255, 230, 60, 255] : [150, 150, 255, 255]); p.circle(px, py, 4, [255, 120, 20, 255]); }
-  { const [px, py] = W2(0, 0); p.circle(px, py, HOME.plaza.r * S, [255, 255, 255, 255], false); }
   { const [px, py] = W2(HOME.guard.x, HOME.guard.z); p.circle(px, py, 6, [255, 60, 60, 255]); }
+  for (const R of HOME.regions) for (const q of R.pts) { const [px, py] = W2(q[0], q[1]); p.circle(px, py, q[3] * S, [255, 255, 255, 255], false); }
+  for (const m of MOUNDS) { const [px, py] = W2(m.x, m.z); p.circle(px, py, Math.min(m.rx, m.rz) * S, [255, 120, 120, 255], false); }
+  for (const k of Object.keys(TUNNELS)) for (let i = 0; i < TUNNELS[k].length - 1; i++) { const [a, b] = [TUNNELS[k][i], TUNNELS[k][i + 1]]; for (let t = 0; t <= 1; t += 0.05) { const [px, py] = W2(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t); p.circle(px, py, 3, [255, 255, 0, 255]); } }
+  for (const k of Object.keys(CHAMBERS)) { const c = CHAMBERS[k]; const [px, py] = W2(c.x, c.z); p.circle(px, py, c.rx * S, [255, 255, 0, 255], false); }
+  for (const q of RAMP) { const [px, py] = W2(q[0], q[1]); p.circle(px, py, 2, [0, 255, 255, 255]); }
+  { const [px, py] = W2(SUMMIT.x, SUMMIT.z); p.circle(px, py, SUMMIT.r * S, [0, 255, 255, 255], false); }
 } else {
   for (const l of LEVEL.lanterns) { const [px, py] = W2(l.x, l.z); p.circle(px, py, 7, [255, 230, 60, 255]); p.circle(px, py, 4, [255, 120, 20, 255]); }
   for (const i of LEVEL.isles) { const [px, py] = W2(i.x, i.z); p.circle(px, py, i.r * S, [255, 90, 255, 255], false); }

@@ -150,7 +150,7 @@ export class Ambient {
         if (p.inWater) { game.fx.splash(p.x, WATER_LEVEL, p.z, 0.45); game.audio?.sfx('splash', { vol: 0.35, pitch: 1.3 }); }
         else {
           game.fx.dust(p.x - p.dirx * 0.5, p.y, p.z - p.dirz * 0.5, p.chargeT > 0 ? 3 : 1, 0.3);
-          game.audio?.sfx(p.groundKind === 'collider' ? 'footstep_stone' : ['footstep_a', 'footstep_b', 'footstep_c'][(game.frames >> 3) % 3], { vol: 0.22, jitter: 0.06 });
+          game.audio?.sfx(p.groundKind === 'collider' || p.groundKind === 'solid' ? 'footstep_stone' : ['footstep_a', 'footstep_b', 'footstep_c'][(game.frames >> 3) % 3], { vol: 0.22, jitter: 0.06 });
         }
       }
     } else this.stepAcc = 0;

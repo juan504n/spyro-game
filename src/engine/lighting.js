@@ -87,6 +87,8 @@ export class Lighting {
     this.shadow = [null, null];
     this.casters = [];        // { x, z, r, h, k }  blob/stamp shadow casters (trees, houses...)
     this._vis = [1, 1];
+    this.massifs = [];        // rock masses that are not part of the heightfield (massif.js): they cast shadows and shut the light out of their caves
+    this._std = new Float32Array(6);
   }
 
   /** Attach the terrain height grid used for shadow marching and ground-contact AO. */
@@ -115,6 +117,7 @@ export class Lighting {
       const sx = (dx / hl) * cell, sz = (dz / hl) * cell;
       const rise = (dy / hl) * cell;      // vertical rise per horizontal step (one cell)
       const steps = Math.min(90, Math.ceil(220 / cell));
+      const ms = this.massifs, nm = ms.length;
       for (let j = 0; j <= n; j++) {
         for (let i = 0; i <= n; i++) {
           const x = -half + i * cell, z = -half + j * cell;
@@ -123,7 +126,8 @@ export class Lighting {
           for (let k = 1; k <= steps; k++) {
             px += sx; pz += sz; y += rise;
             if (px < -half || px > half || pz < -half || pz > half) break;
-            const th = g.heightAt(px, pz);
+            let th = g.heightAt(px, pz);
+            for (let q = 0; q < nm; q++) { const mt = ms[q].topAt(px, pz); if (mt > th) th = mt; }
             if (th > y) {
               const soft = 0.6 + k * cell * 0.10;
               occ = Math.max(occ, clamp((th - y) / soft));
@@ -197,6 +201,17 @@ export class Lighting {
         r += l.color[0] * k; g += l.color[1] * k; b += l.color[2] * k;
       }
       out[e * 3] = r; out[e * 3 + 1] = g; out[e * 3 + 2] = b;
+    }
+    // inside a massif's box the rock's own model takes over (it hands the ordinary light back where the sky is in sight)
+    if (this.massifs.length) {
+      for (let q = 0; q < this.massifs.length; q++) {
+        const m = this.massifs[q];
+        if (!m.F || !m.inBox(x, y, z, 1)) continue;
+        const std = this._std;
+        for (let i = 0; i < 6; i++) std[i] = out[i];
+        m.light(out, x, y, z, nx, ny, nz, std);
+        break;
+      }
     }
   }
 }

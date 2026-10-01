@@ -255,7 +255,7 @@ export class Player {
     this.steep = false;
     if (this.vy <= 0 && gap <= 0.02 + (prevGrounded ? 0.32 : 0)) {
       // land / stick
-      const nn = sup.kind === 'terrain' ? col.normalAt(this.x, this.z) : [0, 1, 0];
+      const nn = sup.kind === 'terrain' ? col.normalAt(this.x, this.z) : sup.kind === 'solid' ? [sup.n.nx, sup.n.ny, sup.n.nz] : [0, 1, 0];
       this.gnx = nn[0]; this.gny = nn[1]; this.gnz = nn[2];
       if (nn[1] < SLOPE_WALK) {
         this.steep = true;
@@ -288,7 +288,7 @@ export class Player {
     this._water(dt);
     if (this.grounded && !this.inWater && this.hurtT <= 0) {
       this.safeT -= dt;
-      if (this.safeT <= 0 && (this.groundKind === 'collider' || col.heightAt(this.x, this.z) > WATER_LEVEL + 0.6)) {
+      if (this.safeT <= 0 && (this.groundKind === 'collider' || this.groundKind === 'solid' || col.heightAt(this.x, this.z) > WATER_LEVEL + 0.6)) {
         this.safe.x = this.x; this.safe.y = this.y; this.safe.z = this.z; this.safe.yaw = this.yaw; this.safeT = 0.5;
       }
     }
@@ -397,10 +397,11 @@ export class Player {
 
   _water(dt) {
     const col = this.game.collision;
-    const ground = this.groundKind === 'collider' ? this.y : col.heightAt(this.x, this.z);
+    const onProp = this.groundKind === 'collider' || this.groundKind === 'solid';          // (a deck, a stair, a ledge of rock: the water below does not count)
+    const ground = onProp ? this.y : col.heightAt(this.x, this.z);
     const depth = WATER_LEVEL - ground;
     const wasIn = this.inWater;
-    this.inWater = this.groundKind !== 'collider' && depth > 0.05 && (this.grounded || this.y < WATER_LEVEL + 0.1);
+    this.inWater = !onProp && depth > 0.05 && (this.grounded || this.y < WATER_LEVEL + 0.1);
     if (this.inWater && !wasIn) this.emit('splash', depth);
     if (this.inWater && depth > 0.95 && (this.y < WATER_LEVEL - 0.3 || this.grounded)) {
       this.waterT += dt;

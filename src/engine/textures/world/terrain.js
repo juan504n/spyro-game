@@ -311,6 +311,45 @@ function paintFlagstone() {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Ice: big pale plates under a skin of frost, dark blue cracks between them, a bright lip on each plate's lit edge and a few glints (the floor of the homeworld's Frost Grotto)
+// ---------------------------------------------------------------------------------------------
+function paintIce() {
+  const c = new Canvas(32, 32, true);
+  const rng = new RNG(2101);
+  const pts = lattice(rng, 32, 32, 3, 3, 1.9, 0.5);
+  const V = cells(32, 32, pts);
+  const frost = field(32, 32, 2102, 6, 6, 1);
+  const I = RAMPS.crystalCyan;
+  const fams = [
+    { d: '#5aa8d0', m: '#8cd0ec', l: '#d8f4ff' },
+    { d: '#6ab4da', m: '#a0dcf2', l: '#eafcff' },
+    { d: '#4a98c4', m: '#7cc4e4', l: '#c8eefc' },
+  ];
+  const fam = pts.map(() => rng.pick(fams));
+  for (let y = 0; y < 32; y++) {
+    for (let x = 0; x < 32; x++) {
+      const k = y * 32 + x;
+      const e = V.d2[k] - V.d1[k];
+      if (e < 1.5) { c.set(x, y, ((x * 5 + y * 3) % 7) === 0 ? I[0] : I[1]); continue; }          // the crack
+      const p = fam[V.id[k]];
+      const nx = V.vx[k], ny = V.vy[k], nl = Math.hypot(nx, ny) || 1;
+      const lit = (nx * LX + ny * LY) / nl;
+      let col = p.m;
+      if (e < 3.2 && lit > 0.25) col = p.l; else if (e < 3.2 && lit < -0.25) col = p.d;
+      else if (frost[k] > 0.72) col = p.l; else if (frost[k] < 0.22) col = p.d;               // frosted patches, and clearer ice below
+      c.set(x, y, col);
+    }
+  }
+  // glints and long hairline cracks across the plates
+  for (const [x, y] of poisson(rng, 32, 32, 10, 3)) if (V.d2[y * 32 + x] - V.d1[y * 32 + x] > 3.5) { c.dot(x, y, '#ffffff'); c.dot(x + 1, y, I[4]); }
+  for (let i = 0; i < 3; i++) {
+    const p = walk(rng, rng.int(0, 32), rng.int(0, 32), 8 + i * 2, [rng.float(-1, 1), rng.float(-1, 1)], 0.7);
+    polyline(c, p, I[2]);
+  }
+  return c;
+}
+
+// ---------------------------------------------------------------------------------------------
 // Cliff faces: tall faceted rock, strata bands, cracks, moss along the top edge
 // (the tile wraps, so a few moss specks also sit on the bottom rows)
 // ---------------------------------------------------------------------------------------------
@@ -384,6 +423,9 @@ function paintCliff(seed, P, mossy) {
 
 function cliffLav() { return paintCliff(1901, { ramp: [CL[0], CL[1], CL[2], CL[3], CL[4], CL[5]] }, true); }
 function cliffWarm() { return paintCliff(1951, { ramp: [CW[0], CW[1], CW[2], CW[3], CW[4], '#dcc4a0'] }, true); }
+// the tall mountains of the homeworld: the same strata, ledges and fissures with no moss lip along every band (a lip repeating every 4 m up a 60 m wall reads as stripes)
+function cliffBare() { return paintCliff(2011, { ramp: [CL[0], CL[1], CL[2], CL[3], CL[4], CL[5]] }, false); }
+function cliffWarmBare() { return paintCliff(2051, { ramp: [CW[0], CW[1], CW[2], CW[3], CW[4], '#dcc4a0'] }, false); }
 
 // ---------------------------------------------------------------------------------------------
 // Far rock: 3 close colours, big soft patches, no fine detail so distant mountains read smooth
@@ -456,8 +498,11 @@ export function terrainTextures() {
     shore_pebbles: rec(paintPebbles(), true, false, { roll: 'xy' }),
     cobble: rec(paintCobble(), true, false, { roll: 'xy' }),
     flagstone: rec(paintFlagstone(), true, false, { roll: 'xy' }),
+    ice: rec(paintIce(), true, false, { roll: 'xy' }),
     cliff: rec(cliffLav(), true, false, { roll: 'x' }),
     cliff_warm: rec(cliffWarm(), true, false, { roll: 'x' }),
+    cliff_bare: rec(cliffBare(), true, false, { roll: 'x' }),
+    cliff_warm_bare: rec(cliffWarmBare(), true, false, { roll: 'x' }),
     far_rock: rec(paintFarRock(), true, false),
     rune_ring: rec(paintRuneRing(), false, false),
   };

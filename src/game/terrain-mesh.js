@@ -48,7 +48,7 @@ export const triangleNormal = (a, b, c) => {
  * which drops the sideways direction of the slope from the texture's coordinates and smeared the grass over it (120 triangles of the realm were stretched more than 1.8 times, 23 more than 3).
  */
 export function uvProjection(name, slope, faceN, geoN) {
-  const rock = name === 'cliff' || name === 'cliff_warm';
+  const rock = name === 'cliff' || name === 'cliff_warm' || name === 'cliff_bare' || name === 'cliff_warm_bare';
   if (rock ? slope > 0.35 : name === 'far_rock' ? slope > 0.62 : false) return Math.abs(faceN[0]) > Math.abs(faceN[2]) ? 'wallX' : 'wallZ';
   if (rock || name === 'far_rock') return 'planar';
   const ax = Math.abs(geoN[0]), ay = Math.abs(geoN[1]), az = Math.abs(geoN[2]);
@@ -91,12 +91,14 @@ export function terrainPicker(grid) {
     // random mix of rock and grass on the steep flanks of its forecourt looked torn)
     const near = (f, r) => !!f && Math.hypot(x - f.x, z - f.z) < r;           // (a level without that landmark simply has no such zone)
     const nearGate = near(L.gate, 34);
-    const warm = !nearGate && (near(L.mesa, 60) || near(L.cascade, 55) || near(L.heron, 25));
+    const warm = !nearGate && (near(L.mesa, 60) || near(L.cascade, 55) || near(L.heron, 25) || (L.warmRock ? L.warmRock(x, z, h) : false));
     if (vrAt(x, z) > 0.965 && slope > 0.3) return ['far_rock', 'valley rim, slope > 0.3'];
     const banks = L.roadBanks && pd < L.roadBanks.zone ? L.roadBanks.steep : 0;          // (a level can say the same of the banks its roads are cut into a hillside with)
-    const steep = tidy ? 1.05 : banks || 0.74;                         // (the landing's road embankments are not cliffs until they really are)
-    if (slope > steep) return [warm ? 'cliff_warm' : 'cliff', `steep, slope > ${steep}`];
-    if (h > 30 && slope > 0.42) return [warm ? 'cliff_warm' : 'cliff', 'high and sloping, y > 30 and slope > 0.42'];
+    const steep = L.steepSlope ?? (tidy ? 1.05 : banks || 0.74);        // (the landing's road embankments are not cliffs until they really are; a level can name one limit for all its ground: the homeworld does, so that the border of rock and grass is one smooth line)
+    // a level can name its own cliff textures (the homeworld's tall mountains have no moss lip on every band): L.cliffs = { cool, warm }
+    const cliff = L.cliffs ? (warm ? L.cliffs.warm : L.cliffs.cool) : (warm ? 'cliff_warm' : 'cliff');
+    if (slope > steep) return [cliff, `steep, slope > ${steep}`];
+    if (L.steepSlope === undefined && h > 30 && slope > 0.42) return [cliff, 'high and sloping, y > 30 and slope > 0.42'];
     // (a level can have no patches: a hillside is then grass right up to the steep limit above, the homeworld's hills are domes of grass, and no ragged border of rock and grass lies across their flanks)
     if (!tidy && !L.noRockPatches && slope > 0.5 && (slope > rockLimit(x, z) || nearGate)) return [warm ? 'cliff_warm' : 'cliff', nearGate ? 'sloping near the Dawn Gate, slope > 0.5' : 'sloping, rock and grass patches, slope > 0.5'];
     if (h > 42) return ['far_rock', 'very high, y > 42'];
@@ -111,7 +113,7 @@ export function terrainPicker(grid) {
     const f = flowerAt(x, z);
     if (f > 0.6 && r < 0.9) return ['grass_flowers', 'flower noise'];
     const p = fbm(nPatch, x * 0.05 + 40, z * 0.05, 2);
-    if (p > 0.58) return ['grass_b', 'grass patch noise'];
+    if (p > 0.58 && !L.noGrassPatches) return ['grass_b', 'grass patch noise'];            // (a level can have no patches of the second green: in the homeworld's daybreak they read as blots)
     return ['grass_a', 'default grass'];
   };
 
@@ -147,7 +149,10 @@ export function terrainPicker(grid) {
       // (a patch of dirt of the terrain's own look beyond the end of the ribbon, which has the road's own), so every corner must lie under the flat-ended ribbon too
       if (underRoad && !(underRoadAt(grid, p0[0], p0[2]) && underRoadAt(grid, p1[0], p1[2]) && underRoadAt(grid, p2[0], p2[2]))) underRoad = null;
       const [tex, why] = pickRule(cx, cz, ch, slope, nx, nz, i, j, pd, surface, underRoad, rd, rs, Math.max(p0[1], p1[1], p2[1]));
-      return { p: [p0, p1, p2], idx: [i0, i1, i2], slope, tex, why };
+      const rec = { p: [p0, p1, p2], idx: [i0, i1, i2], slope, tex, why };
+      // (a level that names its steep limit has the border of its rock cut along a contour, see buildTerrainMeshes: it asks again what this triangle would be at another slope)
+      if (L.steepSlope !== undefined) { const hTop = Math.max(p0[1], p1[1], p2[1]); rec.re = (sl) => pickRule(cx, cz, ch, sl, nx, nz, i, j, pd, surface, underRoad, rd, rs, hTop); }
+      return rec;
     });
   };
 
@@ -159,6 +164,28 @@ export function terrainPicker(grid) {
     return { tex: t.tex, why: t.why, slope: t.slope, i, j, tri: first ? 0 : 1 };
   };
   return { tris, at };
+}
+
+const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+const unit3 = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+
+/**
+ * Cut a triangle along a contour: its corners are { p: [x, y, z], nv: normal, sc: a score (positive on the rock side), key: a number that is the same for the same grid vertex in every
+ * triangle }. Returns { rock, soft }: the polygons (lists of corners, none, one or both) where the score is positive and where it is not. A corner made on an edge lies where the score
+ * interpolated along the edge passes zero, worked out from the end with the lower key, so that the two triangles that share the edge make the very same corner.
+ */
+export function cutByContour(corner) {
+  const rock = [], soft = [];
+  for (let k = 0; k < corner.length; k++) {
+    const a = corner[k], b = corner[(k + 1) % corner.length];
+    (a.sc > 0 ? rock : soft).push(a);
+    if ((a.sc > 0) !== (b.sc > 0)) {
+      const [lo, hi] = a.key < b.key ? [a, b] : [b, a], t = lo.sc / (lo.sc - hi.sc);
+      const x = { p: lerp3(lo.p, hi.p, t), nv: unit3(lerp3(lo.nv, hi.nv, t)), sc: 0, key: -1 };
+      rock.push(x); soft.push(x);
+    }
+  }
+  return { rock: rock.length >= 3 ? rock : [], soft: soft.length >= 3 ? soft : [] };
 }
 
 export function buildTerrainMeshes(grid, lighting, assets) {
@@ -216,20 +243,51 @@ export function buildTerrainMeshes(grid, lighting, assets) {
   const NV = (i, j) => grid.vertexNormal(i, j);
   const opts = { aoFn, color: tintFn };
 
-  const emit = (name, slope, va, vb, vc, ia, ib, ic) => {
+  const emitN = (name, slope, va, vb, vc, na, nb, nc) => {
     // ensure counter-clockwise from above
     const ux = vb[0] - va[0], uz = vb[2] - va[2], vx = vc[0] - va[0], vz = vc[2] - va[2];
-    if (uz * vx - ux * vz < 0) { [vb, vc] = [vc, vb]; [ib, ic] = [ic, ib]; }
+    if (uz * vx - ux * vz < 0) { [vb, vc] = [vc, vb]; [nb, nc] = [nc, nb]; }
     const b = getB(name);
-    const fn = [NV(...ia), NV(...ib), NV(...ic)];
+    const fn = [na, nb, nc];
     const faceN = [fn[0][0] + fn[1][0] + fn[2][0], fn[0][1] + fn[1][1] + fn[2][1], fn[0][2] + fn[1][2] + fn[2][2]];
     const mode = uvProjection(name, slope, faceN, triangleNormal(va, vb, vc));
     b.tri(va, vb, vc, projectUV(va, mode), projectUV(vb, mode), projectUV(vc, mode), opts, fn);
   };
+  const emit = (name, slope, va, vb, vc, ia, ib, ic) => emitN(name, slope, va, vb, vc, NV(...ia), NV(...ib), NV(...ic));
+
+  // The border between rock and grass. The rules choose a texture for a whole triangle, so a border is a staircase of triangles, with a tooth every cell (2.4 m) along every foot of a mountain.
+  // A level that names its steep limit (`steepSlope`: the homeworld) has it cut instead along the contour of that slope read at the VERTICES (the smooth normal of the grid, over four metres): a
+  // triangle that straddles the contour is cut in two along it, one part rock and the other what the rules give a gentle slope there, and the new corners are shared with the neighbour across the edge.
+  const steepL = L.steepSlope;
+  const vSlope = steepL === undefined ? null : new Float32Array(s * s).fill(-1);
+  const slopeV = (i, j) => { const k = j * s + i; if (vSlope[k] < 0) vSlope[k] = Math.acos(clamp(grid.vertexNormal(i, j)[1])); return vSlope[k]; };
+  const emitCut = (t, rockName, softName) => {
+    const corner = t.idx.map(([a, b], k) => ({ p: t.p[k], nv: NV(a, b), sc: slopeV(a, b) - steepL, key: b * (n + 1) + a }));
+    const { rock, soft } = cutByContour(corner);
+    for (const [poly, name] of [[rock, rockName], [soft, softName]]) {
+      for (let k = 1; k + 1 < poly.length; k++) emitN(name, t.slope, poly[0].p, poly[k].p, poly[k + 1].p, poly[0].nv, poly[k].nv, poly[k + 1].nv);
+    }
+  };
 
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
-      for (const t of picker.tris(i, j)) emit(t.tex, t.slope, t.p[0], t.p[1], t.p[2], t.idx[0], t.idx[1], t.idx[2]);
+      for (const t of picker.tris(i, j)) {
+        if (steepL !== undefined) {
+          const sv = t.idx.map(([a, b]) => slopeV(a, b)), up = sv.filter((v) => v > steepL).length;
+          if (t.why.startsWith('steep') || up > 0) {
+            // (only where the rules would make it rock at all: a lake floor, a road, a river bank, the valley's rim and the like have decided already)
+            const rock = t.re(steepL + 0.05);
+            if (rock[1].startsWith('steep')) {
+              const soft = t.re(Math.min(t.slope, steepL - 0.05));
+              if (up === 3) emit(rock[0], t.slope, t.p[0], t.p[1], t.p[2], t.idx[0], t.idx[1], t.idx[2]);
+              else if (up === 0) emit(soft[0], t.slope, t.p[0], t.p[1], t.p[2], t.idx[0], t.idx[1], t.idx[2]);
+              else emitCut(t, rock[0], soft[0]);
+              continue;
+            }
+          }
+        }
+        emit(t.tex, t.slope, t.p[0], t.p[1], t.p[2], t.idx[0], t.idx[1], t.idx[2]);
+      }
     }
   }
 

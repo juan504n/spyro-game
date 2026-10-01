@@ -16,12 +16,13 @@ const angDiff = (a, b) => { let d = a - b; while (d > Math.PI) d -= TAU; while (
 /** flat, empty world */
 const collision = {
   support: () => ({ y: 0, kind: 'terrain', c: null }), normalAt: () => [0, 1, 0], heightAt: () => 0, pushOut: () => null,
+  solids: [],                               // (no rock masses: a level's massifs, see massif.js)
   ray: 1,                                   // what rayFraction() reports (1 = nothing in the way); tests set it to fake obstacles
   rayFraction() { return collision.ray; }, near: () => [], blocking: () => null,
 };
 
 /** the REAL collision layer over fake terrain (`height(x, z)`) and props: trees, houses, slopes... */
-function realWorld(height = () => 0, colliders = []) {
+function realWorld(height = () => 0, colliders = [], solids = []) {
   const e = 0.05;
   const grid = {
     heightAt: (x, z) => height(x, z),
@@ -30,7 +31,7 @@ function realWorld(height = () => 0, colliders = []) {
       out[0] = -gx / l; out[1] = 1 / l; out[2] = -gz / l; return out;
     },
   };
-  return new Collision(grid, colliders.map((c) => ({ ...c })));
+  return new Collision(grid, colliders.map((c) => ({ ...c })), solids);
 }
 const tree = (x, z, r = 0.9) => ({ type: 'cyl', x, z, r, y0: 0, y1: 6.5, top: false });
 const house = (x, z, h = 4) => ({ type: 'box', x, z, hx: h, hz: h, rot: 0, y0: 0, y1: 9, top: false });
@@ -256,4 +257,35 @@ if (process.argv.includes('--table')) {
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nall camera checks passed');
+// ---- a mountain behind him (massif.js): the chase camera is held back by the rock and is never inside it ---------------------------------
+{
+  // a fake rock mass: everything beyond z = -3.5 is rock (the hero stands at the origin facing +z, so the camera's place, 9 m behind him, is in the mountain)
+  const rock = { inBoxXZ: () => false, push: () => null, enclosure: () => 0, hitsPoint: (x, y, z, pad) => z < -3.5 + pad };
+  const watch = (world) => {
+    const r = rig('active', {}, world);
+    let inside = 0, farthest = 0;
+    for (let i = 0; i < 180; i++) {
+      r.player.update(DT, r.input, r.cam.yaw); r.cam.update(DT, r.input, r.player, 1); r.input.edge = {};
+      const p = r.cam.pos;
+      if (rock.hitsPoint(p.x, p.y, p.z, 0)) inside++;
+      farthest = Math.max(farthest, Math.hypot(p.x - r.player.x, p.z - r.player.z));
+    }
+    return { inside, farthest };
+  };
+  const held = watch(realWorld(() => 0, [], [rock])), free = watch(realWorld(() => 0, [], []));
+  check('a mountain behind him: the camera is never inside the rock, it is held back to the wall', held.inside === 0 && held.farthest < 4.2 && free.farthest > 6, `(with the rock: farthest ${f1(held.farthest)} m from him, ${held.inside} frames inside it; in the open ${f1(free.farthest)} m)`);
+  // ... also when the wall appears at once (the camera's offset is smoothed and would lag it: a ledge road winding round a mountain): the rock is far off for 90 frames, then there
+  let edge = -40;
+  const sudden = { inBoxXZ: () => false, push: () => null, enclosure: () => 0, hitsPoint: (x, y, z, pad) => z < edge + pad };
+  const r2 = rig('active', {}, realWorld(() => 0, [], [sudden]));
+  let inside2 = 0;
+  for (let i = 0; i < 180; i++) {
+    if (i === 90) edge = -3.5;
+    r2.player.update(DT, r2.input, r2.cam.yaw); r2.cam.update(DT, r2.input, r2.player, 1); r2.input.edge = {};
+    const p = r2.cam.pos;
+    if (i >= 90 && sudden.hitsPoint(p.x, p.y, p.z, 0)) inside2++;
+  }
+  check('... and when the wall appears at once: the camera, which lags, is still never inside it', inside2 === 0, `(${inside2} of 90 frames inside the rock after it appeared)`);
+}
+
 process.exitCode = failed ? 1 : 0;

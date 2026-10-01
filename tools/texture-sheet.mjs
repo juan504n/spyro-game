@@ -28,6 +28,7 @@ const SPEC = {
   moss: [32, 32, 1, 0, 'terrain'], dirt: [32, 32, 1, 0, 'terrain'], sand: [32, 32, 1, 0, 'terrain'],
   shore_pebbles: [32, 32, 1, 0, 'terrain'], cobble: [32, 32, 1, 0, 'terrain'], flagstone: [32, 32, 1, 0, 'terrain'],
   cliff: [32, 32, 1, 0, 'terrain'], cliff_warm: [32, 32, 1, 0, 'terrain'], far_rock: [32, 32, 1, 0, 'terrain'],
+  cliff_bare: [32, 32, 1, 0, 'terrain'], cliff_warm_bare: [32, 32, 1, 0, 'terrain'], ice: [32, 32, 1, 0, 'terrain'],
   rune_ring: [32, 32, 0, 0, 'terrain'],
   // buildings
   brick: [32, 32, 1, 0, 'buildings'], brick_warm: [32, 32, 1, 0, 'buildings'], brick_mossy: [32, 32, 1, 0, 'buildings'],
@@ -48,7 +49,7 @@ const SPEC = {
   // magic & light
   crystal_violet: [16, 16, 0, 0, 'magic'], crystal_cyan: [16, 16, 0, 0, 'magic'],
   lantern_glass_off: [16, 16, 0, 0, 'magic'], lantern_glass_on: [16, 16, 0, 0, 'magic'],
-  barrier: [32, 32, 1, 0, 'magic'], portal: [32, 32, 1, 0, 'magic'], beam: [16, 64, 1, 0, 'magic'],
+  barrier: [32, 32, 1, 0, 'magic'], portal: [32, 32, 1, 0, 'magic'], portal_swirl: [64, 64, 0, 0, 'magic'], beam: [16, 64, 1, 0, 'magic'],
   sun_glow: [32, 32, 0, 0, 'magic'],
   // sky
   cloud: [64, 32, 0, 1, 'sky'], moon: [32, 32, 0, 1, 'sky'], sun_disc: [32, 32, 0, 1, 'sky'],
@@ -60,7 +61,7 @@ const SPEC = {
 // dark / light / additive by design have their own window so they are not reported as violations.
 const LUMA_DEFAULT = [0.5, 0.75];
 const LUMA = {
-  cliff: [0.4, 0.75], cliff_warm: [0.4, 0.75], far_rock: [0.4, 0.72], tower_stone: [0.25, 0.6], rune_ring: [0.2, 0.6],
+  cliff: [0.4, 0.75], cliff_warm: [0.4, 0.75], cliff_bare: [0.4, 0.75], cliff_warm_bare: [0.4, 0.75], ice: [0.6, 0.95], portal_swirl: [0.2, 0.85], far_rock: [0.4, 0.72], tower_stone: [0.25, 0.6], rune_ring: [0.2, 0.6],
   metal_iron: [0.25, 0.6], door: [0.3, 0.7], banner: [0.3, 0.7], window: [0.4, 0.95],
   water: [0.4, 0.75], waterfall: [0.5, 0.9], foam: [0.7, 1], moon: [0.6, 1], sun_disc: [0.7, 1],
   cloud: [0.6, 0.95], beam: [0, 1], sun_glow: [0, 1], portal: [0.25, 0.85], barrier: [0.2, 0.75],
@@ -72,7 +73,7 @@ const LUMA = {
 };
 const MAX_COLORS = 16;
 const HERO_COLORS = 24;
-const HERO = new Set(['rune_ring', 'door', 'banner', 'window', 'grass_flowers', 'vase', 'chest_wood', 'crate', 'cloud', 'portal', 'mushroom_cap', 'lantern_glass_on', 'moon', 'sun_disc']);
+const HERO = new Set(['portal_swirl', 'rune_ring', 'door', 'banner', 'window', 'grass_flowers', 'vase', 'chest_wood', 'crate', 'cloud', 'portal', 'mushroom_cap', 'lantern_glass_on', 'moon', 'sun_disc']);
 const NO_COLOR_LIMIT = new Set(['beam', 'sun_glow']); // additive greyscale intensity ramps: 8-bit, not CLUT-limited
 
 // ---------------------------------------------------------------------------------------------

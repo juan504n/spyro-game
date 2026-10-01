@@ -5,7 +5,7 @@ import { homeLines } from '../home/dialogue.js';
 const wrap = (a) => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
 
 export class NpcSystem {
-  /** npcs: [{ id, name, x, z, yaw }]  hints: [{ x, z, r, text, once }] */
+  /** npcs: [{ id, name, x, z, yaw }]  hints: [{ x, z, r, text, once, y0?, y1? }] (y0..y1: only at those heights) */
   constructor(game, npcs, hints) {
     this.game = game;
     this.npcs = npcs.map((n) => {
@@ -72,7 +72,7 @@ export class NpcSystem {
     const playing = game.hud.visible && game.mode === 'play';      // (not while the title / intro / finale own the screen)
     for (const h of this.hints) {
       if (h.done || !playing) continue;
-      if (Math.hypot(p.x - h.x, p.z - h.z) < h.r && !game.hud.talking) {
+      if (Math.hypot(p.x - h.x, p.z - h.z) < h.r && (h.y0 === undefined || (p.y >= h.y0 && p.y <= h.y1)) && !game.hud.talking) {          // (y0..y1: a zone inside a mountain is not the road above it)
         h.done = h.once !== false;
         const dev = game.input.lastDevice;
         game.hud.hint((dev === 'touch' && h.touch) || (dev === 'pad' && h.pad) || h.text, h.dur || 6);
