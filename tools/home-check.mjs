@@ -4,7 +4,7 @@
 import { buildHeadless } from './headless-world.mjs';
 import { DOORS, SECRETS, inFront, polar, DOOR_R } from '../src/game/home/level.js';
 import { SLOPE_WALK } from '../src/game/collision.js';
-import { terrainPicker } from '../src/game/terrain-mesh.js';
+import { terrainPicker, uvProjection, triangleNormal, projectUV, GROUND_TILE } from '../src/game/terrain-mesh.js';
 import { WATER_LEVEL } from '../src/game/level.js';
 
 const { grid, kit, dryCtx: ctx, gp, collision, level: L, ms } = buildHeadless('home');
@@ -168,13 +168,54 @@ if (gp.barrier) collision.add({ type: 'box', x: gp.barrier.x, z: gp.barrier.z, h
     const cxp = (t.p[0][0] + t.p[1][0] + t.p[2][0]) / 3, czp = (t.p[0][2] + t.p[1][2] + t.p[2][2]) / 3;
     const dl = Math.hypot((cxp - L.lake.x) / L.lake.rx, (czp - L.lake.z) / L.lake.rz);
     if (t.tex === 'sand' && dl > 1.7 && !t.why.startsWith('river')) sandAway++;
-    if ((t.tex === 'far_rock' || t.tex === 'cliff') && Math.hypot(cxp, czp) < 60 && t.slope < 0.6 && !/steep|rim|high/.test(t.why)) rimRock++;
+    if ((t.tex === 'far_rock' || t.tex === 'cliff') && Math.hypot(cxp, czp) < 60 && t.slope < 0.6 && !/steep|rim|high|garden's wall/.test(t.why)) rimRock++;       // (the hidden garden's ring is rock right down to its foot: that is the one place a gentler slope is rock)
   }
   console.log('ground textures', JSON.stringify(tex));
   check('sand only where there is water', sandAway === 0, `(${sandAway} triangles far from the pond)`);
   check('no stray rock out on the meadow', rimRock === 0, `(${rimRock})`);
   const paved = picker.at(0, 5), court = picker.at(L.guard.x, L.guard.z + 8);
   check('the plaza and the court before the gate are paved', paved.tex === 'flagstone' && court.tex === 'flagstone', `(${paved.tex}, ${court.tex})`);
+}
+
+// ---- the hills' edges --------------------------------------------------------------------------------------------------------------
+{
+  // The first Dawnhaven had ragged borders of rock and grass on the windmill's hill and the hidden garden's ring. The hill was a steep crown of rock on a low skirt, and the realm's rule that patches the
+  // slopes between 0.5 and 0.74 with rock and grass cut teeth across its flank; the ring was a ridge too thin for a 2.4 m cell to hold, with flaps of grass hanging on the foot of its wall. Now the
+  // hill is a dome of grass, that rule is off here, the banks of a road stay grass until they are really steep, and the ring is rock down to its foot under a flat top.
+  const picker = terrainPicker(grid), n = grid.n, W = L.windHill, K = L.garden, TAU = Math.PI * 2;
+  const isRock = (t) => t === 'cliff' || t === 'cliff_warm' || t === 'far_rock';
+  const stretchOf = (t, mode) => {
+    const uv = t.p.map((q) => projectUV(q, mode)), g = triangleNormal(t.p[0], t.p[1], t.p[2]);
+    const surface = Math.hypot(g[0], g[1], g[2]) / 2, tex = Math.abs((uv[1][0] - uv[0][0]) * (uv[2][1] - uv[0][1]) - (uv[2][0] - uv[0][0]) * (uv[1][1] - uv[0][1])) / 2 * GROUND_TILE * GROUND_TILE;
+    return surface / Math.max(tex, 1e-9);
+  };
+  let hillRock = 0, patches = 0, flaps = 0, nonRock = 0, worst = 0;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) for (const t of picker.tris(i, j)) {
+    const cxp = (t.p[0][0] + t.p[1][0] + t.p[2][0]) / 3, czp = (t.p[0][2] + t.p[1][2] + t.p[2][2]) / 3;
+    if (Math.hypot(cxp - W.x, czp - W.z) <= W.r && isRock(t.tex)) hillRock++;
+    if (/rock and grass patches/.test(t.why)) patches++;
+    if (Math.hypot(cxp - K.x, czp - K.z) < K.r + 21 && t.slope > 0.3 && !isRock(t.tex)) flaps++;
+    if (!isRock(t.tex)) {
+      const fn = t.idx.map(([a, b]) => grid.vertexNormal(a, b)), faceN = [0, 1, 2].map((k) => fn[0][k] + fn[1][k] + fn[2][k]);
+      worst = Math.max(worst, stretchOf(t, uvProjection(t.tex, t.slope, faceN, triangleNormal(t.p[0], t.p[1], t.p[2])))); nonRock++;
+    }
+  }
+  check('the windmill hill is a dome of grass: no rock on it (it was a crown of rock on a low skirt, patched with grass in teeth)', hillRock === 0, `(${hillRock} rock triangles within ${W.r} m of the mill)`);
+  check('no hillside is patched with rock and grass: the realm\'s patch rule is off here, a slope is grass up to the steep limit', patches === 0, `(${patches} triangles)`);
+  check('the hidden garden\'s ring is rock down to its foot: no flap of grass hangs on its wall', flaps === 0, `(${flaps} grass triangles steeper than 0.3 within ${f1(K.r + 21)} m of its middle)`);
+  // the ring's crest: a flat top at least 2.5 m wide at the middle of the angles round the ring (a cell is 2.4 m: a thinner ridge is drawn as a row of teeth against the sky)
+  const widths = [];
+  for (let k = 0; k < 24; k++) {
+    const off = (k / 24) * TAU, a = K.open + off;
+    if (Math.min(off, TAU - off) < 0.5) continue;                              // (not through the strip)
+    const prof = []; let top = -1e9;
+    for (let d = 0; d <= 26; d += 0.2) { const y = h(K.x + Math.cos(a) * d, K.z + Math.sin(a) * d); prof.push([d, y]); top = Math.max(top, y); }
+    const on = prof.filter(([, y]) => y >= top - 0.35);
+    widths.push(on[on.length - 1][0] - on[0][0]);
+  }
+  widths.sort((a, b) => a - b);
+  check('the hidden garden\'s ring has a crest the grid can draw: its flat top is 2.5 m wide or more (the median of the angles round it)', widths.length >= 18 && widths[widths.length >> 1] >= 2.5, `(median ${f1(widths[widths.length >> 1])} m, narrowest ${f1(widths[0])} m, over ${widths.length} rays)`);
+  check('the ground that is not rock is laid on from the side its plane faces: no triangle is stretched more than 1.75 times (the grass flanks and the banks of the roads are steep enough to matter)', nonRock > 5000 && worst < 1.75, `(${nonRock} triangles, worst ${worst.toFixed(2)} times)`);
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nall homeworld checks passed');

@@ -93,10 +93,12 @@ export function terrainPicker(grid) {
     const nearGate = near(L.gate, 34);
     const warm = !nearGate && (near(L.mesa, 60) || near(L.cascade, 55) || near(L.heron, 25));
     if (vrAt(x, z) > 0.965 && slope > 0.3) return ['far_rock', 'valley rim, slope > 0.3'];
-    const steep = tidy ? 1.05 : 0.74;                                  // (the landing's road embankments are not cliffs until they really are)
+    const banks = L.roadBanks && pd < L.roadBanks.zone ? L.roadBanks.steep : 0;          // (a level can say the same of the banks its roads are cut into a hillside with)
+    const steep = tidy ? 1.05 : banks || 0.74;                         // (the landing's road embankments are not cliffs until they really are)
     if (slope > steep) return [warm ? 'cliff_warm' : 'cliff', `steep, slope > ${steep}`];
     if (h > 30 && slope > 0.42) return [warm ? 'cliff_warm' : 'cliff', 'high and sloping, y > 30 and slope > 0.42'];
-    if (!tidy && slope > 0.5 && (slope > rockLimit(x, z) || nearGate)) return [warm ? 'cliff_warm' : 'cliff', nearGate ? 'sloping near the Dawn Gate, slope > 0.5' : 'sloping, rock and grass patches, slope > 0.5'];
+    // (a level can have no patches: a hillside is then grass right up to the steep limit above, the homeworld's hills are domes of grass, and no ragged border of rock and grass lies across their flanks)
+    if (!tidy && !L.noRockPatches && slope > 0.5 && (slope > rockLimit(x, z) || nearGate)) return [warm ? 'cliff_warm' : 'cliff', nearGate ? 'sloping near the Dawn Gate, slope > 0.5' : 'sloping, rock and grass patches, slope > 0.5'];
     if (h > 42) return ['far_rock', 'very high, y > 42'];
     // a level with grounds of its own (a paved court, garden beds...) names them here: L.groundRule(x, z, h, slope, { r, surface, pd }) -> [texture, rule] or nothing
     if (L.groundRule) { const c = L.groundRule(x, z, h, slope, { r, surface, pd }); if (c) return c; }

@@ -52,7 +52,7 @@ export const inFront = (door, d, side = 0) => {
 };
 
 /** the windmill's hill (between the doors of Emberfall and Skyweaver, at the foot of the mountains) */
-const MILL_HILL = { x: 67.5, z: -22, r: 27, h: 9.5, topR: 9, topH: 9.7 };
+const MILL_HILL = { x: 67.5, z: -22, r: 27, topR: 9, topH: 9.7 };       // (the mill's level top: topR wide at topH; the flank runs on down to the meadow at r)
 
 /** The windmill road's coil round its hill: from the foot (36 m from the mill, on the plaza's side) round once and a little more to the mill's door. */
 function millSpiral() {
@@ -104,7 +104,7 @@ function homeHeight(x, z, L) {
     h = lerp(h, K.h, 1 - smooth(K.r, K.r + 2.2, d));
     const along = dx * Math.cos(K.open) + dz * Math.sin(K.open), lateral = Math.abs(dx * Math.sin(K.open) - dz * Math.cos(K.open));
     const gap = along > 0 ? 1 - smooth(K.gap, K.gap + 0.7, lateral) : 0;
-    const ring = smooth(K.r + 0.4, K.r + 3.0, d) * (1 - smooth(K.r + 5.0, K.r + 12.0, d));
+    const ring = smooth(K.r + 0.4, K.r + 3.2, d) * (1 - smooth(K.r + 7.4, K.r + 12.2, d));
     h += K.wall * ring * (1 - gap);
   }
 
@@ -129,12 +129,10 @@ function homeHeight(x, z, L) {
     h = lerp(h, C.h, 1 - smooth(C.r, C.r + C.fall, d));
   }
   {
-    // the windmill's hill
+    // the windmill's hill: a dome of grass. The meadow climbs to the mill's level top in one smooth sweep between W.topR and W.r, so no slope on it is steeper than a plain hillside
+    // (about 30 degrees) and none of it is rock: the mound it replaces had a steep crown on a low skirt, and its rock and grass lay across the flank in ragged teeth
     const W = L.windHill;
-    const d = Math.hypot(x - W.x, z - W.z) / W.r;
-    const dm = W.h * Math.pow(1 - smooth(0, 1, d), 1.15);
-    if (dm > 0.01) h = Math.max(h, dm);
-    h = lerp(h, W.topH, 1 - smooth(W.topR, W.topR + 7, Math.hypot(x - W.x, z - W.z)));
+    h = lerp(h, W.topH, 1 - smooth(W.topR, W.r, Math.hypot(x - W.x, z - W.z)));
   }
   // no accidental puddles: outside the pond the ground stays above the waterline (eased in: a hard switch would leave a ledge along the shore)
   const dWet = Math.hypot((x - L.lake.x) / L.lake.rx, (z - L.lake.z) / L.lake.rz);
@@ -160,6 +158,8 @@ export const HOME = {
   ponds: [],
   cascade: { x: -83, z: -72, r: 22, fall: 5, h: 17 },
   windHill: MILL_HILL,
+  roadBanks: { zone: 7, steep: 1.1 },       // (a road cut into a hillside has banks of grass, not slivers of rock along it, until they are really steep)
+  noRockPatches: true,            // (the picker's rock-and-grass patches are the realm's: here a slope is grass up to the steep limit, and the rock is the cliffs, the mountains and the garden's wall)
   garden: { x: 0, z: 0, r: 8.6, h: 3.7, wall: 9, gap: 3.0, open: 0 },       // (placed below, from the polar position)
 
   plaza: PLAZA,
@@ -188,6 +188,9 @@ export const HOME = {
 
   // the paving of the plaza (a wide circle of flagstone) and of the court before the Guardian's gate; the rest follows the usual rules
   groundRule(x, z, h, slope, { surface, pd }) {
+    // the ring round the hidden garden is rock right down to its foot: the generic rules would leave flaps of grass on the lower part of its outer wall, against the rock above
+    const K = this.garden;
+    if (slope > 0.3 && Math.hypot(x - K.x, z - K.z) < K.r + 21) return ['cliff', 'the hidden garden\'s wall, slope > 0.3'];
     if (slope < 0.5) {
       if (Math.hypot(x - PLAZA.x, z - PLAZA.z) < 19.5) return ['flagstone', 'the plaza\'s paving'];
       if (Math.hypot(x - this.guard.x, z - (this.guard.z + 8)) < 13) return ['flagstone', 'the court before the Guardian\'s gate'];
