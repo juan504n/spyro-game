@@ -4,7 +4,7 @@ import { buildHeadless } from './headless-world.mjs';
 import { WATER_LEVEL } from '../src/game/level.js';
 import { isleObjects, shortfall } from '../src/game/levelgen/islands.js';
 import { colliderDist } from '../src/game/debuginfo.js';
-import { terrainPicker } from '../src/game/terrain-mesh.js';
+import { terrainPicker, uvProjection, projectUV, triangleNormal, rockLimit, GROUND_TILE, UNDER_ROAD } from '../src/game/terrain-mesh.js';
 import { buildRoads, ROAD_LIFT, ROAD_DECAL, ROAD_MAX_SLOPE } from '../src/game/roads.js';
 import { buildRiverWater } from '../src/game/water.js';
 import { riverWaterLength } from '../src/game/river.js';
@@ -268,6 +268,17 @@ const check = (name, ok, detail) => { checks.push(ok); console.log(ok ? 'PASS' :
   // stair-step beside the ribbon's smooth edge. (It is the one rule that can give the terrain 'dirt' or 'cobble', so the converse is checked as well.)
   const pick = terrainPicker(grid);
   const inside = (x, z) => grid.paths.some((pp) => pp.surface !== 'flagstone' && (() => { let best = Infinity; for (let k = 0; k < pp.pts.length - 1; k++) { const a = pp.pts[k], b = pp.pts[k + 1], vx = b[0] - a[0], vz = b[2] - a[2], l2 = vx * vx + vz * vz || 1; const t = Math.max(0, Math.min(1, ((x - a[0]) * vx + (z - a[2]) * vz) / l2)); best = Math.min(best, Math.hypot(x - (a[0] + vx * t), z - (a[2] + vz * t))); } return best <= pp.width / 2 + 0.6; })());
+  // the ribbon's real footprint: a road ENDS in a flat edge (nothing past its last point), and a corner may lie 0.1 m past the ribbon's side (see UNDER_REACH in roads.js)
+  const underRibbon = (x, z) => grid.paths.some((pp) => {
+    if (pp.surface === 'flagstone') return false;
+    let near = null;
+    for (let k = 0; k < pp.pts.length - 1; k++) {
+      const a = pp.pts[k], b = pp.pts[k + 1], vx = b[0] - a[0], vz = b[2] - a[2], l2 = vx * vx + vz * vz || 1, tr = ((x - a[0]) * vx + (z - a[2]) * vz) / l2, t = Math.max(0, Math.min(1, tr));
+      const dc = Math.hypot(x - (a[0] + vx * t), z - (a[2] + vz * t));
+      if (!near || dc < near.dc) near = { dc, off: (tr < 0 && k === 0) || (tr > 1 && k === pp.pts.length - 2) };
+    }
+    return !near.off && near.dc <= pp.width / 2 + 0.1 + 1e-9;
+  });
   let roadTris = 0, strays = 0, strayAt = '';
   for (let j = 0; j < grid.n; j++) for (let i = 0; i < grid.n; i++) {
     const x = -grid.half + i * grid.cell;
@@ -275,10 +286,24 @@ const check = (name, ok, detail) => { checks.push(ok); console.log(ok ? 'PASS' :
     for (const t of pick.tris(i, j)) {
       if (t.tex !== 'dirt' && t.tex !== 'cobble') continue;
       roadTris++;
-      if (!t.p.every((c) => inside(c[0], c[2]))) { strays++; if (!strayAt) strayAt = `${t.p[0][0].toFixed(0)}, ${t.p[0][2].toFixed(0)}`; }
+      if (!t.p.every((c) => underRibbon(c[0], c[2]))) { strays++; if (!strayAt) strayAt = `${t.p[0][0].toFixed(0)}, ${t.p[0][2].toFixed(0)}`; }
     }
   }
-  check('every terrain triangle that is textured as a road lies entirely under a road ribbon (no ragged dirt beside one)', roadTris > 100 && strays === 0, `(${roadTris} triangles, ${strays} stray${strays ? ', first at ' + strayAt : ''})`);
+  check('every terrain triangle that is textured as a road lies entirely under a road ribbon, flat ends and all (no ragged dirt beside one, none past a road\'s end)', roadTris > 100 && strays === 0, `(${roadTris} triangles, ${strays} stray${strays ? ', first at ' + strayAt : ''})`);
+  // what the carve's distance field says on its own (a round cap past every end of a path): the terrain used to take its road texture from it
+  let capTris = 0, capStrays = 0;
+  for (let j = 0; j < grid.n; j++) for (let i = 0; i < grid.n; i++) {
+    const x = -grid.half + i * grid.cell, z = -grid.half + j * grid.cell;
+    if (x < -60 || x > 120 || z < -130 || z > 150) continue;
+    for (const t of pick.tris(i, j)) {
+      const pdMax = Math.max(...t.idx.map(([a, b]) => grid.pathDist[b * (grid.n + 1) + a]));
+      const near = t.idx.map(([a, b]) => grid.pathIdx[b * (grid.n + 1) + a]).filter((k) => k >= 0).map((k) => grid.paths[k].surface);
+      if (!(pdMax <= UNDER_ROAD && t.slope <= ROAD_MAX_SLOPE && near.some((sf) => sf === 'dirt' || sf === 'cobble'))) continue;
+      capTris++;
+      if (!t.p.every((c) => underRibbon(c[0], c[2]))) capStrays++;
+    }
+  }
+  check('(by the carve\'s round caps alone, triangles past the ends of roads would still carry the road\'s texture: the check sees the problem)', capStrays >= 10, `(${capStrays} of ${capTris} triangles)`);
   const legacy = { ...pick };                                                  // (the old rule: the cell's average distance to a road decides)
   let oldStrays = 0, oldTris = 0;
   const pd = grid.pathDist, s1 = grid.n + 1;
@@ -289,6 +314,91 @@ const check = (name, ok, detail) => { checks.push(ok); console.log(ok ? 'PASS' :
   }
   void legacy;
   check('(the old rule painted dirt on cells only partly under a road, often: the check sees the problem)', oldStrays > oldTris * 0.2, `(${oldStrays} of ${oldTris} cells)`);
+
+  // ---- every ribbon is whole up to its flat end -----------------------------------------------------------------------------------------------------------------------------------------------------
+  // A road ending on a hillside lays the corners of its last row on steep triangles, and the ribbon used to drop every piece on ground steeper than ROAD_MAX_SLOPE however small: scraps of 0.1 to 0.3 m2
+  // at the end of the east road bit a V out of the straight end of the ribbon and bared a wedge of the ground's own texture. Scraps under STEEP_SCRAP are drawn now. Sampled across 90 % of the width,
+  // over the last 1.2 m of both ends of every road (the water's edge excepted: a ribbon is dropped under water).
+  const T = [], CS = 6, hash = new Map();
+  for (const surface of ['cobble', 'dirt']) {
+    const b = roads[surface];
+    if (!b) continue;
+    for (let i = 0; i < b.pos.length; i += 9) T.push([[b.pos[i], b.pos[i + 2]], [b.pos[i + 3], b.pos[i + 5]], [b.pos[i + 6], b.pos[i + 8]]]);
+  }
+  T.forEach((t, ti) => { const xs = t.map((q) => q[0]), zs = t.map((q) => q[1]); for (let cx = Math.floor(Math.min(...xs) / CS); cx <= Math.floor(Math.max(...xs) / CS); cx++) for (let cz = Math.floor(Math.min(...zs) / CS); cz <= Math.floor(Math.max(...zs) / CS); cz++) { const k = cx + ',' + cz; if (!hash.has(k)) hash.set(k, []); hash.get(k).push(ti); } });
+  const ribbonAt = (x, z) => {
+    for (const ti of hash.get(Math.floor(x / CS) + ',' + Math.floor(z / CS)) || []) {
+      const [A, B, C] = T[ti], d = (B[1] - C[1]) * (A[0] - C[0]) + (C[0] - B[0]) * (A[1] - C[1]);
+      const w0 = ((B[1] - C[1]) * (x - C[0]) + (C[0] - B[0]) * (z - C[1])) / d, w1 = ((C[1] - A[1]) * (x - C[0]) + (A[0] - C[0]) * (z - C[1])) / d;
+      if (w0 >= -1e-9 && w1 >= -1e-9 && 1 - w0 - w1 >= -1e-9) return true;
+    }
+    return false;
+  };
+  let endSamples = 0, endHoles = 0, holeAt = '';
+  for (const pp of grid.paths) {
+    if (pp.surface !== 'dirt' && pp.surface !== 'cobble') continue;
+    const hw = pp.width / 2;
+    for (const [e, nb] of [[pp.pts[0], pp.pts[1]], [pp.pts[pp.pts.length - 1], pp.pts[pp.pts.length - 2]]]) {
+      const dx = nb[0] - e[0], dz = nb[2] - e[2], l = Math.hypot(dx, dz) || 1, ux = dx / l, uz = dz / l;          // (the unit vector from the end inwards)
+      for (let a = 0.12; a <= 1.2; a += 0.1) for (let sd = -0.9 * hw; sd <= 0.9 * hw + 1e-9; sd += 0.1) {
+        const x = e[0] + ux * a - uz * sd, z = e[2] + uz * a + ux * sd;
+        if (grid.heightAt(x, z) < WATER_LEVEL + 0.1) continue;
+        endSamples++;
+        if (!ribbonAt(x, z)) { endHoles++; if (!holeAt) holeAt = `${pp.id} at ${x.toFixed(1)}, ${z.toFixed(1)}`; }
+      }
+    }
+  }
+  check('every road ribbon is whole up to its flat end: no hole in the last 1.2 m of any end (the east road\'s end had a V bitten out of it)', endSamples > 5000 && endHoles === 0, `(${endSamples} samples, ${endHoles} not covered${endHoles ? ', first ' + holeAt : ''})`);
+}
+{
+  // ---- ground textures are laid on without smearing -------------------------------------------------------------------------------------------------------------------------------------------------
+  // Rock is projected like a wall from a gentle slope on (its strata are horizontal), everything else from the side its plane faces: the dominant axis of the triangle's own normal, which can stretch
+  // a texture by 1.73 times at most (the square root of 3). A grass bank steeper than 0.62 used to be projected as a wall like the rock too, which drops the sideways direction of the slope from the
+  // texture's coordinates: 120 triangles of the realm were stretched more than 1.8 times, 23 more than 3 (a smeared green wedge at the end of the east road, banks of the lake and of the river).
+  const pick = terrainPicker(grid), G = GROUND_TILE;
+  const isRock = (tex) => tex === 'cliff' || tex === 'cliff_warm' || tex === 'far_rock';
+  const stretchOf = (t, mode) => {
+    const uv = t.p.map((q) => projectUV(q, mode)), g = triangleNormal(t.p[0], t.p[1], t.p[2]);
+    const surface = Math.hypot(g[0], g[1], g[2]) / 2, tex = Math.abs((uv[1][0] - uv[0][0]) * (uv[2][1] - uv[0][1]) - (uv[2][0] - uv[0][0]) * (uv[1][1] - uv[0][1])) / 2 * G * G;
+    return surface / Math.max(tex, 1e-9);
+  };
+  let nT = 0, worst = 0, over = 0, oldOver = 0, oldWorst = 0, rockT = 0, rockWallBad = 0;
+  for (let j = 0; j < grid.n; j++) for (let i = 0; i < grid.n; i++) for (const t of pick.tris(i, j)) {
+    const fn = t.idx.map(([a, b]) => grid.vertexNormal(a, b)), faceN = [0, 1, 2].map((k) => fn[0][k] + fn[1][k] + fn[2][k]);
+    const mode = uvProjection(t.tex, t.slope, faceN, triangleNormal(t.p[0], t.p[1], t.p[2]));
+    if (isRock(t.tex)) {                                                            // (rock: a wall from 0.35 (cliff) / 0.62 (far rock) on, along the smoothed normal's axis, as before)
+      rockT++;
+      const wall = t.tex === 'far_rock' ? t.slope > 0.62 : t.slope > 0.35, axis = Math.abs(faceN[0]) > Math.abs(faceN[2]) ? 'wallX' : 'wallZ';
+      if (mode !== (wall ? axis : 'planar')) rockWallBad++;
+      continue;
+    }
+    nT++;
+    const st = stretchOf(t, mode); worst = Math.max(worst, st); if (st > 1.8) over++;
+    const old = t.slope > 0.62 ? (Math.abs(faceN[0]) > Math.abs(faceN[2]) ? 'wallX' : 'wallZ') : 'planar', so = stretchOf(t, old);
+    oldWorst = Math.max(oldWorst, so); if (so > 1.8) oldOver++;
+  }
+  check('the ground that is not rock is laid on from the side its plane faces: no triangle is stretched more than 1.75 times (the limit is 1.73)', nT > 10000 && worst < 1.75, `(${nT} triangles, worst ${worst.toFixed(2)} times, ${over} above 1.8)`);
+  check('(the old rule projected every face steeper than 0.62 as a wall: the check sees the problem)', oldOver >= 60 && oldWorst > 3, `(${oldOver} triangles above 1.8 times, worst ${oldWorst.toFixed(0)} times)`);
+  check('rock is laid out as it was: a wall from 0.35 (cliff) or 0.62 (far rock) on, along the axis of the smoothed normal, from above below that', rockT > 5000 && rockWallBad === 0, `(${rockT} rock triangles, ${rockWallBad} different)`);
+  const up = [0, 1, 0], side = [1, 0.2, 0];
+  check('uvProjection: a gentle bank of grass is planar, only a plane that looks more sideways than up is a wall', uvProjection('grass_a', 0.7, up, [0.4, 0.8, 0.3]) === 'planar' && uvProjection('grass_a', 1.0, side, [0.9, 0.5, 0.1]) === 'wallX' && uvProjection('grass_a', 1.0, side, [0.1, 0.5, 0.9]) === 'wallZ' && uvProjection('cliff', 0.4, side, up) === 'wallX' && uvProjection('cliff', 0.3, side, up) === 'planar' && uvProjection('far_rock', 0.6, side, up) === 'planar' && uvProjection('far_rock', 0.7, side, up) === 'wallX');
+}
+{
+  // ---- rock and grass on a hillside come in patches ---------------------------------------------------------------------------------------------------------------------------------------------
+  // On slopes of 0.5 to 0.74 (29 to 42 degrees) rock begins where the slope passes a limit. It used to be a hash of the cell, a coin toss that changed from one cell to the next, so a plain flank of
+  // 33 degrees was a salt-and-pepper of cliff and grass triangles (623 cliff triangles of the realm came from it); now the limit wanders slowly with the position, so the rock lies in patches.
+  const hash01 = (i, j) => { let h = (i * 374761393 + j * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+  let sNew = 0, sOld = 0, cnt = 0, lo = 9, hi = 0;
+  for (let i = -60; i < 60; i++) for (let j = -60; j < 60; j++) {
+    const x = i * grid.cell, z = j * grid.cell, a = rockLimit(x, z);
+    lo = Math.min(lo, a); hi = Math.max(hi, a);
+    sNew += Math.abs(a - rockLimit(x + grid.cell, z)) + Math.abs(a - rockLimit(x, z + grid.cell));
+    sOld += Math.abs(hash01(i, j) / 3.5 - hash01(i + 1, j) / 3.5) + Math.abs(hash01(i, j) / 3.5 - hash01(i, j + 1) / 3.5);
+    cnt += 2;
+  }
+  check('the slope at which rock begins stays between 0.5 and 0.74 and varies from place to place (there are patches)', lo >= 0.5 - 1e-9 && hi <= 0.74 + 1e-9 && hi - lo > 0.18, `(${lo.toFixed(2)} .. ${hi.toFixed(2)})`);
+  check('... and it changes slowly: neighbouring cells differ by under 0.03 on average (no coin toss per cell)', sNew / cnt < 0.03, `(mean step ${(sNew / cnt).toFixed(3)} per 2.4 m)`);
+  check('(the old limit was a hash of the cell: 0.09 on average from one cell to the next, the check sees the problem)', sOld / cnt > 0.07, `(mean step ${(sOld / cnt).toFixed(3)})`);
 }
 {
   // ---- the river ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

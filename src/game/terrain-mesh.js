@@ -4,13 +4,13 @@ import * as THREE from 'three';
 import { Builder } from '../engine/builder.js';
 import { valueNoise, fbm } from '../engine/textures/pix.js';
 import { WATER_LEVEL } from './level.js';
-import { ROAD_MAX_SLOPE } from './roads.js';
+import { ROAD_MAX_SLOPE, underRoadAt } from './roads.js';
 
 const clamp = (v, a = 0, b = 1) => (v < a ? a : v > b ? b : v);
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 const hash01 = (i, j) => { let h = (i * 374761393 + j * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 
-const nTint = valueNoise(7001), nPatch = valueNoise(7002), nFlower = valueNoise(7003);
+const nTint = valueNoise(7001), nPatch = valueNoise(7002), nFlower = valueNoise(7003), nRock = valueNoise(7004);
 
 export const GROUND_TILE = 6;
 
@@ -25,6 +25,37 @@ export const GROUND_TILE = 6;
 export const RIVER_ZONE = 3.4;
 /** a road texture goes on a terrain triangle only when the road ribbon covers all of it (a corner this far inside the ribbon's edge counts: the ribbon is 0.5 m narrower than the carve) */
 export const UNDER_ROAD = -0.4;
+
+/**
+ * Between 0.5 and 0.74 (29 and 42 degrees) a hillside is part grass and part rock. Which part used to be a coin toss per cell (a hash of the cell), so a plain 33 degree flank was a
+ * salt-and-pepper of grass and cliff triangles; now rock begins where the slope passes this limit, which wanders slowly with the position (about 15 m between its highs and lows), so the rock
+ * lies in patches and outcrops with ragged but connected edges, and a steeper stretch is rock sooner than a gentler one. (The fbm of two octaves stays between about 0.2 and 0.8.)
+ */
+export const rockLimit = (x, z) => 0.5 + 0.24 * clamp((fbm(nRock, x * 0.07 + 21, z * 0.07 + 8, 2) - 0.2) / 0.6);
+
+/** the (unnormalised) geometric normal of a triangle */
+export const triangleNormal = (a, b, c) => {
+  const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+  return [uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx];
+};
+
+/**
+ * How a ground triangle's texture is laid on it: 'planar' (from above: u = x, v = z), 'wallX' (u = z, v = y: the face looks along x) or 'wallZ' (u = x, v = y).
+ * Rock is laid out like a wall from a gentle slope on (its strata are horizontal bands: mapped from above they ran straight up any hillside that faces east or west, in stripes that broke
+ * against the neighbouring, steeper triangles): the axis comes from the smoothed normal of the triangle's corners (`faceN`), so neighbouring rock faces agree; the far rock of the rim does
+ * the same from 0.62. Everything else (grass, sand, moss, pebbles, the road's own texture...) takes whichever of the three projections its plane is most nearly parallel to, the dominant axis
+ * of its own geometric normal `geoN`, which bounds the stretch of the texture at 1.73 (the square root of 3): a grass bank of 36 degrees used to be projected as a wall like the rock,
+ * which drops the sideways direction of the slope from the texture's coordinates and smeared the grass over it (120 triangles of the realm were stretched more than 1.8 times, 23 more than 3).
+ */
+export function uvProjection(name, slope, faceN, geoN) {
+  const rock = name === 'cliff' || name === 'cliff_warm';
+  if (rock ? slope > 0.35 : name === 'far_rock' ? slope > 0.62 : false) return Math.abs(faceN[0]) > Math.abs(faceN[2]) ? 'wallX' : 'wallZ';
+  if (rock || name === 'far_rock') return 'planar';
+  const ax = Math.abs(geoN[0]), ay = Math.abs(geoN[1]), az = Math.abs(geoN[2]);
+  return ay >= ax && ay >= az ? 'planar' : ax > az ? 'wallX' : 'wallZ';
+}
+/** the texture coordinates of a point (a corner) for a projection */
+export const projectUV = (p, mode) => (mode === 'wallX' ? [p[2] / GROUND_TILE, p[1] / GROUND_TILE] : mode === 'wallZ' ? [p[0] / GROUND_TILE, p[1] / GROUND_TILE] : [p[0] / GROUND_TILE, p[2] / GROUND_TILE]);
 
 export function terrainPicker(grid) {
   const { n, cell, half, heights: H, pathDist, riverDist, riverSurf } = grid;
@@ -64,7 +95,7 @@ export function terrainPicker(grid) {
     const steep = tidy ? 1.05 : 0.74;                                  // (the landing's road embankments are not cliffs until they really are)
     if (slope > steep) return [warm ? 'cliff_warm' : 'cliff', `steep, slope > ${steep}`];
     if (h > 30 && slope > 0.42) return [warm ? 'cliff_warm' : 'cliff', 'high and sloping, y > 30 and slope > 0.42'];
-    if (!tidy && slope > 0.5 && (r < (slope - 0.5) * 3.5 || nearGate)) return [warm ? 'cliff_warm' : 'cliff', nearGate ? 'sloping near the Dawn Gate, slope > 0.5' : 'sloping, rock and grass mix, slope > 0.5'];
+    if (!tidy && slope > 0.5 && (slope > rockLimit(x, z) || nearGate)) return [warm ? 'cliff_warm' : 'cliff', nearGate ? 'sloping near the Dawn Gate, slope > 0.5' : 'sloping, rock and grass patches, slope > 0.5'];
     if (h > 42) return ['far_rock', 'very high, y > 42'];
     if (Math.hypot(x - L.village.x, z - (L.village.z - 4)) < 9.5) return ['flagstone', 'village plaza'];
     if (surface === 'flagstone' && pd < 1.2) return ['flagstone', 'paved forecourt'];                // a paved forecourt is paved right through (the cells are coarser than the paving)
@@ -106,7 +137,10 @@ export function terrainPicker(grid) {
       const slope = Math.acos(clamp(Math.abs(ny)));
       // under a road: all three corners are inside the ribbon (dirt and cobble roads have one; a paved forecourt is the terrain's own texture)
       const pdTri = Math.max(pathDist[i0[1] * s + i0[0]], pathDist[i1[1] * s + i1[0]], pathDist[i2[1] * s + i2[0]]);
-      const underRoad = pdTri <= UNDER_ROAD && slope <= ROAD_MAX_SLOPE && (surface === 'dirt' || surface === 'cobble') ? surface : null;     // (a road is not drawn on ground steeper than that: see roads.js)
+      let underRoad = pdTri <= UNDER_ROAD && slope <= ROAD_MAX_SLOPE && (surface === 'dirt' || surface === 'cobble') ? surface : null;     // (a road is not drawn on ground steeper than that: see roads.js)
+      // ... and the ribbon is as long as its path: the carve's distance field has a round cap past a road's end, where no ribbon is drawn, and the triangles there came out textured as a road
+      // (a patch of dirt of the terrain's own look beyond the end of the ribbon, which has the road's own), so every corner must lie under the flat-ended ribbon too
+      if (underRoad && !(underRoadAt(grid, p0[0], p0[2]) && underRoadAt(grid, p1[0], p1[2]) && underRoadAt(grid, p2[0], p2[2]))) underRoad = null;
       const [tex, why] = pickRule(cx, cz, ch, slope, nx, nz, i, j, pd, surface, underRoad, rd, rs, Math.max(p0[1], p1[1], p2[1]));
       return { p: [p0, p1, p2], idx: [i0, i1, i2], slope, tex, why };
     });
@@ -182,19 +216,10 @@ export function buildTerrainMeshes(grid, lighting, assets) {
     const ux = vb[0] - va[0], uz = vb[2] - va[2], vx = vc[0] - va[0], vz = vc[2] - va[2];
     if (uz * vx - ux * vz < 0) { [vb, vc] = [vc, vb]; [ib, ic] = [ic, ib]; }
     const b = getB(name);
-    // rock is laid out like a wall from a gentler slope on (its strata are horizontal bands: mapped from above they ran straight
-    // up any hillside that faces east or west, in stripes that broke against the neighbouring, steeper triangles)
-    const wall = slope > 0.62 || (slope > 0.35 && (name === 'cliff' || name === 'cliff_warm'));
-    const uvOf = (p, nrm) => {
-      if (wall) {
-        // wall-ish: project along the dominant horizontal axis so strata stay horizontal
-        return Math.abs(nrm[0]) > Math.abs(nrm[2]) ? [p[2] / GROUND_TILE, p[1] / GROUND_TILE] : [p[0] / GROUND_TILE, p[1] / GROUND_TILE];
-      }
-      return [p[0] / GROUND_TILE, p[2] / GROUND_TILE];
-    };
     const fn = [NV(...ia), NV(...ib), NV(...ic)];
     const faceN = [fn[0][0] + fn[1][0] + fn[2][0], fn[0][1] + fn[1][1] + fn[2][1], fn[0][2] + fn[1][2] + fn[2][2]];
-    b.tri(va, vb, vc, uvOf(va, faceN), uvOf(vb, faceN), uvOf(vc, faceN), opts, fn);
+    const mode = uvProjection(name, slope, faceN, triangleNormal(va, vb, vc));
+    b.tri(va, vb, vc, projectUV(va, mode), projectUV(vb, mode), projectUV(vc, mode), opts, fn);
   };
 
   for (let j = 0; j < n; j++) {

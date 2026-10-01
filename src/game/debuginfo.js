@@ -13,7 +13,7 @@
 // at the code. The ground texture comes from the same rules the terrain mesh was built with (terrainPicker), with the rule's name.
 import { WATER_LEVEL } from './level.js';
 import { terrainPicker } from './terrain-mesh.js';
-import { drawnRoadAt } from './roads.js';
+import { drawnRoadAt, nearRoadAt } from './roads.js';
 
 /** Which build is running: a hash of the source and the build date, set by tools/build-single.mjs ('dev' when running from the dev server). */
 export const BUILD = typeof __GV_BUILD__ !== 'undefined' ? __GV_BUILD__ : 'dev';
@@ -83,6 +83,16 @@ export function areaAt(L, x, z, y) {
 const pickers = new WeakMap();
 const pickerFor = (grid) => { let p = pickers.get(grid); if (!p) { p = terrainPicker(grid); pickers.set(grid, p); } return p; };
 
+/**
+ * The nearest road { id, surface, d } within 8 m: for the dirt and cobble roads the ribbon that is drawn (flat ends: past a road's end it is the distance to that edge, where the carve's round cap
+ * used to say "on it" 2.5 m beyond the last of the ribbon), for a paved forecourt (not a ribbon, the terrain's own paving) the carve's own distance field.
+ */
+function nearRoad(grid, x, z, pi, pd) {
+  const rb = nearRoadAt(grid, x, z, 8);
+  const paved = pi >= 0 && pd < 8 && grid.paths[pi].surface === 'flagstone' ? { id: grid.paths[pi].id, surface: 'flagstone', d: Math.max(0, pd) } : null;
+  return rb && (!paved || rb.d <= paved.d) ? rb : paved;
+}
+
 /** Everything about the ground at (x, z): height, slope, the texture the mesh gives it (and the rule that chose it), road / river / lake. */
 export function groundAt(grid, x, z) {
   const s = grid.n + 1;
@@ -98,7 +108,7 @@ export function groundAt(grid, x, z) {
     normal: [nn[0], nn[1], nn[2]],
     tex: tex.tex, why: tex.why, cell: [tex.i, tex.j, tex.tri],
     drawn: drawnRoadAt(grid, x, z),                        // the road ribbon drawn over the ground here ({ id, surface }), or null
-    road: pi >= 0 && pd < 8 ? { id: grid.paths[pi].id, surface: grid.paths[pi].surface, d: Math.max(0, pd) } : null,
+    road: nearRoad(grid, x, z, pi, pd),
     river: grid.riverDist[k] < 6 ? grid.riverDist[k] : null,
     lake: Math.hypot((x - L.lake.x) / L.lake.rx, (z - L.lake.z) / L.lake.rz),
     water: WATER_LEVEL - grid.heightAt(x, z),              // metres of water over the ground here (negative = dry)

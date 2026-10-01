@@ -112,6 +112,18 @@ const game = { grid, collision, gameplay: gp, level: LEVEL, player };
   const onMain = D.groundAt(grid, 0, 112), beside = D.groundAt(grid, 9, 112);
   const fmt = (g) => D.format({ build: 'test', pos: { x: 0, y: 0, z: 0 }, compass: 'N', heading: 0, speed: 0, state: 'idle', grounded: true, area: { name: 'X', inside: true, d: 0 }, ground: g, stand: { kind: 'terrain' }, props: [], things: [], colliders: [], hints: [], aim: null, extra: {}, yaw: 0 }, 1).find((r) => r.tag === 'FLOOR').text;
   check('FLOOR says so: "cobble road main, over <the ground>" on the main road, the plain ground beside it', /^cobble road main, over /.test(fmt(onMain)) && !/road/.test(fmt(beside).replace(/under a road/, '')), `(${fmt(onMain)} | ${fmt(beside)})`);
+
+  // "road east" in the AREA row is the nearest ribbon, and a ribbon ends in a flat edge: the readout used to take the carve's distance field, which has a round cap past every end, and said
+  // "(on it)" 2.5 m beyond the end of the east road, where nothing is drawn (a screenshot at the foot of Windmill Hill: "road east" over a steep cliff).
+  const P = grid.paths.find((q) => q.id === 'east'), e = P.pts[P.pts.length - 1], b = P.pts[P.pts.length - 2];
+  const dl = Math.hypot(e[0] - b[0], e[2] - b[2]), ux = (e[0] - b[0]) / dl, uz = (e[2] - b[2]) / dl;
+  const at = (a, sd) => D.groundAt(grid, e[0] + ux * a - uz * sd, e[2] + uz * a + ux * sd);
+  const onEnd = at(-0.8, 0), past = at(2.0, 0), pastSide = at(2.0, 4), farther = at(3.0, 0);
+  check('on a road the readout says "on it" (the nearest ribbon is under the point); past the road\'s flat end it measures the distance to that edge (not 0 under the old round cap)', onEnd.road && onEnd.road.id === 'east' && onEnd.road.d < 0.01 && past.road && past.road.id === 'east' && near(past.road.d, 2.0, 0.05) && farther.road && farther.road.id === 'east' && near(farther.road.d, 3.0, 0.05), `(0.8 m before the end: ${onEnd.road && onEnd.road.d.toFixed(2)} m; 2.0 m past: ${past.road && past.road.d.toFixed(2)} m; 3.0 m past: ${farther.road && farther.road.d.toFixed(2)} m)`);
+  check('... and beside it, past the end and off to the side, the distance is the straight line to the ribbon\'s corner', pastSide.road && pastSide.road.d > 2.0 && pastSide.road.d < 4.1, `(${pastSide.road && pastSide.road.d.toFixed(2)} m)`);
+  const pl = grid.paths.find((q) => q.surface === 'flagstone'), pc = pl.pts[0];
+  const forecourt = D.groundAt(grid, pc[0], pc[2]);
+  check('a paved forecourt (the terrain\'s own paving, no ribbon) is still reported as the nearest road, from the carve\'s distance field', forecourt.road && forecourt.road.surface === 'flagstone' && forecourt.road.d < 0.5, `(${forecourt.road && forecourt.road.id} ${forecourt.road && forecourt.road.d.toFixed(2)})`);
 }
 
 // ---- the aim ray ---------------------------------------------------------------------------------------------------------------------------

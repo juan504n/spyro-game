@@ -20,8 +20,11 @@ import { makeDraper, isConvex, area, simplify } from './drape.js';
 /** how far each kind of road stands off the ground (cobble over dirt where two meet), and how much polygon offset the material gets (see makeMaterial: `decal`) */
 export const ROAD_LIFT = { cobble: 0.06, dirt: 0.04 };
 export const ROAD_DECAL = { cobble: 1.5, dirt: true };
-/** ground steeper than this (radians, about 37 degrees) carries no road */
+/** ground steeper than this (radians, about 37 degrees) carries no road... */
 export const ROAD_MAX_SLOPE = 0.64;
+/** ... except for a scrap of ribbon smaller than this (m2) on such a triangle, which is drawn all the same: a road ending on a hillside has the corners of its last row lying on steep triangles, and dropping those scraps cut thin
+ *  notches (a V) into the straight end of the ribbon and along its edge, where they bared a wedge of the ground's own texture. (A scrap is a sliver cut off a triangle by the ribbon's edge: the pieces that slid down a bank are many times bigger.) */
+export const STEEP_SCRAP = 0.6;
 export const ROAD_STYLE = {
   cobble: { tile: 5, edgeTint: [0.78, 0.78, 0.86], centerTint: [1.05, 1.05, 1.05] },
   dirt: { tile: 5, edgeTint: [0.7, 0.66, 0.6], centerTint: [1.05, 1.05, 1.05] },
@@ -75,6 +78,9 @@ export function makeRoadField(paths) {
   return at;
 }
 
+/** how far past the ribbon's edge a terrain corner may lie and still count as under it: the ribbon is 0.5 m narrower than the carve, and a corner 0.4 m inside the carve's edge counts (UNDER_ROAD in terrain-mesh.js) */
+export const UNDER_REACH = 0.1;
+
 const fields = new WeakMap();
 const fieldsOf = (grid) => {
   let f = fields.get(grid);
@@ -82,7 +88,7 @@ const fieldsOf = (grid) => {
     f = {};
     for (const surface of ['cobble', 'dirt']) {
       const paths = grid.paths.filter((p) => p.surface === surface);
-      f[surface] = { paths, at: makeRoadField(paths) };
+      f[surface] = { paths, at: makeRoadField(paths), wide: makeRoadField(paths.map((p) => ({ ...p, width: p.width + 2 * UNDER_REACH }))) };
     }
     fields.set(grid, f);
   }
@@ -97,6 +103,45 @@ export function roadAt(grid, x, z) {
     if (v > 0 && w.i >= 0) return { id: F[surface].paths[w.i].id, surface, inside: v };
   }
   return null;
+}
+
+/**
+ * The kind of road ('cobble' | 'dirt') whose ribbon is under a point, give or take UNDER_REACH: the same flat-ended footprint the ribbon is drawn with (a road ends in a straight edge, nothing lies
+ * past its last point), which the carve's distance field (`grid.pathDist`: a round cap past the ends) is not. The terrain's own road texture goes only on triangles whose corners are all under a ribbon.
+ */
+export function underRoadAt(grid, x, z) {
+  const F = fieldsOf(grid);
+  for (const surface of ['cobble', 'dirt']) if (F[surface].wide(x, z) > 0) return surface;
+  return null;
+}
+
+/**
+ * The nearest road ribbon to a point and how far it is: { id, surface, d } with d the distance in metres to the ribbon's footprint (0 on it; a road ends in a flat edge, so past its last point the
+ * distance is to that edge), or null when none is within `maxD`. What the debug readout calls "road east" (the carve's distance field, a round cap past every end, said "on it" 2.5 m past the end
+ * of a road, where the ribbon is not drawn).
+ */
+export function nearRoadAt(grid, x, z, maxD = 8) {
+  const F = fieldsOf(grid);
+  let best = null;
+  for (const surface of ['cobble', 'dirt']) {
+    for (const p of F[surface].paths) {
+      const hw = p.width / 2, pts = p.pts, last = pts.length - 2;
+      let near = null;                                                  // the nearest point of the path's centre line (a joint is rounded), as the road field takes it
+      for (let k = 0; k <= last; k++) {
+        const a = pts[k], b = pts[k + 1], vx = b[0] - a[0], vz = b[2] - a[2], l2 = vx * vx + vz * vz || 1;
+        const tr = ((x - a[0]) * vx + (z - a[2]) * vz) / l2, t = Math.max(0, Math.min(1, tr));
+        const dc = Math.hypot(x - (a[0] + vx * t), z - (a[2] + vz * t));
+        if (!near || dc < near.dc) near = { dc, tr, k, l: Math.sqrt(l2), vx, vz, a };
+      }
+      let d;
+      if ((near.tr < 0 && near.k === 0) || (near.tr > 1 && near.k === last)) {          // past the path's own end: a flat edge, the distance is to that edge
+        const lat = Math.abs((x - near.a[0]) * near.vz - (z - near.a[2]) * near.vx) / near.l;
+        d = Math.hypot((near.tr < 0 ? -near.tr : near.tr - 1) * near.l, Math.max(0, lat - hw));
+      } else d = Math.max(0, near.dc - hw);
+      if (d < maxD && (!best || d < best.d)) best = { id: p.id, surface, d };
+    }
+  }
+  return best;
 }
 
 const wets = new WeakMap();
@@ -142,7 +187,7 @@ export function drapeRibbon(b, grid, draper, points, width, o = {}) {
     stat.footprint += area(poly);
     draper.cut(poly, (piece, F) => {
       const a = area(piece);
-      if (draper.slope(F) > ROAD_MAX_SLOPE) { stat.steep += a; return; }
+      if (draper.slope(F) > ROAD_MAX_SLOPE && a >= STEEP_SCRAP) { stat.steep += a; return; }
       const nrm = [0, 0, 0];
       const vs = piece.map((v) => {
         const w = draper.bary(F, v[0], v[1]);
