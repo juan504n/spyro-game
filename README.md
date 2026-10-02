@@ -198,7 +198,7 @@ Gloaming Vale has no rock mass, names no steep slope, and its world is byte-for-
 
 ## The second realm: Frostbloom Hollow
 
-The door in Dawnhaven's Frost Grotto that slept now opens on **Frostbloom Hollow**, the first realm made with the foundry (next section). *An endless winter has frozen the blossoms of the Hollow asleep.* Five **Frostblooms** — flowers of ice
+The door in Dawnhaven's Frost Grotto that slept now opens on **Frostbloom Hollow**, the first realm made with the foundry (described below). *An endless winter has frozen the blossoms of the Hollow asleep.* Five **Frostblooms** — flowers of ice
 with a flame inside, a new model — must be thawed by fire. Each one that blooms moves the realm a step from its **frozen night under the aurora** (ice teal and snow white, a cold moon, a green glow in the north) towards a **blossom dawn** (a low rose-gold sun,
 pink-lit snow, a cornflower sky): the same two lit states as the vale's dusk and daybreak, in other colours. The **ice gate** across the gorge to the Hollow melts when four have bloomed, and the **Heartbloom** in the Hollow brings back the spring:
 a ring of light opens over it and carries the hero home. A country of 408 m by 408 m, 650 gems, three secrets, 24 Snuffers (8 plain, 9 in bells, 7 with spikes), and a journey to each Frostbloom of a different length (31, 120, 201, 283 and 413 m of walking).
@@ -234,10 +234,12 @@ drifting where the vale has fireflies) to a **forge glow** (a golden afternoon, 
 28 Snuffers (10 plain, 10 in bells, 8 with spikes), and a journey to each Emberstone of a different kind and length: 27 m of walking, 105 m, **a glide of 36 m across the lava** (there is no way on foot), 387 m through the mountain, 686 m to the caldera.
 
 <p align="center">
-  <img src="docs/shots/16-emberfall-forge-gate.png" width="49%" alt="The Forge Gate: the cobbled road across the Cinder Flats, the first Emberstone's light ahead">
-  <img src="docs/shots/17-emberfall-rift.png" width="49%" alt="The Ember Rift from the basalt rim: a river of lava with a stack of rock in the middle of it">
-  <img src="docs/shots/18-emberfall-maw.png" width="49%" alt="The Maw: a stone dragon's mouth with the ward of fire in it">
-  <img src="docs/shots/19-emberfall-furnace.png" width="49%" alt="The Furnace: a chamber under a skylight, the fourth Emberstone on its ring of runes">
+  <img src="docs/shots/16-emberfall-forge-gate.png" width="49%" alt="The Forge Gate: the cobbled road across the Cinder Flats, torches and fire lilies, the title banner">
+  <img src="docs/shots/17-emberfall-rift.png" width="49%" alt="The Ember Rift from the basalt rim: a field of lava with a stack of rock in the middle, the Maw glowing far off">
+  <img src="docs/shots/18-emberfall-glide.png" width="49%" alt="Gliding across the lava from the rim to the stack where the third Emberstone burns">
+  <img src="docs/shots/19-emberfall-maw.png" width="49%" alt="The Maw: a stone dragon's mouth with the ward of fire in it">
+  <img src="docs/shots/20-emberfall-furnace.png" width="49%" alt="The Furnace: a chamber of ember crystals under a skylight, the fourth Emberstone on its ring of runes">
+  <img src="docs/shots/21-emberfall-caldera.png" width="49%" alt="The caldera from above: a ring of crystal spires round the Heartforge">
 </p>
 <p align="center"><sub>Emberfall Crags, from the game's own pipeline (a free camera for the frames that are not from where the hero stands). More in <a href="docs/shots">docs/shots</a>.</sub></p>
 

@@ -1,6 +1,6 @@
 ---
 name: new-realm
-description: Design and build a new realm (a level, "world") for this Spyro-style game - lay its foundation with the realm foundry, write its design brief from the principles of the PS1 games' hubs and levels, build its places, and hold it to the checks. Use when asked to add, design, start or extend a realm / level / world (Tideglass Reach, Emberfall Crags, Skyweaver Spires, a new one; Frostbloom Hollow, the first, is the worked example), or to wake a sleeping door of Dawnhaven.
+description: Design and build a new realm (a level, "world") for this Spyro-style game - lay its foundation with the realm foundry, write its design brief from the principles of the PS1 games' hubs and levels, build its places, and hold it to the checks. Use when asked to add, design, start or extend a realm / level / world (Tideglass Reach, Skyweaver Spires, a new one; Frostbloom Hollow and Emberfall Crags, the two made so far, are the worked examples), or to wake a sleeping door of Dawnhaven.
 ---
 
 # New realm: the foundry workflow
