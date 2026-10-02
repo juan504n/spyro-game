@@ -91,6 +91,18 @@ if (liquid) {
     const r = await ev(() => window.__game.world.water.children.map((m) => m.material.name));
     return { ok: r.length > 0 && r.every((n) => n === liquid.texture), surfaces: r, want: liquid.texture };
   });
+  if (liquid.sea) {
+    // a sea is drawn out to the horizon (level.sea.r): not as a lake round a middle, or the cloud would end 100 m from the islands and the world's edge would show
+    await check('the sea is drawn out to its radius', async () => {
+      const r = await ev(() => {
+        const g = window.__game, S = g.level.sea;
+        let widest = 0;
+        for (const m of g.world.water.children) { m.geometry.computeBoundingSphere(); widest = Math.max(widest, m.geometry.boundingSphere.radius); }
+        return { widest: Math.round(widest), want: S.r };
+      });
+      return { ok: r.widest >= r.want * 0.9, ...r };
+    });
+  }
   await check('the dusk\'s life is the one the level names', async () => {
     const r = await ev(async () => {
       const g = window.__game, n = { ember: 0, firefly: 0 }, was = { ember: g.fx.ember, firefly: g.fx.firefly };

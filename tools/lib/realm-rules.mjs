@@ -138,8 +138,14 @@ export function checkRealm(which, { log = () => {} } = {}) {
     rule('gems.place', 'no gem or vase inside a solid thing, on a lake bed or outside the world', stuck.length + wet.length + out.length + vstuck.length === 0, `(${stuck.length} stuck, ${wet.length} wet, ${out.length} outside, ${vstuck.length} vases stuck)`, { hard: true });
     // gems on the ground (or a floor) must be reachable; the airborne ones (an arc over water or a chasm to glide along, 3 m or more over the ground) are picked up in the air, which the flood cannot
     // tell, and are held to a quarter of the treasure instead
-    // (the floor under a gem is whatever the hero would stand on there: a bridge, a pier or a slab of rock hanging in the air holds its gems as the ground does)
-    const air = (o) => { if (!o.value) return false; const f = collision.support(o.x, o.z, o.y, 0).y; return o.y - f > 3 || f < WATER_LEVEL - 0.9; };
+    // (in a country of islands joined in the air the floor under a gem is whatever the hero would stand on there: a slab of rock hanging in the air holds its gems as the ground does; in every other
+    // world the ground is the terrain's, as the rules were calibrated on Gloaming Vale: its sky isles' gems count as aerial)
+    const air = (o) => {
+      if (!o.value) return false;
+      if (!airJ) return o.y - h(o.x, o.z) > 3 || h(o.x, o.z) < WATER_LEVEL - 0.9;
+      const f = collision.support(o.x, o.z, o.y, 0).y;
+      return o.y - f > 3 || f < WATER_LEVEL - 0.9;
+    };
     const lost = [...gp.gems, ...gp.vases].filter((o) => !air(o) && ![0.95, 2.4].some((dy) => near(walk, o.x, o.z, o.value ? 4.5 : 3.6, o.y - (o.value ? dy : 0)) < Infinity));
     rule('gems.reach', 'everything that lies about to be collected can be reached (97% of it)', lost.length <= (gp.gems.length + gp.vases.length) * 0.03, `(${lost.length} of ${gp.gems.length + gp.vases.length} out of reach${lost.length ? `: ${lost.slice(0, 4).map((o) => `${f1(o.x)},${f1(o.z)}`).join(' ')}` : ''})`, { hard: true });
     const aerial = gp.gems.filter(air);

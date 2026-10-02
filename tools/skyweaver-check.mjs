@@ -2,6 +2,7 @@
 //   node tools/skyweaver-check.mjs
 import { checkRealm } from './lib/realm-rules.mjs';
 import { SLOPE_WALK } from '../src/game/collision.js';
+import { terrainPicker } from '../src/game/terrain-mesh.js';
 import { WATER_LEVEL } from '../src/game/level.js';
 import { radiusAt, apexOf } from '../src/game/realm/whirl.js';
 import { BRIEF, REGIONS, ROWS, LONELY, LOOM, WHIRLS } from '../src/game/skyweaver/brief.js';
@@ -103,10 +104,19 @@ const f1 = (v) => v.toFixed(1);
     check('the Loom\'s crown is in sight from the start (no island rises over the line to it)', worst > 3 && gp.placed.some((p) => p.name === 'loom_tower'), `(the line clears the ground by ${f1(worst)} m at the nearest, ${f1(L)} m away)`);
   }
 
-  // the goals are Windbells (the realm's own goal model), the last one the big Loom Bell
+  // the goals are Windbells (the realm's own goal model), the last one the big Loom Bell, and each rings (its own sound) when it is lit
   {
     const wrong = BRIEF.goals.filter((g, i) => g.model !== 'windbell' || !!g.big !== (i === BRIEF.goals.length - 1));
     check('every goal is a Windbell, the last the big Loom Bell', wrong.length === 0, wrong.map((g) => g.id).join(' '));
+    const mute = BRIEF.goals.filter((g) => g.sfx !== 'windbell_ring');
+    check('... and each rings when it is lit (windbell_ring, not the lantern\'s whoomp), and the world hands the sound on to the goal records', mute.length === 0 && gp.beacons.every((b) => b.sfx === 'windbell_ring'), mute.map((g) => g.id).join(' '));
+  }
+
+  // the ground the hero stands on is turf on every island, the high ones too (the picker turns ground over 42 m into far rock unless the level says where: rockLine)
+  {
+    const pick = terrainPicker(grid), off = [];
+    for (const R of REGIONS) { const [x, z] = R.pts[0]; const t = pick.at(x, z).tex; if (t !== 'skyturf') off.push(`${R.id} ${t}`); }
+    check('every island\'s top wears turf (the level\'s rockLine keeps the picker from turning the high ones into far rock)', off.length === 0, off.join(', '));
   }
 
   // the sky is the realm's own: both moods carry rose-gold and white clouds and their own faint mist hills (sky.js), the sun low behind the hero as he climbs
