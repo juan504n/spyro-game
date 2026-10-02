@@ -29,6 +29,12 @@ const f1 = (v) => v.toFixed(1);
   check('the Elder welcomes the hero, and names the realms that burn (the one, the other, both, three, all four)', !/BURN/.test(a) && /^WELCOME TO DAWNHAVEN, SPYRO! GLOAMING VALE, FROSTBLOOM HOLLOW, EMBERFALL CRAGS AND SKYWEAVER SPIRES BURN BRIGHT AGAIN, AND THEIR DOORS SHINE GOLD/.test(f) && /^WELCOME TO DAWNHAVEN, SPYRO! GLOAMING VALE, FROSTBLOOM HOLLOW AND EMBERFALL CRAGS BURN BRIGHT AGAIN, AND THEIR DOORS SHINE GOLD/.test(e) && /^WELCOME TO DAWNHAVEN, SPYRO! GLOAMING VALE BURNS BRIGHT AGAIN, AND ITS DOOR SHINES GOLD/.test(b) && /FROSTBLOOM HOLLOW BURNS BRIGHT/.test(c) && !/GLOAMING/.test(c) && /GLOAMING VALE AND FROSTBLOOM HOLLOW BURN BRIGHT AGAIN, AND THEIR DOORS SHINE GOLD/.test(d), `(${c})`);
 }
 
+// ---- the Elder counts the doors that still sleep, in words that are right for one --------------------------------------------------------------------------
+{
+  const pages = homeLines({ progress: { realms: {}, home: { secrets: [] } } }, {});
+  check('the Elder says which doors still sleep: one (Tideglass Reach) is "ONE STILL SLEEPS", not "1 STILL SLEEP"', /ONE STILL SLEEPS: TIDEGLASS REACH\.$/.test(pages[2]), `(${pages[2].slice(-44)})`);
+}
+
 // ---- the doors ---------------------------------------------------------------------------------------------------------------------
 {
   const sealed = gp.portals.filter((p) => p.state === 'sealed'), open = gp.portals.filter((p) => p.state === 'open');

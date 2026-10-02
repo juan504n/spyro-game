@@ -14,7 +14,9 @@ makes one; `tools/new-realm.mjs` registers it between the `<realm-imports>` / `<
 | `world { size, cell }` | the heightfield (`n = size / cell`) |
 | `spawn { x, z, yaw }` | where a fresh start puts the hero (also where the door's light puts him: `gp.arrivals[from]` overrides) |
 | `valley { x, z, rx, rz, rimStart }` | the playable ellipse; from 0.965 of it steep ground is far rock |
-| `lake { x, z, rx, rz, bed, name?, deepHint?, islets? }` | **required** (water, debug readout, drowning hint, `ctx.lakeD` read it): `NO_LAKE` when a realm has none |
+| `lake { x, z, rx, rz, bed, name?, deepHint?, islets? }` | **required** (water, debug readout, drowning hint, `ctx.lakeD` read it): `NO_LAKE` when a realm has none (a realm with a `sea` has `NO_LAKE` with the sea's `name` and `deepHint`) |
+| `sea { x, z, r, name, deepHint }` | optional: the ground is islands in a sea (`brief.sea = { name, deepHint, radius }`): no basin and no `dryLand`, the surface (`liquid`) drawn out to `r` (`water.js`: a disc with per-vertex fog), what is not an island is the fill (`country.mountain.base`, far under the surface: Skyweaver Spires' -28), a hero who falls in is set back on the last firm ground with `deepHint` (`game.js`) |
+| `rockLine` | optional: the height (default 42) over which the ground picker draws far rock: a realm of high islands says where its own ground ends (Skyweaver Spires: 90) |
 | `paths [{ id, surface, width, pts, shoulder? }]` | roads (`[x, z]` or `[x, z, y]`; carved into the ground, drawn as ribbons; `cobble`/`dirt` ribbons, `flagstone` a paved apron) |
 | `rivers []` | streams (`{ id, width, pts [x, z, surfaceY] }`); unused by the kit |
 | `height(x, z, L)` | the ground (the kit: ribbons + landforms + goal pads + lake + `dryLand`) |
@@ -37,9 +39,9 @@ ground (snow) re-skins the realm; it cannot change what the earlier rules decide
 `spawn`, `arrivals { fromRealmId: { x, z, yaw } }`, `beacons` (goals), `portals`, `enemies [{ x, z, variant: 'basic'|'bell'|'thorn', patrol, y? }]`, `gems [{ x, y, z, value }]` + `gemsTotal` (a multiple of 50),
 `vases [{ x, y, z, variant, gems: [..] }]`, `chests [{ x, y, z, yaw, gems, secret? }]`, `walls [{ x, y, z, yaw, w, h, gems }]` (cracked walls: a ram breaks them), `hints [{ x, z, r, text, touch?, pad?, dur, y0?, y1? }]`
 (text in capitals; `y0`/`y1` limit a zone to a height band), `npcs`, `bunnies [{ x, z }]`, `soundSources [{ name, x, y, z, range, vol, when? }]`, `braziers`, `portcullis`, `barrier { x, y, z, yaw, opts? }` (a sealed gate; `opts.tint` [r, g, b] recolours its field: the ice gate of Frostbloom Hollow is teal, the Dawn Gate's is violet),
-`mushrooms [{ x, y, z, size }]` (bounce), `placed` (every prop: name, x, y, z, size, src), `counts`. Records get a `src` (the stage that made them): the debug readout points at the code.
+`mushrooms [{ x, y, z, size }]` (bounce), `whirlwinds [{ id, x, y0, z, h, r }]` (updrafts: created lazily, `(gp.whirlwinds ||= []).push(...)`, so that a world without them has no such key and its hash is what it was; `realm/whirl.js`), `placed` (every prop: name, x, y, z, size, src), `counts`. Records get a `src` (the stage that made them): the debug readout points at the code.
 
-* **Goals** (`gp.beacons`): `{ id, name, x, y, z, yaw, big?, model?, beam?: { off, on }, glow?, wisp?, flame?: false, spark?: { c0: [r, g, b, a], c1: [r, g, b, a] }, sparkle?: [r, g, b] }` -> `BeaconSystem` (`defineBrief` checks the shapes: `spark` is the *burst* when it is lit, from and to, not a colour). The hero lights one by breathing fire within 6.6 m
+* **Goals** (`gp.beacons`): `{ id, name, x, y, z, yaw, big?, model?, beam?: { off, on }, glow?, wisp?, flame?: false, spark?: { c0: [r, g, b, a], c1: [r, g, b, a] }, sparkle?: [r, g, b], sfx?: 'name' }` -> `BeaconSystem` (`defineBrief` checks the shapes: `spark` is the *burst* when it is lit, from and to, not a colour). The hero lights one by breathing fire within 6.6 m
   (a hit volume of radius 1.9 and +-3.2 m round `y + 2.4`, times 2.2 for `big`). Lighting one: banner `NAME + words.lit`, `N OF M + words.goals`, the day moves to the next of `daySteps`, a checkpoint is set;
   the last starts the finale.
 * **The exit** (`gp.portals`, `kind: 'lift'`): `{ id, name, tag, kind: 'lift', shape: 'ring', flat: true, x, y, z, r: 2.6, cy: 16.5, catchR: 5.4, color, target, state: 'closed' }`: a ring of light that pops open
@@ -47,6 +49,15 @@ ground (snow) re-skins the realm; it cannot change what the earlier rules decide
   (`pad`) and walkable.
 * **A glide goal on a shelf** (`situation: 'glide'` with no way on foot: Emberfall's stack in the lava) needs a way off as well as a way on: dry ground of the walkable country lower than the goal, 10 m or more off, within reach of a glide
   (`situations.js`); the TRAVEL generator marks its place `shelf: true` and the realm walker (`tools/realm-bot.mjs`, `tools/lib/glide.mjs`) glides to it and off again. A hero who falls in the lava comes back to the last firm ground, which is the shelf.
+* **A country of islands** (Skyweaver Spires): the ground is ribbons with a small `fall` (4-7 m) standing in a `sea`; islands are 12+ m apart on foot unless a row of slabs joins them. **Slabs** are the prop `sky_slab` (`{ y, r }`: a flat top
+  at `y` with a cylinder collider to stand on, `r` its radius): the walk map hops 3.6-6.2 m between cell centres to ground within 1 m in height (`flood({ hop: 6.2 })`), so a hop is a gap of 2-4.6 m between edges and a step of 0.9 m or
+  less; the hero's own jump at a run is 8.7 m, so the slabs are 4.6 m across or more (`tools/skyweaver-check.mjs` holds the numbers). **Whirlwinds** (`gp.whirlwinds`, the object `whirlwind`, a `soundSources` entry `{ name: 'whirl', ... }`,
+  hints, a ring of gems at the foot): a hero inside the column (radius `r` at the foot, widening to 1.7 `r`) is lifted 11 m/s, eased to a hover at `y0 + h`; he can press jump there and glide out (`realm/whirl.js`: `WHIRL`). A **lift** goal
+  (`situation: 'lift'`) is one on the island a ride sets him down on: no way on foot, entered by a lift link, a way off by another link. **The air journey** (`brief.air = { startCells, links: [{ id, kind: 'glide', launch: [x, z], land: [x, z] } |
+  { id, kind: 'lift', whirl: 'w1', land: [x, z] }] }`): `startCells` is how many 1.2 m cells of ground the start has on foot (`spawn.firm` for a country with no room); the checker (`tools/lib/air.mjs`) holds every link to the reach of a
+  glide from a standing start (`glideReach`) or from a hover (`liftReach`) with the situation check's margin (90% of 0.75 of a ballistic reach), a line of sight with nothing in the way, a landing that is an island (120 cells or more); it floods the ground
+  of every landing the hero can get to and judges every rule about walking (goals, gems, parts, secrets, the journey, the danger) by the whole journey; `air.links`, `air.reach`, `air.trap` (no island without a way off but the last goal's) and
+  `air.whirls` are its own rules. A hero who falls into the sea comes back to the last firm ground.
 * **A gate** (`gp.barrier`) shuts a way until `goal.gateAt` goals burn; with `level.summit` it also draws the ward of Gloaming Vale. `words.gate` is its banner.
 * **Doors** (Dawnhaven only): `gp.portals` of `kind: 'door'` with `target` (an awake door) or `null` (sleeping); `gp.arrivals[target]` is where the hero comes out.
 * **Restored**: a realm entered again through Dawnhaven after it was saved starts restored (`Game._restore`: day 1, goals lit, gate open, ring open, free roam).

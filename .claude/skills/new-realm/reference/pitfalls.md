@@ -1,4 +1,4 @@
-# Pitfalls: what went wrong in rounds 17-22, so that it does not go wrong again
+# Pitfalls: what went wrong in rounds 17-23, so that it does not go wrong again
 
 **Building a level**
 * **`lake` is required.** The water, the debug readout, the drowning hint and `ctx.lakeD` all read `level.lake`. A realm without a lake uses `NO_LAKE` (a speck 6 km away); `makeLevel` does it for you.
@@ -46,6 +46,17 @@
 * **`player.place()` also makes the spot the hero's safe place** (where a fall, a drowning or a burn brings him back): a test that puts him in lava must set `player.safe` to somewhere dry afterwards, or he is "saved" back into the lava.
 * **Browser tests drive the app's clock** (`window.__app.update(1/30)` in a loop) instead of waiting: the title/intro are skipped for any world but Gloaming Vale; `?skip=1` starts Gloaming Vale at once.
 * **The software renderer is slow and not a phone's GPU.** Screenshots take seconds; say what was and was not verified. A real device may differ in fill rate, MSAA and fog.
+
+**A country of islands** (Skyweaver Spires)
+* **A hop the flood allows is not a hop a hero at a run lands.** The walk map hops 3.6-6.2 m between cell centres, but the controller's jump at a run is 8.7 m: slabs 4.6 m across with 3.4 m gaps were overshot by the bot (it jumped off the far edge of one slab and
+  flew past the next). Make the slabs 5-6 m across, the gaps 3 m, and let the walker hop with care (`goto(..., { careful: true })`: 0.7 of full speed, a jump at the very edge); a person walks them.
+* **Islands closer than 6.2 m are one island to the flood** (it hops them): keep the tops 12+ m apart unless a row of slabs is meant, or `on foot he can reach only the Skygate and the Cloud Islet` (the realm's own check) fails.
+* **`gems.air`**: a gem on a slab hangs over the sea as far as the terrain is concerned. In a country with an air journey the floor under a gem is whatever he would stand on (`collision.support`); in every other world the old rule stands (Gloaming Vale's sky-isle gems are aerial by it, and the rules were calibrated on that).
+* **A glide goal wants one glide from a launch ledge**: the situation check looks for a ledge within reach of the *goal*, not of the landing. A bell 70 m inside the island the glide lands on failed it; the bell stands near the landing.
+* **A secret off the road is 8 m from its carved edge**, measured at the nearest grid vertex (2.4 m cells): ask 10 m from the centreline, more beside a wide road (`design.secrets.off`). `ctx.pathDist` is what the rule reads.
+* **A whirlwind is not a lift unless he can glide out of it**: `whirlStep` sets `jumpsUsed >= 1` (a glide needs a jump used), and a glide lasts while jump is held: a test that presses and releases jump before it looks sees no glide.
+* **TRAVEL in a country of islands**: the walkable country is the whole journey (`journeyMap` in `tools/lib/air.mjs`), the pocket test counts hops (a spire is 78 cells of its own), and a Dawnhaven place within 6 m of a door that woke must be moved (`home/north-passage`, `home/summit`).
+* **Words with a count in them**: the Elder said "1 STILL SLEEP" when one door was left (`home/dialogue.js`).
 
 **The kit**
 * **Keep the starter passing.** It is the golden example the generator copies; `node tools/foundry-test.mjs` builds a scratch realm from it, checks it and plays it. A change to the kit that breaks it is a
