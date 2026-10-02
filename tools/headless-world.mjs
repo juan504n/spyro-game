@@ -1,21 +1,23 @@
 // A world built headlessly (both level passes, no GPU): what the checks and tools that only need the level's data share.
 //   const { grid, world, kit, dryCtx, collision, gp, level } = buildHeadless();         // Gloaming Vale, the realm
 //   const home = buildHeadless('home');                                                   // Dawnhaven, the homeworld
+//   const frost = buildHeadless('frostbloom');                                            // any world of REALMS (src/game/realms.js) by its id
 // The wet pass registers the floating isles' colliders too (no meshes without GPU assets), exactly as the game does, so `collision` is the game's.
 import { generateTerrain } from '../src/game/terrain.js';
 import { Lighting } from '../src/engine/lighting.js';
 import { Kit } from '../src/game/kit.js';
-import { populate as populateRealm } from '../src/game/levelgen/index.js';
-import { populateHome } from '../src/game/home/layout.js';
 import { Collision } from '../src/game/collision.js';
-import { LEVEL } from '../src/game/level.js';
-import { HOME } from '../src/game/home/level.js';
+import { REALMS } from '../src/game/realms.js';
+import { REALM as STARTER } from '../src/game/realm/starter/index.js';
+
+/** A world by its id (a key of REALMS, or 'starter': the realm the generator starts from, src/game/realm/starter), or a REALMS-style entry itself. */
+export const resolveRealm = (which) => (typeof which === 'object' && which ? which : which === 'starter' ? STARTER : REALMS[which] || REALMS.gloaming);
 
 export function buildHeadless(which = 'gloaming') {
   const t0 = performance.now();
-  const level = which === 'home' ? HOME : LEVEL, populate = which === 'home' ? populateHome : populateRealm;
+  const realm = resolveRealm(which), level = realm.level, populate = realm.populate;
   const grid = generateTerrain(level);
-  const lighting = new Lighting();
+  const lighting = new Lighting(level.environment);
   lighting.attach(grid);
   const world = { grid, lighting, timings: {}, scene: { add() {} } };
   world.massifs = level.massifs ? level.massifs(grid, level).map((m) => m.prepare()) : [];       // (the rock masses: their field and collision, no meshes without GPU assets)

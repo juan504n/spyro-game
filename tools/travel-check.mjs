@@ -6,12 +6,11 @@
 //   node tools/travel-check.mjs
 import { buildHeadless, addRuntimeColliders } from './headless-world.mjs';
 import { makeWalkmap } from './walkmap.mjs';
-import { SLOPE_WALK } from '../src/game/collision.js';
-import { WATER_LEVEL, WARD_RADIUS } from '../src/game/level.js';
+import { WARD_RADIUS } from '../src/game/level.js';
 import { REALMS } from '../src/game/realms.js';
-import { TRAVEL, travelPlaces, travelWorld, findPlace, heroSpot } from '../src/game/travel.js';
+import { TRAVEL, travelPlaces, travelWorld, findPlace } from '../src/game/travel.js';
+import { makePlaceChecker } from './lib/travel-rules.mjs';
 import { measureText } from '../src/engine/textures/font.js';
-import { areaAt } from '../src/game/debuginfo.js';
 
 let failed = 0;
 const check = (name, ok, detail) => { if (!ok) failed++; console.log(ok ? 'PASS' : 'FAIL', name, detail || ''); };
@@ -31,42 +30,17 @@ const f1 = (v) => v.toFixed(1);
 }
 
 // ---- the places in the worlds -------------------------------------------------------------------------------------------------------------------
-for (const id of ['gloaming', 'home']) {
+for (const id of Object.keys(REALMS)) {
   const W = buildHeadless(id), { grid, collision, gp, level } = W;
   addRuntimeColliders(collision, gp, grid);
-  const places = travelPlaces(id), nrm = [0, 1, 0];
-  const lim = grid.half - 6;
-  // (as Player.update asks it: a solid collider stops a body standing with its feet at `feet` when it reaches above the step he can take (0.62) and starts below his head (1.05))
-  const solidAt = (x, feet, z, r) => {
-    for (const c of collision.near(x, z)) { if (!c.solid || c.y1 <= feet + 0.62 || c.y0 >= feet + 1.05 || !collision.inside(c, x, z, r)) continue; return c; }
-    for (const m of collision.solids) { const e = { x, z, r }; if (m.inBoxXZ(x, z) && m.push(e, feet, 1.05, 0.62) && Math.hypot(e.x - x, e.z - z) > 0.25) return m; }
-    return null;
-  };
+  const places = travelPlaces(id);
   const arrive = id === 'home' ? [gp.arrivals.gloaming.x, gp.arrivals.gloaming.z] : [gp.spawn.x, gp.spawn.z];
   const { flood } = makeWalkmap({ grid, collision });
   const wBroken = id === 'home' ? flood(arrive, { breakWalls: true }) : null;
+  const checkPlace = makePlaceChecker(W, flood, wBroken);
   const bad = { floor: [], clear: [], slope: [], water: [], enemy: [], door: [], pocket: [], walk: [], bounds: [], name: [] };
-  for (const p of places) {
-    const sp = heroSpot(grid, p), feet = sp.y - 0.05;
-    const sup = collision.support(p.x, p.z, feet + 0.62, 0.62);
-    if (Math.abs(sup.y - feet) > 0.1) bad.floor.push(`${p.key} (floor ${f1(sup.y)}, wanted ${f1(feet)})`);
-    let tight = solidAt(p.x, sup.y, p.z, 0.55) ? 9 : 0;
-    for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; if (solidAt(p.x + Math.cos(a) * 1.3, sup.y, p.z + Math.sin(a) * 1.3, 0.55)) tight++; }
-    if (tight) bad.clear.push(`${p.key} (${tight})`);
-    if (sup.kind === 'terrain') { grid.normalAt(p.x, p.z, nrm); if (nrm[1] < SLOPE_WALK) bad.slope.push(p.key); if (sup.y < WATER_LEVEL + 0.2) bad.water.push(p.key); }
-    else if (sup.n && sup.n.ny < SLOPE_WALK) bad.slope.push(p.key);
-    for (const e of gp.enemies || []) if (Math.hypot(e.x - p.x, e.z - p.z) < 6) { bad.enemy.push(p.key); break; }
-    for (const q of gp.portals || []) if (q.state === 'open' && Math.hypot(q.x - p.x, q.z - p.z) < 6) { bad.door.push(p.key); break; }
-    if (Math.abs(p.x) > lim || Math.abs(p.z) > lim) bad.bounds.push(p.key);
-    // not in a pocket: walking ground all round him (a flood within 40 m reaches 100 cells or more: the Shrine Isle, the smallest, has 140), and in Dawnhaven he is in the country
-    const local = flood([p.x, p.z], { startY: sup.y, breakWalls: true, mask: (x, y, z) => Math.hypot(x - p.x, z - p.z) < 40 });
-    let cells = 0; local.each(() => { cells++; });
-    if (cells < 100) bad.pocket.push(`${p.key} (${cells} cells)`);
-    if (wBroken && !(wBroken.distNear(p.x, p.z, 2.4, sup.y) < Infinity)) bad.walk.push(p.key);
-    const area = areaAt(level, p.x, p.z, sup.y);
-    if (!area || !area.name) bad.name.push(p.key);
-  }
-  // the places inside the ward that seals the vale's summit while the Dawn Gate is shut: the app opens the gate for a hero put there (App._placeHero), or the ward would throw him out
+  for (const p of places) { const r = checkPlace(p); for (const k of Object.keys(bad)) if (r[k]) bad[k].push(k === 'floor' || k === 'clear' || k === 'pocket' ? `${p.key} (${r[k]})` : p.key); }
+  // the places inside the ward that seals the vale's summit while the Dawn Gate is shut: the app opens the gate for a hero put there (App._placeHero), or the ward would throw him out again
   if (level.summit) {
     const inWard = places.filter((p) => Math.hypot(p.x - level.summit.x, p.z - level.summit.z) < WARD_RADIUS).map((p) => p.key);
     check(`${travelWorld(id).name}: the places inside the ward of the summit are the two of the observatory (they open the Dawn Gate)`, inWard.join() === 'gloaming/observatory,gloaming/beacon-room', `(${inWard.join(', ')})`);

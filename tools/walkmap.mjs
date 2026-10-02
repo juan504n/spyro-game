@@ -4,7 +4,9 @@
 // onto is the layer he is on. Shared by home-check.mjs and the debugging scripts.
 //
 //   const { flood } = makeWalkmap(buildHeadless('home'));
-//   const w = flood([x, z], { breakWalls: false, openGate: false, startY, mask });       (mask(x, y, z) -> false keeps the walk out of a cell: a flood along one corridor)
+//   const w = flood([x, z], { breakWalls: false, openGate: false, startY, mask, hop });  (mask(x, y, z) -> false keeps the walk out of a cell: a flood along one corridor;
+//                                                                                          hop: a metre figure (6.2 is what a plain jump makes) lets the walk jump from the edge of the ground to ground
+//                                                                                          of about the same height that far off, over water or a gap: stepping stones, lily pads, a small ravine)
 //   const w = flood([x, z]);       w.has(x, z, y?)   w.dist(x, z, y?)   w.distNear(x, z, r, y?)   w.yAt(x, z)   w.route(x, z, r, y?) -> [[x, y, z, metres], ...]
 import { SLOPE_WALK } from '../src/game/collision.js';
 import { WATER_LEVEL } from '../src/game/level.js';
@@ -19,7 +21,7 @@ export function makeWalkmap({ grid, collision }) {
   const cellAt = (x, z) => { const i = Math.floor((x + half) / CELL), j = Math.floor((z + half) / CELL); return i >= 0 && j >= 0 && i < N && j < N ? j * N + i : -1; };
   const band = (y) => Math.floor((y + 10) / BAND);
 
-  const flood = (start, { breakWalls = false, openGate = false, startY, mask } = {}) => {
+  const flood = (start, { breakWalls = false, openGate = false, startY, mask, hop = 0 } = {}) => {
     // states: parallel arrays; byKey finds a state by (cell, band), byCell lists a cell's states
     const S = { cell: [], y: [], d: [], parent: [], done: [] };
     const byKey = new Map(), byCell = new Map();
@@ -50,6 +52,7 @@ export function makeWalkmap({ grid, collision }) {
       S.done[s0] = 1; count++;
       const c0 = S.cell[s0], i = c0 % N, j = (c0 - i) / N, y0 = S.y[s0];
       // (up to two cells at a stride: the treads of a stair are shallower than a cell, so the cell centres that fall on consecutive treads are not neighbours)
+      let edge = false;                    // (the walk is at the edge of the ground: water, a drop or a steep face is next to it: the places a jump can leave from)
       for (let di = -2; di <= 2; di++) for (let dj = -2; dj <= 2; dj++) {
         if ((!di && !dj) || di * di + dj * dj > 5) continue;
         const a = i + di, b = j + dj;
@@ -58,14 +61,35 @@ export function makeWalkmap({ grid, collision }) {
         const sup = collision.support(x, z, y0, 0.62);
         if (sup.y - y0 > 0.62) continue;
         if (mask && !mask(x, sup.y, z)) continue;
-        if (sup.kind === 'terrain') { grid.normalAt(x, z, nrm); if (nrm[1] < SLOPE_WALK) continue; if (sup.y < WATER_LEVEL - 0.9) continue; }
+        if (sup.kind === 'terrain') { grid.normalAt(x, z, nrm); if (nrm[1] < SLOPE_WALK) { edge = true; continue; } if (sup.y < WATER_LEVEL - 0.9) { edge = true; continue; } }
         else if (sup.kind === 'solid' && sup.n.ny < SLOPE_WALK) continue;
         if (solid(x, sup.y, z)) continue;
         if (Math.abs(di) + Math.abs(dj) > 1 && solid((x + cx(i)) / 2, Math.max(sup.y, y0), (z + cz(j)) / 2)) continue;       // (nothing in between)
         if (Math.abs(sup.y - y0) > 1.6) continue;
         // (a step down onto a lower layer is a drop, which he takes, but only a short one: a ledge road is not left by walking off its edge)
-        if (y0 - sup.y > 0.9) continue;
+        if (y0 - sup.y > 0.9) { edge = true; continue; }
         add(b * N + a, sup.y, d0 + Math.hypot(di, dj) * CELL, s0);
+      }
+      // a jump: from the edge of the ground to ground of about the same height `d` metres off (3.6 .. hop), over whatever lies between (not over a wall: the air at mid-jump height is checked)
+      if (hop && edge) {
+        const px = cx(i), pz = cz(j);
+        for (let k = 0; k < 16; k++) {
+          const ang = (k / 16) * Math.PI * 2, ux = Math.cos(ang), uz = Math.sin(ang);
+          for (let d = 3.6; d <= hop + 1e-6; d += 1.2) {
+            const x = px + ux * d, z = pz + uz * d, a = Math.floor((x + half) / CELL), b = Math.floor((z + half) / CELL);
+            if (a < 0 || b < 0 || a >= N || b >= N) continue;
+            const sup = collision.support(x, z, y0 + 1.0, 0.62);
+            if (Math.abs(sup.y - y0) > 1.0) continue;
+            if (mask && !mask(x, sup.y, z)) continue;
+            if (sup.kind === 'terrain') { grid.normalAt(x, z, nrm); if (nrm[1] < SLOPE_WALK || sup.y < WATER_LEVEL - 0.9) continue; }
+            else if (sup.kind === 'solid' && sup.n.ny < SLOPE_WALK) continue;
+            if (solid(x, sup.y, z)) continue;
+            let air = true;
+            for (const t of [0.25, 0.5, 0.75]) if (solid(px + ux * d * t, Math.max(sup.y, y0) + 1.3, pz + uz * d * t)) { air = false; break; }
+            if (!air) continue;
+            add(b * N + a, sup.y, d0 + d * 1.25, s0);
+          }
+        }
       }
     }
     const statesAt = (x, z, y) => {

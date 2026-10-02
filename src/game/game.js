@@ -237,7 +237,8 @@ export class Game {
     const total = this.beacons.list.length, isLast = n >= total;
     this.hud.pulse('beacons');
     this.hud.banner(`${b.def.name} ${this.words.lit}`, `${n} OF ${total} ${this.words.goals}`, 3.4);
-    if (n === 4 && this.objects?.barrier) { this.after(1.4, () => this.objects.openBarrier()); this.after(3.6, () => this.hud.banner('THE DAWN GATE OPENS!', 'CLIMB TO THE OBSERVATORY', 4)); }
+    // (a realm with a gate that the lanterns open: it opens when `level.goal.gateAt` goals are lit (Gloaming Vale's Dawn Gate: four) and says `words.gate`)
+    if (n === (this.level.goal?.gateAt ?? 4) && this.objects?.barrier) { this.after(1.4, () => this.objects.openBarrier()); this.after(3.6, () => this.hud.banner(this.words.gate[0], this.words.gate[1], 4)); }
     if (isLast) this.emit('finale');
     else this.audio?.stinger?.('lantern');
   }

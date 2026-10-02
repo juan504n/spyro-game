@@ -6,6 +6,7 @@ import { LEVEL } from './level.js';
 import { populate as populateRealm } from './levelgen/index.js';
 import { HOME } from './home/level.js';
 import { populateHome } from './home/layout.js';
+// <realm-imports>  (tools/new-realm.mjs adds the import of a new realm above this line)
 
 /**
  * What a realm says over its finale, its results panel and its free roam, and what its goal objects are called. An entry of REALMS brings its own `words` (any of these keys); the rest are
@@ -23,6 +24,7 @@ export const DEFAULT_WORDS = {
   restored: 'RESTORED  -  THE SUN IS UP',                  // the sub line of the banner when a restored realm is entered again
   restoredHint: 'THE PORTAL ABOVE THE GREAT BEACON LEADS BACK TO DAWNHAVEN',
   icons: ['lantern_on', 'lantern_off'],
+  gate: ['THE DAWN GATE OPENS!', 'CLIMB TO THE OBSERVATORY'],     // the banner when the goals have opened the realm's gate (level.goal.gateAt goals: see Game.onBeacon)
 };
 
 export const REALMS = {
@@ -34,6 +36,7 @@ export const REALMS = {
     id: 'home', kind: 'homeworld', name: 'DAWNHAVEN', tagline: 'HOMEWORLD OF THE LANTERN KEEPERS',
     level: HOME, populate: populateHome, day: 1,
   },
+  // <realm-entries>  (tools/new-realm.mjs adds the entry of a new realm above this line)
 };
 
 /** The realm a world id names (unknown ids fall back to the first realm, which is where the game begins). */

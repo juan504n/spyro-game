@@ -5,6 +5,7 @@
 // (a pier, a floating isle, a summit's slab, a tower's floor), the height of the floor. `tools/travel-check.mjs` holds every place to the same standard: it is somewhere the hero can
 // stand, clear of rock and props, away from the Snuffers and from a door that is awake, and (in Dawnhaven) a part of the walkable country. The app (App._placeHero) puts him there, makes
 // him untouchable for a few seconds as after a respawn, and makes the place his checkpoint; a place inside the ward that seals the vale's summit (the observatory) opens the Dawn Gate first.
+// <realm-travel-imports>  (tools/realm-travel.mjs adds the import of a realm's places above this line)
 const PI = Math.PI;
 /** the yaw that looks from (x, z) towards (tx, tz) */
 const face = (x, z, tx, tz) => Math.atan2(tx - x, tz - z);
@@ -93,6 +94,7 @@ export const TRAVEL = [
       },
     ],
   },
+  // <realm-travel-entries>  (tools/realm-travel.mjs adds the entry of a realm's places above this line)
 ];
 
 /** the world entry of the list (by REALMS id) */

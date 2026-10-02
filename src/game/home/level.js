@@ -6,17 +6,10 @@
 //
 // The realm's own landscape (baseHeight in terrain.js) is Gloaming Vale's; this level brings a heightfield of its own (`height`) and its own world size (`world`), names its ground, its places
 // and the words of its loading screen itself (`groundRule`, `areas`, `labels`), and has rock masses that are not heightfields (`massifs`, see massif.js and crag.js).
-import { valueNoise, fbm } from '../../engine/textures/pix.js';
 import { WATER_LEVEL } from '../level.js';
 import { nearOnLine } from '../massif.js';
+import { makeCountry, lerp, smooth, basin, mound, dryLand, glade } from '../realm/country.js';
 import { CRAG_Y, cragTerrain, makeCrag, bodyHeight, SUMMIT, TUNNELS, CHAMBERS } from './crag.js';
-
-const clamp = (v, a = 0, b = 1) => (v < a ? a : v > b ? b : v);
-const lerp = (a, b, t) => a + (b - a) * t;
-const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
-
-const nA = valueNoise(1101), nB = valueNoise(1202), nR = valueNoise(1303), nC = valueNoise(1404);
-const n2 = (noise, x, z, s, oct = 3) => fbm(noise, x * s, z * s, oct);
 
 const DEG = Math.PI / 180;
 /** [x, z] at `deg` degrees from east towards south, `r` metres from (cx, cz) */
@@ -70,6 +63,10 @@ export const REGIONS = [
 
 const CANYON_LINE = REGIONS.find((r) => r.id === 'canyon').pts.map((p) => [p[0], p[1]]);
 
+/** the ground of the open country and the mountains round it (realm/country.js): the regions' blend, the mountains that fill the rest, and the noise the landforms below share */
+const COUNTRY = makeCountry({ seed: 1000, regions: REGIONS });
+const { n2, nB, nC } = COUNTRY;
+
 /** the roads (x, z); they run over the regions' lines and follow the ground */
 const road = (id, surface, width, pts, extra = {}) => ({ id, surface, width, pts, ...extra });
 const ptsOf = (id, from = 0, to = Infinity) => REGIONS.find((r) => r.id === id).pts.slice(from, to).map((p) => [p[0], p[1]]);
@@ -101,40 +98,12 @@ export const SECRETS = [
 ];
 
 // ---- the ground ---------------------------------------------------------------------------------------------------------------------------------
-const regionAt = (R, x, z) => {
-  const n = nearOnLine(R.pts, x, z);
-  const a = R.pts[n.i], b = R.pts[Math.min(n.i + 1, R.pts.length - 1)];
-  const hw = lerp(a[3], b[3], n.u), h = lerp(a[2], b[2], n.u);
-  const over = Math.max(0, n.d - hw);
-  return { w: 1 - smooth(0, R.fall, over), h, over };
-};
-
-/** the mountains that fill whatever is not open ground: always well above any floor */
-const mountain = (x, z) => {
-  const ridge = 1 - Math.abs(2 * n2(nR, x + 60, z, 0.017, 3) - 1);
-  return 34 + 17 * ridge + (n2(nC, x, z - 30, 0.03, 2) - 0.5) * 12;
-};
-
 const LAKE = { x: 128, z: 58, rx: 40, rz: 27, bed: -3.4 };
 
 /** The shape of the ground (before the roads are carved). */
 function homeHeight(x, z, L) {
-  // the open ground: a blend of the regions' floors
-  let open = 0, wsum = 0, hsum = 0;
-  for (const R of REGIONS) {
-    const q = regionAt(R, x, z);
-    if (q.w <= 0) continue;
-    open = 1 - (1 - open) * (1 - q.w);
-    const w2 = q.w * q.w + 1e-6;
-    wsum += w2; hsum += w2 * q.h;
-  }
-  const M = mountain(x, z);
-  let h;
-  if (wsum > 0) {
-    let floor = hsum / wsum;
-    floor += (n2(nA, x + 140, z - 60, 0.014, 3) - 0.5) * 3.0 * open + (n2(nB, x, z, 0.05, 2) - 0.5) * 0.9 * open;       // (the ground rolls a little)
-    h = lerp(M, floor, open);
-  } else h = M;
+  // the open ground: a blend of the regions' floors, risen to the mountains that fill the rest
+  let h = COUNTRY.ground(x, z);
 
   // the Crag's plinth and its caves: the ground follows the tunnels' floors under the mountain
   {
@@ -147,40 +116,17 @@ function homeHeight(x, z, L) {
   }
 
   // the hidden garden's ring (flat crest), and its floor
-  {
-    const K = GARDEN, dx = x - K.x, dz = z - K.z, d = Math.hypot(dx, dz);
-    if (d < K.r + 14) {
-      const along = dx * Math.cos(K.open) + dz * Math.sin(K.open), lateral = Math.abs(dx * Math.sin(K.open) - dz * Math.cos(K.open));
-      const gap = along > 0 ? 1 - smooth(K.gap, K.gap + 0.8, lateral) : 0;
-      const ring = smooth(K.r + 0.4, K.r + 3.2, d) * (1 - smooth(K.r + 7.4, K.r + 12.2, d));
-      h = lerp(h, Math.max(h, K.h + K.wall), ring * (1 - gap));
-      h = lerp(h, K.h, 1 - smooth(K.r, K.r + 2.2, d));
-    }
-  }
+  h = glade(h, x, z, GARDEN);
   // the Guardian's gate stands in a gorge: two buttresses of rock rise on either side of it and join the mountains, so that the way north leads through the gate and nowhere else
   {
     const G = HOME.guard, ax = Math.abs(x - G.x), b = smooth(5.0, 7.2, ax) * (1 - smooth(22, 34, ax)) * smooth(G.z + 13, G.z + 9, z);
     if (b > 0) h = lerp(h, Math.max(h, G.h + 28), b);
   }
-  // Mirror Lake: a bowl with a flat-ish bed and steepening walls, the shore exactly where d = 1
-  {
-    const k = LAKE;
-    const d = Math.hypot((x - k.x) / k.rx, (z - k.z) / k.rz);
-    if (d < 1.34) {
-      const wob = (n2(nB, x + 50, z, 0.06, 2) - 0.5) * 0.9 * (1 - d);
-      const inner = k.bed * (1 - Math.pow(d, 3.2)) + wob * (d < 1 ? 1 : 0);
-      const outer = lerp(0.0, h, smooth(1.0, 1.34, d));
-      h = d < 1 ? Math.min(h, inner) : Math.min(h, outer + 0.0);
-    }
-    // the islet
-    const I = L.islet, di = Math.hypot(x - I.x, z - I.z);
-    h = Math.max(h, k.bed + (I.top - k.bed) * (1 - smooth(I.r * 0.45, I.r * 1.25, di)));
-  }
+  // Mirror Lake: a bowl with a flat-ish bed and steepening walls, the shore exactly where d = 1; the islet in it
+  h = basin(h, x, z, LAKE, () => (n2(nB, x + 50, z, 0.06, 2) - 0.5) * 0.9);
+  h = mound(h, x, z, L.islet, LAKE.bed);
   // no accidental puddles: outside the lake the ground stays above the waterline (eased in: a hard switch would leave a ledge along the shore)
-  const dWet = Math.hypot((x - LAKE.x) / LAKE.rx, (z - LAKE.z) / LAKE.rz);
-  const kk = smooth(1.14, 1.44, dWet);
-  if (kk > 0) h = lerp(h, Math.max(h, 0.75), kk);
-  return h;
+  return dryLand(h, x, z, LAKE);
 }
 
 export const HOME = {
