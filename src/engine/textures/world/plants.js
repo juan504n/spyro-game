@@ -295,6 +295,24 @@ function flowerBlue() {
   return c;
 }
 
+// Emberfall Crags: a fire lily - a charred stalk and a head of flame-coloured tongues
+function flowerEmber() {
+  const c = new Canvas(16, 16, false);
+  const ST = ['#3a2418', '#5a3a22', '#7a5230'];
+  for (const [x, y, t] of curve(8, 15, 8, 8, 0.6, 10)) c.dot(Math.round(x), Math.round(y), t > 0.5 ? ST[2] : ST[1]);
+  blade(c, 8, 13, 4, 10, -0.5, { lit: ST[2], mid: ST[1], dark: ST[0], tip: '#c4501a', root: ST[1] }, 2);
+  blade(c, 8, 12, 12, 9, 0.5, { lit: ST[2], mid: ST[1], dark: ST[0], tip: '#c4501a', root: ST[1] }, 2);
+  const P = ['#b83a14', '#f07a22', '#ffc060', '#fff0b0'];
+  const hx = 8, hy = 6;
+  for (const a of [-2.3, -1.9, -1.57, -1.25, -0.85]) {
+    const px = hx + Math.cos(a) * 2.6, py = hy + Math.sin(a) * 2.6;
+    c.blob(px, py, 1.3, 2.2, P[0], P[1], P[2]);
+  }
+  c.blob(hx, hy + 0.5, 1.9, 1.9, P[0], P[1], P[2]);
+  c.dot(hx, hy, P[3]); c.dot(hx - 1, hy - 3, P[3]);
+  return c;
+}
+
 function reeds() {
   const c = new Canvas(16, 32, false);
   // long blade leaves
@@ -411,6 +429,7 @@ export function plantTextures() {
     leaves_autumn: rec(leavesAutumn(), true, false),
     pine: rec(paintPine(), true, false),
     pine_snow: rec(paintPine({ shade: '#14403c', back: '#1c5a54', mid: '#2e7864', light: '#9cc4d4', tip: '#e6f2fa' }, 4502), true, false),
+    pine_char: rec(paintPine({ shade: '#140e0c', back: '#241812', mid: '#3a2a20', light: '#5c4030', tip: '#e8661c' }, 4503), true, false),
     leaves_blossom: rec(leavesBlossom(), true, false),
     leaves_frost: rec(leavesFrost(), true, false),
     mushroom_cap: rec(paintMushroomCap(), false, false),
@@ -419,6 +438,7 @@ export function plantTextures() {
     flower_pink: rec(flowerPink(), false, true),
     flower_yellow: rec(flowerYellow(), false, true),
     flower_blue: rec(flowerBlue(), false, true),
+    flower_ember: rec(flowerEmber(), false, true),
     reeds: rec(reeds(), false, true),
     fern: rec(fern(), false, true),
     lilypad: rec(lilypad(), false, true),

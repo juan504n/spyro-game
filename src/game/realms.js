@@ -7,6 +7,7 @@ import { populate as populateRealm } from './levelgen/index.js';
 import { HOME } from './home/level.js';
 import { populateHome } from './home/layout.js';
 import { REALM as FROSTBLOOM } from './frostbloom/index.js';
+import { REALM as EMBERFALL } from './emberfall/index.js';
 // <realm-imports>  (tools/new-realm.mjs adds the import of a new realm above this line)
 
 /**
@@ -38,6 +39,7 @@ export const REALMS = {
     level: HOME, populate: populateHome, day: 1,
   },
   frostbloom: FROSTBLOOM,
+  emberfall: EMBERFALL,
   // <realm-entries>  (tools/new-realm.mjs adds the entry of a new realm above this line)
 };
 

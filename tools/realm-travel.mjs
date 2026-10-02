@@ -31,7 +31,7 @@ export function findTravelPlaces(which) {
 
   /** a valid place near (x0, z0), looking at (fx, fz), arriving from the side of (bx, bz) when there is one: nearest candidates first */
   // (`ref`: the height of the floor the place is meant for - a goal's, a chest's, a ribbon's: under a cave's roof the highest surface at a point is the roof, not where he stands)
-  const find = (id, name, x0, z0, fx, fz, bx = null, bz = null, rings = [0, 3, 4.5, 6, 8, 10, 13, 17, 22], ref = null) => {
+  const find = (id, name, x0, z0, fx, fz, bx = null, bz = null, rings = [0, 3, 4.5, 6, 8, 10, 13, 17, 22], ref = null, shelf = false) => {
     const base = bx === null ? 0 : Math.atan2(bz - z0, bx - x0);
     for (const d of rings) {
       const n = d === 0 ? 1 : 16;
@@ -43,9 +43,10 @@ export function findTravelPlaces(which) {
         const p = { id, name, x, z, yaw: r2(Math.atan2(fx - x, fz - z)) };
         const sup = ref === null ? collision.support(x, z, 1e3, 1e3) : collision.support(x, z, ref, 0.9);
         if (Math.abs(sup.y - grid.heightAt(x, z)) > 0.15) p.y = r2(sup.y);
-        const bad = checkPlace(p);
+        const bad = checkPlace(p, { shelf });
         if (Object.values(bad).every((v) => !v)) {
-          if (wShut && !(wShut.distNear(x, z, 2.4, (p.y ?? grid.heightAt(x, z))) < Infinity)) p.opens = true;       // (a place beyond the gate opens it for him: App._placeHero)
+          if (shelf) p.shelf = true;
+          if (wShut && !shelf && !(wShut.distNear(x, z, 2.4, (p.y ?? grid.heightAt(x, z))) < Infinity)) p.opens = true;       // (a place beyond the gate opens it for him: App._placeHero)
           taken.push(p);
           return p;
         }
@@ -56,22 +57,32 @@ export function findTravelPlaces(which) {
   };
   const sp = gp.spawn;
   const goals = [], country = [], secrets = [];
-  for (const b of gp.beacons) { const g = brief ? brief.goals.find((q) => q.id === b.id) : null; goals.push(find(b.id, g ? g.name : b.name, b.x, b.z, b.x, b.z, sp.x, sp.z, [4, 5.5, 7, 9, 12, 16, 22], b.y)); }
+  for (const b of gp.beacons) {
+    const g = brief ? brief.goals.find((q) => q.id === b.id) : null, rings = [4, 5.5, 7, 9, 12, 16, 22];
+    let p = find(b.id, g ? g.name : b.name, b.x, b.z, b.x, b.z, sp.x, sp.z, rings, b.y);
+    // (a glide goal stands on a shelf the hero cannot walk to: its place is on the shelf, flagged `shelf`, and he glides off it)
+    if (!p && g && g.situation === 'glide') { const i = problems.findIndex((q) => q === `no valid place found for ${b.id}`); if (i >= 0) problems.splice(i, 1); p = find(b.id, g.name, b.x, b.z, b.x, b.z, sp.x, sp.z, [4, 5.5, 7], b.y, true); }
+    goals.push(p);
+  }
   country.push(find('start', 'THE START', sp.x, sp.z, sp.x + Math.sin(sp.yaw) * 20, sp.z + Math.cos(sp.yaw) * 20, null, null, undefined, sp.y));
   for (const R of L.regions || []) {
     if (R.sealed || !R.label) continue;
     const [px, pz] = pointOn(R, 0.5), [qx, qz] = pointOn(R, 0.62);
     if (taken.some((t) => Math.hypot(t.x - px, t.z - pz) < 16)) continue;                  // (a part whose middle is where a place already is has no need of another)
-    country.push(find(R.id, R.label, px, pz, qx, qz, null, null, undefined, regionAt(R, px, pz).h));
+    country.push(find(goals.some((g) => g && g.id === R.id) ? `${R.id}-part` : R.id, R.label, px, pz, qx, qz, null, null, undefined, regionAt(R, px, pz).h));       // (a part may be named like a goal: the keys of a world's places are all different)
   }
   for (const c of gp.chests.filter((q) => q.secret)) {
     if (taken.some((t) => Math.hypot(t.x - c.x, t.z - c.z) < 12)) continue;                // (a secret beside a goal is shown by the goal's place)
     const s = brief ? brief.secrets.find((q) => q.id === c.secret) : null;
     secrets.push(find(`secret-${c.secret}`, s ? s.name : `SECRET ${c.secret.toUpperCase()}`, c.x, c.z, c.x, c.z, sp.x, sp.z, [3.5, 5, 7, 9, 12, 16], c.y));
   }
+  // (a page of a phone's menu shows about six rows: a list is split into pages of six; a lone place left over for the last page (a page needs two) is made up with one from the page before it)
   const chunk = (list, name) => {
-    const ok = list.filter(Boolean), out = [];
-    for (let i = 0; i < ok.length; i += 6) out.push({ name: i ? `${name} (${i / 6 + 1})` : name, places: ok.slice(i, i + 6) });
+    const ok = list.filter(Boolean), sizes = [], out = [];
+    for (let i = 0; i < ok.length; i += 6) sizes.push(Math.min(6, ok.length - i));
+    if (sizes.length > 1 && sizes[sizes.length - 1] === 1) { sizes[sizes.length - 2]--; sizes[sizes.length - 1]++; }
+    let from = 0;
+    sizes.forEach((n, k) => { out.push({ name: k ? `${name} (${k + 1})` : name, places: ok.slice(from, from + n) }); from += n; });
     return out;
   };
   const groups = [...chunk(goals, 'THE GOALS'), ...chunk(country, 'THE COUNTRY'), ...chunk(secrets, 'THE SECRETS')].filter((g) => g.places.length >= 2);
@@ -82,7 +93,7 @@ export function findTravelPlaces(which) {
 
 /** the text of src/game/<id>/travel.js */
 export function travelSource(entry) {
-  const place = (p) => `        { id: '${p.id}', name: '${p.name.replace(/'/g, "\\'")}', x: ${p.x}, z: ${p.z}, ${p.y !== undefined ? `y: ${p.y}, ` : ''}yaw: ${p.yaw}${p.opens ? ', opens: true' : ''} },`;
+  const place = (p) => `        { id: '${p.id}', name: '${p.name.replace(/'/g, "\\'")}', x: ${p.x}, z: ${p.z}, ${p.y !== undefined ? `y: ${p.y}, ` : ''}yaw: ${p.yaw}${p.opens ? ', opens: true' : ''}${p.shelf ? ', shelf: true' : ''} },`;
   return `// The places of ${entry.name} for the TRAVEL menu (src/game/travel.js): the start, a spot in front of every goal, one in each named part of the country and beside each secret. FOUND AND CHECKED
 // by tools/realm-travel.mjs (every place passes the rules of tools/lib/travel-rules.mjs): re-run \`node tools/realm-travel.mjs ${entry.world}\` after the layout changes rather than editing by hand.
 export const TRAVEL_PLACES = {

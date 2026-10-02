@@ -14,6 +14,7 @@ import { createLightBeam } from './objects/beam.js';
 import { createCrackedWall } from './objects/wall.js';
 import { createPortal } from './objects/portal.js';
 import { createFrostbloom } from './objects/frostbloom.js';
+import { createEmberstone } from './objects/emberstone.js';
 
 export const OBJECTS = {
   beacon: {
@@ -25,6 +26,11 @@ export const OBJECTS = {
     create: createFrostbloom,
     size: 4.2,
     note: 'Frostbloom (the goal of Frostbloom Hollow): a flower of ice that opens and turns blossom pink as it thaws; setLit(k) 0 asleep .. 1 in bloom; opts.big = x2.2 Heartbloom; anchors flame/base/top',
+  },
+  emberstone: {
+    create: createEmberstone,
+    size: 4.2,
+    note: 'Emberstone (the goal of Emberfall Crags): a coal caged in shards of basalt that opens and blazes as it kindles; setLit(k) 0 cold .. 1 burning; opts.big = x2.2 Heartforge; anchors flame/base/top',
   },
   vase: {
     create: createVase,

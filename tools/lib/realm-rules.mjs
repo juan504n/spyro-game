@@ -129,7 +129,10 @@ export function checkRealm(which, { log = () => {} } = {}) {
     // the steepest stretch of each road over 10 m (a point to point grade is noise)
     let worst = 0, at = '';
     for (const p of grid.paths) for (let i = 6; i < p.pts.length; i++) {
-      const dxz = Math.hypot(p.pts[i][0] - p.pts[i - 6][0], p.pts[i][2] - p.pts[i - 6][2]) || 1, g = Math.abs(p.pts[i][1] - p.pts[i - 6][1]) / dxz;
+      // (metres of road, not the straight line between the two points: the two sides of a hairpin are a few metres apart and a switchback would read as a wall)
+      let len = 0;
+      for (let k = i - 5; k <= i; k++) len += Math.hypot(p.pts[k][0] - p.pts[k - 1][0], p.pts[k][2] - p.pts[k - 1][2]);
+      const dxz = len || 1, g = Math.abs(p.pts[i][1] - p.pts[i - 6][1]) / dxz;
       if (g > worst) { worst = g; at = `${p.id}@${f1(p.pts[i][0])},${f1(p.pts[i][2])}`; }
     }
     rule('roads.grade', 'no road is steeper than the game draws one (a grade of 0.74: the ground under a steeper stretch gets no road)', worst < Math.tan(ROAD_MAX_SLOPE), `(steepest ${worst.toFixed(2)} over 10 m at ${at})`, { hard: true });
@@ -232,8 +235,10 @@ export function checkRealm(which, { log = () => {} } = {}) {
     for (const [a, b] of edges) { const ra = find(a), rb = find(b); if (ra === rb) cycles++; else par[ra] = rb; }
     if (isRealm) rule('design.loops', 'the roads make at least one loop (a way back that is not the way there)', cycles >= 1, `(${paths.length} roads, ${nodes.length} junctions and ends, ${cycles} independent loops)`);
     else skip('design.loops', 'a hub is not held to loops');
-    const rewards = [...goals, ...gp.chests, ...gp.npcs, ...gp.portals, ...gp.walls, ...(gp.mushrooms || []), ...gp.placed.filter((p) => /pier|arch_gate|gate_pillars|windmill|tower|forge|realm_door|ice_fall/.test(p.name))];
-    const dead = ends.filter((e) => !e.joined && Math.hypot(e.x - sp.x, e.z - sp.z) > 25 && !rewards.some((o) => Math.hypot(o.x - e.x, o.z - e.z) < 30));
+    const rewards = [...goals, ...gp.chests, ...gp.npcs, ...gp.portals, ...gp.walls, ...(gp.mushrooms || []), ...gp.placed.filter((p) => /pier|arch_gate|gate_pillars|windmill|tower|forge|realm_door|ice_fall|dragon_maw/.test(p.name))];
+    // (a road that ends at the mouth of a cave leads into it: the cave's own way on is not a road the list can see)
+    const atCave = (e) => massifs.some((m) => m.inBoxXZ(e.x, e.z) && [[8, 0], [-8, 0], [0, 8], [0, -8], [6, 6], [-6, 6], [6, -6], [-6, -6], [14, 0], [-14, 0], [0, 14], [0, -14]].some(([dx, dz]) => m.roofed(e.x + dx, e.y, e.z + dz, 3)));
+    const dead = ends.filter((e) => !e.joined && Math.hypot(e.x - sp.x, e.z - sp.z) > 25 && !rewards.some((o) => Math.hypot(o.x - e.x, o.z - e.z) < 30) && !atCave(e));
     rule('design.deadends', 'no road runs out into nothing: each ends at a junction, the start, or something worth the walk (a goal, a chest, a door, a person)', dead.length === 0, dead.map((e) => `${e.road}@${f0(e.x)},${f0(e.z)}`).join(' '));
   }
 

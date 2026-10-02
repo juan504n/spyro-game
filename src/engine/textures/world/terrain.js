@@ -515,6 +515,68 @@ function paintRuneRing() {
   return c;
 }
 
+
+// ---------------------------------------------------------------------------------------------
+// Ash and cinder (Emberfall Crags): the ground of the burnt country. Ash is warm grey drifts with wind ripples, clinker (dark cinders) and pale flecks; cinder is scorched earth, nearly black,
+// its cracks glowing where the fire has not gone out. Basalt is the rock: dark strata under a lip of ash, with a hairline of ember in its fissures.
+// ---------------------------------------------------------------------------------------------
+const AS = ['#2e2824', '#443c36', '#5e5349', '#7a6d60', '#9a8c7c', '#bcae9c'];
+function paintAsh(seed) {
+  const c = new Canvas(32, 32, true, AS[2]);
+  const rng = new RNG(seed);
+  const f = field(32, 32, seed + 1, 3, 3, 2);
+  const tones = [AS[1], AS[2], AS[2], AS[2], AS[3], AS[3], AS[2], AS[4]];
+  for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) c.set(x, y, bandPick(tones, f[y * 32 + x], x, y, 0.4, 1));
+  // wind ripples in the ash: short runs along U with a pale lip
+  for (let i = 0; i < 7; i++) {
+    const p = walk(rng, rng.int(0, 32), rng.int(0, 32), rng.int(6, 11), [1, rng.float(-0.3, 0.3)], 0.35);
+    polyline(c, p, AS[1]);
+    for (const [x, y] of p) if (rng.chance(0.55)) c.dot(x, y - 1, AS[4]);
+  }
+  // clinker: dark cinders a few pixels across, lit on top
+  const CLINKER = [['.hb.', 'bbbd', '.dd.'], ['hb', 'bd'], ['hbb', 'bbd', '.dd']];
+  for (const [x, y] of poisson(rng, 32, 32, 7, 5)) c.stamp(x, y, rng.pick(CLINKER), { h: AS[4], b: AS[1], d: AS[0] });
+  for (const [x, y] of poisson(rng, 32, 32, 12, 3)) { c.dot(x, y, AS[5]); if (rng.chance(0.4)) c.dot(x + 1, y, AS[4]); }
+  // an ember or two that has not gone out
+  for (const [x, y] of poisson(rng, 32, 32, 2, 12)) { c.dot(x, y, '#c4501a'); c.dot(x + 1, y, '#7a2410'); }
+  return c;
+}
+
+const CB = ['#120e0c', '#1e1613', '#2e221c', '#44322a', '#5c4538'];
+function paintCinder(seed) {
+  const c = new Canvas(32, 32, true, CB[1]);
+  const rng = new RNG(seed);
+  const f = field(32, 32, seed + 1, 4, 4, 2);
+  const tones = [CB[0], CB[1], CB[1], CB[2], CB[2], CB[3]];
+  for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) c.set(x, y, bandPick(tones, f[y * 32 + x], x, y, 0.4, 1));
+  // slag crust: pale ridges where the ground has buckled
+  for (let i = 0; i < 5; i++) {
+    const p = walk(rng, rng.int(0, 32), rng.int(0, 32), rng.int(6, 10), [1, rng.float(-0.5, 0.5)], 0.5);
+    polyline(c, p, CB[3]);
+    for (const [x, y] of p) if (rng.chance(0.4)) c.dot(x, y - 1, CB[4]);
+  }
+  // cracks with a fire in them: dark edge, orange core, a white-hot spot here and there
+  for (let i = 0; i < 4; i++) {
+    const p = walk(rng, rng.int(0, 32), rng.int(0, 32), rng.int(8, 13), [rng.float(-0.9, 0.9), rng.float(-0.9, 0.9)], 0.8);
+    polyline(c, p, '#5a1a0c');
+    for (const [x, y] of p) { c.dot(x, y, rng.chance(0.3) ? '#ffb040' : '#e8661c'); if (rng.chance(0.15)) c.dot(x, y, '#ffe49a'); }
+  }
+  for (const [x, y] of poisson(rng, 32, 32, 12, 3)) c.dot(x, y, rng.chance(0.5) ? CB[4] : CB[0]);
+  return c;
+}
+
+const BA = ['#0e0b0a', '#1a1411', '#2a211c', '#40322a', '#5a4638', '#86705c'];
+function cliffBasalt(mossy = true) {
+  const c = paintCliff(mossy ? 2701 : 2711, { ramp: BA, lip: ['#6a6258', '#8c8276', '#b0a698', '#d6cdbd'] }, mossy);
+  const rng = new RNG(mossy ? 2702 : 2712);
+  for (let i = 0; i < 2; i++) {
+    const p = walk(rng, rng.int(0, 32), rng.int(0, 32), rng.int(9, 14), [rng.float(-0.2, 0.2), 1], 0.5);
+    polyline(c, p, '#6a1e0c');
+    for (const [x, y] of p) if (rng.chance(0.5)) c.dot(x, y, rng.chance(0.35) ? '#ffb040' : '#e8661c');
+  }
+  return c;
+}
+
 export function terrainTextures() {
   return {
     grass_a: rec(grassA(), true, false),
@@ -537,6 +599,17 @@ export function terrainTextures() {
     snow_petals: rec(paintSnow(2401, true), true, false),
     cliff_frost: rec(cliffFrost(), true, false, { roll: 'x' }),
     far_frost: rec(paintFarRock(2002, ['#8e9cc0', '#a0aecc', '#b2c0d8']), true, false),
+    // the ground of Emberfall Crags: ash and cinder, basalt, the scorched roads, the far mountains
+    ash: rec(paintAsh(2901), true, false),
+    cinder: rec(paintCinder(2951), true, false),
+    cobble_ember: rec(paintCobble({
+      ramp: ['#241c1a', '#382c28', '#4e3e36', '#6e5848', '#8e7660', '#b49c80'], moss: ['#7a2410', '#b83a14', '#f0801f', '#ffc050'], seed: 2801,
+      fams: [{ d: '#4e3e36', m: '#6e5848', l: '#8e7660' }, { d: '#42342e', m: '#5e4a3e', l: '#7c6552' }, { d: '#4e3e36', m: '#6e5848', l: '#8e7660' }, { d: '#382c28', m: '#4e3e36', l: '#6e5848' }],
+    }), true, false, { roll: 'xy' }),
+    path_ash: rec(paintDirt(['#3a322c', '#544a42', '#756a5e', '#978a7a', '#b8ab98', '#d8cdbb'], 2811), true, false),
+    cliff_basalt: rec(cliffBasalt(), true, false, { roll: 'x' }),
+    cliff_basalt_bare: rec(cliffBasalt(false), true, false, { roll: 'x' }),
+    far_ember: rec(paintFarRock(2003, ['#5c3c38', '#6c4842', '#7e564e']), true, false),
     cliff: rec(cliffLav(), true, false, { roll: 'x' }),
     cliff_warm: rec(cliffWarm(), true, false, { roll: 'x' }),
     cliff_bare: rec(cliffBare(), true, false, { roll: 'x' }),

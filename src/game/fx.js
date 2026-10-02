@@ -288,6 +288,21 @@ export class Fx {
     this.spawn({ pool: 'add', frames: ['ripple_0', 'ripple_1', 'ripple_2'], overLife: true, x, y: y + 0.1, z, life: 0.8, size: [1.2, 3.4 * power], c0: [0.7, 0.9, 1, 1], c1: [0.7, 0.9, 1, 0] });
   }
 
+  /** The splash of a lake of lava (level.liquid.splash === 'lava'): a flare, a fountain of sparks that fall back, a puff of dark smoke. */
+  lavaSplash(x, y, z, power = 1) {
+    this.spawn({ pool: 'add', sprite: 'lens_star', x, y: y + 0.5, z, life: 0.35, size: [0.8 * power, 3.0 * power], c0: [1, 0.8, 0.4, 1], c1: [1, 0.35, 0.1, 0] });
+    for (let i = 0; i < 8 + Math.round(power * 6); i++) {
+      const a = Math.random() * Math.PI * 2, sp = this.rnd(1, 3.5) * power;
+      this.spawn({ pool: 'add', sprite: 'spark_small', x, y: y + 0.3, z, vx: Math.cos(a) * sp, vy: this.rnd(3, 8) * power, vz: Math.sin(a) * sp, gravity: -16, life: this.rnd(0.5, 1.0), size: [this.rnd(0.3, 0.55), 0.1], c0: [1, this.rnd(0.6, 0.95), this.rnd(0.2, 0.5), 1], c1: [1, 0.3, 0.08, 0] });
+    }
+    this.spawn({ pool: 'half', frames: ['smoke_0', 'smoke_1'], overLife: true, x, y: y + 0.6, z, vy: this.rnd(1.2, 2), life: 1.2, size: [1.0 * power, 3.2 * power], c0: [0.3, 0.22, 0.2, 0.9], c1: [0.3, 0.22, 0.2, 0], rot: this.rnd(0, 6), spin: this.rnd(-0.3, 0.3) });
+  }
+
+  /** An ember drifting up from the ground (Emberfall Crags' dusk: what the fireflies of the other realms are). */
+  ember(x, y, z) {
+    this.spawn({ pool: 'add', sprite: 'spark_small', x, y, z, vx: this.rnd(-0.4, 0.4), vy: this.rnd(0.8, 2.2), vz: this.rnd(-0.4, 0.4), life: this.rnd(2.2, 4.2), size: [0.26, 0.1], c0: [1, this.rnd(0.55, 0.85), 0.25, 0.95], c1: [1, 0.25, 0.08, 0], spin: this.rnd(-2, 2) });
+  }
+
   sparkle(x, y, z, color = [1, 0.9, 0.5], size = 0.6) {
     this.spawn({ pool: 'add', sprite: 'spark', x, y, z, vy: this.rnd(0.2, 0.8), life: this.rnd(0.35, 0.6), size: [size, size * 0.2], c0: [...color, 1], c1: [...color, 0], rot: this.rnd(0, 3), spin: this.rnd(-3, 3) });
   }

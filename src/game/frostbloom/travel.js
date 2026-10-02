@@ -21,7 +21,13 @@ export const TRAVEL_PLACES = {
         { id: 'rimewood', name: 'RIMEWOOD', x: -104.48, z: 39.72, yaw: -2.1 },
         { id: 'icefall', name: 'THE ICEFALL', x: 115.48, z: 22.47, yaw: 2.1 },
         { id: 'ridge', name: 'AURORA RIDGE', x: 2.64, z: -66.18, yaw: -1.98 },
+      ],
+    },
+    {
+      name: 'THE COUNTRY (2)',
+      places: [
         { id: 'lookout', name: 'AURORA LOOKOUT', x: 32.15, z: -60.39, yaw: 1.75 },
+        { id: 'hollow', name: 'THE HOLLOW', x: 0, z: -134, yaw: 3.14, opens: true },
       ],
     },
     {

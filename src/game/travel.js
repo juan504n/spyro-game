@@ -6,6 +6,7 @@
 // stand, clear of rock and props, away from the Snuffers and from a door that is awake, and (in Dawnhaven) a part of the walkable country. The app (App._placeHero) puts him there, makes
 // him untouchable for a few seconds as after a respawn, and makes the place his checkpoint; a place inside the ward that seals the vale's summit (the observatory) opens the Dawn Gate first.
 import { TRAVEL_PLACES as TRAVEL_FROSTBLOOM } from './frostbloom/travel.js';
+import { TRAVEL_PLACES as TRAVEL_EMBERFALL } from './emberfall/travel.js';
 // <realm-travel-imports>  (tools/realm-travel.mjs adds the import of a realm's places above this line)
 const PI = Math.PI;
 /** the yaw that looks from (x, z) towards (tx, tz) */
@@ -70,7 +71,7 @@ export const TRAVEL = [
           { id: 'pier-end', name: 'TIDEGLASS PIER', x: 128, z: 43.4, y: 0.3, yaw: PI },
           { id: 'islet', name: 'THE ISLET', x: 111.5, z: 62.5, yaw: face(111.5, 62.5, 114, 62) },
           { id: 'canyon', name: 'EMBER CANYON', x: 136, z: -54, yaw: PI },
-          { id: 'forge', name: 'THE FORGE', x: 151.6, z: -159, y: 15.83, yaw: face(151.6, -159, 152, -164) },
+          { id: 'forge', name: 'THE FORGE', x: 151.6, z: -154.5, yaw: face(151.6, -154.5, 152, -164) },
         ],
       },
       {
@@ -96,6 +97,7 @@ export const TRAVEL = [
     ],
   },
   TRAVEL_FROSTBLOOM,
+  TRAVEL_EMBERFALL,
   // <realm-travel-entries>  (tools/realm-travel.mjs adds the entry of a realm's places above this line)
 ];
 

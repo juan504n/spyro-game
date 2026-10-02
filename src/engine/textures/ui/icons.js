@@ -77,6 +77,30 @@ const BLOOM_ON = { o: INK, P: '#e0709c', p: '#f4a0c0', w: '#fff0f6', Y: '#ffd45a
 const BLOOM_OFF = { o: INK, P: '#5a98c4', p: '#9cd0e8', w: '#e8f8ff', Y: '#c8ecff', y: '#78b4d8', S: '#2a5a78', L: '#4a8ab0' };
 
 /* ---------------------------------------------------------------------------------------------- */
+/* ember 12x16: the goal of Emberfall Crags, cold (ember_off) and burning (ember_on)                 */
+/* ---------------------------------------------------------------------------------------------- */
+const EMBER_MAP = [
+  '.....oo.....',
+  '....oYYo....',
+  '....oYwo....',
+  '...oYYwYo...',
+  '...oYwwYo...',
+  '..oyYwwYyo..',
+  '..oyYwwYyo..',
+  '..oyyYYyyo..',
+  '...oRyyRo...',
+  '....oRRo....',
+  '..oooSSooo..',
+  '.oShhSSSSSo.',
+  'oShhSSSssSSo',
+  'oShSSSSSssSo',
+  'oSSSSSssSSSo',
+  '.ooSSSSSSoo.',
+];
+const EMBER_ON = { o: INK, Y: '#ffd24a', w: '#fff4c0', y: '#f08a22', R: '#c4401a', S: '#4a3a34', s: '#2e2420', h: '#8a7466' };
+const EMBER_OFF = { o: INK, Y: '#6a3a30', w: '#8a4a38', y: '#4e2a22', R: '#38160f', S: '#4a3a34', s: '#2e2420', h: '#6e5a4e' };
+
+/* ---------------------------------------------------------------------------------------------- */
 /* heart 10x9                                                                                       */
 /* ---------------------------------------------------------------------------------------------- */
 const HEART_MAP = [
@@ -355,6 +379,8 @@ export function buildIcons() {
   U.lantern_off = fromMap(LANTERN_MAP, LANTERN_OFF, 'lantern_off');
   U.bloom_on = fromMap(BLOOM_MAP, BLOOM_ON, 'bloom_on');
   U.bloom_off = fromMap(BLOOM_MAP, BLOOM_OFF, 'bloom_off');
+  U.ember_on = fromMap(EMBER_MAP, EMBER_ON, 'ember_on');
+  U.ember_off = fromMap(EMBER_MAP, EMBER_OFF, 'ember_off');
   U.sparx_blue = sparxIcon(RAMPS.gemBlue);
   U.sparx_green = sparxIcon(RAMPS.gemGreen);
   U.sparx_yellow = sparxIcon(RAMPS.gemGold);

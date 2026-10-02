@@ -13,7 +13,7 @@ const f1 = (v) => v.toFixed(1);
  * @param W      a world built headlessly with the game's runtime colliders added (tools/headless-world.mjs)
  * @param flood  makeWalkmap(W).flood
  * @param wBroken  a flood from the start with the cracked walls broken, or null (when the world's places need not be in the walkable country)
- * @returns checkPlace(place) -> { floor, clear, slope, water, enemy, door, bounds, pocket, walk, name }: each a string naming the problem, or '' when there is none
+ * @returns checkPlace(place, { shelf }) -> { floor, clear, slope, water, enemy, door, bounds, pocket, walk, name }: each a string naming the problem, or '' when there is none
  */
 export function makePlaceChecker(W, flood, wBroken = null) {
   const { grid, collision, gp, level } = W, nrm = [0, 1, 0], lim = grid.half - 6;
@@ -23,7 +23,8 @@ export function makePlaceChecker(W, flood, wBroken = null) {
     for (const m of collision.solids) { const e = { x, z, r }; if (m.inBoxXZ(x, z) && m.push(e, feet, 1.05, 0.62) && Math.hypot(e.x - x, e.z - z) > 0.25) return m; }
     return null;
   };
-  return (p) => {
+  // (`shelf`: a place on the shelf of a glide goal, which has no way on foot: it is no pocket and not in the walkable country by design, the hero glides on and off it; see situations.js `glide`)
+  return (p, { shelf = !!p.shelf } = {}) => {
     const bad = { floor: '', clear: '', slope: '', water: '', enemy: '', door: '', bounds: '', pocket: '', walk: '', name: '' };
     const sp = heroSpot(grid, p), feet = sp.y - 0.05;
     const sup = collision.support(p.x, p.z, feet + 0.62, 0.62);
@@ -39,8 +40,8 @@ export function makePlaceChecker(W, flood, wBroken = null) {
     // not in a pocket: walking ground all round him (a flood within 40 m reaches 100 cells or more: the Shrine Isle, the smallest, has 140)
     const local = flood([p.x, p.z], { startY: sup.y, breakWalls: true, mask: (x, y, z) => Math.hypot(x - p.x, z - p.z) < 40 });
     let cells = 0; local.each(() => { cells++; });
-    if (cells < 100) bad.pocket = `${cells} cells`;
-    if (wBroken && !(wBroken.distNear(p.x, p.z, 2.4, sup.y) < Infinity)) bad.walk = 'not in the walkable country';
+    if (cells < 100 && !shelf) bad.pocket = `${cells} cells`;
+    if (wBroken && !shelf && !(wBroken.distNear(p.x, p.z, 2.4, sup.y) < Infinity)) bad.walk = 'not in the walkable country';
     const area = areaAt(level, p.x, p.z, sup.y);
     if (!area || !area.name) bad.name = 'unnamed';
     return bad;

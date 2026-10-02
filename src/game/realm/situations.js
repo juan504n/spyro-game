@@ -79,7 +79,7 @@ export const SITUATIONS = {
   },
 
   glide: {
-    doc: 'across a gap: a ledge or shelf the hero reaches by gliding from higher ground (it may have a long way round on foot, never a short one)',
+    doc: 'across a gap: a ledge or shelf the hero reaches by gliding from higher ground (it may have a long way round on foot, never a short one; with no way on foot at all it must have a way off by a glide)',
     check(g, e) {
       const foot = e.walk.distNear(g.x, g.z, 3, g.y);
       let best = null;
@@ -93,7 +93,18 @@ export const SITUATIONS = {
       });
       if (!best) return { ok: false, detail: 'no ledge to glide from within reach' };
       const detour = foot === Infinity ? Infinity : foot - best.dFoot;
-      return { ok: foot === Infinity || detour > 2.2 * best.gap + 40, detail: `launch from (${f1(best.x)}, ${f1(best.y)}, ${f1(best.z)}): ${f1(best.gap)} m across, ${f1(best.drop)} m down; ${foot === Infinity ? 'no way on foot' : `${f1(detour)} m more on foot than from the launch`}` };
+      // a way off: a shelf with no way on foot is no trap - ground of the walkable country lower than the goal, 10 m or more off, within reach of a glide from it (a hero who falls in the lava
+      // comes back to the last firm ground, which is the shelf: from there he must be able to glide on)
+      let off = null;
+      if (foot === Infinity) {
+        e.walk.each((x, y, z) => {
+          const gap = Math.hypot(x - g.x, z - g.z), drop = g.y - y;
+          if (gap < 10 || drop < 1 || y < WATER_LEVEL + 0.6 || gap > glideReach(drop) * GLIDE_MARGIN) return;                // (dry ground: not the shallows of the lava)
+          if (!off || gap < off.gap) off = { x, y, z, gap, drop };
+        });
+      }
+      const way = foot === Infinity ? (off ? `; off again by a glide to (${f1(off.x)}, ${f1(off.y)}, ${f1(off.z)}): ${f1(off.gap)} m across, ${f1(off.drop)} m down` : '; NO WAY OFF the shelf by a glide') : '';
+      return { ok: (foot === Infinity || detour > 2.2 * best.gap + 40) && (foot !== Infinity || !!off), detail: `launch from (${f1(best.x)}, ${f1(best.y)}, ${f1(best.z)}): ${f1(best.gap)} m across, ${f1(best.drop)} m down; ${foot === Infinity ? 'no way on foot' : `${f1(detour)} m more on foot than from the launch`}${way}` };
     },
   },
 

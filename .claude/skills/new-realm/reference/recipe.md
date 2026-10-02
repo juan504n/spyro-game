@@ -1,4 +1,4 @@
-# The recipe: how Dawnhaven was built, as a way to build a realm
+# The recipe: how Dawnhaven was built, as a way to build a realm (and what Frostbloom Hollow and Emberfall Crags added)
 
 Dawnhaven (round 19) was rebuilt after the first thing said about it: *an open field, everything at an equal distance, nothing like the original's homeworlds*. The recipe that fixed it is the
 foundry's kit (`src/game/realm/`). Follow it in this order.
@@ -12,10 +12,15 @@ foundry's kit (`src/game/realm/`). Follow it in this order.
   of 40-60 m legs make a climb of 50 m a 300 m walk at a grade of 0.2. Keep nominal grades under 0.35 (the ground rolls: `roll.amp` 3 m adds up to 0.13) so the road stays under 0.5.
 * Heights: start low, end high; at least 25 m of range; give each part a floor of its own so the parts have levels and the passes between them are real climbs.
 * **Mountains are walls.** Whatever is outside the ribbons is rock the hero cannot walk or glide over (the valley's rim is steeper still). The world is as big as the ribbons make it: a 384 m world with a
-  200 m corridor is fine.
+  200 m corridor is fine. **A country with high ribbons needs `country: { mountain: { margin } }`** (Emberfall Crags: a rim at 24 m, a gorge climbing to 34, `margin: 24`): the noise alone makes mountains of 35 m
+  beside a floor of 34, and the hero simply walks up them (the walk map found ground from 2.7 to 63 m and `design.height` failed). With a margin the mountains stand at least that far over the ribbons' floors
+  beside them (`tools/emberfall-check.mjs` has the check: no ground over 30 m is walkable but the gorge and the caldera).
+* **Declared heights must be the ground's.** A ribbon's height is blended with its neighbours' (weights by the square of the closeness): a stair 6 m wide beside a 28 m wide plain, or a spur close to a rim,
+  is dragged to their level and `design.parts` fails (the ground is over 2 m off its own line). Narrow the wide end, start the next ribbon a long way from the stair, remove the spur; `ctx.pathPoint` + `h` to
+  compare is how it was done. **A ribbon beside the lake must reach the bank's top** (the basin's bank is at 1.34 of its radius, the shore at 1.0), or a crest of mountain stands between the plateau and the lake.
 * `makeLevel(brief, extras)` (`realm/level.js`) turns the brief into the level descriptor and puts a level pad (7 m, 9 for a big goal) under every goal. Landforms the ribbons cannot make go in
   `extras.landforms(h, x, z)`: `glade` (a round floor walled in by rock, open along a strip: a secret room), `ravine` (a chasm to glide over), `flatten` (a shelf), `mound` (an islet, a knoll), `basin` is
-  the lake (done for you from `brief.lake`). `NO_LAKE` is the engine's placeholder when a realm has no lake.
+  the lake (done for you from `brief.lake`; with `lake.islets: [{ x, z, r, top }]` it leaves a stack standing in it: Emberfall's rock in the lava, `ANVIL`). `NO_LAKE` is the engine's placeholder when a realm has no lake.
 * Draw it: `node tools/realm-map.mjs <id> map.png`. White circles are the ribbons, cream roads, blue water, red dots Snuffers, orange chests, yellow dots gems, numbered discs the goals.
 
 ## 2. Roads and the trail of gems
@@ -27,7 +32,7 @@ foundry's kit (`src/game/realm/`). Follow it in this order.
 ## 3. Goals in different situations (`brief.goals`, `situations.js`)
 
 Pick the arc before the coordinates. A good five-goal arc: a **landing** goal a short walk from the start; a goal off the road in a **clearing**; one on an **island** or in a **cave**; one that asks
-for the **glide** or a **puzzle**; the finale on a **summit** or in a **crater**. Each goal has `hint` (what to do) and `hintAt`. A goal on a structure of its own (an islet, a tower) takes
+for the **glide** (across a chasm or a lake: a stack of rock in the middle of lava, 15 m up, 36 m from the rim; **with no way on foot at all it needs a way off** by a glide, which the situation check looks for, and the lake must be deep from bank to bank so that the only dry ground is the stack) or a **puzzle**; the finale on a **summit** or in a **crater**. Each goal has `hint` (what to do) and `hintAt`. A goal on a structure of its own (an islet, a tower) takes
 `pad: false`; one given `y` keeps it. The last goal is `big: true` (a bigger lantern with a ring of light 16.5 m above it).
 
 ## 4. The places (`layout.js`)
@@ -66,6 +71,7 @@ round the goal too). A cracked wall (`ctx.addWall(x, z, yaw, 7.0, 5.7, [25])`) a
 
 * **Environment** (`brief.environment`): `{ name, envs: [A, B], sky: [A, B], sun: { az, el: [e0, e1] }, moon: { az, el } }` (`engine/lighting.js` DEFAULT_ENVIRONMENT has the shape). `envs[i]` is a baked light state:
   `lights: [{ dir, color, shadow }]` (the first with `shadow` casts; use `dirAzEl(az, el)`), `sky` and `ground` ambient colours. `sky[i]` is the dome palette (zenith, high, mid, low, horizon, fog, glow).
+  A palette that wants its own clouds and distant mountains adds `cloudTop`, `cloudBot` and `ridge` (without them the vale's lavender is painted: Emberfall's first screenshots had pink clouds over ash).
   Day 0 is how the realm looks before its goals are lit, day 1 after; each goal lit moves it along (`level.goal.daySteps` or the default curve). Pick the two moods first (frozen night with an aurora ->
   blossom dawn), keep each to two or three base hues, make the glow colour the accent.
 * **Ground** (`extras.groundRule`): a method `groundRule(x, z, h, slope, { r, surface, pd })` returning `[texture, why]` or nothing. It runs after roads, lake shores, steep rock (-> cliff) and
@@ -74,6 +80,9 @@ round the goal too). A cracked wall (`ctx.addWall(x, z, yaw, 7.0, 5.7, [25])`) a
 * **Skin and own textures** (`brief.theme.skin`, `brief.lakeTextures`, `brief.roadTextures`, `brief.farRock`): a realm can wear its own textures without touching the engine's: the roads (`cobble_frost`,
   `path_snow`), the lake, the far mountains, and every prop that is built from the kit (see `contract.md`). Keep to two or three base colours (the checker's `design.palette` counts the ground's textures)
   and make the flowers one colour (`flower_patch` takes `kinds: ['flower_pink'], tufts: false`). A gate can be recoloured (`gp.barrier.opts.tint`), a skylight's beam too (`light_shaft`: `color`, `glow`).
+* **A lake that is not water** (`extras.descriptor: { liquid, ambient }` in `level.js`, see `contract.md`): Emberfall's lava is `{ texture: 'lava', splash: 'lava', burnDepth: 0.2, ... }` over a basin 5 m deep. Water physics are global (`WATER_LEVEL` = 0), so a lake of lava is a basin below zero that burns from `burnDepth` instead
+  of drowning from 0.95 m; give it `lakeTextures` for its bed and shore (`cinder`, `ash`), `ambient: { dusk: 'ember' }` for embers where the vale has fireflies, and torches and vents round it, since it lights itself.
+  Put lava `soundSources` (`flame_loop`, a quiet bed) along it. Draw its surface with big irregular plates (a fine tile reads as honeycomb).
 * **Goal object**: `makeModel(assets, name, { big })` from `src/game/models/objects/*.js` (the `beacon.js` Rig/litBuilder pattern: `setLit(k)`, `update`, `anchors.flame`); a goal in the brief carries `model`,
   `beam: { off, on }`, `glow`, `wisp`, `flame: false`, `spark`, `sparkle` (colours of its beam before/after, pool of light, wisps, ignition burst).
 * **Words** (`brief.words`, defaults in `realms.js` DEFAULT_WORDS): what the HUD counts (`goals`: "BEACONS"), the banner when one is lit (`lit`), the finale (`finale`), results, free roam, the gate's banner (`gate`),

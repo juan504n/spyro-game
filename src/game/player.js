@@ -403,7 +403,8 @@ export class Player {
     const wasIn = this.inWater;
     this.inWater = !onProp && depth > 0.05 && (this.grounded || this.y < WATER_LEVEL + 0.1);
     if (this.inWater && !wasIn) this.emit('splash', depth);
-    if (this.inWater && depth > 0.95 && (this.y < WATER_LEVEL - 0.3 || this.grounded)) {
+    const lethal = (this.game.level && this.game.level.liquid && this.game.level.liquid.burnDepth) || 0.95;        // (a lake of lava burns at a touch: level.liquid.burnDepth; water drowns from 0.95 m)
+    if (this.inWater && depth > lethal && (this.y < WATER_LEVEL - 0.3 || this.grounded)) {
       this.waterT += dt;
       if (this.waterT > 0.28) { this.emit('drown'); this.respawnSafe(true); }
     } else this.waterT = Math.max(0, this.waterT - dt * 2);

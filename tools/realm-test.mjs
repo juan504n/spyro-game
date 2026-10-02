@@ -69,6 +69,65 @@ await check('the roads wear the textures the level names (its own, or cobble and
   return { ok: r.meshes.length > 0 && bad.length === 0, ...r };
 });
 
+// a realm that paints its own sky (its palette's cloudTop / cloudBot / ridge): the clouds and the distant mountains wear it, not the vale's lavender
+await check('the sky wears the realm\'s palette', async () => {
+  const r = await ev(() => {
+    const g = window.__game, W = g.world, env = g.level.environment, own = env && env.sky && env.sky[0], s = W.atm.sky;
+    if (!own || (!own.cloudTop && !own.ridge)) return { own: false };
+    const c = W.sky.clouds[0].geo.attributes.aCol.array, m = W.sky.mtn[0], pk = m.geo.attributes.aCol.array;
+    const near = (a, want, k) => want.every((v, i) => Math.abs(a[i] - Math.min(1, v * k) * 255) <= 3);
+    const peak = s.ridge ? s.fog.map((f, i) => f + (s.ridge[i] - f) * m.mixK * 1.15) : null;
+    return { own: true, day: +g.day.toFixed(2), clouds: !own.cloudTop || (!!s.cloudTop && near(c.slice(8, 11), s.cloudTop, 0.575)), ridge: !own.ridge || (!!s.ridge && near(pk.slice(4, 7), peak, 0.5)) };
+  });
+  return { ok: !r.own || (r.clouds && r.ridge), ...r };
+});
+
+// a realm whose lake is not water (level.liquid: Emberfall Crags' lava): the surface is drawn with the liquid's texture, the dusk's life is the one the level names (embers, not fireflies), and a touch of
+// it burns where the descriptor says (water drowns from 0.95 m, lava from `burnDepth`)
+const liquid = await ev(() => { const L = window.__game.level; return L.liquid ? { texture: L.liquid.texture, burnDepth: L.liquid.burnDepth ?? 0.95, splash: L.liquid.splash } : null; });
+if (liquid) {
+  await check(`the lake is ${liquid.texture}, not water`, async () => {
+    const r = await ev(() => window.__game.world.water.children.map((m) => m.material.name));
+    return { ok: r.length > 0 && r.every((n) => n === liquid.texture), surfaces: r, want: liquid.texture };
+  });
+  await check('the dusk\'s life is the one the level names', async () => {
+    const r = await ev(async () => {
+      const g = window.__game, n = { ember: 0, firefly: 0 }, was = { ember: g.fx.ember, firefly: g.fx.firefly };
+      for (const k of Object.keys(n)) g.fx[k] = function (...a) { n[k]++; return was[k].apply(this, a); };
+      for (let t = 0; t < 4; t += 1 / 30) window.__app.update(1 / 30);
+      Object.assign(g.fx, was);
+      return { ...n, dusk: (g.level.ambient || {}).dusk || 'firefly', day: +g.day.toFixed(2) };
+    });
+    return { ok: r.day < 0.1 && (r.dusk === 'ember' ? r.ember > 0 && r.firefly === 0 : r.firefly > 0), ...r };
+  });
+  const burn1 = async (what, depthLo, depthHi) => {
+    // stand the hero on the bed of the lake where it is between depthLo and depthHi deep, and see whether the liquid takes him
+    const spot = await ev(([lo, hi]) => {
+      const g = window.__game, k = g.level.lake, col = g.collision;
+      let best = null;
+      for (let a = 0; a < 48 && !best; a++) for (let f = 0.3; f <= 1.3 && !best; f += 0.01) {
+        const x = k.x + Math.cos((a / 48) * Math.PI * 2) * k.rx * f, z = k.z + Math.sin((a / 48) * Math.PI * 2) * k.rz * f, d = -col.heightAt(x, z);
+        if (d >= lo && d <= hi) best = { x, z, depth: +d.toFixed(2) };
+      }
+      return best;
+    }, [depthLo, depthHi]);
+    if (!spot) return { ok: false, reason: `no ${what} cell found in the lake` };
+    const r = await ev(async (s) => {
+      const g = window.__game, p = g.player;
+      let burned = 0;
+      const was = p.on.drown, home = { x: p.x, y: p.y, z: p.z, yaw: p.yaw };           // (where he is taken back to: the place that is dry)
+      p.on.drown = (...a) => { burned++; return was && was(...a); };
+      p.place(s.x, g.collision.heightAt(s.x, s.z) + 0.05, s.z, 0); p.invulnT = 5; p.safe = home;
+      for (let t = 0; t < 1.2; t += 1 / 30) window.__app.update(1 / 30);
+      p.on.drown = was;
+      return { burned, dead: p.dead, away: +Math.hypot(p.x - s.x, p.z - s.z).toFixed(1) };
+    }, spot);
+    return { ok: spot && r.burned === 1 && !r.dead && r.away > 3, spot, ...r };
+  };
+  await check('the deep of the lake takes the hero out of it', () => burn1('deep', liquid.burnDepth + 1.5, 20));
+  if (liquid.burnDepth < 0.9) await check(`a touch of the ${liquid.texture} burns (from ${liquid.burnDepth} m, not 0.95)`, () => burn1('shallow', liquid.burnDepth + 0.12, 0.85));
+}
+
 // a realm that colours its gate (gp.barrier.opts.tint): the field's vertex colours are the Dawn Gate's multiplied by it
 const gateTint = await ev(() => { const b = window.__game.gameplay.barrier; return b && b.opts && b.opts.tint ? b.opts.tint : null; });
 if (gateTint) {

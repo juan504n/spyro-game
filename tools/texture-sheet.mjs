@@ -32,6 +32,8 @@ const SPEC = {
   rune_ring: [32, 32, 0, 0, 'terrain'],
   snow: [32, 32, 1, 0, 'terrain'], snow_petals: [32, 32, 1, 0, 'terrain'], cliff_frost: [32, 32, 1, 0, 'terrain'], far_frost: [32, 32, 1, 0, 'terrain'],     // (Frostbloom Hollow)
   cobble_frost: [32, 32, 1, 0, 'terrain'], path_snow: [32, 32, 1, 0, 'terrain'],
+  ash: [32, 32, 1, 0, 'terrain'], cinder: [32, 32, 1, 0, 'terrain'], cliff_basalt: [32, 32, 1, 0, 'terrain'], cliff_basalt_bare: [32, 32, 1, 0, 'terrain'], far_ember: [32, 32, 1, 0, 'terrain'],     // (Emberfall Crags)
+  cobble_ember: [32, 32, 1, 0, 'terrain'], path_ash: [32, 32, 1, 0, 'terrain'],
   // buildings
   brick: [32, 32, 1, 0, 'buildings'], brick_warm: [32, 32, 1, 0, 'buildings'], brick_mossy: [32, 32, 1, 0, 'buildings'],
   plaster: [32, 32, 1, 0, 'buildings'], timber: [32, 32, 1, 0, 'buildings'], wood_plank: [32, 32, 1, 0, 'buildings'],
@@ -43,14 +45,16 @@ const SPEC = {
   bark: [16, 32, 1, 0, 'plants'], bark_pale: [16, 32, 1, 0, 'plants'],
   leaves_green: [32, 32, 1, 0, 'plants'], leaves_teal: [32, 32, 1, 0, 'plants'], leaves_autumn: [32, 32, 1, 0, 'plants'],
   leaves_blossom: [32, 32, 1, 0, 'plants'], leaves_frost: [32, 32, 1, 0, 'plants'], pine_snow: [32, 32, 1, 0, 'plants'],
+  pine_char: [32, 32, 1, 0, 'plants'],
   pine: [32, 32, 1, 0, 'plants'], mushroom_cap: [32, 32, 0, 0, 'plants'], mushroom_stem: [16, 16, 0, 0, 'plants'],
   tuft: [16, 16, 0, 1, 'sprites'], flower_pink: [16, 16, 0, 1, 'sprites'], flower_yellow: [16, 16, 0, 1, 'sprites'],
-  flower_blue: [16, 16, 0, 1, 'sprites'], reeds: [16, 32, 0, 1, 'sprites'], fern: [16, 16, 0, 1, 'sprites'],
+  flower_ember: [16, 16, 0, 1, 'sprites'], flower_blue: [16, 16, 0, 1, 'sprites'], reeds: [16, 32, 0, 1, 'sprites'], fern: [16, 16, 0, 1, 'sprites'],
   lilypad: [16, 16, 0, 1, 'sprites'], vine: [8, 32, 0, 1, 'sprites'],
   // water
   water: [32, 32, 1, 0, 'water'], waterfall: [16, 32, 1, 0, 'water'], foam: [32, 32, 1, 1, 'water'],
+  lava: [32, 32, 1, 0, 'water'],
   // magic & light
-  crystal_violet: [16, 16, 0, 0, 'magic'], crystal_cyan: [16, 16, 0, 0, 'magic'],
+  crystal_violet: [16, 16, 0, 0, 'magic'], crystal_cyan: [16, 16, 0, 0, 'magic'], crystal_ember: [16, 16, 0, 0, 'magic'],
   lantern_glass_off: [16, 16, 0, 0, 'magic'], lantern_glass_on: [16, 16, 0, 0, 'magic'],
   barrier: [32, 32, 1, 0, 'magic'], portal: [32, 32, 1, 0, 'magic'], portal_swirl: [64, 64, 0, 0, 'magic'], beam: [16, 64, 1, 0, 'magic'],
   sun_glow: [32, 32, 0, 0, 'magic'],
@@ -65,6 +69,7 @@ const SPEC = {
 const LUMA_DEFAULT = [0.5, 0.75];
 const LUMA = {
   snow: [0.7, 0.98], snow_petals: [0.7, 0.98], cliff_frost: [0.3, 0.78], far_frost: [0.5, 0.85], cobble_frost: [0.4, 0.9], path_snow: [0.45, 0.92], leaves_blossom: [0.4, 0.85], leaves_frost: [0.4, 0.85], pine_snow: [0.35, 0.8],
+  ash: [0.25, 0.6], cinder: [0.08, 0.4], cliff_basalt: [0.1, 0.6], cliff_basalt_bare: [0.1, 0.6], far_ember: [0.28, 0.5], cobble_ember: [0.2, 0.6], path_ash: [0.35, 0.8], pine_char: [0.1, 0.5], lava: [0.3, 0.95], crystal_ember: [0.25, 0.9], flower_ember: [0.25, 0.9],
   cliff: [0.4, 0.75], cliff_warm: [0.4, 0.75], cliff_bare: [0.4, 0.75], cliff_warm_bare: [0.4, 0.75], ice: [0.6, 0.95], portal_swirl: [0.2, 0.85], far_rock: [0.4, 0.72], tower_stone: [0.25, 0.6], rune_ring: [0.2, 0.6],
   metal_iron: [0.25, 0.6], door: [0.3, 0.7], banner: [0.3, 0.7], window: [0.4, 0.95],
   water: [0.4, 0.75], waterfall: [0.5, 0.9], foam: [0.7, 1], moon: [0.6, 1], sun_disc: [0.7, 1],

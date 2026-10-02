@@ -58,8 +58,13 @@ for (const id of Object.keys(REALMS)) {
   if (wBroken) check(`${W_}: ... in the walkable country, from ${id === 'home' ? 'the cove' : 'the start'} (the cracked walls broken${wShut ? ', the gate open' : ''})`, bad.walk.length === 0, say('walk'));
   // a place beyond a realm's gate says so, and only those do (the app opens the gate for a hero put there, App._placeHero)
   if (wShut) {
-    const wrong = places.filter((p) => !!p.opens !== !(wShut.distNear(p.x, p.z, 2.4, heroSpot(grid, p).y - 0.05) < Infinity)).map((p) => p.key);
+    const wrong = places.filter((p) => !p.shelf && !!p.opens !== !(wShut.distNear(p.x, p.z, 2.4, heroSpot(grid, p).y - 0.05) < Infinity)).map((p) => p.key);
     check(`${W_}: the places beyond the gate are the ones that open it`, wrong.length === 0, wrong.join(', ') || `(${places.filter((p) => p.opens).map((p) => p.key).join(', ') || 'none'})`);
+  }
+  // a place on the shelf of a glide goal (no way on foot: situations.js `glide`) is flagged `shelf` and only a glide goal has one
+  {
+    const glides = level.brief ? level.brief.goals.filter((g) => g.situation === 'glide') : [], shelves = places.filter((p) => p.shelf);
+    if (glides.length || shelves.length) check(`${travelWorld(id).name}: the places on a glide goal's shelf are at a glide goal (${shelves.map((p) => p.key).join(', ') || 'none'})`, shelves.every((p) => glides.some((g) => Math.hypot(p.x - g.x, p.z - g.z) < 12)), shelves.map((p) => p.key).join(', '));
   }
 }
 

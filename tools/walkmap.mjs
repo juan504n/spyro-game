@@ -16,6 +16,7 @@ const BAND = 3;
 
 export function makeWalkmap({ grid, collision }) {
   const half = grid.half, N = Math.floor((2 * half) / CELL);
+  const lq = grid.level && grid.level.liquid, WET = WATER_LEVEL - (lq && lq.burnDepth ? lq.burnDepth : 0.9);       // (the ground below this is the lake's deep: the player's own rule, player.js _water; a lake of lava burns from a touch)
   const cx = (i) => -half + (i + 0.5) * CELL, cz = (j) => -half + (j + 0.5) * CELL;
   const nrm = [0, 1, 0];
   const cellAt = (x, z) => { const i = Math.floor((x + half) / CELL), j = Math.floor((z + half) / CELL); return i >= 0 && j >= 0 && i < N && j < N ? j * N + i : -1; };
@@ -61,7 +62,7 @@ export function makeWalkmap({ grid, collision }) {
         const sup = collision.support(x, z, y0, 0.62);
         if (sup.y - y0 > 0.62) continue;
         if (mask && !mask(x, sup.y, z)) continue;
-        if (sup.kind === 'terrain') { grid.normalAt(x, z, nrm); if (nrm[1] < SLOPE_WALK) { edge = true; continue; } if (sup.y < WATER_LEVEL - 0.9) { edge = true; continue; } }
+        if (sup.kind === 'terrain') { grid.normalAt(x, z, nrm); if (nrm[1] < SLOPE_WALK) { edge = true; continue; } if (sup.y < WET) { edge = true; continue; } }
         else if (sup.kind === 'solid' && sup.n.ny < SLOPE_WALK) continue;
         if (solid(x, sup.y, z)) continue;
         if (Math.abs(di) + Math.abs(dj) > 1 && solid((x + cx(i)) / 2, Math.max(sup.y, y0), (z + cz(j)) / 2)) continue;       // (nothing in between)
@@ -81,7 +82,7 @@ export function makeWalkmap({ grid, collision }) {
             const sup = collision.support(x, z, y0 + 1.0, 0.62);
             if (Math.abs(sup.y - y0) > 1.0) continue;
             if (mask && !mask(x, sup.y, z)) continue;
-            if (sup.kind === 'terrain') { grid.normalAt(x, z, nrm); if (nrm[1] < SLOPE_WALK || sup.y < WATER_LEVEL - 0.9) continue; }
+            if (sup.kind === 'terrain') { grid.normalAt(x, z, nrm); if (nrm[1] < SLOPE_WALK || sup.y < WET) continue; }
             else if (sup.kind === 'solid' && sup.n.ny < SLOPE_WALK) continue;
             if (solid(x, sup.y, z)) continue;
             let air = true;

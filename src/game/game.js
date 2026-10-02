@@ -190,9 +190,10 @@ export class Game {
     p.on.charge = () => { sfx('charge_start', { vol: 0.9 }); fx.dust(p.x, p.y, p.z, 4, 0.5); };
     p.on.hurt = () => { sfx('hurt', { vol: 1 }); this.cam.shake(0.35, 0.3); fx.hitSpark(p.x, p.y + 0.6, p.z, 1); };
     p.on.die = () => { sfx('die', { vol: 1 }); this.stats.deaths++; this.deathT = 0; this.audio?.duck?.(0.6, 2.2); };
-    p.on.splash = (depth) => { fx.splash(p.x, 0, p.z, depth > 0.9 ? 1.5 : 0.8); sfx('splash', { vol: depth > 0.9 ? 1 : 0.5 }); };
+    const lava = this.level.liquid && this.level.liquid.splash === 'lava';                // (a realm whose lake is lava: sparks and a hiss for the splash)
+    p.on.splash = (depth) => { if (lava) { fx.lavaSplash(p.x, 0, p.z, depth > 0.9 ? 1.5 : 0.8); sfx('flame', { vol: depth > 0.9 ? 0.8 : 0.4, pitch: 0.7 }); return; } fx.splash(p.x, 0, p.z, depth > 0.9 ? 1.5 : 0.8); sfx('splash', { vol: depth > 0.9 ? 1 : 0.5 }); };
     p.on.drown = () => {
-      fx.splash(p.x, 0, p.z, 1.8); sfx('splash', { vol: 1 });
+      if (lava) { fx.lavaSplash(p.x, 0, p.z, 2.2); sfx('flame', { vol: 1, pitch: 0.6 }); } else { fx.splash(p.x, 0, p.z, 1.8); sfx('splash', { vol: 1 }); }
       const k = this.level.lake, inLake = Math.hypot((p.x - k.x) / k.rx, (p.z - k.z) / k.rz) < 1.25;
       this.hud.hint(inLake ? (k.deepHint || 'MIRRORMERE IS TOO DEEP! FIND THE STONES OR GLIDE') : 'THE WATER IS TOO DEEP HERE. FIND ANOTHER WAY', 4);
     };

@@ -13,12 +13,13 @@ the design to what made the original games' worlds good, as code. You supply the
 | the kit a realm is built on (ground from ribbons, level descriptor, level-script stages, goal situations) | `src/game/realm/` |
 | the golden example the generator copies (a small complete realm that passes every rule) | `src/game/realm/starter/` |
 | a finished realm made with the foundry: a frozen country with a glacier cave, its own textures, skin and props | `src/game/frostbloom/` (and `tools/frostbloom-check.mjs`, its own checks) |
+| a second: a country of ash with a river of lava (a liquid that is not water), a glide goal with no way on foot, a mountain with a ward of fire in its mouth, its own sky | `src/game/emberfall/` (and `tools/emberfall-check.mjs`) |
 | generator: foundation of a new realm, registered | `node tools/new-realm.mjs <id> --name "NAME" --tagline "..." [--door <door id> --wake-door]` |
 | the rules: hard (it works) + design (the principles) | `node tools/realm-check.mjs <id>` (rules in `tools/lib/realm-rules.mjs`) |
 | a map of the built world (terrain, roads, goals, Snuffers, chests, hints, props) | `node tools/realm-map.mjs <id> out.png` |
 | the TRAVEL menu's places for the realm, found and validated | `node tools/realm-travel.mjs <id>` |
 | the realm played end to end in the real game | `node tools/realm-test.mjs <id>` (dev server on :5173) |
-| the realm walked by the real controller, goal to goal | `node tools/realm-bot.mjs <id>` (dev server on :5173) |
+| the realm walked by the real controller, goal to goal (gliding where a goal wants it) | `node tools/realm-bot.mjs <id>` (dev server on :5173) |
 | the foundry tested as a whole (generates a scratch realm, checks, plays it) | `node tools/foundry-test.mjs` |
 | Gloaming Vale and Dawnhaven must not change by accident | `node tools/world-hash.mjs` |
 
@@ -52,7 +53,7 @@ with a reason in `brief.waive`; a finished realm waives nothing. Add the realm's
 
 **6. Refresh the TRAVEL places** after the layout settles: `node tools/realm-travel.mjs <id>`; then `node tools/travel-check.mjs`.
 
-**7. Play it.** `node tools/realm-test.mjs <id>` (boot, light every goal with fire, finale, ring, Dawnhaven, back restored) and `node tools/realm-bot.mjs <id>` (the real controller walks to every goal along the walk map's routes: it finds what a flood fill over cells cannot), then look at it for real: screenshots from the dev server (`?world=<id>`,
+**7. Play it.** `node tools/realm-test.mjs <id>` (boot, light every goal with fire, finale, ring, Dawnhaven, back restored) and `node tools/realm-bot.mjs <id>` (the real controller walks to every goal along the walk map's routes, and glides to the goals that want it: it finds what a flood fill over cells cannot), then look at it for real: screenshots from the dev server (`?world=<id>`,
 `tools/shot.mjs`, `tools/play.mjs`), from the start and from each goal; the software-rendered headless browser is not a phone's GPU - say so when reporting.
 
 **8. Ship** (see `reference/verification.md`): the other worlds unchanged (`world-hash`) or the change pinned on purpose, the regression suite, mutation-check what you added, README and `docs/DESIGN.md`
@@ -60,15 +61,14 @@ with a reason in `brief.waive`; a finished realm waives nothing. Add the realm's
 
 ## The realms still to make
 
-Dawnhaven has three doors that still sleep (`DOOR_DEFS` in `src/game/home/level.js`: `target: null`); `--wake-door` wakes the one a new realm takes. Each is in a place of its own, and the place and the tag suggest the realm; the theme, the journey and the goals are the design to write:
+Dawnhaven has two doors that still sleep (`DOOR_DEFS` in `src/game/home/level.js`: `target: null`; `emberfall` woke with Emberfall Crags); `--wake-door` wakes the one a new realm takes. Each is in a place of its own, and the place and the tag suggest the realm; the theme, the journey and the goals are the design to write:
 
 | door | where it stands | tag | a direction (the principles' ideas the game does not use yet are in `reference/principles.md`) |
 | --- | --- | --- | --- |
 | `tideglass` | the end of the 41 m pier on Mirror Lake | A REALM OF TIDES AND GLASS | water and glass: a tide that rises and falls over the road, a goal behind a waterfall, one reached by glass bridges; teal and sea-green, a dusk-to-dawn tide |
-| `emberfall` | the forge at the head of the Ember Canyon | A REALM OF EMBERS AND STONE | a country of ash and stone with fire in it: a glide goal across a chasm (`ravine`), a cave with a lava river, a crater finale; warm rock (`cliffs`, `warmRock`), embers for the air |
 | `skyweaver` | the summit of the Crag, at the end of the ledge road | A REALM ABOVE THE CLOUDS | a country on islands of rock above the cloud: gliding between them, whirlwinds that lift the hero (a new mechanic), a tower; the sky is the theme |
 
-Frostbloom Hollow (`src/game/frostbloom/`) is the worked example of everything above: read its `brief.js` first, then `level.js`, `glacier.js` and `layout.js`.
+Frostbloom Hollow (`src/game/frostbloom/`) is the worked example of everything above: read its `brief.js` first, then `level.js`, `glacier.js` and `layout.js`. Emberfall Crags (`src/game/emberfall/`) is the one to read for what a realm can change about the engine's own habits: a lake of lava (`level.liquid`), a glide goal on a stack that has no way on foot and a way off, high ribbons walled by `mountain.margin`, a sky with its own clouds, a gate that is a ward of fire in a dragon's mouth, and its own checks (`tools/emberfall-check.mjs`).
 
 ## Rules of the house
 

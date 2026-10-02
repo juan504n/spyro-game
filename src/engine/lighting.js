@@ -47,7 +47,7 @@ export const SKY_B = {
  * A world's ENVIRONMENT: how it is lit and what its sky looks like at day 0 and day 1. A level brings its own as `level.environment` (see the realm brief in `.claude/skills/new-realm`);
  * the default is Gloaming Vale's: moonlit twilight (A), then daybreak (B).
  *   envs  [A, B]   { lights: [{ dir, color, shadow }], sky, ground }: the baked light of each state (the first light with `shadow` is the one that casts shadows)
- *   sky   [A, B]   the sky's palette (zenith, high, mid, low, horizon, fog, glow)
+ *   sky   [A, B]   the sky's palette (zenith, high, mid, low, horizon, fog, glow; and, for a realm that paints its own clouds and distant mountains: cloudTop, cloudBot, ridge)
  *   sun   { az, el: [at day 0, at day 1] }   moon { az, el }   where the sun and the moon are
  */
 export const DEFAULT_ENVIRONMENT = { name: 'gloaming', envs: ENVS, sky: [SKY_A, SKY_B], sun: { az: 12, el: [-9, 32] }, moon: { az: 205, el: 40 } };
@@ -58,6 +58,7 @@ export function atmosphere(day, env = DEFAULT_ENVIRONMENT) {
   const sky = {};
   const [skyA, skyB] = env.sky;
   for (const k of ['zenith', 'high', 'mid', 'low', 'horizon', 'fog', 'glow']) sky[k] = lerp3(skyA[k], skyB[k], e);
+  for (const k of ['cloudTop', 'cloudBot', 'ridge']) if (skyA[k] && skyB[k]) sky[k] = lerp3(skyA[k], skyB[k], e);       // (optional: a realm that paints its own clouds and distant mountains)
   const sunEl = lerp(env.sun.el[0], env.sun.el[1], t);
   return {
     dayKey: t,

@@ -3,6 +3,7 @@ import { RAMPS } from '../palette.js';
 import { Canvas, RNG, field, dpick, poisson, lattice, cells, rec, clamp, wrapN } from './kit.js';
 
 const V = RAMPS.crystalViolet, CY = RAMPS.crystalCyan, AM = RAMPS.amber, BZ = RAMPS.brass;
+const EM = ['#3a0a0a', '#7a1a10', '#c4401a', '#f07a22', '#ffc060', '#fff0c0'];       // (the crystals of Emberfall Crags: glowing coals)
 
 // ---------------------------------------------------------------------------------------------
 // Crystals: five vertical facets, each with a top-lit gradient, bright left edge, dark right edge
@@ -215,6 +216,7 @@ export function magicTextures() {
   return {
     crystal_violet: rec(paintCrystal(V), false, false),
     crystal_cyan: rec(paintCrystal([CY[0], CY[1], CY[2], CY[3], CY[4], '#eaffff']), false, false),
+    crystal_ember: rec(paintCrystal(EM), false, false),
     lantern_glass_off: rec(paintLantern(false), false, false),
     lantern_glass_on: rec(paintLantern(true), false, false),
     barrier: rec(paintBarrier(), true, false, { roll: 'xy' }),

@@ -22,7 +22,9 @@ makes one; `tools/new-realm.mjs` registers it between the `<realm-imports>` / `<
 | `groundRule`, `cliffs { cool, warm }`, `warmRock`, `steepSlope`, `noRockPatches`, `noGrassPatches` | the ground's textures (see the picker's order below) |
 | `lakeTextures { floor, shore, pebbles }`, `roadTextures { cobble, dirt }`, `farRock` | the realm's own textures for the lake's bed and edge, for its roads (the terrain under them and the ribbons drawn over it) and for the far mountains: texture names, taken from the brief by `makeLevel` |
 | `areas [[name, x, z, r, y?]]` | the named places of the debug readout (every TRAVEL place must lie in one) |
-| `environment` | the two lit states and skies (`engine/lighting.js` DEFAULT_ENVIRONMENT) |
+| `environment` | the two lit states and skies (`engine/lighting.js` DEFAULT_ENVIRONMENT). A sky palette may also carry `cloudTop`, `cloudBot` and `ridge` (the clouds' top and underside and the distant ridges): without them the vale's lavender clouds and mountains are painted, which is wrong over ash or ice (`sky.js`; `realm-test` checks the sky wears them) |
+| `liquid { texture, splash, burnDepth, shallow, deep, shimmer, emissive, tile, scroll }` | optional: the lake is not water (Emberfall Crags' lava: `texture: 'lava'`, `splash: 'lava'` for sparks, `burnDepth: 0.2` = the depth in metres that takes the hero, water's is 0.95, `shallow`/`deep` the tints of the surface over the shallows and the deeps, `shimmer` the additive layer, `emissive: 1` lights itself). `water.js` draws it, `player.js` burns the hero and `tools/walkmap.mjs` treats the burning depth as not walkable. Water physics stay global (`WATER_LEVEL` = 0): a lava lake is a basin below zero |
+| `ambient { dusk }` | optional: `'ember'` swaps the dusk's fireflies for drifting embers |
 | `goal { gateAt?, daySteps? }` | the gate opens after `gateAt` goals (default 4, when the level has a barrier); `daySteps`: the day after each goal |
 | `brief` | the brief (the checker reads it) |
 
@@ -43,6 +45,8 @@ ground (snow) re-skins the realm; it cannot change what the earlier rules decide
 * **The exit** (`gp.portals`, `kind: 'lift'`): `{ id, name, tag, kind: 'lift', shape: 'ring', flat: true, x, y, z, r: 2.6, cy: 16.5, catchR: 5.4, color, target, state: 'closed' }`: a ring of light that pops open
   over the last goal in the finale; a jump inside the ring of light on the floor (`catchR`) carries the hero up (`Player.carry`) and out to `target`. `exitStage` makes it; the floor under it must be level
   (`pad`) and walkable.
+* **A glide goal on a shelf** (`situation: 'glide'` with no way on foot: Emberfall's stack in the lava) needs a way off as well as a way on: dry ground of the walkable country lower than the goal, 10 m or more off, within reach of a glide
+  (`situations.js`); the TRAVEL generator marks its place `shelf: true` and the realm walker (`tools/realm-bot.mjs`, `tools/lib/glide.mjs`) glides to it and off again. A hero who falls in the lava comes back to the last firm ground, which is the shelf.
 * **A gate** (`gp.barrier`) shuts a way until `goal.gateAt` goals burn; with `level.summit` it also draws the ward of Gloaming Vale. `words.gate` is its banner.
 * **Doors** (Dawnhaven only): `gp.portals` of `kind: 'door'` with `target` (an awake door) or `null` (sleeping); `gp.arrivals[target]` is where the hero comes out.
 * **Restored**: a realm entered again through Dawnhaven after it was saved starts restored (`Game._restore`: day 1, goals lit, gate open, ring open, free roam).
@@ -56,9 +60,9 @@ addChest / addWall / addBunnies / addGem / gemArc / roadGems`; from the kit: `fa
 ## Props, textures, models
 * **Props** (`src/game/props/**`, registry `props/index.js`): `{ fn(kit, params), size, note, defaults, anchors }`; `ctx.put` calls `fn`. `node tools/prop-lint.mjs` lints them; `tools/model-sheet.mjs`,
   `sprite-sheet.mjs`, `texture-sheet.mjs` draw sheets of models/sprites/textures to look at.
-* **A realm's skin** (`brief.theme.skin = { textures: { moss: 'snow', ... }, palettes: { moss: { dark, light }, mossTop: [r, g, b], pine: { dark, light, under } } }`): `makePopulate` puts it on the kit (`kit.skin`),
+* **A realm's skin** (`brief.theme.skin = { textures: { moss: 'snow', ... }, palettes: { moss: { dark, light }, mossTop: [r, g, b], pine: { dark, light, under }, rune: [r, g, b] } }`): `makePopulate` puts it on the kit (`kit.skin`),
   and every prop built through `kit.b(texture)` wears the remapped texture (rocks snow-capped where they wore moss, pines under snow, one colour of meadow flower), with the tints in `palettes` where the
-  prop reads them (rocks, stepping stones, arches, pines). It is `null` for Gloaming Vale and Dawnhaven, whose props stay byte-identical. Props that name a texture in their own parameters (a tree's
+  prop reads them (rocks, stepping stones, arches, pines). `rune` is the tint of the standing stones' runes (Emberfall's burn orange, the Lantern Keepers' are violet). It is `null` for Gloaming Vale and Dawnhaven, whose props stay byte-identical. Props that name a texture in their own parameters (a tree's
   `canopy: 'leaves_blossom'`) are not remapped: say it in the layout.
 * **Textures** (`src/engine/textures/world/*.js`, 16-colour-ish pixel art generated in code with `pix.js`): register a new one where its siblings are; the picker and materials use it by name.
 * **Models** (`src/game/models/objects/*.js`, registry `models/index.js`): `makeModel(assets, name, opts)` -> `{ root, setLit?, update?, anchors? ... }`; `beacon.js` (Rig, `litBuilder`, recolouring) is the pattern for

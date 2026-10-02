@@ -86,26 +86,34 @@ function disc(b, cx, cz, rx, rz, y, segs, rings, depthFn, o) {
   }
 }
 
+/**
+ * The lake, the ponds and the river. A realm whose lake is not water says so with `level.liquid` (Emberfall Crags' lava): { texture, shallow, deep (the tints of the surface over the shallows and over
+ * the deeps), shimmer (the tint of the additive layer that moves over it), emissive (1: it lights itself), scroll, tile, splash ('lava': sparks), burnDepth (metres of depth that kill: 0.95 for water,
+ * a touch for lava) }. The surface is opaque and self-lit; what it does to the hero is the player's rule about the ground under him (player.js _water).
+ */
 export function buildWater(grid, lighting, assets) {
   const L = grid.level;
+  const lq = L.liquid || null;
   const group = new THREE.Group();
   group.name = 'water';
   const depthTint = (x, z) => {
     const h = grid.heightAt(x, z);
     const d = clamp((WATER_LEVEL - h) / 4.2);
+    if (lq) return [lq.shallow[0] + (lq.deep[0] - lq.shallow[0]) * d, lq.shallow[1] + (lq.deep[1] - lq.shallow[1]) * d, lq.shallow[2] + (lq.deep[2] - lq.shallow[2]) * d];
     // shallow = light teal, deep = indigo-blue
     return [0.40 - 0.20 * d, 0.68 - 0.32 * d, 0.98 - 0.16 * d];
   };
+  const shimmer = lq ? () => lq.shimmer : () => [0.24, 0.34, 0.42];
 
   const surf = new Builder({ lighting });
   const shim = new Builder({ lighting });
-  const base = { tile: 5, emissive: 0.1, alpha: 1 };
+  const base = lq ? { tile: lq.tile ?? 6, emissive: lq.emissive ?? 1, alpha: 1 } : { tile: 5, emissive: 0.1, alpha: 1 };
   const k = L.lake;
   disc(surf, k.x, k.z, k.rx * 1.12, k.rz * 1.12, WATER_LEVEL, 44, 7, depthTint, { ...base });
-  disc(shim, k.x, k.z, k.rx * 1.12, k.rz * 1.12, WATER_LEVEL + 0.03, 44, 4, () => [0.24, 0.34, 0.42], { ...base, tile: 3.5 });
+  disc(shim, k.x, k.z, k.rx * 1.12, k.rz * 1.12, WATER_LEVEL + 0.03, 44, 4, shimmer, { ...base, tile: lq ? (lq.tile ?? 6) * 0.7 : 3.5 });
   for (const p of L.ponds) {
     disc(surf, p.x, p.z, p.rx * 1.15, p.rz * 1.15, WATER_LEVEL, 24, 4, depthTint, { ...base });
-    disc(shim, p.x, p.z, p.rx * 1.15, p.rz * 1.15, WATER_LEVEL + 0.03, 24, 3, () => [0.24, 0.34, 0.42], { ...base, tile: 3.5 });
+    disc(shim, p.x, p.z, p.rx * 1.15, p.rz * 1.15, WATER_LEVEL + 0.03, 24, 3, shimmer, { ...base, tile: lq ? (lq.tile ?? 6) * 0.7 : 3.5 });
   }
   // the river: its own surface, cut to the banks (see buildRiverWater)
   const river = buildRiverWater(grid, lighting).builder;
@@ -117,8 +125,13 @@ export function buildWater(grid, lighting, assets) {
     group.add(m);
     return m;
   };
-  add(surf, assets.mat('water', { mode: 'half', scroll: [0.018, 0.007], decal: true, alpha: 1.0 }), 5);
-  add(shim, assets.mat('water', { mode: 'add', scroll: [-0.014, 0.022], decal: true }), 6);
+  if (lq) {
+    add(surf, assets.mat(lq.texture, { scroll: lq.scroll || [0.012, 0.005], decal: true }), 5);                      // (opaque and self-lit: it glows in the dusk)
+    add(shim, assets.mat(lq.texture, { mode: 'add', scroll: [-0.01, 0.016], decal: true }), 6);
+  } else {
+    add(surf, assets.mat('water', { mode: 'half', scroll: [0.018, 0.007], decal: true, alpha: 1.0 }), 5);
+    add(shim, assets.mat('water', { mode: 'add', scroll: [-0.014, 0.022], decal: true }), 6);
+  }
   add(river, assets.mat('water', { mode: 'half', scroll: [0, -0.32], decal: true }), 5);
   return group;
 }

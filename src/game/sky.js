@@ -218,8 +218,8 @@ export class Sky {
     paint(this.moonHalo, [0.3, 0.42, 0.75], atm.moonAlpha * 0.55);
 
     // clouds: lit from below by the glow at dusk, white in the day
-    const top = mix3([0.55, 0.5, 0.85], [1, 1, 1], smooth(0, 1, atm.sunEl / 32 + 0.25));
-    const bot = mix3([0.95, 0.5, 0.55], [1, 0.9, 0.78], smooth(0, 1, atm.sunEl / 32 + 0.25));
+    const top = s.cloudTop || mix3([0.55, 0.5, 0.85], [1, 1, 1], smooth(0, 1, atm.sunEl / 32 + 0.25));
+    const bot = s.cloudBot || mix3([0.95, 0.5, 0.55], [1, 0.9, 0.78], smooth(0, 1, atm.sunEl / 32 + 0.25));
     for (const c of this.clouds) {
       const a = c.geo.attributes.aCol.array;
       const lowFrac = 1 - smooth(6, 30, c.el);
@@ -230,7 +230,7 @@ export class Sky {
     }
 
     // mountains fade into the fog colour at the base
-    const mc = mix3([0.20, 0.15, 0.40], [0.52, 0.62, 0.88], smooth(0, 1, atm.sunEl / 32 + 0.25));
+    const mc = s.ridge || mix3([0.20, 0.15, 0.40], [0.52, 0.62, 0.88], smooth(0, 1, atm.sunEl / 32 + 0.25));
     for (const m of this.mtn) {
       const a = m.geo.attributes.aCol.array;
       const peak = mix3(s.fog, mc, m.mixK * 1.15);

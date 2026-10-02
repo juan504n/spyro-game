@@ -1,6 +1,6 @@
 // Water textures: surface, waterfall, shoreline foam.
 import { RAMPS } from '../palette.js';
-import { Canvas, RNG, field, bandPick, poisson, rec } from './kit.js';
+import { Canvas, RNG, field, bandPick, poisson, lattice, cells, rec } from './kit.js';
 
 const WA = RAMPS.water;
 
@@ -120,10 +120,38 @@ function paintFoam() {
   return c;
 }
 
+
+// ---------------------------------------------------------------------------------------------
+// Lava (Emberfall Crags: level.liquid): plates of dark crust floating on molten rock, the cracks between them white-hot, a few plates that are molten right through. It tiles and scrolls like
+// water; the game draws it self-lit (it glows in the dusk).
+// ---------------------------------------------------------------------------------------------
+const LV = ['#2a0806', '#5a140c', '#8e2410', '#c4401a', '#f07a22', '#ffc060', '#fff0b0'];
+function paintLava() {
+  const c = new Canvas(32, 32, true, LV[3]);
+  const rng = new RNG(5301);
+  const pts = lattice(rng, 32, 32, 3, 3, 3.6, 0.5);
+  const V = cells(32, 32, pts);
+  const hot = field(32, 32, 5302, 5, 5, 2);
+  const molten = pts.map(() => rng.chance(0.16));
+  for (let y = 0; y < 32; y++) {
+    for (let x = 0; x < 32; x++) {
+      const k = y * 32 + x, e = V.d2[k] - V.d1[k];
+      if (e < 1.3) { c.set(x, y, hot[k] > 0.6 ? LV[6] : LV[5]); continue; }                  // the crack: white-hot
+      if (e < 2.5) { c.set(x, y, LV[4]); continue; }                                         // the glowing edge of a plate
+      if (molten[V.id[k]]) { c.set(x, y, hot[k] > 0.55 ? LV[5] : LV[4]); continue; }         // a plate that is molten right through
+      c.set(x, y, e < 4.4 ? LV[2] : V.d1[k] < 3.0 ? LV[0] : LV[1]);                          // crust: a red rim to the plate, darker in the middle of it
+    }
+  }
+  for (const [x, y] of poisson(rng, 32, 32, 12, 4)) { const k = y * 32 + x; if (V.d2[k] - V.d1[k] > 4.4 && !molten[V.id[k]]) { c.dot(x, y, LV[3]); c.dot(x + 1, y, LV[2]); } }
+  for (const [x, y] of poisson(rng, 32, 32, 5, 8)) c.dot(x, y, LV[6]);
+  return c;
+}
+
 export function waterTextures() {
   return {
     water: rec(paintWater(), true, false),
     waterfall: rec(paintWaterfall(), true, false, { roll: 'xy' }),
     foam: rec(paintFoam(), true, true, { roll: 'xy' }),
+    lava: rec(paintLava(), true, false, { roll: 'xy' }),
   };
 }

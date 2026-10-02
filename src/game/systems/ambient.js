@@ -117,6 +117,7 @@ export class Ambient {
           case 'smoke': game.fx.smoke(x, e.y, z, 0.9); break;
           case 'sparkle': game.fx.sparkle(x, e.y + rnd(0, 1.2), z, [0.8, 0.7, 1.0], 0.5); break;
           case 'firefly': game.fx.firefly(x, e.y + rnd(0, 1.5), z); break;
+          case 'ember': game.fx.ember(x, e.y + rnd(0, 0.8), z); break;
           case 'leaf': game.fx.leaf(x, e.y + rnd(0, 2), z); break;
           case 'mist': game.fx.spawn({ pool: 'half', frames: ['smoke_1'], x, y: e.y + rnd(0, 1), z, vx: rnd(-0.3, 0.3), vy: rnd(0.4, 1.2), vz: rnd(-0.3, 0.3), life: rnd(1.4, 2.4), size: [1.8, 4.2], c0: [0.85, 0.95, 1, 0.55], c1: [0.85, 0.95, 1, 0] }); break;
           default: break;
@@ -130,7 +131,7 @@ export class Ambient {
       const a = Math.random() * 6.28, r = rnd(4, 22);
       const x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r;
       const gy = game.collision.heightAt(x, z);
-      if (gy > WATER_LEVEL + 0.3) game.fx.firefly(x, gy + rnd(0.6, 2.8), z);
+      if (gy > WATER_LEVEL + 0.3) { if (game.level.ambient && game.level.ambient.dusk === 'ember') game.fx.ember(x, gy + rnd(0.3, 1.6), z); else game.fx.firefly(x, gy + rnd(0.6, 2.8), z); }
     }
     this.moteAcc += dt * 4 * day;
     while (this.moteAcc >= 1) {
@@ -147,7 +148,10 @@ export class Ambient {
       const stride = p.chargeT > 0 ? 1.7 : 2.7;
       if (sp > 2 && this.stepAcc > stride) {
         this.stepAcc = 0;
-        if (p.inWater) { game.fx.splash(p.x, WATER_LEVEL, p.z, 0.45); game.audio?.sfx('splash', { vol: 0.35, pitch: 1.3 }); }
+        if (p.inWater) {
+          if (game.level.liquid && game.level.liquid.splash === 'lava') { game.fx.lavaSplash(p.x, WATER_LEVEL, p.z, 0.45); game.audio?.sfx('flame', { vol: 0.3, pitch: 0.7 }); }
+          else { game.fx.splash(p.x, WATER_LEVEL, p.z, 0.45); game.audio?.sfx('splash', { vol: 0.35, pitch: 1.3 }); }
+        }
         else {
           game.fx.dust(p.x - p.dirx * 0.5, p.y, p.z - p.dirz * 0.5, p.chargeT > 0 ? 3 : 1, 0.3);
           game.audio?.sfx(p.groundKind === 'collider' || p.groundKind === 'solid' ? 'footstep_stone' : ['footstep_a', 'footstep_b', 'footstep_c'][(game.frames >> 3) % 3], { vol: 0.22, jitter: 0.06 });

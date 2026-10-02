@@ -25,14 +25,14 @@ const f1 = (v) => v.toFixed(1);
 // ---- the Elder says which realms burn (it was always the vale, before a second door woke) --------------------------------------------------------------
 {
   const say = (realms) => homeLines({ progress: { realms, home: { secrets: [] } } }, {})[0];
-  const a = say({}), b = say({ gloaming: { done: true } }), c = say({ frostbloom: { done: true } }), d = say({ gloaming: { done: true }, frostbloom: { done: true } });
-  check('the Elder welcomes the hero, and names the realms that burn (the one, the other, both)', !/BURN/.test(a) && /^WELCOME TO DAWNHAVEN, SPYRO! GLOAMING VALE BURNS BRIGHT AGAIN, AND ITS DOOR SHINES GOLD/.test(b) && /FROSTBLOOM HOLLOW BURNS BRIGHT/.test(c) && !/GLOAMING/.test(c) && /GLOAMING VALE AND FROSTBLOOM HOLLOW BURN BRIGHT AGAIN, AND THEIR DOORS SHINE GOLD/.test(d), `(${c})`);
+  const a = say({}), b = say({ gloaming: { done: true } }), c = say({ frostbloom: { done: true } }), d = say({ gloaming: { done: true }, frostbloom: { done: true } }), e = say({ gloaming: { done: true }, frostbloom: { done: true }, emberfall: { done: true } });
+  check('the Elder welcomes the hero, and names the realms that burn (the one, the other, both, all three)', !/BURN/.test(a) && /^WELCOME TO DAWNHAVEN, SPYRO! GLOAMING VALE, FROSTBLOOM HOLLOW AND EMBERFALL CRAGS BURN BRIGHT AGAIN, AND THEIR DOORS SHINE GOLD/.test(e) && /^WELCOME TO DAWNHAVEN, SPYRO! GLOAMING VALE BURNS BRIGHT AGAIN, AND ITS DOOR SHINES GOLD/.test(b) && /FROSTBLOOM HOLLOW BURNS BRIGHT/.test(c) && !/GLOAMING/.test(c) && /GLOAMING VALE AND FROSTBLOOM HOLLOW BURN BRIGHT AGAIN, AND THEIR DOORS SHINE GOLD/.test(d), `(${c})`);
 }
 
 // ---- the doors ---------------------------------------------------------------------------------------------------------------------
 {
   const sealed = gp.portals.filter((p) => p.state === 'sealed'), open = gp.portals.filter((p) => p.state === 'open');
-  check('five doors: two awake (Gloaming Vale, Frostbloom Hollow), three that still sleep', gp.portals.length === 5 && open.length === 2 && open.map((p) => p.target).sort().join() === 'frostbloom,gloaming' && sealed.length === 3 && sealed.every((p) => !p.target), `(${gp.portals.map((p) => `${p.id}:${p.state}`).join(' ')})`);
+  check('five doors: three awake (Gloaming Vale, Frostbloom Hollow, Emberfall Crags), two that still sleep', gp.portals.length === 5 && open.length === 3 && open.map((p) => p.target).sort().join() === 'emberfall,frostbloom,gloaming' && sealed.length === 2 && sealed.every((p) => !p.target), `(${gp.portals.map((p) => `${p.id}:${p.state}`).join(' ')})`);
   for (const d of DOORS) {
     const p = gp.portals.find((q) => q.id === d.id);
     const ys = [[-3, 0], [3, 0], [0, 0], [0, 3], [-3, 3], [3, 3], [0, 5.5]].map(([s, f]) => { const [x, z] = inFront(d, f, s); return collision.support(x, z, p.y + 1.0, 0.9).y; });

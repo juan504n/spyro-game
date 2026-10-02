@@ -6,6 +6,7 @@ import { rock, stoneTex } from './rocks.js';
 const CRYSTAL = {
   violet: { tex: 'crystal_violet', tint: [1.05, 0.95, 1.12], glow: [0.66, 0.46, 1.0] },
   cyan: { tex: 'crystal_cyan', tint: [0.92, 1.08, 1.12], glow: [0.4, 0.86, 1.0] },
+  ember: { tex: 'crystal_ember', tint: [1.1, 0.96, 0.9], glow: [1.0, 0.5, 0.18] },
 };
 
 /** One crystal pillar: base B, unit direction d. Brighter toward the tip (glowing core). */
@@ -101,6 +102,7 @@ export function standingStones(kit, { x, z, rot = 0, scale = 1, y, r: ringR, cou
   kit.at(x, z, { rot, scale, y }, () => {
     const stone = kit.b('cliff');
     const runes = kit.b('rune_ring');
+    const rt = (kit.skin && kit.skin.palettes && kit.skin.palettes.rune) || [1, 1, 1];           // (a realm's skin may tint the runes: Emberfall Crags' are fire, not the Lantern Keepers' violet)
     const a0 = rng.float(0, TAU);
     // ground height under prop-local (lx, lz), relative to the prop's origin, in prop units
     const groundAt = (lx, lz) => { const [wx, wz] = kit.toWorld(lx, lz); return (kit.groundY(wx, wz) - kit.origin.y) / kit.origin.scale; };
@@ -135,11 +137,11 @@ export function standingStones(kit, { x, z, rot = 0, scale = 1, y, r: ringR, cou
       const ry = H * 0.56, rs = W * 0.42;
       const zf = (yy) => d0 + (d1 * 0.9 - d0) * clamp((yy + 0.6) / (lerp(hL, hR, 0.5) + 0.6)) + 0.035;
       runes.quad(P(-rs, ry - rs, zf(ry - rs)), P(rs, ry - rs, zf(ry - rs)), P(rs, ry + rs, zf(ry + rs)), P(-rs, ry + rs, zf(ry + rs)),
-        { uv: [0, 0, 1, 1], emissive: 0.85, color: [1.1, 1.0, 1.25] });
+        { uv: [0, 0, 1, 1], emissive: 0.85, color: [1.1 * rt[0], 1.0 * rt[1], 1.25 * rt[2]] });
       kit.cyl(px, pz, W * 0.48, gy - 0.6, gy + H * 0.9);
     }
     // ground rune circle (decal disc) and its glow
-    kit.b('rune_ring', { decal: true }).disc(ringR * 0.5, 16, { y: 0.06, uvDisc: true, emissive: 0.45, color: [1.05, 1.0, 1.2] });
+    kit.b('rune_ring', { decal: true }).disc(ringR * 0.5, 16, { y: 0.06, uvDisc: true, emissive: 0.45, color: [1.05 * rt[0], 1.0 * rt[1], 1.2 * rt[2]] });
     kit.glow(0, 0.6, 0, { color: glowColor, size: 6, pool: ringR * 0.75, flicker: 0.06 });
     kit.emitter(0, 0.5, 0, { kind: 'sparkle', rate: 3, radius: ringR * 0.45 });
     kit.caster(0, 0, 0.8, 5, 0.0);
@@ -174,8 +176,8 @@ export function lightShaft(kit, { x, z, rot = 0, scale = 1, y, h, r0, r1, color,
 }
 
 export const MAGIC = {
-  crystal_cluster: { fn: crystalCluster, size: 5, note: 'glowing crystal cluster (color violet|cyan, count, size) with glow point + sparkles', defaults: { color: 'violet', count: 6 }, anchors: { core: [0, 1.8, 0] } },
-  crystal_spire: { fn: crystalSpire, size: 7, note: 'tall crystal spire h up to 9 (color violet|cyan) with glow + sparkles', defaults: { color: 'violet', h: 8 }, anchors: { core: [0, 4, 0], tip: [0, 8, 0] } },
+  crystal_cluster: { fn: crystalCluster, size: 5, note: 'glowing crystal cluster (color violet|cyan|ember, count, size) with glow point + sparkles', defaults: { color: 'violet', count: 6 }, anchors: { core: [0, 1.8, 0] } },
+  crystal_spire: { fn: crystalSpire, size: 7, note: 'tall crystal spire h up to 9 (color violet|cyan|ember) with glow + sparkles', defaults: { color: 'violet', h: 8 }, anchors: { core: [0, 4, 0], tip: [0, 8, 0] } },
   light_shaft: { fn: lightShaft, size: 7, note: 'a shaft of daylight (h, r0 at the top, r1 at the foot, color, glow = the pool at its foot): additive column with a warm pool of light and drifting motes at its foot; not solid', defaults: { h: 14, r0: 2.2, r1: 3.2 } },
   standing_stones: { fn: standingStones, size: 16, note: 'ring of runed monoliths around a glowing rune circle; r (ring radius), count', defaults: { r: 6, count: 7 }, anchors: { center: [0, 0.1, 0] } },
 };

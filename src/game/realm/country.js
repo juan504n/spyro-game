@@ -27,7 +27,9 @@ export function regionAt(R, x, z) {
  * The ground of a country before any landform is cut into it.
  *   regions   [{ id, fall, pts: [[x, z, height, halfWidth], ...] }]
  *   seed      the country's noise (each realm its own: the rolling of the ground and the shape of the mountains come from it)
- *   mountain  { base, ridge, rough }: the mountains that fill whatever is not open ground are `base` metres high, ridged by up to `ridge` more, roughened by `rough`
+ *   mountain  { base, ridge, rough, margin }: the mountains that fill whatever is not open ground are `base` metres high, ridged by up to `ridge` more, roughened by `rough`. `margin` (metres,
+ *             off by default): a country with HIGH ribbons (a rim at 24 m, a gorge climbing to 34) needs walls, and the noise alone makes mountains of 35 m beside a floor of 34 that the hero can
+ *             simply walk up; with a margin the mountains stand at least that many metres over the floor of the ribbons beside them (the walk check, tools/realm-check.mjs, finds the ones that do not)
  *   roll      { amp, fine }: how much the open ground rolls (metres, broad and fine)
  * Returns { ground(x, z), open(x, z), peaks(x, z), n2, nA, nB, nC, nR }: `ground` is the height of the land (the blend of the ribbons' floors, risen to the mountains outside them),
  * `open` how much open ground there is at a point (0..1), `peaks` the mountains alone; the noise tables are for the landforms and ground rules of the level that wants a bit more of the same.
@@ -35,7 +37,7 @@ export function regionAt(R, x, z) {
 export function makeCountry({ seed = 1000, regions, mountain = {}, roll = {} }) {
   const nA = valueNoise(seed + 101), nB = valueNoise(seed + 202), nR = valueNoise(seed + 303), nC = valueNoise(seed + 404);
   const n2 = (noise, x, z, s, oct = 3) => fbm(noise, x * s, z * s, oct);
-  const base = mountain.base ?? 34, ridgeH = mountain.ridge ?? 17, rough = mountain.rough ?? 12;
+  const base = mountain.base ?? 34, ridgeH = mountain.ridge ?? 17, rough = mountain.rough ?? 12, margin = mountain.margin;
   const amp = roll.amp ?? 3.0, fine = roll.fine ?? 0.9;
 
   /** the mountains that fill whatever is not open ground: always well above any floor */
@@ -54,13 +56,15 @@ export function makeCountry({ seed = 1000, regions, mountain = {}, roll = {} }) 
       const w2 = q.w * q.w + 1e-6;
       wsum += w2; hsum += w2 * q.h;
     }
-    const M = peaks(x, z);
+    const M0 = peaks(x, z);
     if (wsum > 0) {
       let floor = hsum / wsum;
+      // (with a margin the mountains rise to stand that far over the floor beside them, eased in from where the ribbons' reach begins, so that there is no step in them)
+      const M = margin === undefined ? M0 : M0 + Math.max(0, floor + margin - M0) * smooth(0, 0.5, open);
       floor += (n2(nA, x + 140, z - 60, 0.014, 3) - 0.5) * amp * open + (n2(nB, x, z, 0.05, 2) - 0.5) * fine * open;       // (the ground rolls a little)
       return lerp(M, floor, open);
     }
-    return M;
+    return M0;
   };
 
   const openAt = (x, z) => {

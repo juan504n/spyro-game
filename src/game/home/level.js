@@ -80,7 +80,7 @@ const DOOR_DEFS = [
   // at the end of the long pier out on Mirror Lake
   { id: 'tideglass', name: 'TIDEGLASS REACH', tag: 'A REALM OF TIDES AND GLASS', x: 128, z: 38.4, y: WATER_LEVEL, look: [128, 100], color: [0.38, 0.92, 0.82], target: null },
   // in the forge at the head of the canyon
-  { id: 'emberfall', name: 'EMBERFALL CRAGS', tag: 'A REALM OF EMBERS AND STONE', x: 152, z: -164, look: [150, -138], color: [1.0, 0.58, 0.28], target: null },
+  { id: 'emberfall', name: 'EMBERFALL CRAGS', tag: 'A REALM OF EMBERS AND STONE', x: 152, z: -164, look: [150, -138], color: [1.0, 0.58, 0.28], target: 'emberfall' },
   // on the summit of the Crag
   { id: 'skyweaver', name: 'SKYWEAVER SPIRES', tag: 'A REALM ABOVE THE CLOUDS', x: SUMMIT.x + 3, z: SUMMIT.z - 5, y: SUMMIT.y, look: [SUMMIT.x - 6, SUMMIT.z + 9], color: [1.0, 0.78, 0.92], target: null },
 ];
