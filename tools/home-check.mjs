@@ -5,6 +5,7 @@
 import { buildHeadless, addRuntimeColliders } from './headless-world.mjs';
 import { makeWalkmap, CELL } from './walkmap.mjs';
 import { DOORS, SECRETS, REGIONS, GARDEN, inFront } from '../src/game/home/level.js';
+import { homeLines } from '../src/game/home/dialogue.js';
 import { TUNNELS, CHAMBERS, RAMP, SUMMIT, tunnelAt, tunnelLength } from '../src/game/home/crag.js';
 import { terrainPicker, uvProjection, triangleNormal, projectUV, GROUND_TILE, buildTerrainMeshes, cutByContour } from '../src/game/terrain-mesh.js';
 import { WATER_LEVEL } from '../src/game/level.js';
@@ -20,6 +21,13 @@ let failed = 0;
 const check = (name, ok, detail) => { if (!ok) failed++; console.log(ok ? 'PASS' : 'FAIL', name, detail || ''); };
 const h = (x, z) => grid.heightAt(x, z);
 const f1 = (v) => v.toFixed(1);
+
+// ---- the Elder says which realms burn (it was always the vale, before a second door woke) --------------------------------------------------------------
+{
+  const say = (realms) => homeLines({ progress: { realms, home: { secrets: [] } } }, {})[0];
+  const a = say({}), b = say({ gloaming: { done: true } }), c = say({ frostbloom: { done: true } }), d = say({ gloaming: { done: true }, frostbloom: { done: true } });
+  check('the Elder welcomes the hero, and names the realms that burn (the one, the other, both)', !/BURN/.test(a) && /^WELCOME TO DAWNHAVEN, SPYRO! GLOAMING VALE BURNS BRIGHT AGAIN, AND ITS DOOR SHINES GOLD/.test(b) && /FROSTBLOOM HOLLOW BURNS BRIGHT/.test(c) && !/GLOAMING/.test(c) && /GLOAMING VALE AND FROSTBLOOM HOLLOW BURN BRIGHT AGAIN, AND THEIR DOORS SHINE GOLD/.test(d), `(${c})`);
+}
 
 // ---- the doors ---------------------------------------------------------------------------------------------------------------------
 {

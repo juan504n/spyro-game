@@ -57,6 +57,18 @@ with a reason in `brief.waive`; a finished realm waives nothing. Add the realm's
 **8. Ship** (see `reference/verification.md`): the other worlds unchanged (`world-hash`) or the change pinned on purpose, the regression suite, mutation-check what you added, README and `docs/DESIGN.md`
 (a "Round N" entry before the previous round's), `npm run build:single`, smoke-test the built file, commit with the repo's trailers, push, republish the Artifact.
 
+## The realms still to make
+
+Dawnhaven has three doors that still sleep (`DOOR_DEFS` in `src/game/home/level.js`: `target: null`); `--wake-door` wakes the one a new realm takes. Each is in a place of its own, and the place and the tag suggest the realm; the theme, the journey and the goals are the design to write:
+
+| door | where it stands | tag | a direction (the principles' ideas the game does not use yet are in `reference/principles.md`) |
+| --- | --- | --- | --- |
+| `tideglass` | the end of the 41 m pier on Mirror Lake | A REALM OF TIDES AND GLASS | water and glass: a tide that rises and falls over the road, a goal behind a waterfall, one reached by glass bridges; teal and sea-green, a dusk-to-dawn tide |
+| `emberfall` | the forge at the head of the Ember Canyon | A REALM OF EMBERS AND STONE | a country of ash and stone with fire in it: a glide goal across a chasm (`ravine`), a cave with a lava river, a crater finale; warm rock (`cliffs`, `warmRock`), embers for the air |
+| `skyweaver` | the summit of the Crag, at the end of the ledge road | A REALM ABOVE THE CLOUDS | a country on islands of rock above the cloud: gliding between them, whirlwinds that lift the hero (a new mechanic), a tower; the sky is the theme |
+
+Frostbloom Hollow (`src/game/frostbloom/`) is the worked example of everything above: read its `brief.js` first, then `level.js`, `glacier.js` and `layout.js`.
+
 ## Rules of the house
 
 * Everything a level script does must be deterministic: it runs twice (dry, wet) - use `ctx.rng`, never `Math.random`, and never read the other pass's state.

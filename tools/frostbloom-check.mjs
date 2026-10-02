@@ -4,6 +4,9 @@ import { checkRealm } from './lib/realm-rules.mjs';
 import { terrainPicker } from '../src/game/terrain-mesh.js';
 import { GLACIER, HEART, VAULT } from '../src/game/frostbloom/glacier.js';
 import { DOORS } from '../src/game/home/level.js';
+import { TRAVEL_PLACES } from '../src/game/frostbloom/travel.js';
+import { uvProjection } from '../src/game/terrain-mesh.js';
+import { findTravelPlaces } from './realm-travel.mjs';
 
 const { failed, env, W } = checkRealm('frostbloom', { log: (l) => console.log(l) });
 let own = 0;
@@ -31,6 +34,20 @@ const check = (name, ok, detail) => { if (!ok) own++; console.log(ok ? 'PASS' : 
   const wall = gp.walls.find((w) => Math.hypot(w.x - GLACIER.at('vault', 5.5).x, w.z - GLACIER.at('vault', 5.5).z) < 1);
   const chest = gp.chests.find((c) => c.secret === 'vault');
   check('the ice vault is behind a cracked wall: the chest is out of reach until it is broken', !!wall && !!chest && !(walkShut.distNear(chest.x, chest.z, 2.4, chest.y) < Infinity) && walk.distNear(chest.x, chest.z, 2.4, chest.y) < Infinity && Math.hypot(chest.x - VAULT.x, chest.z - VAULT.z) < VAULT.rx, wall ? '' : '(no wall in the vault\'s passage)');
+  // the floors of the caves are level, at the plinth's height: the terrain follows them (GLACIER.landform), the way into the mass is not a ramp over rolling ground
+  let off = 0, floors = 0;
+  for (const name of Object.keys(GLACIER.tunnels)) for (let t = 0; t <= GLACIER.length(name); t += 1.5) { const q = GLACIER.at(name, t); if (!GLACIER.inside(q.x, q.z)) continue; floors++; if (Math.abs(grid.heightAt(q.x, q.z) - q.y) > 0.12) off++; }       // (the lane in front of the cliff is open ground, not yet under the mountain)
+  for (const c of Object.values(GLACIER.chambers)) for (const [dx, dz] of [[0, 0], [c.rx * 0.5, 0], [-c.rx * 0.5, 0], [0, c.rz * 0.5], [0, -c.rz * 0.5]]) { floors++; if (Math.abs(grid.heightAt(c.x + dx, c.z + dz) - c.floorY) > 0.12) off++; }
+  check('the glacier\'s floors are the ground: level, at the height the tunnels and chambers say', off === 0, `(${off} of ${floors} samples off)`);
+  // its rock textures project like rock (a wall's texture is not smeared down a slope), and its snow is ground
+  check('the frost textures project as the rock and the snow they are', uvProjection('cliff_frost', 0.8, [1, 0, 0.1], [1, 0, 0.1]) === 'wallX' && uvProjection('cliff_frost', 0.2, [0, 1, 0], [1, 0, 0.1]) === 'planar' && uvProjection('far_frost', 0.8, [0.1, 0, 1], [0, 1, 0]) === 'wallZ' && uvProjection('far_frost', 0.5, [0, 1, 0], [0.1, 0, 1]) === 'planar' && uvProjection('snow', 0.4, [0, 1, 0], [0, 1, 0]) === 'planar', '(a wall of frost rock is mapped from the side, gentle rock from above: whatever the geometry under it looks like)');
+  // the places of the TRAVEL menu are what the generator finds now: a change to the layout that was not followed by `node tools/realm-travel.mjs frostbloom` (or a change to the generator) shows here
+  {
+    const canon = (groups) => groups.map((g) => `${g.name}: ${g.places.map((p) => [p.id, p.name, p.x, p.z, p.y ?? '', p.yaw, !!p.opens].join('|')).join(' ')}`).join('\n');
+    const now = findTravelPlaces('frostbloom'), a = canon(now.entry.groups), b = canon(TRAVEL_PLACES.groups);
+    const diff = a.split('\n').map((l, i) => [l, b.split('\n')[i]]).filter(([x, y]) => x !== y).map(([x]) => x.slice(0, 60));
+    check('the TRAVEL places are current (node tools/realm-travel.mjs frostbloom)', now.problems.length === 0 && a === b, now.problems.join('; ') || (diff.length ? `(differs: ${diff.join(' / ')})` : ''));
+  }
   // the ice gate is the realm's own colour, and Dawnhaven's door to the realm is awake
   check('the ice gate\'s field is ice teal, not the Dawn Gate\'s violet', !!gp.barrier && Array.isArray(gp.barrier.opts && gp.barrier.opts.tint), '');
   check('Dawnhaven\'s Frostbloom door is awake and leads here', DOORS.find((d) => d.id === 'frostbloom').target === level.brief.id, '');

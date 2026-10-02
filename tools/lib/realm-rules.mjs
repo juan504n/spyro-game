@@ -11,6 +11,8 @@ import { SLOPE_WALK } from '../../src/game/collision.js';
 import { WATER_LEVEL } from '../../src/game/level.js';
 import { REALMS, DEFAULT_WORDS } from '../../src/game/realms.js';
 import { measureText } from '../../src/engine/textures/font.js';
+import { generateWorldTextures } from '../../src/engine/textures/world.js';
+import { generateUI } from '../../src/engine/textures/ui.js';
 import { terrainPicker } from '../../src/game/terrain-mesh.js';
 import { ROAD_MAX_SLOPE } from '../../src/game/roads.js';
 import { SITUATIONS } from '../../src/game/realm/situations.js';
@@ -145,11 +147,16 @@ export function checkRealm(which, { log = () => {} } = {}) {
     rule('hints.zones', 'hint zones lie inside the world and speak in capitals', loud.length === 0, `(${gp.hints.length} zones)`, { hard: true });
     const dumb = goals.filter((g) => !gp.hints.some((q) => Math.hypot(q.x - g.x, q.z - g.z) < 60));
     rule('hints.goals', 'every goal has a hint zone within 60 m that says what to do', dumb.length === 0, dumb.map((g) => g.id).join(' '));
-    // the banner that comes up when a goal is lit (`NAME + words.lit`, Game.onBeacon) is drawn at twice the font's size on a screen 320 px wide: a longer one runs off both sides
+    // every banner the realm puts up is drawn at twice the font's size on a screen 320 px wide (a goal lit: `NAME + words.lit`, the finale, the gate, the portal, the saved realm, the results panel):
+    // a longer one runs off both sides (the first screenshots of Frostbloom Hollow showed two of them), and the lines under a banner, at the font's own size, must fit as well
     if (brief) {
-      const words = { ...DEFAULT_WORDS, ...(brief.words || {}) };
-      const wide = brief.goals.map((g) => [g.id, measureText(`${g.name} ${words.lit}`, { style: 'grad' }).w * 2]).filter(([, w]) => w > 310);
-      rule('hud.banners', 'the banner of every goal that is lit fits the screen (at most 310 of 320 px at the size it is drawn)', wide.length === 0, wide.map(([id, w]) => `${id} ${w} px`).join(' '));
+      const words = { ...DEFAULT_WORDS, ...(brief.words || {}) }, px = (t, k = 1) => measureText(t, { style: 'grad' }).w * k;
+      const titles = [...brief.goals.map((g) => [`goal ${g.id}`, `${g.name} ${words.lit}`]), ['finale', words.finale], ['gate', words.gate[0]], ['portal', words.portalOpened[0]], ['saved', words.saved[0]], ['results', words.results], ['name', brief.name]];
+      const subs = [['gate', words.gate[1]], ['portal', words.portalOpened[1]], ['saved', words.saved[1]], ['freeRoam', words.freeRoam], ['restored', words.restored]];
+      const wide = [...titles.filter(([, t]) => px(t, 2) > 310).map(([k, t]) => `${k} ${px(t, 2)} px`), ...subs.filter(([, t]) => px(t) > 310).map(([k, t]) => `${k} (the line under) ${px(t)} px`)];
+      rule('hud.banners', 'every banner of the realm (a goal lit, the finale, the gate, the portal, the saved realm, the results) fits the screen (at most 310 of 320 px at the size it is drawn)', wide.length === 0, wide.join(' '));
+      const atlas = generateUI(), noIcon = (words.icons || []).filter((k) => !atlas[k]);
+      rule('hud.icons', 'the two HUD icons of the goals (words.icons) are in the icon atlas', (words.icons || []).length === 2 && noIcon.length === 0, noIcon.length ? `(missing: ${noIcon.join(' ')})` : `(${(words.icons || []).join(', ')})`, { hard: true });
     }
   }
 
@@ -271,11 +278,19 @@ export function checkRealm(which, { log = () => {} } = {}) {
 
   // a themed place: few base colours
   {
-    const picker = terrainPicker(grid), tex = {};
+    const picker = terrainPicker(grid), tex = {}, ground = new Set();
     let n = 0;
-    for (let j = 0; j < grid.n; j++) for (let i = 0; i < grid.n; i++) for (const t of picker.tris(i, j)) { if (/cliff|far_/.test(t.tex)) continue; tex[t.tex] = (tex[t.tex] || 0) + 1; n++; }
+    for (let j = 0; j < grid.n; j++) for (let i = 0; i < grid.n; i++) for (const t of picker.tris(i, j)) { ground.add(t.tex); if (/cliff|far_/.test(t.tex)) continue; tex[t.tex] = (tex[t.tex] || 0) + 1; n++; }
     const main = Object.entries(tex).filter(([, v]) => v / n > 0.02).sort((a, b) => b[1] - a[1]);
     rule('design.palette', 'the ground is made of few textures (at most 7 beyond rock, each over 2%)', main.length <= 7, `(${main.map(([k, v]) => `${k} ${(100 * v / n).toFixed(0)}%`).join(', ')})`);
+
+    // every texture the realm uses is one the game has: the ground, the roads, the props and the rock masses (a misspelt name draws a flat magenta, silently, and only where it is used)
+    const have = new Set(Object.keys(generateWorldTextures())), used = new Set(ground);
+    for (const k of W.kit.builders.keys()) used.add(k.split('|')[0]);
+    for (const m of massifs) for (const t of [m.style.rock, m.style.interior, m.style.top, ...(m.style.layers || []).map((l) => l.name)]) used.add(t);
+    for (const t of [L.farRock, ...Object.values(L.roadTextures || {}), ...Object.values(L.lakeTextures || {}), ...Object.values(L.cliffs || {})]) used.add(t);
+    const missing = [...used].filter((t) => t && t !== '_' && !have.has(t));
+    rule('textures.exist', 'every texture the realm uses is one the game has (a misspelt name draws flat magenta)', missing.length === 0, missing.length ? `(missing: ${missing.join(' ')})` : `(${used.size} textures)`, { hard: true });
   }
 
   const failed = results.filter((r) => !r.ok && !r.waived);

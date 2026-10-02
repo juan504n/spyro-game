@@ -17,13 +17,14 @@ export function homeLines(game, npc) {
   const pr = game.progress;
   const done = pr ? realmsDone(pr) : 0;
   const sleeping = DOORS.filter((d) => !d.target).map((d) => d.name);
+  const restored = pr ? DOORS.filter((d) => d.target && pr.realms[d.target] && pr.realms[d.target].done).map((d) => d.name) : [];       // (which realms burn: any of the awake doors' realms, not always the first)
   const found = pr ? pr.home.secrets.filter((s) => SECRETS.some((k) => k.id === s)) : [];
   const left = SECRETS.filter((s) => !found.includes(s.id));
   const again = (npc.talks = (npc.talks || 0) + 1) > 1;
   const pages = [];
   if (!again) {
-    pages.push(done > 0
-      ? 'WELCOME TO DAWNHAVEN, SPYRO! GLOAMING VALE BURNS BRIGHT AGAIN, AND ITS DOOR SHINES GOLD. WELL DONE!'
+    pages.push(restored.length
+      ? `WELCOME TO DAWNHAVEN, SPYRO! ${listOf(restored)} ${restored.length === 1 ? 'BURNS' : 'BURN'} BRIGHT AGAIN, AND ${restored.length === 1 ? 'ITS DOOR SHINES' : 'THEIR DOORS SHINE'} GOLD. WELL DONE!`
       : 'WELCOME TO DAWNHAVEN, SPYRO! THIS IS THE HOMEWORLD OF THE LANTERN KEEPERS.');
     pages.push('IT IS A WIDE COUNTRY. THE ROAD NORTH CROSSES THE HEARTLANDS TO THE CRAG. WEST, THE TERRACES CLIMB TO THE WINDMILL. EAST LIES MIRROR LAKE, AND BEYOND IT THE EMBER CANYON.');
     pages.push(`EVERY DOOR STANDS SOMEWHERE OF ITS OWN: ONE HERE IN THE COVE, ONE UNDER THE CRAG, ONE ON ITS SUMMIT, ONE AT THE END OF THE PIER AND ONE IN THE FORGE. ${sleeping.length} STILL SLEEP: ${listOf(sleeping)}.`);

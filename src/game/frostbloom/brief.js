@@ -78,9 +78,9 @@ export const BRIEF = defineBrief({
   words: {
     goals: 'FROSTBLOOMS', lit: 'THAWED!', finale: 'SPRING RETURNS!',
     portalOpened: ['A PORTAL HAS OPENED', 'ABOVE THE HEARTBLOOM'],
-    saved: ['FROSTBLOOM HOLLOW IS SAVED', 'THANK YOU, SPYRO'],
+    saved: ['THE HOLLOW IS SAVED', 'THANK YOU, SPYRO'],
     results: 'REALM RESTORED!', portalResults: 'THE PORTAL TO DAWNHAVEN IS OPEN',
-    freeRoam: 'THE PORTAL ABOVE THE HEARTBLOOM LEADS TO DAWNHAVEN',
+    freeRoam: 'THE HEARTBLOOM\'S PORTAL LEADS TO DAWNHAVEN',
     restored: 'RESTORED  -  SPRING IS HERE', restoredHint: 'THE PORTAL ABOVE THE HEARTBLOOM LEADS BACK TO DAWNHAVEN',
     gate: ['THE ICE GATE MELTS!', 'THE HOLLOW IS OPEN'],
     icons: ['bloom_on', 'bloom_off'],                    // (the HUD's flowers: thawed, still frozen)

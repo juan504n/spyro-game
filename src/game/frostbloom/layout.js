@@ -1,9 +1,9 @@
 // The level script of FROSTBLOOM HOLLOW: the stages the kit provides (the goals, the ring of light over the last one, the treasure) and the places of the realm, each a function that dresses one part of
-// the country - the Thaw Gate, Glasswater and its islet, Rimewood and its frozen glade, Aurora Ridge, the ice gate and the Hollow, the Snuffers, the trees. Positions come from brief.js; everything here
+// the country - the Thaw Gate, Glasswater and its islet, Rimewood and its frozen glade, the glacier (the Icefall over its mouth, the way in, the heart chamber and the vault), Aurora Ridge, the ice gate and the Hollow, the Snuffers, the trees. Positions come from brief.js; everything here
 // is expressed in world coordinates and validated against the terrain by ctx.h() / ctx.ok(). Called twice by buildWorld (a dry pass, then a wet one): it must be deterministic - ctx.rng, never Math.random.
-import { makePopulate, goalsStage, exitStage, gemsStage, faceTo, inFront, flatSpot, band, lampsAlong, TAU } from '../realm/index.js';
+import { makePopulate, goalsStage, exitStage, gemsStage, faceTo, inFront, band, lampsAlong, TAU } from '../realm/index.js';
 import { WATER_LEVEL } from '../level.js';
-import { BRIEF, REGIONS, LAKE, RIME_GLADE, HOLLOW, GATE, DOOR } from './brief.js';
+import { BRIEF, REGIONS, LAKE, HOLLOW, GATE, DOOR } from './brief.js';
 import { GLACIER, HEART, VAULT, PLINTH } from './glacier.js';
 
 const regionBand = (ctx, id, f0, f1, lo, hi) => band(ctx, REGIONS, id, f0, f1, lo, hi);
@@ -48,7 +48,7 @@ function layoutThawGate(ctx) {
 
 // ---- Glasswater: the frozen lake, its ring road and the islet with the second Frostbloom -------------------------------------------------------------
 function layoutGlasswater(ctx) {
-  const { L, gp, put, rng, h } = ctx;
+  const { gp, put, rng, h } = ctx;
   const I = LAKE.islets[0];
   // ice floes from the south shore out to the islet: hops a plain jump makes (under 5 m centre to centre), each floe's top just over the water
   const stones = [];
@@ -68,7 +68,6 @@ function layoutGlasswater(ctx) {
   gp.hints.push({ x: 0, z: 90, r: 14, text: 'THE ROAD RUNS ROUND THE FROZEN LAKE. THE RIDGE RISES IN THE NORTH', dur: 6 });
   for (const [x, z, g] of [[-60, 70, [1, 1, 2]], [64, 72, [2, 5]], [-82, 10, [1, 1, 1]], [82, 8, [1, 2]], [-40, -22, [1, 1, 2]], [44, -22, [2, 2]]]) ctx.addVase(x, z, g);
   ctx.addBunnies(-70, 60, 3, 8); ctx.addBunnies(70, 60, 3, 8); ctx.addBunnies(0, -26, 2, 8);
-  void L;
 }
 
 // ---- Rimewood: a forest, a clearing with the first sleeping bloom of the west, and a glade shut with a cracked wall ----------------------------------
@@ -99,7 +98,6 @@ function layoutRimewood(ctx) {
   put('crystal_cluster', ...at(7, 3.5), { color: 'cyan', count: 5 }, 2.4);
   put('tree_round', ...at(1, 7), { canopy: 'leaves_blossom', size: 'm' }, 3.5);
   gp.purple.push([at(0, 0)[0], h(...at(0, 0)) + 1.3, at(0, 0)[1]]);
-  void RIME_GLADE;
 }
 
 // ---- the glacier: the Icefall over the mouth, the way in, the heart chamber under its skylight, the vault behind a cracked wall -------------------------------------
@@ -246,5 +244,4 @@ function layoutScatter(ctx) {
   ctx.scatter('tree_pine', 24, regionBand(ctx, 'icefall', 0.6, 1.3), { r: 3.4, path: 4, maxSlope: 0.5 }, () => pine(rng));
   ctx.scatter('rock_cluster', 12, regionBand(ctx, 'icefall', 0.6, 1.3), { r: 3.5, path: 3, maxSlope: 0.5 });
   ctx.scatter('crystal_cluster', 8, regionBand(ctx, 'icefall', 0.5, 1.2), { r: 2.4, path: 3 }, () => ({ color: 'cyan', count: 5 }));
-  void flatSpot;
 }
