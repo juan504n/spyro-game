@@ -69,7 +69,7 @@ below it left for your thumbs.
 
 **On a phone** the game has a labelled **MENU** button, on the title screen and in play: centred under the picture when the phone is held upright (it covers none of the view), on the picture's top edge
 when held sideways (below whatever the platform covers there: a notch, or an app that shows the page under its own header, `env(safe-area-inset-top)`). It opens the pause menu (resume, camera, debug mode,
-options, controls, restart, quit); while a menu is open the button reads **RESUME** / **BACK**, and tapping outside the panel goes back too. The menu rows are finger-sized
+options, travel, restart, quit: on a phone the controls page is a row of Options, so that the menu's six rows stay finger-sized); while a menu is open the button reads **RESUME** / **BACK**, and tapping outside the panel goes back too. The menu rows are finger-sized
 (about 40 px each): Options is a short list of sub-pages (Camera & aim, Graphics → More graphics, Debug), and the thumb controls (move circle, JUMP, FIRE, RAM, CAM)
 hide while a menu or a cutscene is showing.
 
@@ -109,6 +109,23 @@ Coordinates are the level's own, in metres: **X = east, Z = south, Y = up** (Spy
 The top line is the **build id** (a hash of `src/` and the build date; `node tools/build-id.mjs` prints the id of the source as it is now), so a screenshot also says which
 version was running. *Show colliders* draws the collision shapes near Spyro as wireframes: green = solid, cyan = can be stood on, magenta = big enough to hold the camera
 back, yellow = the nearest or the one the crosshair is on. The last errors and warnings the page logged are listed in full mode.
+
+### Travel menu (to look at any part of the game)
+
+**Travel** is a row of the title menu (`Esc`, or the **MENU** button on a phone) and of the pause menu. It lists the worlds (Gloaming Vale, Dawnhaven), then groups of places (the vale, the heights, sky and
+summit; the country, lake and canyon, inside the crag, up and away), then the places: 38 of them in all (Mirrormere dock, Windmill Hill, the four sky isles, the observatory, the Great Beacon's room,
+Dawnhaven's cove, the Echo Hall, the Frost Grotto, the crystal vault, the Forge, the summit ...). A place asks **ARE YOU SURE? YES / NO** (the cursor starts on NO; `Esc`, the BACK button or a tap outside the panel is NO too),
+and YES takes the hero there:
+
+* **in the world he is in** the screen blinks white and nothing is rebuilt: what he did there stays (gems, broken vases, lit lanterns);
+* **in the other world** it is a trip like a portal's: this world is let go of (what was done in it is not kept: the prompt says so) and the other is built as the game generates it, fresh;
+* **from the title menu** a place in the vale starts play there at once (no intro, with the line of controls PLAY would show); a place in Dawnhaven builds Dawnhaven.
+
+He arrives on the floor the place names, facing the way it says, the camera behind him, the place's name on the banner, and the place is his checkpoint (a fall or a death brings him back there). He blinks untouchable
+for 3 seconds, as after a respawn, so a Snuffer that notices him on arrival gets no free blow (nor one while the old place fades out). The vale's summit is sealed by a ward until the Dawn Gate opens, and the ward would
+throw him out of the observatory and the Great Beacon's room again: a place inside it opens the Dawn Gate for him, and a hint says so. `tools/travel-check.mjs` holds every place to a standard (headless: a floor under it, clear of
+props, rock and colliders, out of the water and off a slope he would slide down, 6 m from the Snuffers and from a door that is awake, in no pocket, and in Dawnhaven in the walkable country); `tools/travel-test.mjs`
+goes to every one of them through the real menu pages, then does it with the mouse and with taps on a phone held either way.
 
 ## The realm
 
@@ -244,7 +261,8 @@ src/game/
   player.js camera.js collision.js   kinematic controller, chase camera, heightfield + collider world
   gemcounter.js      the floating, bouncing 3D gem count: extruded numerals drawn as a second little scene over the world
   systems/           gems, Sparx, beacons, enemies, critters, NPC, objects, ambience, portals (the doors and the ring above the Great Beacon: pop-up, trigger, the ride up the beam)
-  app.js hud.js menu.js cinematics.js   title → intro → play → finale → results, HUD, menus (finger-sized rows on touch), options
+  app.js hud.js menu.js cinematics.js   title → intro → play → finale → results, HUD, menus (finger-sized rows on touch), options, the travel menu's pages and warp
+  travel.js          the places of the TRAVEL menu (38, in both worlds): name, spot, facing, floor
   debug.js debuginfo.js   debug mode: the readout / crosshair / collider wireframes, and the pure functions behind the readout
 tools/               QA + dev tooling (see below)
 docs/index.html      the built single-file game
@@ -272,6 +290,8 @@ node tools/touch-ram-jump-test.mjs   # ram + jump on an emulated phone through r
 node tools/home-check.mjs     # Dawnhaven, headless (no server): five doors each level on its own dais and in five different kinds of place (cove, inside the mountain, out on the lake, canyon's head, summit) at very different walks from the arrival, the arrival the spawn and clear of the door's trigger, five secrets (a chest each, on firm ground), a layered walk map (tools/walkmap.mjs: 1.2 m cells, the real slope limit, colliders and rock, several layers of ground over one spot) over which every part of the country is reachable along its line, the tunnels can be walked end to end and along their own line with 3.4 m of roof, the placement rule keeps out of every spot under a roof, the ledge road climbs from the forecourt to the summit, the hidden garden and the crystal vault are sealed while their walls stand and open once broken, the Guardian's gate holds, nothing is planted under the Crag's roof but its own dressing, no gem or vase inside a solid prop or the rock, no prop on a road, the Crag's rock a clean skin (no folded or oversize triangles) with cobble only on the road and its borders cut along smooth lines, no piece of rock or grass lying across the steep contour of the terrain, the courts paved, the gem total a round number
 node tools/home-bot.mjs       # Dawnhaven with the real controller (needs the dev server): the trunk road, every other road end to end, the gate tunnel into the hall, down the winding way to the grotto, out the north and east passages, the whole ledge road to the summit, the long pier, the canyon to the forge, the awake door's trip event, the sleeping doors stopping the hero, the gate held from six sides, the stepping stones, the windmill stair, the garden and the vault sealed and opened by a ram, each of the five chests opened by fire and its secret kept, the Elder's talk
 node tools/portal-test.mjs    # the whole round trip in the browser: light every lantern, the portal pops open above the beacon, a jump outside the ring does nothing, a jump inside it carries the hero up the beam, the white fade, Dawnhaven (progress saved, the door gold, the Elder), back through the door to the restored vale, no GPU memory left behind after two trips, and the title menu's VISIT DAWNHAVEN (needs the dev server)
+node tools/travel-check.mjs   # the 38 places of the TRAVEL menu, headless (no server): the lists fit a phone's menu (a few groups of a few places, names that fit the panel), every place has the floor it says, is clear of props, rock and colliders, out of water, off a slope he slides down, 6 m from the Snuffers and awake doors, in no pocket, in Dawnhaven in the walkable country, and the places inside the ward of the vale's summit are the observatory's
+node tools/travel-test.mjs    # the travel menu in the browser, through real input (needs the dev server): the title and pause menus with the keyboard (NO is the cursor's start, Enter / Esc / a click outside are NO, YES goes; a hop keeps the world, a trip builds the other one fresh, a double YES is one trip, the Dawn Gate opens for the observatory, the grace after arrival), every one of the 38 places gone to through the pages (grounded, unhurt, facing right, camera behind, checkpoint, banner), the mouse, and taps on a phone held either way (finger-sized rows, tap outside is NO); node tools/travel-test.mjs pause runs one part
 node tools/where.mjs X Z   # what is at a spot (X = east, Z = south, as debug mode shows them): area, ground texture + rule, nearby props / gameplay things / collision shapes with the layout function and file:line that placed them
 node tools/build-id.mjs       # the build id debug mode shows: a hash of src/ plus the date
 node tools/level-check.mjs    # populates the level headlessly: gem economy (700), counts, and placement checks (shrine chest seated on its island, Dawn Gate forecourt dry and gentle, sky-isle decor clear of the mushroom / chests / enemies / beacon, nothing solid standing on a chest, vase, brazier, mushroom, NPC or enemy spawn, Mirrormere's short wide dock with a clear run-off and its lily pads: big, spaced, easy hops, the pier's landing lawn: one calm grass, sand and the roads' dirt instead of a mosaic of textures, the roads draped on the terrain (every vertex on the surface, cobble over dirt where they meet) and merged (same texture point and shading where two lie on top of each other, no ragged dirt beside a road or past its end, every ribbon whole up to its flat end), the ground textures laid on without smearing (no grass stretched more than 1.75 times on a steep bank) with rock and grass in patches rather than a coin toss per cell, and the river: its water stops exactly at the waterline, meets the lake at its level, and its banks are sand and grass, never rock)

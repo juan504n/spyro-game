@@ -36,7 +36,7 @@ export class Menu {
       const P = this.game.input.ptr;
       P.tap = false; P.moved = false;
     }
-    this.stack.push({ ...page, sel: 0 });
+    this.stack.push({ ...page, sel: page.sel || 0 });          // (a page can start with another row chosen: ARE YOU SURE? starts on NO)
     this.game.audio?.sfx('ui_select', { vol: 0.5 });
   }
   close() { this.stack.pop(); this.game.audio?.sfx('ui_back', { vol: 0.5 }); }

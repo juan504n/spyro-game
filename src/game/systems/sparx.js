@@ -70,6 +70,14 @@ export class Sparx {
     return true;
   }
 
+  /** The hero was put somewhere else at once (the TRAVEL menu): Sparx is at his shoulder already, not flying across the world after him with his trail of sparks. */
+  snapTo(p) {
+    this.x = this.px = p.x; this.y = this.py = p.y + 2; this.z = this.pz = p.z;
+    this.vx = this.vy = this.vz = 0;
+    this.yaw = p.yaw; this.turn = 0;
+    this.dart = null;
+  }
+
   /** Back to full health (a new life starts with gold Sparx). */
   reset(hp = 3) {
     this.hp = hp;

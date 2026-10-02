@@ -2,7 +2,7 @@
 // long roads - the Landing Cove, the Heartlands, the Hearth Terraces, Mirror Lake, the Ember Canyon, the Ascent, and the Crag, a mountain with tunnels, halls and a ledge road in it - and
 // the five doors stand in five different places (a cove, a cave, a pier, a summit, a forge) at very different walking distances; nothing is an open field with spokes. Exit code 1 when a
 // check fails. No dev server needed:  node tools/home-check.mjs
-import { buildHeadless } from './headless-world.mjs';
+import { buildHeadless, addRuntimeColliders } from './headless-world.mjs';
 import { makeWalkmap, CELL } from './walkmap.mjs';
 import { DOORS, SECRETS, REGIONS, GARDEN, inFront } from '../src/game/home/level.js';
 import { TUNNELS, CHAMBERS, RAMP, SUMMIT, tunnelAt, tunnelLength } from '../src/game/home/crag.js';
@@ -104,11 +104,7 @@ const f1 = (v) => v.toFixed(1);
 }
 
 // ---- what the game adds when it starts (ObjectSystem / NpcSystem put these colliders in the world; the headless build has only the props') --------------------------------
-for (const c of gp.chests) collision.add({ type: 'box', x: c.x, z: c.z, hx: 1.0, hz: 0.65, rot: c.yaw || 0, y0: c.y, y1: c.y + 0.9, top: false, tag: 'chest' });
-for (const v of gp.vases) collision.add({ type: 'cyl', x: v.x, z: v.z, r: 0.55, y0: v.y, y1: v.y + 1.1, top: false, tag: 'vase' });
-for (const w of gp.walls) collision.add({ type: 'box', x: w.x, z: w.z, hx: w.w / 2, hz: 0.6, rot: w.yaw || 0, y0: w.y, y1: w.y + w.h, top: false, tag: 'wall' });
-for (const n of gp.npcs) collision.add({ type: 'cyl', x: n.x, z: n.z, r: 0.6, y0: h(n.x, n.z), y1: h(n.x, n.z) + 1.7, top: false, tag: 'npc' });
-if (gp.barrier) collision.add({ type: 'box', x: gp.barrier.x, z: gp.barrier.z, hx: 3.4, hz: 0.9, rot: gp.barrier.yaw || 0, y0: gp.barrier.y - 2, y1: gp.barrier.y + 14, top: false, tag: 'barrier' });
+addRuntimeColliders(collision, gp, grid);
 
 // ---- who can walk where (tools/walkmap.mjs: the real slope limit, colliders and rock) --------------------------------------------------------------------------------------
 const { flood } = makeWalkmap({ grid, collision });

@@ -179,20 +179,35 @@ export class ObjectSystem {
     this.game.cam.shake(0.5, 1.2);
   }
 
+  /** the models eased to rest at once: they ease towards what they are told, which would show as a gate sliding open under the fade-in */
+  _settle(m, pose) { for (let i = 0; i < 90; i++) m.update?.(1 / 30, { t: this.game.time, ...pose }); }
+
+  /** the Dawn Gate open and its ward gone, at rest */
+  _gateAtRest() {
+    const b = this.barrier, pl = this.game.player;
+    b.open = b.target = 1; b.c.solid = false;
+    this._settle(b.model, { open: 1 });
+    if (this.ward) this._settle(this.ward.model, { open: 1, px: pl.x, pz: pl.z });
+  }
+
   /**
    * The puzzle is solved already (a realm the hero has saved, entered again: Game._restore): the braziers burn, the mill's portcullis is up and the Dawn Gate's field is gone,
-   * the models already at rest (they ease towards what they are told, which would show as a gate sliding open under the fade-in).
+   * the models already at rest.
    */
   restore() {
-    const settle = (m, pose) => { for (let i = 0; i < 90; i++) m.update?.(1 / 30, { t: this.game.time, ...pose }); };
     for (const b of this.braziers) { b.lit = true; b.l = 1; }
-    if (this.portcullis) { const pc = this.portcullis; pc.open = pc.target = 1; pc.c.solid = false; settle(pc.model, { open: 1 }); }
-    if (this.barrier) {
-      const b = this.barrier, pl = this.game.player;
-      b.open = b.target = 1; b.c.solid = false;
-      settle(b.model, { open: 1 });
-      if (this.ward) settle(this.ward.model, { open: 1, px: pl.x, pz: pl.z });
-    }
+    if (this.portcullis) { const pc = this.portcullis; pc.open = pc.target = 1; pc.c.solid = false; this._settle(pc.model, { open: 1 }); }
+    if (this.barrier) this._gateAtRest();
+  }
+
+  /**
+   * The TRAVEL menu puts the hero inside the sealed summit (the observatory, the Great Beacon's room): the ward would throw him out again, so the Dawn Gate stands open, as when the
+   * four lanterns are lit but at once and without the shaking. True if it was shut.
+   */
+  openBarrierAtOnce() {
+    if (!this.barrier || !this.barrier.c.solid) return false;
+    this._gateAtRest();
+    return true;
   }
 
   update(dt, game) {

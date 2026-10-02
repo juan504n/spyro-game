@@ -14,6 +14,9 @@ const ease = (t) => t * t * (3 - 2 * t);
 const rnd = (a, b) => a + (b - a) * Math.random();
 const lerp3 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
 
+/** A door this close to where the hero arrives has no need to announce itself (m). */
+const HERE = 18;
+
 /** How long the light takes to carry the hero up into the portal (seconds): a base plus a little per metre of the climb. */
 export const liftDuration = (rise) => 1.6 + Math.min(rise, 40) * 0.06;
 
@@ -57,8 +60,13 @@ export class PortalSystem {
       ring2.y = d.y + 0.09;
     }
     // (a door the hero arrives beside has no need to announce itself: the name of the world is up on the screen)
-    const p = g.player, here = !!p && Math.hypot(p.x - d.x, p.z - d.z) < 18;
+    const p = g.player, here = !!p && Math.hypot(p.x - d.x, p.z - d.z) < HERE;
     return { def: d, color, done, model, halo, pool, ring, ring2, state, popT: 99, near: 0, told: here, greeted: here ? 1 : 0, acc: 0, t: Math.random() * 6 };
+  }
+
+  /** The hero was put down somewhere (the TRAVEL menu): the doors beside him need not announce themselves either, the name of the place is up on the screen. */
+  arrivedAt(x, z) {
+    for (const r of this.list) if (r.def.kind === 'door' && Math.hypot(x - r.def.x, z - r.def.z) < HERE) { r.told = true; r.greeted = 1; }
   }
 
   get(id) { return this.list.find((r) => r.def.id === id); }

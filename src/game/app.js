@@ -6,6 +6,8 @@ import { Assets } from './assets.js';
 import { Input } from './input.js';
 import { loadProgress, noteRealmDone, noteRealmGems, noteSecret, realmsDone } from './progress.js';
 import { DOORS, SECRETS } from './home/level.js';
+import { TRAVEL, heroSpot } from './travel.js';
+import { WARD_RADIUS } from './level.js';
 import { Menu, touchClear } from './menu.js';
 import { CAM_MODES } from './camera.js';
 import { Hud } from './hud.js';
@@ -18,6 +20,8 @@ import { U } from '../engine/materials.js';
 const GOLD = ['#fff4b0', '#ffc03c', '#e07818'];
 const LILAC = ['#f4eeff', '#b8a8e8'];
 const INK = '#120c1c';
+/** seconds the hero blinks untouchable after the TRAVEL menu has brought him somewhere (as after a respawn): a Snuffer that notices him as he arrives does not get a free hit */
+const WARP_GRACE = 3;
 /** the confirm control's name for whatever the player is using right now */
 const confirmName = (input) => (input.lastDevice === 'touch' ? 'TAP' : input.lastDevice === 'pad' ? 'A' : 'ENTER');
 const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -169,6 +173,11 @@ class App {
     g.fade.a = instant ? 0 : 1;
     g.fadeTo(0, 1.6);
     if (!instant) g.hud.banner(g.realm.name, g.realm.tagline, 4.2);
+    this._controlsHint(g);
+  }
+
+  /** the line of controls that comes up when play begins, for whatever the player is using */
+  _controlsHint(g) {
     const dev = g.input.lastDevice;
     g.hud.hint(dev === 'touch' ? 'STICK MOVES   JUMP / GLIDE   FIRE   RAM   TAP MENU FOR OPTIONS' : dev === 'pad' ? 'STICK MOVE   A JUMP / GLIDE   X FIRE   B CHARGE' : 'WASD MOVE   SPACE JUMP / GLIDE   J FIRE   K CHARGE', 7);
   }
@@ -240,19 +249,23 @@ class App {
    * and the screen fades back in on the hero where the way from the old world comes out. Driven from update(): phase 'out' while the old world still runs under the fade, 'load' while the
    * new one is built.
    */
-  travelTo(id, { from = this.game.realm.id, color = [1, 1, 1] } = {}) {
+  travelTo(id, { from = this.game.realm.id, color = [1, 1, 1], at = null } = {}) {
     if (this.state === 'traveling' || !REALMS[id]) return;
     const g = this.game;
     this.menu.closeAll();
     g.input.menuOpen = false;
     g.paused = false;
-    this.travel = { id, from, phase: 'out', color, t: 0 };
+    // `at` is a place of the TRAVEL menu (travel.js) to arrive on instead of where the way from the old world comes out; in the world he is already in that is a hop: the screen blinks,
+    // nothing is rebuilt and what he did there stays
+    const hop = !!at && id === g.realm.id;
+    this.travel = { id, from, phase: 'out', color, t: 0, at, hop };
     this.state = 'traveling';
     g.player.locked = true;
     g.locked = true;
+    if (at) g.player.invulnT = Math.max(g.player.invulnT, 2);              // (the old world runs on under the fade with him held: nothing may hurt him there)
     g.hud.hintState = null;
-    g.fadeTo(1, 1.7, color);
-    this.audio?.duck?.(0.35, 2.4);
+    g.fadeTo(1, hop ? 3.4 : 1.7, color);
+    this.audio?.duck?.(hop ? 0.5 : 0.35, hop ? 1.2 : 2.4);
     this.audio?.setMuffled?.(false);
   }
 
@@ -266,7 +279,10 @@ class App {
       tr.t += dt;
       this.debug?.update(dt);
       g.update(dt);
-      if (g.fade.a >= 0.995 && tr.t > 0.4) { tr.phase = 'load'; this._swap(tr); }
+      if (g.fade.a >= 0.995 && tr.t > (tr.hop ? 0.15 : 0.4)) {
+        if (tr.hop) this._arrive(g, tr);                 // (the same world: the hero is put on his place under the white and the screen clears)
+        else { tr.phase = 'load'; this._swap(tr); }
+      }
     } else Hud.drawLoading(gfx.hud, this.load.frac, this.load.label);
   }
 
@@ -283,12 +299,14 @@ class App {
     this._arrive(game, tr);
   }
 
-  /** The hero steps out of the portal into the new world: the screen is still white and clears away, the name of the place comes up. */
+  /** The hero steps out of the portal into the new world: the screen is still white and clears away, the name of the place comes up. (A hop within a world keeps the mode he is in.) */
   _arrive(game, tr) {
     const g = game, p = g.player;
     this.state = 'play';
     this.travel = null;
-    g.mode = g.restored ? 'complete' : 'play';             // (a restored realm is free roam: nothing in it is to be told again)
+    const gateOpened = tr.at ? this._placeHero(g, tr.at) : false;
+    const fromTitle = tr.hop && (g.mode === 'title' || g.mode === 'intro');
+    if (!tr.hop || fromTitle) g.mode = g.restored ? 'complete' : 'play';             // (a restored realm is free roam: nothing in it is to be told again)
     g.hud.visible = true;
     g.player.locked = false;
     g.locked = false;
@@ -297,11 +315,40 @@ class App {
     g.fade.a = 1;
     g.fade.color = tr.color;
     g.fadeTo(0, 1.1);
-    g.hud.banner(g.realm.name, g.restored ? 'RESTORED  -  THE SUN IS UP' : g.realm.tagline, 4.2);
+    if (tr.at) g.hud.banner(tr.at.name, g.realm.name, 3.6);
+    else g.hud.banner(g.realm.name, g.restored ? 'RESTORED  -  THE SUN IS UP' : g.realm.tagline, 4.2);
     g.fx.puff(p.x, p.y + 0.6, p.z, 1.2);
     this.audio?.sfx('portal_arrive', { vol: 0.9 });
-    if (g.realm.kind === 'homeworld') g.hud.hint(`${realmsDone(this.progress)} OF ${DOORS.length} REALMS RESTORED  -  TALK TO THE ELDER AND FIND THE SECRETS`, 6.5);
+    // (what the world has to tell is told when he comes into it, not at every hop within it; from the title a hop starts play, with the controls)
+    if (gateOpened) g.after(0.3, () => g.hud.hint('THE DAWN GATE WAS OPENED FOR YOU: ITS WARD WOULD HAVE THROWN YOU OUT', 6.5));         // (a moment later: the hint zone he stands in takes the line at once)
+    else if (fromTitle) this._controlsHint(g);
+    else if (tr.hop) { /* nothing to add */ }
+    else if (g.realm.kind === 'homeworld') g.hud.hint(`${realmsDone(this.progress)} OF ${DOORS.length} REALMS RESTORED  -  TALK TO THE ELDER AND FIND THE SECRETS`, 6.5);
     else if (g.restored) g.hud.hint('THE PORTAL ABOVE THE GREAT BEACON LEADS BACK TO DAWNHAVEN', 6.5);
+  }
+
+  /**
+   * Put the hero on a place of the TRAVEL menu (travel.js), facing the way it says; it is where he comes back to if he falls or is hurt. He blinks untouchable for a few seconds, as after
+   * a respawn. The summit of the vale is sealed by a ward until the Dawn Gate opens, and it throws out whoever stands inside: a place within it opens the gate (true when it did).
+   */
+  _placeHero(g, place) {
+    const sp = heroSpot(g.grid, place), p = g.player, S = g.level.summit;
+    p.place(sp.x, sp.y, sp.z, sp.yaw);
+    p.invulnT = WARP_GRACE;
+    g.checkpoint = { ...sp };
+    g.hud.hintState = null;
+    g.sparx?.snapTo(p);                                  // (Sparx is at his shoulder, not flying across the world after him)
+    g.portals?.arrivedAt(sp.x, sp.z);                    // (the doors beside him do not put their own names over the place's)
+    return !!(S && g.objects && Math.hypot(sp.x - S.x, sp.z - S.z) < WARD_RADIUS && g.objects.openBarrierAtOnce());
+  }
+
+  /** YES on the TRAVEL menu's ARE YOU SURE?: take the hero to the place, from the title menu or the pause menu (a different world is a trip like a portal's, a fresh build of it). */
+  warpTo(place) {
+    if (this.state === 'traveling') return;
+    const wasPaused = this.state === 'paused';
+    this.unlockAudio();
+    if (wasPaused) this.game.input.relock?.();             // (a click on a row is a gesture: the pointer can be taken again now, as RESUME does; the arrival comes seconds later)
+    this.travelTo(place.world, { from: null, at: place });
   }
 
   /** A secret of Dawnhaven (a chest) was opened: remembered for good. */
@@ -348,7 +395,8 @@ class App {
         this._cameraRow(),
         this._debugRow(),
         { type: 'action', label: 'OPTIONS', more: true, action: (m) => m.open(this.optionsPage()) },
-        { type: 'action', label: 'CONTROLS', more: true, action: (m) => m.open(this.controlsPage()) },
+        { type: 'action', label: 'CONTROLS', more: true, hidden: this._touchOnly(), action: (m) => m.open(this.controlsPage()) },         // (on a touch screen it is a row of OPTIONS: a phone's pause menu fits six finger-sized rows, and TRAVEL is the seventh)
+        { type: 'action', label: 'TRAVEL', more: true, action: (m) => m.open(this.travelPage()) },
         { type: 'action', label: this.game.realm.kind === 'homeworld' ? 'RESTART DAWNHAVEN' : 'RESTART REALM', action: () => { location.href = location.pathname + (this.game.realm.kind === 'homeworld' ? '?world=home' : '?skip=1'); } },
         { type: 'action', label: 'QUIT TO TITLE', action: () => { location.href = location.pathname; } },
       ],
@@ -362,6 +410,7 @@ class App {
       items: [
         { type: 'action', label: 'PLAY', action: (m) => { m.closeAll(); this.startIntro(); } },
         { type: 'action', label: 'VISIT DAWNHAVEN', hidden: () => !realmsDone(this.progress), action: (m) => { m.closeAll(); this.state = 'play'; this.travelTo('home', { from: null }); } },
+        { type: 'action', label: 'TRAVEL', more: true, action: (m) => m.open(this.travelPage()) },
         { type: 'action', label: 'OPTIONS', more: true, action: (m) => m.open(this.optionsPage()) },
         { type: 'action', label: 'CONTROLS', more: true, action: (m) => m.open(this.controlsPage()) },
         this._debugRow(),
@@ -390,6 +439,53 @@ class App {
     this.game.hud.hint(['DEBUG MODE: OFF', 'DEBUG MODE: COMPACT (F3 FOR FULL)', 'DEBUG MODE: FULL (F3 TO TURN OFF)'][next], 2.4);
   }
 
+  // ---- TRAVEL (title and pause menus): a debugging tool, to get at once to any part of either world and look at it ---------------------------------------------------------------
+  /** the worlds, then the groups of places of a world, then its places (a page of a phone's menu holds about six rows), then ARE YOU SURE? */
+  travelPage() {
+    return {
+      title: 'TRAVEL TO', width: 230, closable: true,
+      items: [
+        ...TRAVEL.map((w) => ({ type: 'action', label: w.name, more: true, action: (m) => m.open(this.travelWorldPage(w)) })),
+        { type: 'action', label: 'BACK', hidden: this._touchOnly(), action: (m) => m.close() },
+      ],
+    };
+  }
+
+  travelWorldPage(w) {
+    return {
+      title: w.name, width: 230, closable: true,
+      items: [
+        ...w.groups.map((g) => ({ type: 'action', label: g.name, more: true, action: (m) => m.open(this.travelGroupPage(w, g)) })),
+        { type: 'action', label: 'BACK', hidden: this._touchOnly(), action: (m) => m.close() },
+      ],
+    };
+  }
+
+  travelGroupPage(w, g) {
+    return {
+      title: g.name, width: 230, closable: true,
+      items: [
+        ...g.places.map((p) => ({ type: 'action', label: p.name, more: true, action: (m) => m.open(this.travelConfirmPage(w, { ...p, world: w.world })) })),
+        { type: 'action', label: 'BACK', hidden: this._touchOnly(), action: (m) => m.close() },
+      ],
+    };
+  }
+
+  /** ARE YOU SURE? YES or NO: it starts on NO (a trip to another world leaves this one, and what was done in it is not kept). */
+  travelConfirmPage(w, place) {
+    const away = w.world !== this.game.realm.id;
+    const lines = [`TRAVEL TO ${place.name}`, `IN ${w.name}?`, ...(away ? ['YOU LEAVE THIS WORLD.', 'WHAT YOU DID IN IT IS NOT KEPT.'] : [])];
+    return {
+      title: 'ARE YOU SURE?', width: 236, closable: true, sel: 1,
+      items: [
+        { type: 'action', label: 'YES', action: () => this.warpTo(place) },
+        { type: 'action', label: 'NO', action: (m) => m.close() },
+      ],
+      extra: lines,
+      draw: (pix, x, y) => lines.forEach((l, i) => drawText(pix, l, pix.w >> 1, y + i * 10, i === 0 ? { style: 'grad', colors: GOLD, outlineColor: INK, align: 'center' } : { style: 'outline', color: i === 1 ? '#e8e0ff' : '#ffb0a0', outlineColor: INK, align: 'center' })),
+    };
+  }
+
   controlsPage() {
     const dev = this.game.input.lastDevice;
     const lines = dev === 'touch'
@@ -415,6 +511,7 @@ class App {
         { type: 'action', label: 'CAMERA & AIM', more: true, action: (m) => m.open(this.cameraPage()) },
         { type: 'action', label: 'GRAPHICS', more: true, action: (m) => m.open(this.graphicsPage()) },
         { type: 'action', label: 'DEBUG', more: true, action: (m) => m.open(this.debugPage()) },
+        { type: 'action', label: 'CONTROLS', more: true, hidden: () => !this._touchOnly()(), action: (m) => m.open(this.controlsPage()) },         // (touch screens only: see the pause menu)
         { type: 'action', label: 'BACK', hidden: this._touchOnly(), action: (m) => m.close() },
       ],
       footer: this._changeHint(),

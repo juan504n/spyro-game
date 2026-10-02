@@ -194,11 +194,19 @@ if (!only || only === 'play') {
   await tap(R.row[R.labels.indexOf('CAMERA')].xr, R.row[R.labels.indexOf('CAMERA')].y);
   check('tapping the CAMERA row changes the camera mode', (await page.evaluate(() => __app.gfx.settings.camMode)) !== cam0);
   await page.evaluate(() => __app.gfx.set('camMode', 'active'));
-  // CONTROLS page names the MENU button
+  check('pause menu has the TRAVEL row, and (on a phone) six finger-sized rows with CONTROLS moved into OPTIONS', R.labels.includes('TRAVEL') && !R.labels.includes('CONTROLS') && R.labels.length === 6, `(${R.labels.join(' / ')})`);
+  // CONTROLS page names the MENU button: on a touch screen it is a row of OPTIONS
+  await tap(R.row[R.labels.indexOf('OPTIONS')].x, R.row[R.labels.indexOf('OPTIONS')].y);
+  R = await rows(page);
+  check('OPTIONS (from the pause menu) has the CONTROLS row on a touch screen, still finger-sized', R.title === 'OPTIONS' && R.labels.includes('CONTROLS') && R.rowPx >= 34, `(${R.labels.join(' / ')}: ${R.rowPx.toFixed(1)} px)`);
   await tap(R.row[R.labels.indexOf('CONTROLS')].x, R.row[R.labels.indexOf('CONTROLS')].y);
   R = await rows(page);
   check('CONTROLS opens (touch controls listed, with the MENU button)', R.title === 'CONTROLS');
   await shot(page, 'controls');
+  u = await ui(page);
+  await tap(u.rect.x, u.rect.y);                                       // BACK
+  R = await rows(page);
+  check('BACK returns to OPTIONS', R.title === 'OPTIONS');
   u = await ui(page);
   await tap(u.rect.x, u.rect.y);                                       // BACK
   R = await rows(page);
