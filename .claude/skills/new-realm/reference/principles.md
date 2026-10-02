@@ -45,8 +45,9 @@ documented departures in `tools/lib/realm-rules.mjs` (LEGACY): that is where the
 | `summit` | on top: the highest ground for 60 m, far above the start, at the end of a long climb | >= 18 m above the start, highest within 60 m, > 150 m of walking |
 | `cave` | inside the rock: a tunnel or chamber under a roof, lit by crystals and torches, behind something | under a massif's roof (over the goal, or all round it: a skylight over the goal itself is fine), reachable |
 | `glide` | across a gap: a shelf reached by gliding from higher ground (a long way round on foot is allowed, a short one is not) | a launch ledge within `glideReach`, no short walk |
+| `lift` | up a whirlwind: the island a ride sets the hero down on (Skyweaver Spires' spire) | no way on foot, entered by a lift link of `brief.air`, a way off by another link |
 | `puzzle` | sealed until something is done: a cracked wall, a gate the other goals open | unreachable while shut, reachable once the walls are broken and the gate open |
 | `crater` | in a bowl: lower than the rim all round, guarded | the rim 4 m higher in 11 of 16 directions at 30 m, >= 2 Snuffers within 30 m |
 
-Ideas the research listed that the game does not do yet (good for a realm that wants something new): whirlwinds that lift the hero, a hedge (or ice) maze, cannons that clear a path, a balloonist to the
+Ideas the research listed that the game does not do yet (good for a realm that wants something new; whirlwinds that lift the hero were done by Skyweaver Spires): a hedge (or ice) maze, cannons that clear a path, a balloonist to the
 next world, underwater and behind-a-waterfall tunnels, a portal that shows the sky of the world behind it.
