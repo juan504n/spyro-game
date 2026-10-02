@@ -80,7 +80,7 @@ class App {
     this.assets = new Assets();
     this.input = new Input(gfx.canvas);          // (the page's: the controls and the listeners outlive any one world)
     const q = this.params;
-    const first = q.get('world') === 'home' ? 'home' : 'gloaming';
+    const first = REALMS[q.get('world')] ? q.get('world') : 'gloaming';          // (?world=home, ?world=frostbloom ...: any world of the game by its id)
     const game = await this._build(first, null);
     this._adopt(game);
     try { this.logo = makeLogo(['GLOAMING', 'VALE'], { scale: [4, 4], top: '#fff4b0', bottom: '#f0901c', wobble: 1 }); } catch (e) { console.warn('logo failed', e); }
@@ -93,7 +93,7 @@ class App {
       game.checkpoint = { x, y: game.player.y, z, yaw: yaw ?? 0 };
     }
     if (q.has('skip')) this.beginPlay(true);
-    else if (first === 'home') this.beginPlay(false);        // (the title screen belongs to the realm: the homeworld is entered straight away)
+    else if (first !== 'gloaming') this.beginPlay(false);        // (the title screen belongs to Gloaming Vale: every other world is entered straight away)
     else this.enterTitle();
     window.__ready = true;
   }
@@ -189,19 +189,18 @@ class App {
     g.mode = 'finale';
     g.player.locked = true;
     g.player.cheer = false;
-    const b = g.beacons.list.find((x) => x.def.id === 'dawn') || g.beacons.list[g.beacons.list.length - 1];
+    const b = this._finalBeacon(g), W = g.words;
     g.dayTarget = 1;
     g.hud.hintState = null;
     this.audio?.stinger?.('sunrise');
-    const portal0 = g.portals?.get('dawn');
-    g.hud.banner('THE SUN RISES!', '', portal0 ? 3.2 : 4.5);
+    const portal = this._exitPortal(g), pid = portal ? portal.def.id : null;
+    g.hud.banner(W.finale, '', portal ? 3.2 : 4.5);
     // the light of the last lantern opens a portal above it, to Dawnhaven: it pops into being while the camera is in the lantern room, looking up
-    const portal = g.portals?.get('dawn');
     if (portal) {
-      g.after(3.4, () => g.portals.pop('dawn'));
-      g.after(3.6, () => { g.hud.banner('A PORTAL HAS OPENED', 'ABOVE THE GREAT BEACON', 3.2); });
-      g.after(7.6, () => { g.hud.banner('GLOAMING VALE IS SAVED', 'THANK YOU, SPYRO', 4); });
-    } else g.after(5.2, () => { g.hud.banner('GLOAMING VALE IS SAVED', 'THANK YOU, SPYRO', 3.6); });
+      g.after(3.4, () => g.portals.pop(pid));
+      g.after(3.6, () => { g.hud.banner(W.portalOpened[0], W.portalOpened[1], 3.2); });
+      g.after(7.6, () => { g.hud.banner(W.saved[0], W.saved[1], 4); });
+    } else g.after(5.2, () => { g.hud.banner(W.saved[0], W.saved[1], 3.6); });
     g.cam.playCinematic(finaleShot(g, b, portal ? portal.def : null), 13, () => this.showResults());
     g.player.cheer = true;
   }
@@ -218,7 +217,7 @@ class App {
     this.results = { pct, stars: pct >= 0.95 ? 3 : pct >= 0.6 ? 2 : 1 };
     noteRealmDone(this.progress, g.realm.id, { gems: st.gems, gemsTotal: st.gemsTotal, time: st.time });     // (restored for good: Dawnhaven's door to it shines gold from now on)
     // hold the final wide shot of the sunrise sweep
-    const shot = finaleShot(g, g.beacons.list[g.beacons.list.length - 1], g.portals?.get('dawn')?.def || null);
+    const shot = finaleShot(g, this._finalBeacon(g), this._exitPortal(g)?.def || null);
     g.cam.playCinematic(() => shot(13, 1), 1e9);
   }
 
@@ -231,7 +230,20 @@ class App {
     g.player.locked = false;
     g.player.cheer = false;
     g.hud.visible = true;
-    g.hud.banner('FREE ROAM', g.portals?.isOpen('dawn') ? 'THE PORTAL ABOVE THE BEACON LEADS TO DAWNHAVEN' : 'COLLECT EVERY GEM!', 4);
+    const exit = this._exitPortal(g);
+    g.hud.banner('FREE ROAM', exit && g.portals.isOpen(exit.def.id) ? g.words.freeRoam : 'COLLECT EVERY GEM!', 4);
+  }
+
+  /** the realm's way out: the ring of light over its last goal (a portal of kind 'lift'), or null */
+  _exitPortal(g = this.game) { return (g.portals && g.portals.list.find((r) => r.def.kind === 'lift')) || null; }
+
+  /** the goal object the finale is about: the one the exit portal hangs over, else the last of the list */
+  _finalBeacon(g = this.game) {
+    const list = g.beacons.list, portal = this._exitPortal(g);
+    if (!portal) return list[list.length - 1];
+    let best = list[list.length - 1], bd = Infinity;
+    for (const b of list) { const d = Math.hypot(b.x - portal.def.x, b.z - portal.def.z); if (d < bd) { bd = d; best = b; } }
+    return best;
   }
 
   // ---- travelling between worlds ------------------------------------------------------------------------------------------------
@@ -316,7 +328,7 @@ class App {
     g.fade.color = tr.color;
     g.fadeTo(0, 1.1);
     if (tr.at) g.hud.banner(tr.at.name, g.realm.name, 3.6);
-    else g.hud.banner(g.realm.name, g.restored ? 'RESTORED  -  THE SUN IS UP' : g.realm.tagline, 4.2);
+    else g.hud.banner(g.realm.name, g.restored ? g.words.restored : g.realm.tagline, 4.2);
     g.fx.puff(p.x, p.y + 0.6, p.z, 1.2);
     this.audio?.sfx('portal_arrive', { vol: 0.9 });
     // (what the world has to tell is told when he comes into it, not at every hop within it; from the title a hop starts play, with the controls)
@@ -324,7 +336,7 @@ class App {
     else if (fromTitle) this._controlsHint(g);
     else if (tr.hop) { /* nothing to add */ }
     else if (g.realm.kind === 'homeworld') g.hud.hint(`${realmsDone(this.progress)} OF ${DOORS.length} REALMS RESTORED  -  TALK TO THE ELDER AND FIND THE SECRETS`, 6.5);
-    else if (g.restored) g.hud.hint('THE PORTAL ABOVE THE GREAT BEACON LEADS BACK TO DAWNHAVEN', 6.5);
+    else if (g.restored) g.hud.hint(g.words.restoredHint, 6.5);
   }
 
   /**
@@ -397,7 +409,7 @@ class App {
         { type: 'action', label: 'OPTIONS', more: true, action: (m) => m.open(this.optionsPage()) },
         { type: 'action', label: 'CONTROLS', more: true, hidden: this._touchOnly(), action: (m) => m.open(this.controlsPage()) },         // (on a touch screen it is a row of OPTIONS: a phone's pause menu fits six finger-sized rows, and TRAVEL is the seventh)
         { type: 'action', label: 'TRAVEL', more: true, action: (m) => m.open(this.travelPage()) },
-        { type: 'action', label: this.game.realm.kind === 'homeworld' ? 'RESTART DAWNHAVEN' : 'RESTART REALM', action: () => { location.href = location.pathname + (this.game.realm.kind === 'homeworld' ? '?world=home' : '?skip=1'); } },
+        { type: 'action', label: this.game.realm.kind === 'homeworld' ? 'RESTART DAWNHAVEN' : 'RESTART REALM', action: () => { location.href = location.pathname + (this.game.realm.id === 'gloaming' ? '?skip=1' : `?world=${this.game.realm.id}`); } },
         { type: 'action', label: 'QUIT TO TITLE', action: () => { location.href = location.pathname; } },
       ],
     };
@@ -725,13 +737,13 @@ class App {
   _drawResults() {
     const pix = this.gfx.hud, W = pix.w, H = pix.h;
     const g = this.game, st = g.stats;
-    const portal = !!g.portals?.isOpen('dawn');            // (the light above the Great Beacon: a line more tells the way on)
+    const exit = this._exitPortal(g), portal = !!(exit && g.portals.isOpen(exit.def.id));            // (the light above the last goal: a line more tells the way on)
     const w = 220, h = portal ? 152 : 138, x = (W - w) >> 1, y = (H - h) >> 1;
     drawPanel(pix, x, y, w, h, { style: 'menu' });
-    drawText(pix, 'REALM RESTORED!', W >> 1, y + 9, { style: 'grad', scale: 2, align: 'center', colors: GOLD, outlineColor: INK });
+    drawText(pix, g.words.results, W >> 1, y + 9, { style: 'grad', scale: 2, align: 'center', colors: GOLD, outlineColor: INK });
     const rows = [
       ['GEMS', `${st.gems} / ${st.gemsTotal}`],
-      ['BEACONS', `${st.beacons} / 5`],
+      [g.words.goals, `${st.beacons} / ${st.beaconsTotal}`],
       ['SNUFFERS', String(st.enemies)],
       ['BUNNIES', String(st.bunnies)],
       ['SECRETS', String(st.walls + st.chests)],
@@ -741,7 +753,7 @@ class App {
       drawText(pix, k, x + 22, y + 34 + i * 12, { style: 'outline', color: '#c8bce8', outlineColor: INK });
       drawText(pix, v, x + w - 22, y + 34 + i * 12, { style: 'outline', color: '#fff4b0', outlineColor: INK, align: 'right' });
     });
-    if (portal) drawText(pix, 'THE PORTAL TO DAWNHAVEN IS OPEN', W >> 1, y + 34 + rows.length * 12 + 2, { style: 'outline', align: 'center', color: '#d6b8ff', outlineColor: INK });
+    if (portal) drawText(pix, g.words.portalResults, W >> 1, y + 34 + rows.length * 12 + 2, { style: 'outline', align: 'center', color: '#d6b8ff', outlineColor: INK });
     const icons = g.hud.icons;
     for (let i = 0; i < 3; i++) {
       const on = i < this.results.stars && this.resultsT > 0.5 + i * 0.4;

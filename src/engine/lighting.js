@@ -43,20 +43,30 @@ export const SKY_B = {
   fog: [0.95, 0.85, 0.75], glow: [1.0, 0.85, 0.55],
 };
 
-export function atmosphere(day) {
+/**
+ * A world's ENVIRONMENT: how it is lit and what its sky looks like at day 0 and day 1. A level brings its own as `level.environment` (see the realm brief in `.claude/skills/new-realm`);
+ * the default is Gloaming Vale's: moonlit twilight (A), then daybreak (B).
+ *   envs  [A, B]   { lights: [{ dir, color, shadow }], sky, ground }: the baked light of each state (the first light with `shadow` is the one that casts shadows)
+ *   sky   [A, B]   the sky's palette (zenith, high, mid, low, horizon, fog, glow)
+ *   sun   { az, el: [at day 0, at day 1] }   moon { az, el }   where the sun and the moon are
+ */
+export const DEFAULT_ENVIRONMENT = { name: 'gloaming', envs: ENVS, sky: [SKY_A, SKY_B], sun: { az: 12, el: [-9, 32] }, moon: { az: 205, el: 40 } };
+
+export function atmosphere(day, env = DEFAULT_ENVIRONMENT) {
   const t = clamp(day);
   const e = t * t * (3 - 2 * t);
   const sky = {};
-  for (const k of ['zenith', 'high', 'mid', 'low', 'horizon', 'fog', 'glow']) sky[k] = lerp3(SKY_A[k], SKY_B[k], e);
-  const sunEl = lerp(-9, 32, t);
+  const [skyA, skyB] = env.sky;
+  for (const k of ['zenith', 'high', 'mid', 'low', 'horizon', 'fog', 'glow']) sky[k] = lerp3(skyA[k], skyB[k], e);
+  const sunEl = lerp(env.sun.el[0], env.sun.el[1], t);
   return {
     dayKey: t,
     ease: e,
     sky,
     fog: sky.fog,
-    sunDir: dirAzEl(12, sunEl),
+    sunDir: dirAzEl(env.sun.az, sunEl),
     sunEl,
-    moonDir: dirAzEl(205, 40),
+    moonDir: dirAzEl(env.moon.az, env.moon.el),
     moonAlpha: clamp(1 - t * 1.25),
     starAlpha: clamp(1 - t * 1.7),
     glowAmt: 0.55 + 0.45 * Math.sin(Math.PI * clamp(t * 1.1)), // horizon glow peaks mid-transition
@@ -64,10 +74,10 @@ export function atmosphere(day) {
 }
 
 /** Dynamic light for lit models (single key light + ambient, approximating the baked pair). */
-export function dynamicLight(day, out) {
+export function dynamicLight(day, out, env = DEFAULT_ENVIRONMENT) {
   const t = clamp(day);
   const e = t * t * (3 - 2 * t);
-  const a = ENVS[0], b = ENVS[1];
+  const a = env.envs[0], b = env.envs[1];
   // key light: moon -> sun (blend direction); dawn glow folded into ambient
   const dirA = a.lights[0].dir, dirB = b.lights[0].dir;
   const d = [lerp(dirA[0], dirB[0], e), lerp(dirA[1], dirB[1], e), lerp(dirA[2], dirB[2], e)];
@@ -82,7 +92,10 @@ export function dynamicLight(day, out) {
 }
 
 export class Lighting {
-  constructor() {
+  /** @param {object} [env] the world's environment (see DEFAULT_ENVIRONMENT): what the baked light is made of */
+  constructor(env = DEFAULT_ENVIRONMENT) {
+    this.env = env;
+    this.envs = env.envs;     // [A, B]: the two lit states every static vertex stores
     this.grid = null;         // terrain grid: { n, cell, half, heights }
     this.shadow = [null, null];
     this.casters = [];        // { x, z, r, h, k }  blob/stamp shadow casters (trees, houses...)
@@ -109,7 +122,7 @@ export class Lighting {
     const { n, cell, half, heights } = g;
     const stride = n + 1;
     for (let e = 0; e < 2; e++) {
-      const L = ENVS[e].lights.find((l) => l.shadow);
+      const L = this.envs[e].lights.find((l) => l.shadow);
       const map = this.shadow[e];
       map.fill(1);
       const dx = L.dir[0], dy = L.dir[1], dz = L.dir[2];
@@ -188,7 +201,7 @@ export class Lighting {
       ao = 0.68 + 0.32 * clamp((y - h) / 1.6);
     }
     for (let e = 0; e < 2; e++) {
-      const env = ENVS[e];
+      const env = this.envs[e];
       const up = ny * 0.5 + 0.5;
       let r = (env.ground[0] + (env.sky[0] - env.ground[0]) * up) * ao;
       let g = (env.ground[1] + (env.sky[1] - env.ground[1]) * up) * ao;

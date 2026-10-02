@@ -93,12 +93,13 @@ export class Hud {
     }
     // ---- beacons ---------------------------------------------------------------------------------------------------
     {
-      const w = 5 * 14 + 8;
+      const total = st.beaconsTotal || 5, [onKey, offKey] = this.game.words.icons;
+      const w = total * 14 + 8;
       const x0 = W - w - 4;
       drawPanel(pix, x0, 4, w, 24, { style: 'hud' });
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < total; i++) {
         const lit = i < st.beacons;
-        const ic = lit ? I.lantern_on : I.lantern_off;
+        const ic = lit ? I[onKey] : I[offKey];
         const bob = lit && this.pulses.beacons > 0 && i === st.beacons - 1 ? -2 : 0;
         pix.blit(ic, x0 + 6 + i * 14, 8 + bob);
       }

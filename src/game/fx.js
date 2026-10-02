@@ -316,13 +316,15 @@ export class Fx {
   }
 
   /** Lantern ignition burst. */
-  ignite(x, y, z, big = false) {
+  /** The burst of a goal that has just been lit; `tint` ({ c0, c1 }: the bright and the fading colour) gives it a colour of its own, the default is fire. */
+  ignite(x, y, z, big = false, tint = null) {
     const k = big ? 2.4 : 1;
-    this.spawn({ pool: 'add', sprite: 'lens_star', x, y, z, life: 1.1, size: [2 * k, 9 * k], c0: [1, 0.9, 0.55, 1], c1: [1, 0.6, 0.2, 0], rot: 0, spin: 0.6 });
-    this.spawn({ pool: 'add', sprite: 'ring', x, y, z, life: 0.9, size: [1 * k, 12 * k], c0: [1, 0.85, 0.5, 1], c1: [1, 0.6, 0.2, 0] });
+    const t0 = tint ? tint.c0 : [1, 0.9, 0.55, 1], t1 = tint ? tint.c1 : [1, 0.6, 0.2, 0], t2 = tint ? tint.c0 : [1, 0.85, 0.5, 1];
+    this.spawn({ pool: 'add', sprite: 'lens_star', x, y, z, life: 1.1, size: [2 * k, 9 * k], c0: t0, c1: t1, rot: 0, spin: 0.6 });
+    this.spawn({ pool: 'add', sprite: 'ring', x, y, z, life: 0.9, size: [1 * k, 12 * k], c0: t2, c1: t1 });
     for (let i = 0; i < 36 * (big ? 2 : 1); i++) {
       const a = Math.random() * Math.PI * 2, e = Math.random() * 0.9 + 0.1, sp = this.rnd(3, 9) * k;
-      this.spawn({ pool: 'add', sprite: Math.random() < 0.5 ? 'spark' : 'spark_small', x, y, z, vx: Math.cos(a) * sp * e, vy: this.rnd(2, 9) * k, vz: Math.sin(a) * sp * e, gravity: -5, drag: 0.4, life: this.rnd(0.9, 1.9), size: [this.rnd(0.4, 0.9), 0.1], c0: [1, this.rnd(0.7, 1), this.rnd(0.3, 0.7), 1], c1: [1, 0.5, 0.2, 0], spin: this.rnd(-4, 4) });
+      this.spawn({ pool: 'add', sprite: Math.random() < 0.5 ? 'spark' : 'spark_small', x, y, z, vx: Math.cos(a) * sp * e, vy: this.rnd(2, 9) * k, vz: Math.sin(a) * sp * e, gravity: -5, drag: 0.4, life: this.rnd(0.9, 1.9), size: [this.rnd(0.4, 0.9), 0.1], c0: tint ? [tint.c0[0], tint.c0[1] * this.rnd(0.85, 1), tint.c0[2] * this.rnd(0.85, 1), 1] : [1, this.rnd(0.7, 1), this.rnd(0.3, 0.7), 1], c1: tint ? tint.c1 : [1, 0.5, 0.2, 0], spin: this.rnd(-4, 4) });
     }
   }
 

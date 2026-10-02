@@ -7,6 +7,24 @@ import { populate as populateRealm } from './levelgen/index.js';
 import { HOME } from './home/level.js';
 import { populateHome } from './home/layout.js';
 
+/**
+ * What a realm says over its finale, its results panel and its free roam, and what its goal objects are called. An entry of REALMS brings its own `words` (any of these keys); the rest are
+ * Gloaming Vale's. `icons`: the HUD's two icons for a goal that is lit / still to light (the keys of the icon atlas, see engine/textures/ui/icons.js).
+ */
+export const DEFAULT_WORDS = {
+  goals: 'BEACONS',                                        // what the results panel and the HUD count: "BEACONS 5 / 5"
+  lit: 'LIT!',                                             // "HEARTH BEACON LIT!" over a goal that has just been lit
+  finale: 'THE SUN RISES!',                                // the first banner of the finale
+  portalOpened: ['A PORTAL HAS OPENED', 'ABOVE THE GREAT BEACON'],
+  saved: ['GLOAMING VALE IS SAVED', 'THANK YOU, SPYRO'],
+  results: 'REALM RESTORED!',
+  portalResults: 'THE PORTAL TO DAWNHAVEN IS OPEN',
+  freeRoam: 'THE PORTAL ABOVE THE BEACON LEADS TO DAWNHAVEN',
+  restored: 'RESTORED  -  THE SUN IS UP',                  // the sub line of the banner when a restored realm is entered again
+  restoredHint: 'THE PORTAL ABOVE THE GREAT BEACON LEADS BACK TO DAWNHAVEN',
+  icons: ['lantern_on', 'lantern_off'],
+};
+
 export const REALMS = {
   gloaming: {
     id: 'gloaming', kind: 'realm', name: 'GLOAMING VALE', tagline: 'LANTERN KEEPERS REALM',

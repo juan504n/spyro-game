@@ -6,7 +6,7 @@ import { Input } from './input.js';
 import { Collision } from './collision.js';
 import { GameCamera, CAM_MODES } from './camera.js';
 import { Player } from './player.js';
-import { REALMS } from './realms.js';
+import { REALMS, DEFAULT_WORDS } from './realms.js';
 import { buildWorldAsync } from './world.js';
 import { makeModel } from './models/fallback.js';
 import { SpriteAtlas } from './sprites.js';
@@ -43,6 +43,7 @@ export class Game {
     this.gfx = gfx;
     this.realm = opts.realm || REALMS.gloaming;
     this.level = this.realm.level;
+    this.words = { ...DEFAULT_WORDS, ...(this.realm.words || {}) };       // (what this realm says: see realms.js)
     this.assets = opts.assets || new Assets();
     this.audio = opts.audio || null;
     this.input = opts.input || new Input(gfx.canvas);
@@ -65,7 +66,7 @@ export class Game {
     this.dyn.name = 'dynamic';
     this.events = {};
     this.timers = [];
-    this.stats = { gems: 0, gemsTotal: 400, beacons: 0, enemies: 0, bunnies: 0, vases: 0, chests: 0, walls: 0, deaths: 0, time: 0 };
+    this.stats = { gems: 0, gemsTotal: 400, beacons: 0, beaconsTotal: 5, enemies: 0, bunnies: 0, vases: 0, chests: 0, walls: 0, deaths: 0, time: 0 };
     this.checkpoint = null;
     this.loops = {};
     this.fade = { a: 0, target: 0, speed: 2, color: [0, 0, 0] };       // (a portal fades to white, everything else to black)
@@ -95,6 +96,8 @@ export class Game {
     this.counter = new GemCounter(this);           // the floating, bouncing gem count (a 3D overlay drawn over the world)
     this.overlay = this.counter.overlay;
     if (this.gameplay.gemsTotal) this.stats.gemsTotal = this.gameplay.gemsTotal;
+    // what the lanterns on the HUD count: a realm's goal objects, or the doors of the homeworld (one for each realm)
+    this.stats.beaconsTotal = (this.realm.kind === 'homeworld' ? (this.gameplay.portals || []).filter((q) => q.kind === 'door').length : (this.gameplay.beacons || []).length) || 5;
     // a world with a fixed hour (the homeworld is always at daybreak) starts and stays there; the realm's day follows its lanterns
     if (this.realm.day !== undefined && this.realm.day !== null) this.day = this.dayTarget = this.realm.day;
     // what the lanterns on the HUD count: the beacons of a realm, the restored realms in the homeworld
@@ -231,9 +234,9 @@ export class Game {
   }
 
   onBeacon(b, n) {
-    const isLast = n >= 5;
+    const total = this.beacons.list.length, isLast = n >= total;
     this.hud.pulse('beacons');
-    this.hud.banner(`${b.def.name} LIT!`, `${n} OF 5 BEACONS`, 3.4);
+    this.hud.banner(`${b.def.name} ${this.words.lit}`, `${n} OF ${total} ${this.words.goals}`, 3.4);
     if (n === 4 && this.objects?.barrier) { this.after(1.4, () => this.objects.openBarrier()); this.after(3.6, () => this.hud.banner('THE DAWN GATE OPENS!', 'CLIMB TO THE OBSERVATORY', 4)); }
     if (isLast) this.emit('finale');
     else this.audio?.stinger?.('lantern');

@@ -168,7 +168,7 @@ export class DebugHud {
     ex.errorCount = errorCount();
     if (level < 2) return ex;
     const st = g.stats, cp = g.checkpoint, cam = g.cam, inp = g.input, p = g.player;
-    ex.game = `${app.state}/${g.mode} day ${f2(g.day)} t ${fmtTime(st.time)} gems ${st.gems}/${st.gemsTotal} beacons ${st.beacons}/5 hp ${g.sparx ? g.sparx.hp : '-'} deaths ${st.deaths}${cp ? `  checkpoint ${f1(cp.x)}, ${f1(cp.y)}, ${f1(cp.z)}` : ''}`;
+    ex.game = `${app.state}/${g.mode} day ${f2(g.day)} t ${fmtTime(st.time)} gems ${st.gems}/${st.gemsTotal} beacons ${st.beacons}/${st.beaconsTotal} hp ${g.sparx ? g.sparx.hp : '-'} deaths ${st.deaths}${cp ? `  checkpoint ${f1(cp.x)}, ${f1(cp.y)}, ${f1(cp.z)}` : ''}`;
     ex.cam = `${cam.mode} yaw ${deg(cam.yaw)} pitch ${deg(cam.pitch)} dist ${f1(cam.dist)} pull ${f2(cam.pull)} lift ${f2(cam.lift)}${cam.inCinematic ? ' (cutscene)' : ''}  at ${f1(cam.pos.x)}, ${f1(cam.pos.y)}, ${f1(cam.pos.z)}`;
     const held = Object.keys(inp.held).filter((k) => inp.held[k]).join(',');
     ex.input = `${inp.lastDevice} move ${f2(inp.move.x)},${f2(inp.move.y)} held ${held || '-'}  touch ui ${inp.touch ? (inp.menuBtn ? 'yes' : 'lazy') : 'no'}  vy ${f1(p.vy)}`;

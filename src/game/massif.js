@@ -362,7 +362,7 @@ export class Massif {
     const amb = this.style.ambient;
     const up = ny * 0.5 + 0.5;
     for (let e = 0; e < 2; e++) {
-      const env = ENVS[e];
+      const env = (this.envs || ENVS)[e];
       let r = 0, g = 0, b = 0;
       // the sky's ambient comes in with the sky seen; the cave's own colour fills the rest
       for (let c = 0; c < 3; c++) {

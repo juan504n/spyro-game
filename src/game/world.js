@@ -1,7 +1,7 @@
 // Assembles the static realm: terrain, water, roads, props, sky and baked lighting.
 import * as THREE from 'three';
 import { U } from '../engine/materials.js';
-import { Lighting, atmosphere, dynamicLight } from '../engine/lighting.js';
+import { Lighting, atmosphere, dynamicLight, DEFAULT_ENVIRONMENT } from '../engine/lighting.js';
 import { generateTerrain } from './terrain.js';
 import { buildTerrainMeshes } from './terrain-mesh.js';
 import { buildWater } from './water.js';
@@ -22,9 +22,10 @@ export function* buildWorldSteps(assets, populate, level) {
   const t0 = performance.now();
   const grid = generateTerrain(level);
   const label = level?.labels || [];
-  const lighting = new Lighting();
+  const env = level?.environment || DEFAULT_ENVIRONMENT;          // (how this world is lit and what its sky is: Gloaming Vale's twilight and daybreak unless the level brings its own)
+  const lighting = new Lighting(env);
   lighting.attach(grid);
-  const world = { grid, lighting, scene: new THREE.Scene(), timings: {} };
+  const world = { grid, lighting, env, scene: new THREE.Scene(), timings: {} };
   world.timings.terrain = performance.now() - t0;
   // rock masses that are not part of the heightfield (a level's mountains with caves in them, see massif.js): sampled now, so that the light bake and the props already know them
   world.massifs = [];
@@ -32,6 +33,7 @@ export function* buildWorldSteps(assets, populate, level) {
     const tm = performance.now();
     for (const m of level.massifs(grid, level)) world.massifs.push(m.prepare());
     lighting.massifs = world.massifs;
+    for (const m of world.massifs) m.envs = lighting.envs;           // (the rock's own light is made of the same two states)
     world.timings.massifField = performance.now() - tm;
   }
   yield [0.12, label[0] || 'SCULPTING VALE'];
@@ -113,13 +115,13 @@ export function* buildWorldSteps(assets, populate, level) {
   /** Per-frame environment: sky, fog and dynamic-light uniforms from `day`. */
   world.updateEnvironment = (camera, day, time, dt, indoor = 0) => {
     world.day = day;
-    const atm = atmosphere(day);
+    const atm = atmosphere(day, env);
     world.atm = atm;
     U.uDay.value = day;
     U.uBlend.value = atm.ease;
     U.uFogColor.value.setRGB(atm.fog[0], atm.fog[1], atm.fog[2]);
     U.uFogRange.value.set(130 + 30 * day, 400 + 30 * day);
-    dynamicLight(day, _dl);
+    dynamicLight(day, _dl, env);
     if (indoor > 0.001) {
       // inside a cave the hero and everything else lit on the fly is lit like the rock round him: the sun is shut out, the sky's ambient dimmed
       const k = indoor;
