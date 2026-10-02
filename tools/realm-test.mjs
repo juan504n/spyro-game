@@ -39,7 +39,7 @@ const arrived = async (realm) => {
 await load(`?world=${id}`);
 const info = await ev(() => {
   const g = window.__game, b = g.level.brief;
-  return { realm: g.realm.id, kind: g.realm.kind, goals: g.beacons.list.map((q) => ({ id: q.def.id, name: q.def.name, x: q.x, y: q.y, z: q.z, big: !!q.def.big })), gate: b && b.gate ? b.gate.at : null, exit: g.gameplay.portals.find((p) => p.kind === 'lift') };
+  return { realm: g.realm.id, kind: g.realm.kind, goals: g.beacons.list.map((q) => ({ id: q.def.id, name: q.def.name, x: q.x, y: q.y, z: q.z, big: !!q.def.big, sfx: q.def.sfx || null })), gate: b && b.gate ? b.gate.at : null, exit: g.gameplay.portals.find((p) => p.kind === 'lift') };
 });
 const { goals } = info;
 
@@ -209,13 +209,17 @@ for (let i = 0; i < goals.length; i++) {
     if (!pl.place) return { ok: false, reason: `no TRAVEL place '${id}/${goals[i].id}' (node tools/realm-travel.mjs ${id})` };
     await ff(0.6);
     const before = await ev((n) => window.__game.stats.beacons + 0 * n, i);
+    await ev(() => { const g = window.__game; window.__sfx = []; if (g.audio && g.audio.sfx && !g.audio.__spy) { const was = g.audio.sfx.bind(g.audio); g.audio.sfx = (name, o) => { window.__sfx.push(name); return was(name, o); }; g.audio.__spy = true; } });
     await burn();
     const r = await ev((n) => {
       const g = window.__game, b = g.beacons.list[n];
       return { lit: b.litFlag, count: g.stats.beacons, dayTarget: +g.dayTarget.toFixed(3), want: +g.beacons.steps[n + 1].toFixed(3), mode: g.mode, state: window.__app.state, gate: g.objects && g.objects.barrier ? g.objects.barrier.target : null };
     }, i);
     const last = i === goals.length - 1;
-    return { ok: before === i && r.lit && r.count === i + 1 && Math.abs(r.dayTarget - r.want) < 0.01 && (last ? r.state === 'finale' : r.state === 'play'), ...r };
+    // (a goal that names its own ignition sound - a Windbell rings - is heard to ring it, and not the lantern's whoomp)
+    const heard = await ev(() => window.__sfx || []);
+    const soundOk = !goals[i].sfx || (heard.includes(goals[i].sfx) && !heard.includes('lantern_ignite'));
+    return { ok: before === i && r.lit && r.count === i + 1 && Math.abs(r.dayTarget - r.want) < 0.01 && (last ? r.state === 'finale' : r.state === 'play') && soundOk, ...r, ...(goals[i].sfx ? { sound: goals[i].sfx, heard } : {}) };
   });
   if (info.gate !== null && i + 1 === info.gate) {
     await check('the gate opens', async () => {
