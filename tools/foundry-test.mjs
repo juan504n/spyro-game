@@ -78,6 +78,9 @@ try {
       const t = spawnSync('node', [path.join(ROOT, 'tools/realm-test.mjs'), 'scratchvale'], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, GV_URL: `http://127.0.0.1:${port}/` }, timeout: 600000 });
       const lines = (t.stdout || '').split('\n').filter((l) => /^(PASS|FAIL)/.test(l));
       check('the generated realm plays end to end in the running game', t.status === 0 && lines.length >= 9, lines.filter((l) => l.startsWith('FAIL')).join(' | ').slice(0, 400) || `(${lines.length} steps)`);
+      // (from the scratch copy: the walk map's routes come from the realm built by Node, which must be the one the server serves)
+      const b = run(['tools/realm-bot.mjs', 'scratchvale'], { env: { ...process.env, GV_URL: `http://127.0.0.1:${port}/` }, timeout: 600000 });
+      check('... and its goals are walked, in order, by the real controller', b.status === 0 && /routes walked with the real controller/.test(b.stdout), (b.stdout || '').split('\n').filter((l) => /^FAIL/.test(l)).join(' | ').slice(0, 400));
     }
   }
 } finally {

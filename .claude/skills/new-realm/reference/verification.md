@@ -6,9 +6,10 @@ Verification here is a headless Chromium with a **software renderer** (SwiftShad
 ## For the realm itself
 | gate | command | protects |
 | --- | --- | --- |
-| the rules | `node tools/realm-check.mjs <id>` (or `tools/<id>-check.mjs`, which adds the realm's own: `frostbloom-check.mjs` checks its frosted roads, its skin, the glacier and the ice vault) | the hard rules (deterministic build, firm start, reachable goals, the ring's floor, treasure) and the design principles (situations, journey, parts, levels, loops, dead ends, secrets, danger, gem trail, palette) |
+| the rules | `node tools/realm-check.mjs <id>` (41 for a realm with a brief; or `tools/<id>-check.mjs`, which adds the realm's own: `frostbloom-check.mjs` checks its frosted roads, its skin, the glacier and the ice vault) | the hard rules (deterministic build, firm start, reachable goals, the ring's floor, treasure) and the design principles (situations, journey, parts, levels, loops, dead ends, secrets, danger, gem trail, palette) |
 | the places of the TRAVEL menu | `node tools/realm-travel.mjs <id>` then `node tools/travel-check.mjs` | every place can be stood on, clear, named, not in a pocket, in the walkable country (gate open); a place beyond a gate says `opens` |
-| the journey in the real game | `node tools/realm-test.mjs <id>` | boot, every goal lit by fire, the day climbs, the gate opens, finale, the ring carries him out, Dawnhaven, back in restored |
+| the journey in the real game | `node tools/realm-test.mjs <id>` | boot, the roads and the gate's field wear what the level says, every goal lit by fire, the day climbs, the gate opens, finale, the ring carries him out, Dawnhaven, back in restored, the door behind him leads home, a TRAVEL place beyond the gate opens it |
+| the way, walked | `node tools/realm-bot.mjs <id>` | the real controller (slopes, steps, hops, collisions, the gate) gets from the start to every goal in order along the walk map's routes, and lights each |
 | the map | `node tools/realm-map.mjs <id> map.png` and look | the shape of the design |
 | screenshots | `tools/shot.mjs`, `tools/play.mjs`, `?world=<id>&at=x,z,yaw` | what it looks like; the start, each goal, the finale, a cave, the sky at both moods |
 

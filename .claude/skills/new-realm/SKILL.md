@@ -18,6 +18,7 @@ the design to what made the original games' worlds good, as code. You supply the
 | a map of the built world (terrain, roads, goals, Snuffers, chests, hints, props) | `node tools/realm-map.mjs <id> out.png` |
 | the TRAVEL menu's places for the realm, found and validated | `node tools/realm-travel.mjs <id>` |
 | the realm played end to end in the real game | `node tools/realm-test.mjs <id>` (dev server on :5173) |
+| the realm walked by the real controller, goal to goal | `node tools/realm-bot.mjs <id>` (dev server on :5173) |
 | the foundry tested as a whole (generates a scratch realm, checks, plays it) | `node tools/foundry-test.mjs` |
 | Gloaming Vale and Dawnhaven must not change by accident | `node tools/world-hash.mjs` |
 
@@ -51,7 +52,7 @@ with a reason in `brief.waive`; a finished realm waives nothing. Add the realm's
 
 **6. Refresh the TRAVEL places** after the layout settles: `node tools/realm-travel.mjs <id>`; then `node tools/travel-check.mjs`.
 
-**7. Play it.** `node tools/realm-test.mjs <id>` (boot, light every goal with fire, finale, ring, Dawnhaven, back restored), then look at it for real: screenshots from the dev server (`?world=<id>`,
+**7. Play it.** `node tools/realm-test.mjs <id>` (boot, light every goal with fire, finale, ring, Dawnhaven, back restored) and `node tools/realm-bot.mjs <id>` (the real controller walks to every goal along the walk map's routes: it finds what a flood fill over cells cannot), then look at it for real: screenshots from the dev server (`?world=<id>`,
 `tools/shot.mjs`, `tools/play.mjs`), from the start and from each goal; the software-rendered headless browser is not a phone's GPU - say so when reporting.
 
 **8. Ship** (see `reference/verification.md`): the other worlds unchanged (`world-hash`) or the change pinned on purpose, the regression suite, mutation-check what you added, README and `docs/DESIGN.md`
