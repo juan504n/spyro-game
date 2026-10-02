@@ -22,6 +22,7 @@ const STAGED = ['gems', 'vases', 'chests', 'walls', 'braziers', 'mushrooms', 'en
 export function makePopulate(brief, steps, { seed = 4417 } = {}) {
   const list = steps.map((s) => (Array.isArray(s) ? s : [s.name, s]));
   return function populate(kit, world) {
+    kit.skin = (brief.theme && brief.theme.skin) || null;          // (the realm's skin: its props wear its textures, see kit.js)
     const ctx = makeCtx(kit, world, seed);
     attachGameplay(ctx);
     ctx.brief = brief;
@@ -53,6 +54,7 @@ export function goalsStage(ctx) {
     const rec = { id: g.id, name: g.name, x: g.x, y: g.y !== undefined ? g.y : h(g.x, g.z), z: g.z, yaw: g.yaw || 0 };
     for (const k of ['big', 'model', 'beam', 'glow', 'wisp', 'flame', 'spark', 'sparkle']) if (g[k] !== undefined) rec[k] = g[k];
     gp.beacons.push(rec);
+    ctx.occ.add(g.x, g.z, g.big ? 7 : 4.5);                    // (nothing grows where a goal stands)
     if (g.hint) gp.hints.push({ x: g.hintAt ? g.hintAt[0] : g.x, z: g.hintAt ? g.hintAt[1] : g.z, r: g.hintR || 10, text: g.hint, dur: 6 });
   }
 }

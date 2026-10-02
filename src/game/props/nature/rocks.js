@@ -5,6 +5,8 @@ import { lump, lumps, tube, shade, TAU, lerp, clamp, mulc, norm3, num, int, size
 const STONE = { dark: [0.68, 0.62, 0.66], light: [1.16, 1.06, 0.98] };
 const STONE_WARM = { dark: [0.72, 0.62, 0.6], light: [1.2, 1.08, 0.96] };
 const MOSS = { dark: [0.66, 0.78, 0.62], light: [0.92, 1.04, 0.8] };
+/** the tints of the caps of moss: a realm's skin (kit.skin) can swap them with its textures (snow for moss) */
+const mossPal = (kit) => (kit.skin && kit.skin.palettes && kit.skin.palettes.moss) || MOSS;
 
 export const stoneTex = (warm) => (warm ? 'cliff_warm' : 'cliff');
 const stonePal = (warm) => (warm ? STONE_WARM : STONE);
@@ -17,7 +19,7 @@ export function rock(kit, r, c, R, { warm = false, moss = true, detail = 1, nois
     detail, noise, sx, sy, sz, rot: r.float(0, 3), rotX: r.float(-0.12, 0.12), rotZ: r.float(-0.12, 0.12), tile, smooth: 0,
     floorY: -R * 0.5, skipDown: 0.55,
     color: shade(c[1] - rr * 0.9, pal.dark, c[1] + rr, pal.light, 0.05),
-    topB: moss ? kit.b('moss') : null, topAt: 0.5, topTile: 3, topColor: shade(c[1] - rr * 0.9, MOSS.dark, c[1] + rr, MOSS.light, 0.05),
+    topB: moss ? kit.b('moss') : null, topAt: 0.5, topTile: 3, topColor: shade(c[1] - rr * 0.9, mossPal(kit).dark, c[1] + rr, mossPal(kit).light, 0.05),
   });
 }
 
@@ -162,7 +164,7 @@ export function steppingStone(kit, { x, z, rot = 0, scale = 1, y, h, top: topR, 
     const c = [0, h, 0];
     for (let i = 0; i < sides; i++) {
       const A = top[i], B = top[(i + 1) % sides];
-      m.tri(c, A, B, [c[0] / 3.5, c[2] / 3.5], [A[0] / 3.5, A[2] / 3.5], [B[0] / 3.5, B[2] / 3.5], { color: [0.92, 1.0, 0.82] }, [0, 1, 0]);
+      m.tri(c, A, B, [c[0] / 3.5, c[2] / 3.5], [A[0] / 3.5, A[2] / 3.5], [B[0] / 3.5, B[2] / 3.5], { color: (kit.skin && kit.skin.palettes && kit.skin.palettes.mossTop) || [0.92, 1.0, 0.82] }, [0, 1, 0]);
     }
     kit.cyl(0, 0, 1.7 * k, -0.8, h, { top: true });
     kit.caster(0, 0, 1.9 * k, h, 0.2);
@@ -198,7 +200,7 @@ export function rockArch(kit, { x, z, rot = 0, scale = 1, y, warm, w, h }) {
     const moss = kit.b('moss');
     for (let i = 0; i < 3; i++) {
       const j = 3 + i, p = pts[j];
-      lump(moss, r, [p[0], p[1] + rad[j] * 0.72, p[2]], r.float(0.9, 1.25), { detail: 'o1', noise: 0.15, sy: 0.34, sx: 1.2, tile: 3, smooth: 0.3, skipDown: 0.05, color: [0.9, 1.02, 0.8] });
+      lump(moss, r, [p[0], p[1] + rad[j] * 0.72, p[2]], r.float(0.9, 1.25), { detail: 'o1', noise: 0.15, sy: 0.34, sx: 1.2, tile: 3, smooth: 0.3, skipDown: 0.05, color: (kit.skin && kit.skin.palettes && kit.skin.palettes.mossTop) || [0.9, 1.02, 0.8] });
     }
     kit.caster(0, 0, a * 0.7, h * 0.8, 0.3);
   });

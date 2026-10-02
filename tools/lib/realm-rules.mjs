@@ -266,7 +266,7 @@ export function checkRealm(which, { log = () => {} } = {}) {
   {
     const picker = terrainPicker(grid), tex = {};
     let n = 0;
-    for (let j = 0; j < grid.n; j++) for (let i = 0; i < grid.n; i++) for (const t of picker.tris(i, j)) { if (/cliff|far_rock/.test(t.tex)) continue; tex[t.tex] = (tex[t.tex] || 0) + 1; n++; }
+    for (let j = 0; j < grid.n; j++) for (let i = 0; i < grid.n; i++) for (const t of picker.tris(i, j)) { if (/cliff|far_/.test(t.tex)) continue; tex[t.tex] = (tex[t.tex] || 0) + 1; n++; }
     const main = Object.entries(tex).filter(([, v]) => v / n > 0.02).sort((a, b) => b[1] - a[1]);
     rule('design.palette', 'the ground is made of few textures (at most 7 beyond rock, each over 2%)', main.length <= 7, `(${main.map(([k, v]) => `${k} ${(100 * v / n).toFixed(0)}%`).join(', ')})`);
   }

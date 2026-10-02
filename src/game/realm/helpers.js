@@ -8,6 +8,12 @@ export const sum = (a) => a.reduce((s, v) => s + v, 0);
 /** the face of something at (x, z) towards (tx, tz) as a prop's rot (its local +z looks at the target) */
 export const faceTo = (x, z, tx, tz) => Math.atan2(tx - x, tz - z);
 
+/** where something stands `d` metres in front of a door ({ x, z, yaw }: its front is its local +z turned by yaw) and `side` metres to its right */
+export const inFront = (door, d, side = 0) => {
+  const s = Math.sin(door.yaw), c = Math.cos(door.yaw);
+  return [door.x + s * d + c * side, door.z + c * d - s * side];
+};
+
 /** A level, dry spot for something `foot` metres across, near (x, z): spirals outwards until it fits clear of roads, water, steep ground and other props. Null when there is none. */
 export function flatSpot(ctx, x, z, foot, { maxR = 10, slope = 0.22, path = 3 } = {}) {
   for (let d = 0; d <= maxR; d += 1.5) {

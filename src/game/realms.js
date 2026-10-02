@@ -6,6 +6,7 @@ import { LEVEL } from './level.js';
 import { populate as populateRealm } from './levelgen/index.js';
 import { HOME } from './home/level.js';
 import { populateHome } from './home/layout.js';
+import { REALM as FROSTBLOOM } from './frostbloom/index.js';
 // <realm-imports>  (tools/new-realm.mjs adds the import of a new realm above this line)
 
 /**
@@ -36,6 +37,7 @@ export const REALMS = {
     id: 'home', kind: 'homeworld', name: 'DAWNHAVEN', tagline: 'HOMEWORLD OF THE LANTERN KEEPERS',
     level: HOME, populate: populateHome, day: 1,
   },
+  frostbloom: FROSTBLOOM,
   // <realm-entries>  (tools/new-realm.mjs adds the entry of a new realm above this line)
 };
 

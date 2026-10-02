@@ -332,7 +332,7 @@ class App {
     g.fx.puff(p.x, p.y + 0.6, p.z, 1.2);
     this.audio?.sfx('portal_arrive', { vol: 0.9 });
     // (what the world has to tell is told when he comes into it, not at every hop within it; from the title a hop starts play, with the controls)
-    if (gateOpened) g.after(0.3, () => g.hud.hint('THE DAWN GATE WAS OPENED FOR YOU: ITS WARD WOULD HAVE THROWN YOU OUT', 6.5));         // (a moment later: the hint zone he stands in takes the line at once)
+    if (gateOpened) g.after(0.3, () => g.hud.hint(g.level.summit ? 'THE DAWN GATE WAS OPENED FOR YOU: ITS WARD WOULD HAVE THROWN YOU OUT' : `THE GATE WAS OPENED FOR YOU: ${g.words.gate[1]}`, 6.5));         // (a moment later: the hint zone he stands in takes the line at once)
     else if (fromTitle) this._controlsHint(g);
     else if (tr.hop) { /* nothing to add */ }
     else if (g.realm.kind === 'homeworld') g.hud.hint(`${realmsDone(this.progress)} OF ${DOORS.length} REALMS RESTORED  -  TALK TO THE ELDER AND FIND THE SECRETS`, 6.5);
@@ -341,7 +341,8 @@ class App {
 
   /**
    * Put the hero on a place of the TRAVEL menu (travel.js), facing the way it says; it is where he comes back to if he falls or is hurt. He blinks untouchable for a few seconds, as after
-   * a respawn. The summit of the vale is sealed by a ward until the Dawn Gate opens, and it throws out whoever stands inside: a place within it opens the gate (true when it did).
+   * a respawn. The summit of the vale is sealed by a ward until the Dawn Gate opens, and it throws out whoever stands inside: a place within it opens the gate (true when it did). A place
+   * of a realm that lies beyond its gate (`opens`, found by tools/realm-travel.mjs) opens it too, or the hero would stand shut in.
    */
   _placeHero(g, place) {
     const sp = heroSpot(g.grid, place), p = g.player, S = g.level.summit;
@@ -351,7 +352,8 @@ class App {
     g.hud.hintState = null;
     g.sparx?.snapTo(p);                                  // (Sparx is at his shoulder, not flying across the world after him)
     g.portals?.arrivedAt(sp.x, sp.z);                    // (the doors beside him do not put their own names over the place's)
-    return !!(S && g.objects && Math.hypot(sp.x - S.x, sp.z - S.z) < WARD_RADIUS && g.objects.openBarrierAtOnce());
+    const sealed = !!place.opens || !!(S && Math.hypot(sp.x - S.x, sp.z - S.z) < WARD_RADIUS);
+    return !!(sealed && g.objects && g.objects.openBarrierAtOnce());
   }
 
   /** YES on the TRAVEL menu's ARE YOU SURE?: take the hero to the place, from the title menu or the pause menu (a different world is a trip like a portal's, a fresh build of it). */

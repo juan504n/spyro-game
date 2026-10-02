@@ -33,7 +33,9 @@ export const SITUATIONS = {
   clearing: {
     doc: 'in a clearing off the road: level open ground ringed by trees and rocks, a short detour from the way',
     check(g, e) {
-      const slope = e.grid.slopeAt(g.x, g.z), pd = e.ctx.pathDist(g.x, g.z);
+      const slope = e.grid.slopeAt(g.x, g.z);
+      let pd = Infinity;                                               // (metres from the nearest road's edge; the grid's own distance field only reaches a few metres)
+      for (const p of e.grid.paths) for (const q of p.pts) pd = Math.min(pd, Math.hypot(q[0] - g.x, q[2] - g.z) - p.width / 2);
       let ring = 0;
       for (const p of e.gp.placed) if (/tree|pine|rock|boulder|spire|crystal|ice|stone/.test(p.name) && Math.hypot(p.x - g.x, p.z - g.z) < 24) ring++;
       const d = e.walk.distNear(g.x, g.z, 3, g.y);

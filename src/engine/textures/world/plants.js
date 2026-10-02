@@ -91,6 +91,13 @@ function leavesGreen() {
 function leavesTeal() {
   return paintLeaves(4301, { gap: LT[1], back: LT[2], mid: LT[3], light: LT[4], tip: '#b4ecd0', hi: '#e0fff0' });
 }
+// Frostbloom Hollow: a tree in blossom (pink clumps, white-pink tips) and a frosted one (blue-white clumps)
+function leavesBlossom() {
+  return paintLeaves(4601, { gap: '#7a2a58', back: '#b04a80', mid: '#e070a0', light: '#f8a0c4', tip: '#ffd2e4', hi: '#fff0f6' });
+}
+function leavesFrost() {
+  return paintLeaves(4701, { gap: '#3c5880', back: '#5c80b0', mid: '#88aad4', light: '#b4d0ec', tip: '#e0eefc', hi: '#ffffff' });
+}
 function leavesAutumn() {
   return paintLeaves(4401, { gap: LA[1], back: LA[2], mid: LA[3], light: LA[4], tip: '#ffe890', hi: '#fff8c8' });
 }
@@ -98,10 +105,9 @@ function leavesAutumn() {
 // ---------------------------------------------------------------------------------------------
 // Pine: drooping layered boughs with needle hatching
 // ---------------------------------------------------------------------------------------------
-function paintPine() {
-  const P = { shade: '#16482e', back: '#1c7048', mid: '#2c9058', light: '#48b070', tip: '#80d090' };
+function paintPine(P = { shade: '#16482e', back: '#1c7048', mid: '#2c9058', light: '#48b070', tip: '#80d090' }, seed = 4501) {
   const c = new Canvas(32, 32, true, P.shade);
-  const rng = new RNG(4501);
+  const rng = new RNG(seed);
   // Overlapping fir sprays in two layers. A spray is a centre rib with needles angled down and out, so
   // it tapers like a small fir; the back layer is darker and sits half a cell away, which fills the gaps
   // and breaks up the grid. Everything wraps, no 1px checkerboard: needles are 2px apart vertically.
@@ -404,6 +410,9 @@ export function plantTextures() {
     leaves_teal: rec(leavesTeal(), true, false),
     leaves_autumn: rec(leavesAutumn(), true, false),
     pine: rec(paintPine(), true, false),
+    pine_snow: rec(paintPine({ shade: '#14403c', back: '#1c5a54', mid: '#2e7864', light: '#9cc4d4', tip: '#e6f2fa' }, 4502), true, false),
+    leaves_blossom: rec(leavesBlossom(), true, false),
+    leaves_frost: rec(leavesFrost(), true, false),
     mushroom_cap: rec(paintMushroomCap(), false, false),
     mushroom_stem: rec(paintMushroomStem(), false, false),
     tuft: rec(tuft(), false, true),

@@ -22,7 +22,8 @@ export function findTravelPlaces(which) {
   const { grid, collision, gp, level: L } = W;
   addRuntimeColliders(collision, gp, grid);
   const { flood } = makeWalkmap({ grid, collision });
-  const wBroken = flood([gp.spawn.x, gp.spawn.z], { breakWalls: true });
+  const wBroken = flood([gp.spawn.x, gp.spawn.z], { breakWalls: true, openGate: true });               // (the walkable country: cracked walls broken, the gate open)
+  const wShut = gp.barrier ? flood([gp.spawn.x, gp.spawn.z], { breakWalls: true }) : null;            // (what the hero reaches while the gate is shut)
   const checkPlace = makePlaceChecker(W, flood, wBroken);
   const brief = L.brief;
   const taken = [];
@@ -42,7 +43,11 @@ export function findTravelPlaces(which) {
         const sup = collision.support(x, z, 1e3, 1e3);
         if (Math.abs(sup.y - grid.heightAt(x, z)) > 0.15) p.y = r2(sup.y);
         const bad = checkPlace(p);
-        if (Object.values(bad).every((v) => !v)) { taken.push(p); return p; }
+        if (Object.values(bad).every((v) => !v)) {
+          if (wShut && !(wShut.distNear(x, z, 2.4, (p.y ?? grid.heightAt(x, z))) < Infinity)) p.opens = true;       // (a place beyond the gate opens it for him: App._placeHero)
+          taken.push(p);
+          return p;
+        }
       }
     }
     problems.push(`no valid place found for ${id}`);
@@ -76,7 +81,7 @@ export function findTravelPlaces(which) {
 
 /** the text of src/game/<id>/travel.js */
 export function travelSource(entry) {
-  const place = (p) => `        { id: '${p.id}', name: '${p.name.replace(/'/g, "\\'")}', x: ${p.x}, z: ${p.z}, ${p.y !== undefined ? `y: ${p.y}, ` : ''}yaw: ${p.yaw} },`;
+  const place = (p) => `        { id: '${p.id}', name: '${p.name.replace(/'/g, "\\'")}', x: ${p.x}, z: ${p.z}, ${p.y !== undefined ? `y: ${p.y}, ` : ''}yaw: ${p.yaw}${p.opens ? ', opens: true' : ''} },`;
   return `// The places of ${entry.name} for the TRAVEL menu (src/game/travel.js): the start, a spot in front of every goal, one in each named part of the country and beside each secret. FOUND AND CHECKED
 // by tools/realm-travel.mjs (every place passes the rules of tools/lib/travel-rules.mjs): re-run \`node tools/realm-travel.mjs ${entry.world}\` after the layout changes rather than editing by hand.
 export const TRAVEL_PLACES = {

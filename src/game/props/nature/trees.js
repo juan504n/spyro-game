@@ -6,6 +6,8 @@ const CANOPY = {
   leaves_green: { dark: [0.64, 0.74, 0.68], light: [1.16, 1.14, 0.86] },
   leaves_teal: { dark: [0.62, 0.74, 0.8], light: [1.02, 1.14, 1.06] },
   leaves_autumn: { dark: [0.7, 0.6, 0.62], light: [1.14, 1.02, 0.9] },
+  leaves_blossom: { dark: [0.8, 0.74, 0.84], light: [1.08, 1.06, 1.08] },       // Frostbloom Hollow: trees in blossom, and frosted ones
+  leaves_frost: { dark: [0.74, 0.8, 0.92], light: [1.04, 1.08, 1.14] },
 };
 export const canopyOf = (name) => CANOPY[name] || CANOPY.leaves_green;
 const SWAY_TREE = 10;                                  // world-height limit for canopy sway (see swayOK)
@@ -127,6 +129,7 @@ function tier(b, r, cy, R, h, n, o) {
   }
 }
 
+const PINE_TINT = { dark: [0.72, 0.9, 0.82], light: [1.12, 1.16, 0.98], under: [0.78, 0.98, 0.92] };
 const PINE = {
   s: { H: 11, R: 2.5, tiers: 5 },
   m: { H: 14, R: 3.1, tiers: 6 },
@@ -147,6 +150,7 @@ export function treePine(kit, { x, z, rot = 0, scale = 1, y, size }) {
     const span = H * 0.92 - y0;
     const dy = span / nT;
     const pine = kit.b('pine');
+    const pp = (kit.skin && kit.skin.palettes && kit.skin.palettes.pine) || PINE_TINT;      // (a realm's skin may swap the tints with the texture: pine_snow)
     for (let i = 0; i < nT; i++) {
       const t = i / (nT - 1);
       const rr = lerp(R, R * 0.28, Math.pow(t, taper)) * r.float(0.93, 1.07);
@@ -155,8 +159,8 @@ export function treePine(kit, { x, z, rot = 0, scale = 1, y, size }) {
       const dark = lerp(0.6, 1.02, t);
       tier(pine, r, cy, rr, h, nSides, {
         tile: 4, smooth: 0,
-        color: shade(y0, [0.72, 0.9, 0.82], H, [1.12, 1.16, 0.98], 0.06),
-        under: mulc([0.78, 0.98, 0.92], dark + 0.2),
+        color: shade(y0, pp.dark, H, pp.light, 0.06),
+        under: mulc(pp.under, dark + 0.2),
       });
     }
     // top spike

@@ -30,6 +30,8 @@ const SPEC = {
   cliff: [32, 32, 1, 0, 'terrain'], cliff_warm: [32, 32, 1, 0, 'terrain'], far_rock: [32, 32, 1, 0, 'terrain'],
   cliff_bare: [32, 32, 1, 0, 'terrain'], cliff_warm_bare: [32, 32, 1, 0, 'terrain'], ice: [32, 32, 1, 0, 'terrain'],
   rune_ring: [32, 32, 0, 0, 'terrain'],
+  snow: [32, 32, 1, 0, 'terrain'], snow_petals: [32, 32, 1, 0, 'terrain'], cliff_frost: [32, 32, 1, 0, 'terrain'], far_frost: [32, 32, 1, 0, 'terrain'],     // (Frostbloom Hollow)
+  cobble_frost: [32, 32, 1, 0, 'terrain'], path_snow: [32, 32, 1, 0, 'terrain'],
   // buildings
   brick: [32, 32, 1, 0, 'buildings'], brick_warm: [32, 32, 1, 0, 'buildings'], brick_mossy: [32, 32, 1, 0, 'buildings'],
   plaster: [32, 32, 1, 0, 'buildings'], timber: [32, 32, 1, 0, 'buildings'], wood_plank: [32, 32, 1, 0, 'buildings'],
@@ -40,6 +42,7 @@ const SPEC = {
   // plants
   bark: [16, 32, 1, 0, 'plants'], bark_pale: [16, 32, 1, 0, 'plants'],
   leaves_green: [32, 32, 1, 0, 'plants'], leaves_teal: [32, 32, 1, 0, 'plants'], leaves_autumn: [32, 32, 1, 0, 'plants'],
+  leaves_blossom: [32, 32, 1, 0, 'plants'], leaves_frost: [32, 32, 1, 0, 'plants'], pine_snow: [32, 32, 1, 0, 'plants'],
   pine: [32, 32, 1, 0, 'plants'], mushroom_cap: [32, 32, 0, 0, 'plants'], mushroom_stem: [16, 16, 0, 0, 'plants'],
   tuft: [16, 16, 0, 1, 'sprites'], flower_pink: [16, 16, 0, 1, 'sprites'], flower_yellow: [16, 16, 0, 1, 'sprites'],
   flower_blue: [16, 16, 0, 1, 'sprites'], reeds: [16, 32, 0, 1, 'sprites'], fern: [16, 16, 0, 1, 'sprites'],
@@ -61,6 +64,7 @@ const SPEC = {
 // dark / light / additive by design have their own window so they are not reported as violations.
 const LUMA_DEFAULT = [0.5, 0.75];
 const LUMA = {
+  snow: [0.7, 0.98], snow_petals: [0.7, 0.98], cliff_frost: [0.3, 0.78], far_frost: [0.5, 0.85], cobble_frost: [0.4, 0.9], path_snow: [0.45, 0.92], leaves_blossom: [0.4, 0.85], leaves_frost: [0.4, 0.85], pine_snow: [0.35, 0.8],
   cliff: [0.4, 0.75], cliff_warm: [0.4, 0.75], cliff_bare: [0.4, 0.75], cliff_warm_bare: [0.4, 0.75], ice: [0.6, 0.95], portal_swirl: [0.2, 0.85], far_rock: [0.4, 0.72], tower_stone: [0.25, 0.6], rune_ring: [0.2, 0.6],
   metal_iron: [0.25, 0.6], door: [0.3, 0.7], banner: [0.3, 0.7], window: [0.4, 0.95],
   water: [0.4, 0.75], waterfall: [0.5, 0.9], foam: [0.7, 1], moon: [0.6, 1], sun_disc: [0.7, 1],
@@ -71,6 +75,7 @@ const LUMA = {
   reeds: [0.3, 0.75], vine: [0.3, 0.75], fern: [0.3, 0.75], tuft: [0.3, 0.8], lilypad: [0.3, 0.75],
   flagstone: [0.5, 0.78], cobble: [0.4, 0.75], brick: [0.4, 0.75], brick_mossy: [0.4, 0.75],
 };
+const CHECKER_MAX = { pine_snow: 0.065 };      // (snow on the needle tips alternates white and green by design: a little more than the pine's own 4.6%)
 const MAX_COLORS = 16;
 const HERO_COLORS = 24;
 const HERO = new Set(['portal_swirl', 'rune_ring', 'door', 'banner', 'window', 'grass_flowers', 'vase', 'chest_wood', 'crate', 'cloud', 'portal', 'mushroom_cap', 'lantern_glass_on', 'moon', 'sun_disc']);
@@ -285,7 +290,7 @@ for (const n of names) {
   const win = LUMA[n] || LUMA_DEFAULT;
   if (r.luma < win[0] || r.luma > win[1]) S(`luma ${(r.luma * 100).toFixed(0)}% outside ${win.map((v) => (v * 100) | 0).join('-')}%`, r.luma < win[0] ? 'dark' : 'light');
   if (r.nearPairs && !NO_COLOR_LIMIT.has(n)) S(`${r.nearPairs} near-duplicate colour pair(s) (< 8/255 apart)`, 'near');
-  if (r.checker > 0.05 && r.windows >= 150 && !NO_COLOR_LIMIT.has(n)) S(`1px checkerboard ${(r.checker * 100).toFixed(1)}% of 2x2 windows`, 'chk');
+  if (r.checker > (CHECKER_MAX[n] ?? 0.05) && r.windows >= 150 && !NO_COLOR_LIMIT.has(n)) S(`1px checkerboard ${(r.checker * 100).toFixed(1)}% of 2x2 windows`, 'chk');
   if (t.tile && (r.ratioH > 2.2 || r.ratioV > 2.2)) S(`seam ratio ${r.ratioH.toFixed(1)}/${r.ratioV.toFixed(1)} (>2.2)`, 'seam');
   rows.push({ ...r, tile: t.tile, cutout: t.cutout, flags: f });
 }

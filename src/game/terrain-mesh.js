@@ -48,9 +48,9 @@ export const triangleNormal = (a, b, c) => {
  * which drops the sideways direction of the slope from the texture's coordinates and smeared the grass over it (120 triangles of the realm were stretched more than 1.8 times, 23 more than 3).
  */
 export function uvProjection(name, slope, faceN, geoN) {
-  const rock = name === 'cliff' || name === 'cliff_warm' || name === 'cliff_bare' || name === 'cliff_warm_bare';
-  if (rock ? slope > 0.35 : name === 'far_rock' ? slope > 0.62 : false) return Math.abs(faceN[0]) > Math.abs(faceN[2]) ? 'wallX' : 'wallZ';
-  if (rock || name === 'far_rock') return 'planar';
+  const rock = name.startsWith('cliff'), far = name.startsWith('far_');        // (a realm's own rock textures are named like the first: cliff_frost, far_frost)
+  if (rock ? slope > 0.35 : far ? slope > 0.62 : false) return Math.abs(faceN[0]) > Math.abs(faceN[2]) ? 'wallX' : 'wallZ';
+  if (rock || far) return 'planar';
   const ax = Math.abs(geoN[0]), ay = Math.abs(geoN[1]), az = Math.abs(geoN[2]);
   return ay >= ax && ay >= az ? 'planar' : ax > az ? 'wallX' : 'wallZ';
 }
@@ -75,11 +75,13 @@ export function terrainPicker(grid) {
     // over `land.fade` metres (cell by cell, so there is no ring).
     const dLand = land ? Math.hypot(x - land.x, z - land.z) : 1e9;
     const tidy = land !== undefined && dLand < land.r + land.fade && (dLand < land.r || r > (dLand - land.r) / land.fade);
-    if (h < WATER_LEVEL + 0.05 && dL < 1.6) return ['sand', 'lake floor'];
-    if (h < WATER_LEVEL + 0.8 && dL < 1.45 && slope < 0.5) return [r < 0.22 && h > WATER_LEVEL + 0.1 && !tidy ? 'shore_pebbles' : 'sand', 'lake shore'];
+    // (a level can name the textures of its lake: Frostbloom Hollow's is frozen at the edges, ice and snow where Mirrormere has sand and pebbles)
+    const LT = L.lakeTextures || {};
+    if (h < WATER_LEVEL + 0.05 && dL < 1.6) return [LT.floor || 'sand', 'lake floor'];
+    if (h < WATER_LEVEL + 0.8 && dL < 1.45 && slope < 0.5) return [r < 0.22 && h > WATER_LEVEL + 0.1 && !tidy ? (LT.pebbles || 'shore_pebbles') : (LT.shore || 'sand'), 'lake shore'];
     // A road lies over the ground it runs on (roads.js drapes it on the terrain mesh): only the triangles the ribbon covers entirely carry its texture, so the road's edge is the
     // ribbon's smooth one and not a stair-step of dirt cells beside it.
-    if (underRoad) return [underRoad, 'under a road'];
+    if (underRoad) return [(L.roadTextures && L.roadTextures[underRoad]) || underRoad, 'under a road'];      // (a level can wear its roads in its own textures: Frostbloom Hollow's are frosted)
     // The river (river.js): sand on its bed and along the water's edge, grass on the banks, however steep the carve makes them: they used to turn into walls of purple rock (and, where
     // a road ran along the top, into a wedge of dirt over a wall).
     if (rs !== undefined && rd < RIVER_ZONE) {
@@ -92,7 +94,8 @@ export function terrainPicker(grid) {
     const near = (f, r) => !!f && Math.hypot(x - f.x, z - f.z) < r;           // (a level without that landmark simply has no such zone)
     const nearGate = near(L.gate, 34);
     const warm = !nearGate && (near(L.mesa, 60) || near(L.cascade, 55) || near(L.heron, 25) || (L.warmRock ? L.warmRock(x, z, h) : false));
-    if (vrAt(x, z) > 0.965 && slope > 0.3) return ['far_rock', 'valley rim, slope > 0.3'];
+    const FAR = L.farRock || 'far_rock';                                       // (the far mountains' rock: a level can name its own)
+    if (vrAt(x, z) > 0.965 && slope > 0.3) return [FAR, 'valley rim, slope > 0.3'];
     const banks = L.roadBanks && pd < L.roadBanks.zone ? L.roadBanks.steep : 0;          // (a level can say the same of the banks its roads are cut into a hillside with)
     const steep = L.steepSlope ?? (tidy ? 1.05 : banks || 0.74);        // (the landing's road embankments are not cliffs until they really are; a level can name one limit for all its ground: the homeworld does, so that the border of rock and grass is one smooth line)
     // a level can name its own cliff textures (the homeworld's tall mountains have no moss lip on every band): L.cliffs = { cool, warm }
@@ -101,7 +104,7 @@ export function terrainPicker(grid) {
     if (L.steepSlope === undefined && h > 30 && slope > 0.42) return [cliff, 'high and sloping, y > 30 and slope > 0.42'];
     // (a level can have no patches: a hillside is then grass right up to the steep limit above, the homeworld's hills are domes of grass, and no ragged border of rock and grass lies across their flanks)
     if (!tidy && !L.noRockPatches && slope > 0.5 && (slope > rockLimit(x, z) || nearGate)) return [warm ? 'cliff_warm' : 'cliff', nearGate ? 'sloping near the Dawn Gate, slope > 0.5' : 'sloping, rock and grass patches, slope > 0.5'];
-    if (h > 42) return ['far_rock', 'very high, y > 42'];
+    if (h > 42) return [FAR, 'very high, y > 42'];
     // a level with grounds of its own (a paved court, garden beds...) names them here: L.groundRule(x, z, h, slope, { r, surface, pd }) -> [texture, rule] or nothing
     if (L.groundRule) { const c = L.groundRule(x, z, h, slope, { r, surface, pd }); if (c) return c; }
     if (L.village && Math.hypot(x - L.village.x, z - (L.village.z - 4)) < 9.5) return ['flagstone', 'village plaza'];

@@ -8,7 +8,7 @@ import { buildHeadless, addRuntimeColliders } from './headless-world.mjs';
 import { makeWalkmap } from './walkmap.mjs';
 import { WARD_RADIUS } from '../src/game/level.js';
 import { REALMS } from '../src/game/realms.js';
-import { TRAVEL, travelPlaces, travelWorld, findPlace } from '../src/game/travel.js';
+import { TRAVEL, travelPlaces, travelWorld, findPlace, heroSpot } from '../src/game/travel.js';
 import { makePlaceChecker } from './lib/travel-rules.mjs';
 import { measureText } from '../src/engine/textures/font.js';
 
@@ -36,7 +36,9 @@ for (const id of Object.keys(REALMS)) {
   const places = travelPlaces(id);
   const arrive = id === 'home' ? [gp.arrivals.gloaming.x, gp.arrivals.gloaming.z] : [gp.spawn.x, gp.spawn.z];
   const { flood } = makeWalkmap({ grid, collision });
-  const wBroken = id === 'home' ? flood(arrive, { breakWalls: true }) : null;
+  // (the walkable country: the cracked walls broken and a realm's gate open; the vale's summit is the ward's business, below)
+  const wBroken = level.summit ? null : flood(arrive, { breakWalls: true, openGate: true });
+  const wShut = !level.summit && gp.barrier ? flood(arrive, { breakWalls: true }) : null;
   const checkPlace = makePlaceChecker(W, flood, wBroken);
   const bad = { floor: [], clear: [], slope: [], water: [], enemy: [], door: [], pocket: [], walk: [], bounds: [], name: [] };
   for (const p of places) { const r = checkPlace(p); for (const k of Object.keys(bad)) if (r[k]) bad[k].push(k === 'floor' || k === 'clear' || k === 'pocket' ? `${p.key} (${r[k]})` : p.key); }
@@ -53,7 +55,12 @@ for (const id of Object.keys(REALMS)) {
   check(`${W_}: ... 6 m from the Snuffers and from every door that is awake`, bad.enemy.length === 0 && bad.door.length === 0, `${say('enemy')} ${say('door')}`.trim());
   check(`${W_}: ... inside the world's bounds, named by the debug readout's areas`, bad.bounds.length === 0 && bad.name.length === 0, `${say('bounds')} ${say('name')}`.trim());
   check(`${W_}: ... in no pocket: walkable ground reaches 40 m round him`, bad.pocket.length === 0, say('pocket'));
-  if (wBroken) check(`${W_}: ... in the walkable country, from the cove (the cracked walls broken)`, bad.walk.length === 0, say('walk'));
+  if (wBroken) check(`${W_}: ... in the walkable country, from ${id === 'home' ? 'the cove' : 'the start'} (the cracked walls broken${wShut ? ', the gate open' : ''})`, bad.walk.length === 0, say('walk'));
+  // a place beyond a realm's gate says so, and only those do (the app opens the gate for a hero put there, App._placeHero)
+  if (wShut) {
+    const wrong = places.filter((p) => !!p.opens !== !(wShut.distNear(p.x, p.z, 2.4, heroSpot(grid, p).y - 0.05) < Infinity)).map((p) => p.key);
+    check(`${W_}: the places beyond the gate are the ones that open it`, wrong.length === 0, wrong.join(', ') || `(${places.filter((p) => p.opens).map((p) => p.key).join(', ') || 'none'})`);
+  }
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nall travel checks passed');

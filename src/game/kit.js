@@ -36,6 +36,7 @@ export class Kit {
     this.lights = [];
     this.emitters = [];
     this.pass = 'wet';
+    this.skin = null;             // a realm's skin (brief.theme.skin: see realm/populate.js): { textures: { moss: 'snow', ... }, palettes: { moss: { dark, light }, ... } } - what its props wear instead of the usual
     this.cur = null;              // provenance of the prop being placed ({ name, x, z, src }, set by ctx.put): stamped on its colliders for the debug readout
     this.origin = { x: 0, y: 0, z: 0, rot: 0, scale: 1, prop: null }; // current prop placement (for caster/collider/light registration)
     this._stack = [];
@@ -51,6 +52,7 @@ export class Kit {
    * `tex` may be null for untextured (vertex-colour only) geometry.
    */
   b(tex, o = {}) {
+    if (this.skin && tex && this.skin.textures && this.skin.textures[tex]) tex = this.skin.textures[tex];       // (the realm's skin: its rocks wear snow where they would wear moss...)
     const key = (tex || '_') + '|' + JSON.stringify(o);
     let e = this.builders.get(key);
     if (!e) {

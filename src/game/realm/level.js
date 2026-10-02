@@ -6,6 +6,7 @@
 //   groundRule(x, z, h, slope, o)    [texture, why] for the grounds of the realm's places (the usual rules of terrain-mesh.js are the fallback)
 //   cliffs { cool, warm }            the textures of its tall faces        warmRock(x, z, h)   where the cliffs are the warm kind
 //   descriptor                       anything else the level should carry (merged last)
+// The textures a realm gives its own ground come from its brief: `lakeTextures { floor, shore, pebbles }`, `roadTextures { cobble, dirt }` and `farRock` (names of textures: terrain-mesh.js and world.js read them).
 import { makeCountry, basin, mound, dryLand, flatten } from './country.js';
 
 /** The engine wants a lake (the water, the debug readout and the drowning hint read it): a realm without one has a speck of one far outside its world, which touches nothing. */
@@ -16,14 +17,17 @@ export function makeLevel(brief, extras = {}) {
   const C = makeCountry({ seed, regions, mountain, roll });
   const lake = brief.lake || NO_LAKE;
   const half = brief.world.size / 2;
-  // every goal stands on a level pad (7 m across, easing back into the land over 6 more): the ring of light over the last one needs a floor to come down on, and the hero a place to stand.
-  // A goal with `pad: false` (one on an islet, a tower, a shelf of its own) keeps the ground the realm gives it.
-  const pads = brief.goals.filter((g) => g.pad !== false && g.y === undefined).map((g) => ({ x: g.x, z: g.z, r: (g.pad && g.pad.r) || (g.big ? 9 : 7), fall: (g.pad && g.pad.fall) || 6, y: C.ground(g.x, g.z) }));
+  // every goal stands on a level pad (7 m across, 9 for a big goal, easing back into the land over 6 more) at the height the ground has there with the realm's landforms cut in (the floor of a
+  // crater, not the mountain it was cut from): the ring of light over the last goal needs a floor to come down on, and the hero a place to stand. A goal with `pad: false` (one on an islet, in a
+  // cave, on a tower or a shelf of its own) keeps the ground the realm gives it; one with `y` stands at that height.
+  let pads = null;
+  const base = (x, z, L) => (extras.landforms ? extras.landforms(C.ground(x, z), x, z, C, L) : C.ground(x, z));
+  const padsFor = (L) => pads || (pads = brief.goals.filter((g) => g.pad !== false && g.y === undefined).map((g) => ({ x: g.x, z: g.z, r: (g.pad && g.pad.r) || (g.big ? 9 : 7), fall: (g.pad && g.pad.fall) || 6, y: base(g.x, g.z, L) })));
 
   const height = (x, z, L) => {
     let h = C.ground(x, z);
     if (extras.landforms) h = extras.landforms(h, x, z, C, L);
-    for (const q of pads) h = flatten(h, x, z, q.x, q.z, q.r, q.fall, q.y);
+    for (const q of padsFor(L)) h = flatten(h, x, z, q.x, q.z, q.r, q.fall, q.y);
     if (brief.lake) {
       h = basin(h, x, z, lake, () => (C.n2(C.nB, x + 50, z, 0.06, 2) - 0.5) * 0.9);
       for (const m of lake.islets || []) h = mound(h, x, z, m, lake.bed);
@@ -64,10 +68,13 @@ export function makeLevel(brief, extras = {}) {
     height,
     areas,
     environment: brief.environment,
+    lakeTextures: brief.lakeTextures,
+    roadTextures: brief.roadTextures,
+    farRock: brief.farRock,
     goal: { gateAt: brief.gate ? brief.gate.at : undefined, ...(brief.goal || {}) },
     brief,
     ...(extras.descriptor || {}),
   };
-  for (const k of ['massifs', 'groundRule', 'cliffs', 'warmRock']) if (level[k] === undefined) delete level[k];
+  for (const k of ['massifs', 'groundRule', 'cliffs', 'warmRock', 'lakeTextures', 'roadTextures', 'farRock']) if (level[k] === undefined) delete level[k];
   return level;
 }

@@ -118,10 +118,11 @@ function paintMoss() {
 // ---------------------------------------------------------------------------------------------
 // Packed earth
 // ---------------------------------------------------------------------------------------------
-function paintDirt() {
+function paintDirt(DD = D, seed = 1401) {
+  const D = DD;
   const c = new Canvas(32, 32, true, D[3]);
-  const rng = new RNG(1401);
-  const f = field(32, 32, 1402, 4, 4, 2);
+  const rng = new RNG(seed);
+  const f = field(32, 32, seed + 1, 4, 4, 2);
   const tones = [D[2], D[3], D[3], D[4], D[4]];
   for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) c.set(x, y, bandPick(tones, f[y * 32 + x], x, y, 0.4, 1));
   // hairline cracks
@@ -207,13 +208,14 @@ function paintPebbles() {
 // ---------------------------------------------------------------------------------------------
 // Cobblestone path
 // ---------------------------------------------------------------------------------------------
-function paintCobble() {
+function paintCobble(o = {}) {
+  const PS = o.ramp || RAMPS.pathStone, M = o.moss || RAMPS.moss, seed = o.seed || 1701;       // (a realm's own stone and its own growth in the gaps: moss, or snow)
   const c = new Canvas(32, 32, true);
-  const rng = new RNG(1701);
+  const rng = new RNG(seed);
   const pts = lattice(rng, 32, 32, 4, 4, 1.6, 0.5);
   const V = cells(32, 32, pts);
-  const moss = field(32, 32, 1702, 7, 7, 1);
-  const fams = [
+  const moss = field(32, 32, seed + 1, 7, 7, 1);
+  const fams = o.fams || [
     { d: PS[3], m: PS[4], l: PS[5] },
     { d: '#b0a4ae', m: '#cfc4ca', l: '#f0e4de' },
     { d: PS[3], m: PS[4], l: PS[5] },
@@ -350,6 +352,29 @@ function paintIce() {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Snow (Frostbloom Hollow): soft drifts in blue-white with hollows in shadow-blue, short wind ripples under a bright lip, a scatter of glints. The petals variant has blossom petals blown over
+// it: the first of the spring the realm is waiting for.
+// ---------------------------------------------------------------------------------------------
+const SN = ['#8aa2cc', '#a6bcdc', '#c4d6ec', '#dde9f6', '#f0f6fd', '#ffffff'];
+function paintSnow(seed, petals) {
+  const c = new Canvas(32, 32, true, SN[3]);
+  const rng = new RNG(seed);
+  const f = field(32, 32, seed + 1, 3, 3, 2);
+  const tones = [SN[2], SN[3], SN[3], SN[3], SN[3], SN[4], SN[4], SN[2], SN[5]];
+  for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) c.set(x, y, bandPick(tones, f[y * 32 + x], x, y, 0.4, 1));
+  for (let i = 0; i < 7; i++) {
+    const p = walk(rng, rng.int(0, 32), rng.int(0, 32), rng.int(6, 11), [1, rng.float(-0.3, 0.3)], 0.35);
+    polyline(c, p, SN[1]);
+    for (const [x, y] of p) if (rng.chance(0.55)) c.dot(x, y - 1, SN[5]);
+  }
+  for (const [x, y] of poisson(rng, 32, 32, 12, 3)) { c.dot(x, y, SN[5]); if (rng.chance(0.5)) c.dot(x + 1, y, SN[4]); }
+  if (petals) {
+    for (const [x, y] of poisson(rng, 32, 32, 7, 6)) { c.dot(x, y, '#f4a0c4'); c.dot(x + 1, y, '#ffd0e4'); c.dot(x, y + 1, '#e070a0'); if (rng.chance(0.5)) c.dot(x + 2, y + 1, '#f4a0c4'); }
+  }
+  return c;
+}
+
+// ---------------------------------------------------------------------------------------------
 // Cliff faces: tall faceted rock, strata bands, cracks, moss along the top edge
 // (the tile wraps, so a few moss specks also sit on the bottom rows)
 // ---------------------------------------------------------------------------------------------
@@ -407,7 +432,7 @@ function paintCliff(seed, P, mossy) {
   if (mossy) {
     // A moss ledge that straddles the wrap seam: a lit cap on the last two rows, drips hanging from row 0.
     // Tiled vertically it reads as a continuous mossy shelf, not a cut.
-    const MC = [M[1], M[2], M[3], M[4]];
+    const MC = P.lip || [M[1], M[2], M[3], M[4]];                 // (a level of ice and snow has a lip of snow: P.lip)
     const n = field(W, 1, seed + 9, 8, 1, 1, false);
     for (let x = 0; x < W; x++) {
       const hgt = Math.round(1 + n[x] * 3.4);
@@ -424,16 +449,19 @@ function paintCliff(seed, P, mossy) {
 function cliffLav() { return paintCliff(1901, { ramp: [CL[0], CL[1], CL[2], CL[3], CL[4], CL[5]] }, true); }
 function cliffWarm() { return paintCliff(1951, { ramp: [CW[0], CW[1], CW[2], CW[3], CW[4], '#dcc4a0'] }, true); }
 // the tall mountains of the homeworld: the same strata, ledges and fissures with no moss lip along every band (a lip repeating every 4 m up a 60 m wall reads as stripes)
+// the rock of Frostbloom Hollow: blue-grey strata under a lip of snow
+const FR = ['#222c46', '#34425f', '#4c5f82', '#6c82a6', '#94aac8', '#c8d8ee'];
+function cliffFrost() { return paintCliff(2301, { ramp: FR, lip: ['#8aa6d0', '#b4cae8', '#dceafa', '#ffffff'] }, true); }
+
 function cliffBare() { return paintCliff(2011, { ramp: [CL[0], CL[1], CL[2], CL[3], CL[4], CL[5]] }, false); }
 function cliffWarmBare() { return paintCliff(2051, { ramp: [CW[0], CW[1], CW[2], CW[3], CW[4], '#dcc4a0'] }, false); }
 
 // ---------------------------------------------------------------------------------------------
 // Far rock: 3 close colours, big soft patches, no fine detail so distant mountains read smooth
 // ---------------------------------------------------------------------------------------------
-function paintFarRock() {
+function paintFarRock(seed = 2001, cols = ['#7a7490', '#8a849e', '#9a94ae']) {
   const c = new Canvas(32, 32, true);
-  const f = field(32, 32, 2001, 2, 4, 2);
-  const cols = ['#7a7490', '#8a849e', '#9a94ae'];
+  const f = field(32, 32, seed, 2, 4, 2);
   for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) c.set(x, y, bandPick([cols[0], cols[1], cols[1], cols[2]], f[y * 32 + x], x, y, 0.5, 1));
   return c;
 }
@@ -499,6 +527,16 @@ export function terrainTextures() {
     cobble: rec(paintCobble(), true, false, { roll: 'xy' }),
     flagstone: rec(paintFlagstone(), true, false, { roll: 'xy' }),
     ice: rec(paintIce(), true, false, { roll: 'xy' }),
+    // the roads of Frostbloom Hollow: blue-grey cobbles with snow in the gaps, and packed snow
+    cobble_frost: rec(paintCobble({
+      ramp: ['#3a4660', '#52627e', '#7288a6', '#98aecc', '#bccee4', '#e8f1fa'], moss: ['#a6bcdc', '#c4d6ec', '#d4e2f4', '#f8fcff'], seed: 2501,
+      fams: [{ d: '#98aecc', m: '#bccee4', l: '#e8f1fa' }, { d: '#8196b8', m: '#a6bad8', l: '#c6d6ea' }, { d: '#98aecc', m: '#bccee4', l: '#e8f1fa' }, { d: '#7288a6', m: '#98aecc', l: '#bccee4' }],
+    }), true, false, { roll: 'xy' }),
+    path_snow: rec(paintDirt(['#46526c', '#62728c', '#8498b4', '#a8bcd4', '#c8d8ea', '#e6f0fa'], 2601), true, false),
+    snow: rec(paintSnow(2401, false), true, false),
+    snow_petals: rec(paintSnow(2401, true), true, false),
+    cliff_frost: rec(cliffFrost(), true, false, { roll: 'x' }),
+    far_frost: rec(paintFarRock(2002, ['#8e9cc0', '#a0aecc', '#b2c0d8']), true, false),
     cliff: rec(cliffLav(), true, false, { roll: 'x' }),
     cliff_warm: rec(cliffWarm(), true, false, { roll: 'x' }),
     cliff_bare: rec(cliffBare(), true, false, { roll: 'x' }),

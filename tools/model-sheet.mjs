@@ -1,6 +1,6 @@
 // Contact sheet of an actor from several angles (dev models scene) — for reviewing character models.
 //   node tools/model-sheet.mjs out.png [--only spyro] [--pose idle] [--views front,front34,side,back34] [--res 480] [--day 0]
-//        [--cols 2] [--scale 1] [--opts '{"still":1}']     needs the dev server on :5173 (GV_HMR=0 recommended)
+//        [--cols 2] [--scale 1] [--dist 1] [--opts '{"still":1}']      (--scale: the picture upscaled; --dist: the camera's distance, x1 for Spyro, x3 for a 5 m object)     needs the dev server on :5173 (GV_HMR=0 recommended)
 // Views (Spyro faces +z; centre c = model height * 0.5):
 //   front front34 side back34 back top head head34 headside game (the chase camera's distance/FOV at 240p, x3)
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
@@ -15,13 +15,14 @@ const res = +opt('res', 480);
 const day = opt('day', '0');
 const cols = +opt('cols', 2);
 const scale = +opt('scale', 1);
+const dist = +opt('dist', 1);
 const views = opt('views', 'front,front34,side,back34').split(',');
 const poses = opt('poses', '') ? opt('poses', '').split(',') : null;   // one shot per pose (first view), instead of one per view
 const hy = +opt('hy', 0.85);          // vertical centre of the model
 const opts = opt('opts', '{"still":1}');   // creation options (still = no idle blink / look-around, so renders are repeatable)
 
 const deg = (a) => (a * Math.PI) / 180;
-const around = (az, el, d, ty = hy, tx = 0, tz = 0) => [tx + Math.sin(deg(az)) * d * Math.cos(deg(el)), ty + Math.sin(deg(el)) * d, tz + Math.cos(deg(az)) * d * Math.cos(deg(el)), tx, ty, tz];
+const around = (az, el, d, ty = hy, tx = 0, tz = 0) => { d *= dist; return [tx + Math.sin(deg(az)) * d * Math.cos(deg(el)), ty + Math.sin(deg(el)) * d, tz + Math.cos(deg(az)) * d * Math.cos(deg(el)), tx, ty, tz]; };
 const VIEW = {
   front: () => around(0, 8, 2.7),
   front34: () => around(38, 12, 2.7),

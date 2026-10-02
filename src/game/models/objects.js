@@ -13,12 +13,18 @@ import { createPortcullis } from './objects/portcullis.js';
 import { createLightBeam } from './objects/beam.js';
 import { createCrackedWall } from './objects/wall.js';
 import { createPortal } from './objects/portal.js';
+import { createFrostbloom } from './objects/frostbloom.js';
 
 export const OBJECTS = {
   beacon: {
     create: createBeacon,
     size: 4.6,
     note: 'Beacon Lantern: setLit(k) 0 dark/dormant .. 1 blazing; opts.big = x2.2 Great Beacon; anchors flame/base/top',
+  },
+  frostbloom: {
+    create: createFrostbloom,
+    size: 4.2,
+    note: 'Frostbloom (the goal of Frostbloom Hollow): a flower of ice that opens and turns blossom pink as it thaws; setLit(k) 0 asleep .. 1 in bloom; opts.big = x2.2 Heartbloom; anchors flame/base/top',
   },
   vase: {
     create: createVase,
