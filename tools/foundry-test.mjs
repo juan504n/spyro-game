@@ -9,6 +9,8 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { checkRealm } from './lib/realm-rules.mjs';
+import { defineBrief } from '../src/game/realm/brief.js';
+import { BRIEF as STARTER_BRIEF } from '../src/game/realm/starter/brief.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const browser = !process.argv.includes('--no-browser'), keep = process.argv.includes('--keep');
@@ -21,6 +23,17 @@ const check = (name, ok, detail = '') => { if (!ok) failed++; console.log(ok ? '
   check('the starter realm holds to every rule (its only waiver is the loop it still owes)', r.failed.length === 0 && r.results.filter((x) => x.waived).map((x) => x.id).join() === 'design.loops', `(${r.results.length} rules, ${r.failed.map((x) => x.id).join(' ')})`);
   const names = new Set(r.results.map((x) => x.id));
   check('the checker runs every family of rules', ['build.deterministic', 'spawn.firm', 'goals.reach', 'exit.ring', 'gems.total', 'props.roads', 'enemies.safe', 'design.journey', 'design.secrets.sealed', 'design.danger', 'design.leads'].every((k) => names.has(k)));
+}
+
+// ---- the brief: a design the engine can read -------------------------------------------------------------------------------------------------------------------
+{
+  // (the look of a goal is read when the hero first lights it: a colour of the wrong shape used to fail then, in the middle of the game, with "reading '0'" in the effects)
+  const refuses = (goal) => { try { defineBrief({ ...STARTER_BRIEF, goals: STARTER_BRIEF.goals.map((g, i) => (i === 0 ? { ...g, ...goal } : g)) }); return false; } catch (e) { return /goal '/.test(e.message) ? e.message : false; } };
+  const bad = { 'a spark that is a colour': { spark: [1, 0.8, 0.9] }, 'a beam without its two colours': { beam: { off: [0.5, 0.8, 1] } }, 'a glow of two numbers': { glow: [1, 0.7] }, 'a model that is not a name': { model: 3 } };
+  const missed = Object.entries(bad).filter(([, g]) => !refuses(g)).map(([k]) => k);
+  check('defineBrief refuses a goal whose look is the wrong shape', missed.length === 0, missed.length ? `(let through: ${missed.join('; ')})` : '');
+  const fine = { spark: { c0: [1, 0.8, 0.9, 1], c1: [1, 0.5, 0.7, 0] }, beam: { off: [0.5, 0.8, 1], on: [1, 0.7, 0.9] }, glow: [1, 0.7, 0.9], wisp: [0.6, 0.9, 1], sparkle: [1, 0.8, 0.9], model: 'frostbloom' };
+  check('... and takes the shape the engine reads', refuses(fine) === false);
 }
 
 // ---- the generator, in a scratch copy of the repo ---------------------------------------------------------------------------------------------------------------

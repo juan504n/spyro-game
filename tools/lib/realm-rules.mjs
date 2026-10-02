@@ -9,7 +9,8 @@ import { buildHeadless, addRuntimeColliders, resolveRealm } from '../headless-wo
 import { makeWalkmap } from '../walkmap.mjs';
 import { SLOPE_WALK } from '../../src/game/collision.js';
 import { WATER_LEVEL } from '../../src/game/level.js';
-import { REALMS } from '../../src/game/realms.js';
+import { REALMS, DEFAULT_WORDS } from '../../src/game/realms.js';
+import { measureText } from '../../src/engine/textures/font.js';
 import { terrainPicker } from '../../src/game/terrain-mesh.js';
 import { ROAD_MAX_SLOPE } from '../../src/game/roads.js';
 import { SITUATIONS } from '../../src/game/realm/situations.js';
@@ -144,6 +145,12 @@ export function checkRealm(which, { log = () => {} } = {}) {
     rule('hints.zones', 'hint zones lie inside the world and speak in capitals', loud.length === 0, `(${gp.hints.length} zones)`, { hard: true });
     const dumb = goals.filter((g) => !gp.hints.some((q) => Math.hypot(q.x - g.x, q.z - g.z) < 60));
     rule('hints.goals', 'every goal has a hint zone within 60 m that says what to do', dumb.length === 0, dumb.map((g) => g.id).join(' '));
+    // the banner that comes up when a goal is lit (`NAME + words.lit`, Game.onBeacon) is drawn at twice the font's size on a screen 320 px wide: a longer one runs off both sides
+    if (brief) {
+      const words = { ...DEFAULT_WORDS, ...(brief.words || {}) };
+      const wide = brief.goals.map((g) => [g.id, measureText(`${g.name} ${words.lit}`, { style: 'grad' }).w * 2]).filter(([, w]) => w > 310);
+      rule('hud.banners', 'the banner of every goal that is lit fits the screen (at most 310 of 320 px at the size it is drawn)', wide.length === 0, wide.map(([id, w]) => `${id} ${w} px`).join(' '));
+    }
   }
 
   // ---- DESIGN: the principles --------------------------------------------------------------------------------------------------------------

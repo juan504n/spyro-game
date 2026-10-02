@@ -53,6 +53,30 @@ const LANTERN_ON = { o: INK, B: RAMPS.brass[2], h: RAMPS.brass[3], b: RAMPS.bras
 const LANTERN_OFF = { o: INK, B: RAMPS.metal[2], h: RAMPS.metal[3], b: RAMPS.metal[1], Y: RAMPS.crystalViolet[1], y: RAMPS.crystalViolet[0], w: RAMPS.crystalViolet[2], a: RAMPS.crystalViolet[0] };
 
 /* ---------------------------------------------------------------------------------------------- */
+/* bloom 12x16: the goal of Frostbloom Hollow, frozen (bloom_off) and thawed (bloom_on)             */
+/* ---------------------------------------------------------------------------------------------- */
+const BLOOM_MAP = [
+  '....oooo....',
+  '..ooPPPPoo..',
+  '.oPPppppPPo.',
+  'oPppwppwppPo',
+  'oPpwYYYYwpPo',
+  'oPpYyyyyYpPo',
+  'oPpYyyyyYpPo',
+  'oPpwYYYYwpPo',
+  '.oPppwwppPo.',
+  '..oPPppPPo..',
+  '...ooPPoo...',
+  '....oSSo....',
+  '.oo.oSSo.oo.',
+  'oLLLoSSoLLLo',
+  '.ooLLSSLLoo.',
+  '...oooooo...',
+];
+const BLOOM_ON = { o: INK, P: '#e0709c', p: '#f4a0c0', w: '#fff0f6', Y: '#ffd45a', y: '#f0a030', S: '#2e7a48', L: '#58b060' };
+const BLOOM_OFF = { o: INK, P: '#5a98c4', p: '#9cd0e8', w: '#e8f8ff', Y: '#c8ecff', y: '#78b4d8', S: '#2a5a78', L: '#4a8ab0' };
+
+/* ---------------------------------------------------------------------------------------------- */
 /* heart 10x9                                                                                       */
 /* ---------------------------------------------------------------------------------------------- */
 const HEART_MAP = [
@@ -329,6 +353,8 @@ export function buildIcons() {
   U.gem_purple = gem(RAMPS.gemPurple, 'gem_purple');
   U.lantern_on = fromMap(LANTERN_MAP, LANTERN_ON, 'lantern_on');
   U.lantern_off = fromMap(LANTERN_MAP, LANTERN_OFF, 'lantern_off');
+  U.bloom_on = fromMap(BLOOM_MAP, BLOOM_ON, 'bloom_on');
+  U.bloom_off = fromMap(BLOOM_MAP, BLOOM_OFF, 'bloom_off');
   U.sparx_blue = sparxIcon(RAMPS.gemBlue);
   U.sparx_green = sparxIcon(RAMPS.gemGreen);
   U.sparx_yellow = sparxIcon(RAMPS.gemGold);

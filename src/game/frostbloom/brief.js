@@ -76,13 +76,14 @@ export const BRIEF = defineBrief({
   },
   environment: FROST_ENVIRONMENT,
   words: {
-    goals: 'FROSTBLOOMS', lit: 'HAS BLOOMED!', finale: 'SPRING RETURNS!',
+    goals: 'FROSTBLOOMS', lit: 'THAWED!', finale: 'SPRING RETURNS!',
     portalOpened: ['A PORTAL HAS OPENED', 'ABOVE THE HEARTBLOOM'],
     saved: ['FROSTBLOOM HOLLOW IS SAVED', 'THANK YOU, SPYRO'],
     results: 'REALM RESTORED!', portalResults: 'THE PORTAL TO DAWNHAVEN IS OPEN',
     freeRoam: 'THE PORTAL ABOVE THE HEARTBLOOM LEADS TO DAWNHAVEN',
     restored: 'RESTORED  -  SPRING IS HERE', restoredHint: 'THE PORTAL ABOVE THE HEARTBLOOM LEADS BACK TO DAWNHAVEN',
     gate: ['THE ICE GATE MELTS!', 'THE HOLLOW IS OPEN'],
+    icons: ['bloom_on', 'bloom_off'],                    // (the HUD's flowers: thawed, still frozen)
   },
   labels: ['SWEEPING THE SNOW', 'PLANTING THE RIMEWOOD', 'PAINTING THE AURORA', 'RAISING THE ICEFALL', 'FREEZING GLASSWATER'],
 

@@ -60,6 +60,30 @@ await check('the world holds still', async () => {
   return { ok: !b.dead && Math.hypot(b.at[0] - a[0], b.at[2] - a[2]) < 0.5 && Math.abs(b.at[1] - a[1]) < 0.3, from: a.map((v) => +v.toFixed(1)), ...b };
 });
 
+await check('the roads wear the textures the level names (its own, or cobble and dirt)', async () => {
+  const r = await ev(() => {
+    const g = window.__game, rt = g.level.roadTextures || {};
+    return { rt, meshes: g.world.roads.children.map((m) => ({ surface: m.renderOrder === 2 ? 'cobble' : 'dirt', tex: m.material.name })) };
+  });
+  const bad = r.meshes.filter((m) => m.tex !== (r.rt[m.surface] || m.surface));
+  return { ok: r.meshes.length > 0 && bad.length === 0, ...r };
+});
+
+// a realm that colours its gate (gp.barrier.opts.tint): the field's vertex colours are the Dawn Gate's multiplied by it
+const gateTint = await ev(() => { const b = window.__game.gameplay.barrier; return b && b.opts && b.opts.tint ? b.opts.tint : null; });
+if (gateTint) {
+  await check('the gate\'s field wears the realm\'s colour, not the Dawn Gate\'s violet', async () => {
+    const r = await ev(async () => {
+      const { makeModel } = await import('/src/game/models/fallback.js');
+      const g = window.__game, mine = g.objects.barrier.model, plain = makeModel(g.assets, 'barrier');
+      const col = (m) => { let out = null; m.root.traverse((o) => { if (!out && o.isMesh && o.name === 'veil') out = Array.from(o.geometry.attributes.aCol.array.slice(0, 3)); }); return out; };
+      return { mine: col(mine), plain: col(plain), tint: g.gameplay.barrier.opts.tint };
+    });
+    const want = r.plain.map((v, i) => Math.min(255, v * r.tint[i]));
+    return { ok: r.mine.every((v, i) => Math.abs(v - want[i]) <= 3) && r.mine.some((v, i) => Math.abs(v - r.plain[i]) > 20), ...r, want: want.map(Math.round) };
+  });
+}
+
 const light = async (i) => {
   // where the TRAVEL menu puts him in front of the goal (travel.js: found and checked by tools/realm-travel.mjs), facing it
   return ev(async ([gid, rid]) => {
@@ -162,6 +186,21 @@ if (door) {
       return { realm: g.realm.id, mode: g.mode, hud: g.hud.visible, arrival: a ? Math.hypot(p.x - a.x, p.z - a.z) : null };
     }, id);
     return { ok: r.realm === door.target && r.mode === 'play' && r.hud && (r.arrival === null || r.arrival < 2.5), ...r };
+  });
+}
+
+// a TRAVEL place beyond the realm's gate opens the gate for the hero put there (App._placeHero), or he would stand shut in: on a fresh page, a hop to it
+const beyond = await ev(async (rid) => { const { travelPlaces } = await import('/src/game/travel.js'); return travelPlaces(rid).filter((p) => p.opens).map((p) => p.key); }, id);
+if (beyond.length) {
+  await load(`?world=${id}`);
+  await check('a place beyond the gate opens it for the hero put there', async () => {
+    const before = await ev(() => { const b = window.__game.objects.barrier; return { shut: !!b && b.c.solid }; });
+    await ev(async (key) => { const { findPlace } = await import('/src/game/travel.js'); window.__app.warpTo(findPlace(key)); }, beyond[0]);
+    await ff(0.2);
+    await arrived(id);
+    await ff(1);
+    const r = await ev(() => { const g = window.__game, b = g.objects.barrier; return { open: !!b && !b.c.solid && b.open === 1, hint: g.hud.hintState && g.hud.hintState.text, dead: g.player.dead }; });
+    return { ok: before.shut && r.open && /GATE WAS OPENED/.test(r.hint || '') && !r.dead, before, ...r, place: beyond[0] };
   });
 }
 

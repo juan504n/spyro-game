@@ -17,6 +17,10 @@ const check = (name, ok, detail) => { if (!ok) own++; console.log(ok ? 'PASS' : 
   const t = [pick.at(trunk.x, trunk.z), pick.at(ring.x, ring.z), pick.at(0, 34), pick.at(HEART.x + 5, HEART.z + 3)];
   check('the roads are frosted (stone with snow in the gaps, trodden snow), the lake and the caves are ice',
     t[0].tex === 'cobble_frost' && t[1].tex === 'path_snow' && t[2].tex === 'ice' && t[3].tex === 'ice', `(${t.map((q) => q.tex).join(', ')})`);
+  // the far mountains wear its own far rock, and nothing of the vale's ground (grass, moss, the plain cliff) is left anywhere
+  let far = 0, vale = 0, total = 0;
+  for (let x = -190; x <= 190; x += 8) for (let z = -190; z <= 190; z += 8) { const q = pick.at(x, z).tex; total++; if (q === 'far_frost') far++; if (['far_rock', 'cliff', 'cliff_warm', 'cliff_bare', 'grass_a', 'grass_b', 'grass_flowers', 'moss', 'sand', 'dirt', 'cobble'].includes(q)) vale++; }
+  check('the far mountains wear the realm\'s own far rock, and nothing of the vale\'s ground is left', far > total * 0.2 && vale === 0, `(${far} of ${total} samples far_frost, ${vale} of the vale's)`);
   // the props wear its skin (kit.skin): no moss, green pine, yellow or blue flower or tuft was made for it
   const keys = [...W.kit.builders.keys()].map((k) => k.split('|')[0]);
   const used = new Set(keys), bad = ['moss', 'pine', 'cliff', 'cliff_warm', 'flower_yellow', 'flower_blue', 'tuft'].filter((n) => used.has(n));

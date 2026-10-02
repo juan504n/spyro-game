@@ -77,7 +77,7 @@ round the goal too). A cracked wall (`ctx.addWall(x, z, yaw, 7.0, 5.7, [25])`) a
 * **Goal object**: `makeModel(assets, name, { big })` from `src/game/models/objects/*.js` (the `beacon.js` Rig/litBuilder pattern: `setLit(k)`, `update`, `anchors.flame`); a goal in the brief carries `model`,
   `beam: { off, on }`, `glow`, `wisp`, `flame: false`, `spark`, `sparkle` (colours of its beam before/after, pool of light, wisps, ignition burst).
 * **Words** (`brief.words`, defaults in `realms.js` DEFAULT_WORDS): what the HUD counts (`goals`: "BEACONS"), the banner when one is lit (`lit`), the finale (`finale`), results, free roam, the gate's banner (`gate`),
-  the two icons (`icons`: keys of the HUD icon atlas).
+  the two icons (`icons`: keys of the HUD icon atlas, `engine/textures/ui/icons.js`: `lantern_on`/`lantern_off` by default, `bloom_on`/`bloom_off` for Frostbloom Hollow; a new realm draws its own 12 by 16 pair there). The banner `NAME + ' ' + words.lit` is drawn at twice the font's size on a 320 px screen, so keep the pair short (`hud.banners` checks it).
 
 ## 7. The door and the way home
 
