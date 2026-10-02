@@ -83,14 +83,14 @@ export const TRAVEL = [
           { id: 'winding-way', name: 'WINDING WAY', x: -14.4, z: -80.7, yaw: 2.4 },
           { id: 'grotto', name: 'FROST GROTTO', x: 35.2, z: -84.7, yaw: face(35.2, -84.7, 42.5, -87.5) },       // (8 m from the Frostbloom door, which is awake: its light is 6 m)
           { id: 'vault', name: 'CRYSTAL VAULT', x: 4, z: -69, yaw: PI },
-          { id: 'north-passage', name: 'NORTH PASSAGE', x: 33.9, z: -101.7, yaw: 2.6 },
+          { id: 'north-passage', name: 'NORTH PASSAGE', x: 32.4, z: -104.3, yaw: 2.6 },       // (6 m from the Skyweaver door above it, which is awake)
         ],
       },
       {
         name: 'UP AND AWAY',
         places: [
           { id: 'ledge', name: 'LEDGE ROAD', x: -25, z: -2, y: 9.08, yaw: PI },
-          { id: 'summit', name: 'THE SUMMIT', x: 34.3, z: -94.8, y: 35.7, yaw: face(34.3, -94.8, 37, -99) },
+          { id: 'summit', name: 'THE SUMMIT', x: 31.4, z: -95.6, y: 35.7, yaw: face(31.4, -95.6, 37, -99) },       // (looking at the Skyweaver door, which is awake: its light is 6 m)
           { id: 'ascent', name: 'THE ASCENT', x: 12, z: -152, yaw: PI },
           { id: 'guardian-gate', name: 'GUARDIAN\'S GATE', x: 5.1, z: -173.6, yaw: PI },
         ],

@@ -80,11 +80,33 @@ export function defineBrief(b) {
     for (const k of ['glow', 'wisp', 'sparkle']) if (g[k] !== undefined) need(col(g[k]), `goal '${g.id}': ${k} [r, g, b]`);
     if (g.spark !== undefined) need(!!g.spark && col(g.spark.c0, 4) && col(g.spark.c1, 4), `goal '${g.id}': spark { c0: [r, g, b, a], c1: [r, g, b, a] } (the colours of the burst when it is lit: from, to)`);
     if (g.model !== undefined) need(typeof g.model === 'string', `goal '${g.id}': model the name of a model (models/objects.js)`);
+    if (g.sfx !== undefined) need(typeof g.sfx === 'string', `goal '${g.id}': sfx the name of a sound (engine/audio: it is played, with the lantern's beam, when the goal is lit)`);
   }
   const kinds = new Set(goals.map((g) => g.situation));
   need(kinds.size >= RULES.situationsMin(goals.length), `goals: ${kinds.size} different situations among ${goals.length} goals; at least ${RULES.situationsMin(goals.length)} (every goal in a place of its own kind)`);
   if (goals.length) need(['summit', 'crater', 'cave', 'island'].includes(goals[goals.length - 1].situation), 'goals: the last goal is the finale and stands somewhere grand (a summit, a crater, a cave or an island)');
 
+  // a SEA instead of a lake (Skyweaver Spires' cloud): the ground that is not an island lies far below the surface, and what falls in is set back on the last firm ground
+  if (b.sea !== undefined) {
+    need(!b.lake, 'sea: a realm has a lake or a sea, not both');
+    need(b.sea && typeof b.sea.name === 'string' && b.sea.name === b.sea.name.toUpperCase() && typeof b.sea.deepHint === 'string' && b.sea.deepHint === b.sea.deepHint.toUpperCase(), 'sea: { name, deepHint } in UPPER CASE (the hint a hero who has fallen into it is shown), radius optional');
+    need(!b.sea || b.sea.radius === undefined || (isNum(b.sea.radius) && b.sea.radius >= 100), 'sea.radius: metres (the surface is drawn out to it), 100 or more');
+  }
+  if (b.rockLine !== undefined) need(isNum(b.rockLine) && b.rockLine > 0, 'rockLine: the height in metres over which the ground is drawn as far rock (42 by default; a realm of high islands says where)');
+  // the AIR: how islands are joined where there is no way on foot (a glide from a ledge, or a ride up a whirlwind and a glide from its top); tools/lib/air.mjs holds each link to the numbers
+  if (b.air !== undefined) {
+    need(b.air && isNum(b.air.startCells) && Array.isArray(b.air.links) && b.air.links.length >= 1, 'air: { startCells (how many 1.2 m cells of ground the hero can walk from the start), links: [{ id, kind, ... }] }');
+    const lid = new Set();
+    for (const L of (b.air && b.air.links) || []) {
+      need(typeof L.id === 'string' && !lid.has(L.id), `air link '${L.id}': an id, and a different one from every other`);
+      lid.add(L.id);
+      need(L.kind === 'glide' || L.kind === 'lift', `air link '${L.id}': kind glide | lift`);
+      need(Array.isArray(L.land) && L.land.length === 2 && L.land.every(isNum), `air link '${L.id}': land [x, z] (where the glide comes down)`);
+      if (L.kind === 'glide') need(Array.isArray(L.launch) && L.launch.length === 2 && L.launch.every(isNum), `air link '${L.id}': a glide has launch [x, z] (the ledge he runs off)`);
+      if (L.kind === 'lift') need(typeof L.whirl === 'string', `air link '${L.id}': a lift has whirl, the id of a whirlwind (gp.whirlwinds)`);
+    }
+  }
+  need(!goals.some((g) => g.situation === 'lift') || b.air !== undefined, 'goals: a lift goal needs the air journey (brief.air: the links and the whirlwinds that lift him)');
   need(b.exit && typeof b.exit.target === 'string' && Array.isArray(b.exit.color) && b.exit.color.length === 3, 'exit: { target (a realm id), name, tag, color [r, g, b] } (the ring of light over the last goal)');
   need(Array.isArray(b.secrets) && b.secrets.length >= RULES.secretsMin && b.secrets.every((s) => s.id && s.name), `secrets: at least ${RULES.secretsMin} ({ id, name }): what is off the road and worth finding`);
   if (b.words) for (const k of Object.keys(b.words)) need(WORD_KEYS.includes(k), `words.${k}: not one of ${WORD_KEYS.join(', ')}`);

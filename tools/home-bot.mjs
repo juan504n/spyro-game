@@ -139,7 +139,7 @@ await run('arrival', () => {
   __bot.tick(120);
   return { ok: Math.hypot(p.x - a.x, p.z - a.z) < 0.5 && !G.player.locked && !G.portals.busy && Math.hypot(p.x - d.x, p.z - d.z) > 9 && Math.hypot(G.gameplay.spawn.x - a.x, G.gameplay.spawn.z - a.z) < 0.5, at: [+p.x.toFixed(1), +p.z.toFixed(1)] };
 });
-for (const door of ['gloaming', 'frostbloom', 'emberfall']) { DATA.door = door; await run(`door-opens-${door}`, (D) => {
+for (const door of ['gloaming', 'frostbloom', 'emberfall', 'skyweaver']) { DATA.door = door; await run(`door-opens-${door}`, (D) => {
   // walking into an awake door's light raises the 'portal' event (the app turns it into the trip to the realm behind it); the others only talk
   const G = __game, p = G.player, door = D.door;
   const seen = [];
@@ -157,7 +157,7 @@ await run('sealed-doors', () => {
   const G = __game, p = G.player, out = [];
   const seen = [];
   G.on('portal', (d) => seen.push(d.id));
-  for (const id of ['tideglass', 'skyweaver']) {
+  for (const id of ['tideglass']) {
     const dd = G.portals.get(id).def, s = Math.sin(dd.yaw), c = Math.cos(dd.yaw);
     __bot.place(dd.x + s * 5, dd.z + c * 5, dd.yaw + Math.PI, dd.y);
     __bot.goto(dd.x - s * 3, dd.z - c * 3, { tol: 0.4, timeout: 6, auto: false });

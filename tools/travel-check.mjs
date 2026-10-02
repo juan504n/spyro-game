@@ -10,6 +10,7 @@ import { WARD_RADIUS } from '../src/game/level.js';
 import { REALMS } from '../src/game/realms.js';
 import { TRAVEL, travelPlaces, travelWorld, findPlace, heroSpot } from '../src/game/travel.js';
 import { makePlaceChecker } from './lib/travel-rules.mjs';
+import { journeyMap } from './lib/air.mjs';
 import { measureText } from '../src/engine/textures/font.js';
 
 let failed = 0;
@@ -37,7 +38,7 @@ for (const id of Object.keys(REALMS)) {
   const arrive = id === 'home' ? [gp.arrivals.gloaming.x, gp.arrivals.gloaming.z] : [gp.spawn.x, gp.spawn.z];
   const { flood } = makeWalkmap({ grid, collision });
   // (the walkable country: the cracked walls broken and a realm's gate open; the vale's summit is the ward's business, below)
-  const wBroken = level.summit ? null : flood(arrive, { breakWalls: true, openGate: true });
+  const wBroken = level.summit ? null : journeyMap(W, flood, arrive, { breakWalls: true, openGate: true });         // (in a country of islands joined in the air: the ground of the whole journey)
   const wShut = !level.summit && gp.barrier ? flood(arrive, { breakWalls: true }) : null;
   const checkPlace = makePlaceChecker(W, flood, wBroken);
   const bad = { floor: [], clear: [], slope: [], water: [], enemy: [], door: [], pocket: [], walk: [], bounds: [], name: [] };

@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { buildHeadless, addRuntimeColliders } from './headless-world.mjs';
 import { makeWalkmap } from './walkmap.mjs';
 import { makePlaceChecker } from './lib/travel-rules.mjs';
+import { journeyMap } from './lib/air.mjs';
 import { measureText } from '../src/engine/textures/font.js';
 import { pointOn, regionAt } from '../src/game/realm/country.js';
 
@@ -22,7 +23,7 @@ export function findTravelPlaces(which) {
   const { grid, collision, gp, level: L } = W;
   addRuntimeColliders(collision, gp, grid);
   const { flood } = makeWalkmap({ grid, collision });
-  const wBroken = flood([gp.spawn.x, gp.spawn.z], { breakWalls: true, openGate: true });               // (the walkable country: cracked walls broken, the gate open)
+  const wBroken = journeyMap(W, flood, [gp.spawn.x, gp.spawn.z], { breakWalls: true, openGate: true });               // (the walkable country: cracked walls broken, the gate open; in a country of islands the ground of the whole journey)
   const wShut = gp.barrier ? flood([gp.spawn.x, gp.spawn.z], { breakWalls: true }) : null;            // (what the hero reaches while the gate is shut)
   const checkPlace = makePlaceChecker(W, flood, wBroken);
   const brief = L.brief;

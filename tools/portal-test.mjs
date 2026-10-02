@@ -136,7 +136,7 @@ await check('arrive-in-dawnhaven', async () => {
 await check('doors-know-the-realms', async () => {
   const r = await ev(() => { const g = window.__game; return g.portals.list.map((x) => [x.def.id, x.state, x.done]); });
   const gold = r.filter((x) => x[2]).map((x) => x[0]), open = r.filter((x) => x[1] === 'open').map((x) => x[0]);
-  return { ok: gold.join() === 'gloaming' && open.join() === 'gloaming,frostbloom,emberfall', gold, open };          // (three doors awake; only the realm he has restored is gold)
+  return { ok: gold.join() === 'gloaming' && open.join() === 'gloaming,frostbloom,emberfall,skyweaver', gold, open };          // (four doors awake; only the realm he has restored is gold)
 });
 
 await check('title-offers-dawnhaven', async () => {

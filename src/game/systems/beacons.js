@@ -98,7 +98,7 @@ export class BeaconSystem {
     g.stats.beacons = this.lit;
     const fp = this.flamePos(b, new THREE.Vector3());
     g.fx.ignite(fp.x, fp.y, fp.z, b.def.big, b.def.spark);
-    g.audio?.sfx('lantern_ignite', { vol: 1 });
+    g.audio?.sfx(b.def.sfx || 'lantern_ignite', { vol: 1 });                // (a realm's goal may ring instead of whoomp: its brief's `sfx`)
     g.audio?.sfx('lantern_beam', { vol: 0.7 });
     g.cam.shake(b.def.big ? 0.6 : 0.35, 0.7);
     g.setCheckpoint({ x: b.x + Math.sin(b.def.yaw || 0) * 0 + 0, y: b.y, z: b.z + 2.4 * b.scale, yaw: Math.PI });

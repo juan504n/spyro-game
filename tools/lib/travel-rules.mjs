@@ -38,7 +38,8 @@ export function makePlaceChecker(W, flood, wBroken = null) {
     for (const q of gp.portals || []) if (q.state === 'open' && Math.hypot(q.x - p.x, q.z - p.z) < 6) { bad.door = 'in an awake door\'s light'; break; }
     if (Math.abs(p.x) > lim || Math.abs(p.z) > lim) bad.bounds = 'outside';
     // not in a pocket: walking ground all round him (a flood within 40 m reaches 100 cells or more: the Shrine Isle, the smallest, has 140)
-    const local = flood([p.x, p.z], { startY: sup.y, breakWalls: true, mask: (x, y, z) => Math.hypot(x - p.x, z - p.z) < 40 });
+    // (in a country of islands joined in the air a small island - a spire, a slab - has its neighbours a hop away: the hop counts)
+    const local = flood([p.x, p.z], { startY: sup.y, breakWalls: true, hop: level.brief && level.brief.air ? 6.2 : 0, mask: (x, y, z) => Math.hypot(x - p.x, z - p.z) < 40 });
     let cells = 0; local.each(() => { cells++; });
     if (cells < 100 && !shelf) bad.pocket = `${cells} cells`;
     if (wBroken && !shelf && !(wBroken.distNear(p.x, p.z, 2.4, sup.y) < Infinity)) bad.walk = 'not in the walkable country';

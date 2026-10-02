@@ -34,7 +34,8 @@ export function cloudPuff(kit, { x, z, rot = 0, scale = 1, y, r, count }) {
     const specs = [];
     for (let i = 0; i < count; i++) {
       const a = (i / count) * TAU + rng.float(-0.4, 0.4), d = i === 0 ? 0 : r * rng.float(0.35, 0.8), rr = r * (i === 0 ? rng.float(0.5, 0.65) : rng.float(0.28, 0.5));
-      specs.push({ c: [Math.cos(a) * d, rr * 0.35, Math.sin(a) * d], r: rr, sy: rng.float(0.6, 0.8), detail: 'o1', noise: 0.18, smooth: 0.65, hideK: 0.7 });
+      // (soft: smooth normals and a rounder sphere for the big lump, so that a puff reads as cloud and not as a heap of white rock)
+      specs.push({ c: [Math.cos(a) * d, rr * 0.35, Math.sin(a) * d], r: rr, sy: rng.float(0.6, 0.8), detail: i === 0 ? 'o2' : 'o1', noise: 0.12, smooth: 0.95, hideK: 0.7 });
     }
     lumps(b, rng, specs, { tile: 14, floorY: 0, skipDown: 0.05, emissive: 0.55, colorFor: (s) => shade(0, [0.84, 0.88, 1.0], s.r * 1.2, [1.1, 1.1, 1.14], 0.03) });
   }));
@@ -78,7 +79,7 @@ export function vaultWalls(kit, { x, z, rot = 0, scale = 1, y, w, d, door }) {
   const H = 4.6, T = 0.6, G = 2.2;                            // wall height, half thickness, half width of the doorway
   kit.at(x, z, { rot, scale, y }, () => {
     const stone = kit.b('cliff'), cap = kit.b('flagstone');
-    const col = shade(0, [0.82, 0.84, 0.92], H, [1.06, 1.02, 1.0], 0.03);
+    const col = shade(0, [0.94, 0.9, 0.9], H, [1.1, 1.05, 1.0], 0.03);
     // a straight stretch of wall from (x0, z0) to (x1, z1) (axis-aligned), with its collider
     const wall = (x0, z0, x1, z1) => {
       const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, sx = Math.abs(x1 - x0), sz = Math.abs(z1 - z0), alongX = sx > sz;

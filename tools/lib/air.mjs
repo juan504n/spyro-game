@@ -146,3 +146,15 @@ export function airTools({ grid, collision, gp, brief, flood }) {
 
   return { make, path, evalLink, links, clear };
 }
+
+/**
+ * The walkable country of a world as a map: the flood from `arrive` (the walk map's, with `hop` where the world has a brief with an air journey) - or, in a country of islands joined in the air
+ * (brief.air), the whole journey: the start's ground and every landing the hero can get to (a map with the same interface). What the TRAVEL menu's rules and the realm's own checks ask "can
+ * he be there" of.
+ */
+export function journeyMap(W, flood, arrive, { breakWalls = true, openGate = true, startY } = {}) {
+  const brief = W.level.brief;
+  if (!brief || !brief.air) return flood(arrive, { breakWalls, openGate, startY });
+  const t = airTools({ grid: W.grid, collision: W.collision, gp: W.gp, brief, flood });
+  return t.make({ start: arrive, startY, hop: 6.2, breakWalls, openGate }).map;
+}

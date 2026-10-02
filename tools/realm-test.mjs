@@ -82,9 +82,10 @@ await check('the sky wears the realm\'s palette', async () => {
   return { ok: !r.own || (r.clouds && r.ridge), ...r };
 });
 
-// a realm whose lake is not water (level.liquid: Emberfall Crags' lava): the surface is drawn with the liquid's texture, the dusk's life is the one the level names (embers, not fireflies), and a touch of
-// it burns where the descriptor says (water drowns from 0.95 m, lava from `burnDepth`)
-const liquid = await ev(() => { const L = window.__game.level; return L.liquid ? { texture: L.liquid.texture, burnDepth: L.liquid.burnDepth ?? 0.95, splash: L.liquid.splash } : null; });
+// a realm whose lake is not water (level.liquid: Emberfall Crags' lava, Skyweaver Spires' sea of cloud): the surface is drawn with the liquid's texture, the dusk's life is the one the level names (embers,
+// not fireflies), and a touch of it burns where the descriptor says (water drowns from 0.95 m, lava from `burnDepth`). A SEA (level.sea: the ground that is not an island lies far below the surface)
+// has no lake to look for a bed in: the deep is the ground under it, round the hero.
+const liquid = await ev(() => { const L = window.__game.level; return L.liquid ? { texture: L.liquid.texture, burnDepth: L.liquid.burnDepth ?? 0.95, splash: L.liquid.splash, sea: !!L.sea, deepHint: L.sea ? L.sea.deepHint : null } : null; });
 if (liquid) {
   await check(`the lake is ${liquid.texture}, not water`, async () => {
     const r = await ev(() => window.__game.world.water.children.map((m) => m.material.name));
@@ -105,6 +106,13 @@ if (liquid) {
     const spot = await ev(([lo, hi]) => {
       const g = window.__game, k = g.level.lake, col = g.collision;
       let best = null;
+      if (g.level.sea) {              // (no ellipse: outwards from the hero, ring by ring, to the first cell of the bed that is as deep as asked: the foot of a cliff has every depth)
+        for (let r = 6; r <= 220 && !best; r += 2) for (let a = 0; a < 72 && !best; a++) {
+          const x = g.player.x + Math.cos((a / 72) * Math.PI * 2) * r, z = g.player.z + Math.sin((a / 72) * Math.PI * 2) * r, d = -col.heightAt(x, z);
+          if (d >= lo && d <= hi) best = { x, z, depth: +d.toFixed(2) };
+        }
+        return best;
+      }
       for (let a = 0; a < 48 && !best; a++) for (let f = 0.3; f <= 1.3 && !best; f += 0.01) {
         const x = k.x + Math.cos((a / 48) * Math.PI * 2) * k.rx * f, z = k.z + Math.sin((a / 48) * Math.PI * 2) * k.rz * f, d = -col.heightAt(x, z);
         if (d >= lo && d <= hi) best = { x, z, depth: +d.toFixed(2) };
@@ -120,12 +128,37 @@ if (liquid) {
       p.place(s.x, g.collision.heightAt(s.x, s.z) + 0.05, s.z, 0); p.invulnT = 5; p.safe = home;
       for (let t = 0; t < 1.2; t += 1 / 30) window.__app.update(1 / 30);
       p.on.drown = was;
-      return { burned, dead: p.dead, away: +Math.hypot(p.x - s.x, p.z - s.z).toFixed(1) };
+      return { burned, dead: p.dead, away: +Math.hypot(p.x - s.x, p.z - s.z).toFixed(1), hint: g.hud.hintState ? g.hud.hintState.text : null };
     }, spot);
     return { ok: spot && r.burned === 1 && !r.dead && r.away > 3, spot, ...r };
   };
-  await check('the deep of the lake takes the hero out of it', () => burn1('deep', liquid.burnDepth + 1.5, 20));
+  await check('the deep of the lake takes the hero out of it', async () => {
+    const r = await burn1('deep', liquid.burnDepth + 1.5, liquid.sea ? 40 : 20);
+    // (a sea says what it is: the hero who fell in is told, in the realm's words, how to cross it)
+    return liquid.sea ? { ...r, ok: r.ok && r.hint === liquid.deepHint, want: liquid.deepHint } : r;
+  });
   if (liquid.burnDepth < 0.9) await check(`a touch of the ${liquid.texture} burns (from ${liquid.burnDepth} m, not 0.95)`, () => burn1('shallow', liquid.burnDepth + 0.12, 0.85));
+}
+
+// a realm with whirlwinds (gp.whirlwinds: realm/whirl.js, Skyweaver Spires' updrafts): the hero who walks into the foot of one is carried up its column to the top, hovers there and does not fall out of it, and a jump
+// at the top starts a glide (the real Player and the real object system, in the real loop)
+const whirls = await ev(() => (window.__game.gameplay.whirlwinds || []).map((w) => ({ ...w })));
+for (const w of whirls) {
+  await check(`the whirlwind ${w.id} carries the hero to its top`, async () => {
+    const pre = await ev((w) => {
+      const g = window.__game, p = g.player, x = w.x + 1.4, z = w.z, sup = g.collision.support(x, z, w.y0 + 1, 0.9);
+      window.__home = { x: p.x, y: p.y, z: p.z, yaw: p.yaw };
+      p.place(x, sup.y + 0.05, z, 0); g.cam.snapBehind(p); p.invulnT = 60; p.safe = { x, y: sup.y, z, yaw: 0 };
+      return { foot: +sup.y.toFixed(1), model: g.objects.whirlwinds.some((q) => q.id === w.id) };
+    }, w);
+    await ff(10);
+    const top = await ev((w) => { const p = window.__game.player; return { y: +p.y.toFixed(1), speed: +Math.hypot(p.vx, p.vz).toFixed(1), vy: +p.vy.toFixed(1), off: +Math.hypot(p.x - w.x, p.z - w.z).toFixed(1), dead: p.dead }; }, w);
+    await page.keyboard.down('Space'); await ff(0.5);                                    // (a glide lasts while jump is held)
+    const out = await ev(() => { const p = window.__game.player; return { gliding: !!p.gliding, vy: +p.vy.toFixed(1) }; });
+    await page.keyboard.up('Space'); await ff(0.2);
+    await ev(() => { const g = window.__game, h = window.__home; g.player.place(h.x, h.y, h.z, h.yaw); g.player.safe = { ...h }; g.cam.snapBehind(g.player); });
+    return { ok: pre.model && top.y > w.y0 + w.h - 3.5 && top.y < w.y0 + w.h + 2.5 && top.speed < 6 && !top.dead && out.gliding && out.vy >= -3.3, ...pre, top, out, want: [+(w.y0 + w.h - 3.5).toFixed(1), +(w.y0 + w.h + 2.5).toFixed(1)] };
+  });
 }
 
 // a realm that colours its gate (gp.barrier.opts.tint): the field's vertex colours are the Dawn Gate's multiplied by it

@@ -69,7 +69,7 @@ export const VAULT = { x: 80, z: 28, w: 14, d: 8, door: 'north' };
 export const LOOM = { x: 74, z: -136 };
 
 /** What every Windbell looks like (models/objects/windbell.js): a bronze and glass bell in a frame of marble, dull and silent until it is rung, then golden, swinging, ringing out in rings of light. */
-const BELL = { model: 'windbell', beam: { off: [0.45, 0.5, 0.7], on: [1.0, 0.9, 0.62] }, glow: [1.0, 0.86, 0.5], wisp: [0.8, 0.9, 1.0], flame: false, spark: { c0: [1.0, 0.95, 0.7, 1], c1: [0.7, 0.85, 1.0, 0] }, sparkle: [1.0, 0.9, 0.6] };
+const BELL = { model: 'windbell', sfx: 'windbell_ring', beam: { off: [0.45, 0.5, 0.7], on: [1.0, 0.9, 0.62] }, glow: [1.0, 0.86, 0.5], wisp: [0.8, 0.9, 1.0], flame: false, spark: { c0: [1.0, 0.95, 0.7, 1], c1: [0.7, 0.85, 1.0, 0] }, sparkle: [1.0, 0.9, 0.6] };
 
 export const BRIEF = defineBrief({
   id: 'skyweaver',

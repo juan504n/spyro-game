@@ -2,6 +2,8 @@
 //
 //   lantern_ignite  1.8 s  low fire "whoomp" (swept noise + 95 -> 48 Hz boom) under a slow-attack
 //                          D-sus bell chord (D5 A5 D6 E6 A6) and warm D3/A3 swell, small stone room
+//   windbell_ring   2.6 s  a bronze Windbell struck (Skyweaver Spires' goals): the clapper's tick, four bell voices (A2 hum, A3 with a long tail, E4 over it, E5 high) and a breath of wind that
+//                          swells under them, glass shimmer on the tail, a big stone room
 //   lantern_beam    1.2 s  five sine partials gliding up a fifth with 9 Hz shimmer + rising noise + sparkles
 //   barrier_open    2.0 s  swelling 90 -> 200 Hz rumble + 42 Hz growl, then glass shatter at 0.85 s
 //   gate_creak      0.95 s two stick-slip creaks (110 -> 190 Hz and 220 -> 330 Hz) + wooden thunk
@@ -36,6 +38,16 @@ export const WORLD_SFX = {
     const warm = ['D3', 'A3'].map((nm, i) => [sweep(1.4, hz(nm), hz(nm), { env: (t) => smooth(t / 0.4) * Math.exp(-Math.max(0, t - 0.5) / 0.5) }), 0.1 + i * 0.02, 0.45]);
     const b = layer(1.5, [[lvl(whoomp, 0.35), 0, 1], [lvl(roar, 0.12), 0, 1], [thump(0.6, 95, 48, 0.08, 0.2), 0, 0.9], ...chord, ...warm]);
     return fin(reverbMono(b, 'chamber', 0.4, 0.3), { grit: 0.25, fadeOut: 250 });
+  },
+
+  windbell_ring() {
+    const s = seedOf('windbell_ring');
+    const tick = noiseFilt(0.12, s, { mode: 'bp', f0: 1800, f1: 5200, q: 0.9, env: (t) => Math.exp(-t / 0.018) });
+    const voices = [[hz('A3'), 2.5, 1.7, 1.0, 0.0012, 0.55], [hz('E4'), 2.2, 1.2, 0.8, 0.0015, 0.3], [hz('E5'), 2.0, 0.9, 1.0, 0.002, 0.2], [hz('A2'), 2.6, 2.1, 0.4, 0.004, 0.34]].map(([f, sec, tau, br, atk, g]) => [bell(f, sec, tau, br, atk), 0, g]);
+    const air = noiseFilt(2.4, s + 1, { mode: 'bp', f0: 600, f1: 1800, q: 1.4, env: (t, x) => pkSin(x, 2) });
+    const shim = tinkles(2.2, s + 2, 10, 2800, 6200, { tauLo: 0.1, tauHi: 0.35, tMax: 1.6, gain: 0.25, decayGain: 0.5 });
+    const b = layer(2.6, [[lvl(tick, 0.5), 0, 0.9], ...voices, [lvl(air, 0.08), 0.1, 1], [shim, 0.15, 0.5]]);
+    return fin(reverbMono(b, 'chamber', 0.35, 0.35), { grit: 0.15, fadeOut: 400 });
   },
 
   lantern_beam() {
