@@ -41,12 +41,26 @@ okOpts, paramsFn)`, `band(ctx, REGIONS, id, f0, f1, lo, hi)` (a sampler over a s
   landform has the strip). A hint just before the wall: "THAT WALL LOOKS CRACKED... TRY CHARGING IT".
 * Treasure: hand-placed gems/vases/chests count; `gemsStage` adds the trail, weeds out what hangs in a solid, and tops up to a multiple of 50 (>= `gems.min`). Put it last.
 
-## 5. Caves (rock that is not a heightfield: `massif.js`)
+## 5. Caves (rock that is not a heightfield: `massif.js`, `realm/rockmass.js`)
 
-A heightfield cannot hold a cave. A level lists `massifs: (grid, L) => [new Massif({...})]`; the rock is a function `field(x, y, z)` (negative inside). Building blocks: `tunnelAir(pts)` (an arched tunnel
-along `[x, z, floorY, halfWidth, height]` points), `chamberAir({x, z, rx, H, floorY})` (a domed room), `shaftAir` (a skylight), `smin/smax` (smooth union/intersection), `fbm3` (noise for a rough crust).
-The cave floor is the terrain: the level's `height` must follow the floors under the mountain (see `home/crag.js` `cragTerrain`). Dress caves by hand (crystals, torches: glow lights light the rock round
-them); the checker's `cave` situation wants the goal under the roof. `home/crag.js` and `home/layout-crag.js` are the worked example (4 tunnels, 2 halls, a vault behind a wall).
+A heightfield cannot hold a cave. A level lists `massifs: (grid, L) => [Massif]`; the rock is a function `field(x, y, z)` (negative inside). `rockMass` (`realm/rockmass.js`) builds one from data - the recipe
+of Dawnhaven's Crag (`home/crag.js`) made general - and `frostbloom/glacier.js` is its worked example:
+
+```js
+export const GLACIER = rockMass({ id: 'glacier', name: 'THE GLACIER', plinth: 11,
+  mounds:   [{ x, z, rx, rz, h, flat }],                       // heights above the plinth (`flat`: the share of the radius where the top is level; 0.9 = a sheer wall)
+  tunnels:  { mouth: [[x, z, floorY, halfWidth, height], ...] },  // arched ways; the floor is interpolated along the line
+  chambers: { heart: { x, z, rx, rz, rot, H, floorY } },          // domes of air on a flat floor
+  shafts:   [{ x, z, r, y0, y1 }],                                // skylights
+  box: [x0, y0, z0, x1, y1, z1], style: { rock, interior, top, ambient, layers } });
+```
+Four things make it work, and each is one line in the realm: **a plinth** (a ribbon of level ground at the plinth's height under the mass, so it stands on flat ground), **the landform**
+(`landforms: (h, x, z) => GLACIER.landform(h, x, z)`: the terrain follows the caves' floors, level inside every tunnel and chamber), **the massif** (`massifs: () => [GLACIER.massif()]`) and **the ground rule**
+(`GLACIER.inside(x, z)`: ice or flagstone on the cave floors). The layout places things by `GLACIER.at(tunnel, s, side)` (`s` metres along it, `side` to the right) and `GLACIER.length`. The mass
+(1.5 m cells over its box) costs about half a second to build; keep the box tight. Dress caves by hand (crystals, torches: glow lights light the rock round them; a `light_shaft` under the skylight);
+`ctx.ok` refuses spots in the rock or under a roof, so nothing is scattered into a cave. The checker's `cave` situation wants the goal under a roof (a skylight over the goal itself is fine: it looks
+round the goal too). A cracked wall (`ctx.addWall(x, z, yaw, 7.0, 5.7, [25])`) across a tunnel of half width 3.2 shuts a vault; the walk map's `walkShut` then cannot reach the chest.
+`home/crag.js` and `home/layout-crag.js` are the bigger hand-written example (4 tunnels, 2 halls, a ledge road round the outside).
 
 ## 6. The feel: environment, ground, goal model, words
 
@@ -57,6 +71,9 @@ them); the checker's `cave` situation wants the goal under the roof. `home/crag.
 * **Ground** (`extras.groundRule`): a method `groundRule(x, z, h, slope, { r, surface, pd })` returning `[texture, why]` or nothing. It runs after roads, lake shores, steep rock (-> cliff) and
   `h > 42` (-> far rock) and before the default grass, so returning a texture for all the flat ground (snow, sand) re-skins the realm; `cliffs: { cool, warm }` names the tall faces.
   New textures live in `src/engine/textures/world/*.js` (`tools/texture-sheet.mjs` shows them); a realm uses few.
+* **Skin and own textures** (`brief.theme.skin`, `brief.lakeTextures`, `brief.roadTextures`, `brief.farRock`): a realm can wear its own textures without touching the engine's: the roads (`cobble_frost`,
+  `path_snow`), the lake, the far mountains, and every prop that is built from the kit (see `contract.md`). Keep to two or three base colours (the checker's `design.palette` counts the ground's textures)
+  and make the flowers one colour (`flower_patch` takes `kinds: ['flower_pink'], tufts: false`). A gate can be recoloured (`gp.barrier.opts.tint`), a skylight's beam too (`light_shaft`: `color`, `glow`).
 * **Goal object**: `makeModel(assets, name, { big })` from `src/game/models/objects/*.js` (the `beacon.js` Rig/litBuilder pattern: `setLit(k)`, `update`, `anchors.flame`); a goal in the brief carries `model`,
   `beam: { off, on }`, `glow`, `wisp`, `flame: false`, `spark`, `sparkle` (colours of its beam before/after, pool of light, wisps, ignition burst).
 * **Words** (`brief.words`, defaults in `realms.js` DEFAULT_WORDS): what the HUD counts (`goals`: "BEACONS"), the banner when one is lit (`lit`), the finale (`finale`), results, free roam, the gate's banner (`gate`),
@@ -65,5 +82,7 @@ them); the checker's `cave` situation wants the goal under the roof. `home/crag.
 ## 7. The door and the way home
 
 `--wake-door` sets the Dawnhaven door's `target` (`src/game/home/level.js` DOOR_DEFS); Dawnhaven's `layoutDoors` then makes the door awake and records `gp.arrivals[target]`. The hero arrives at the
-realm's `spawn` (or `gp.arrivals[from]` if the realm sets one). The realm's `exit` (the ring of light over the last goal) leads back to `exit.target` ('home'). Update `home-check.mjs` and
-`portal-test.mjs` (they count the sleeping doors) when a door wakes.
+realm's `spawn` (or `gp.arrivals[from]` if the realm sets one). The realm's `exit` (the ring of light over the last goal) leads back to `exit.target` ('home'). Update `home-check.mjs`, `home-bot.mjs`
+(`sealed-doors` lists the doors that sleep; each awake door has a `door-opens-<id>` run) and `portal-test.mjs` when a door wakes, re-pin Dawnhaven's `world-hash` (an intended change: its door is awake) and move
+any Dawnhaven TRAVEL place that lies within 6 m of the door (an awake door's light carries him away). A place of the realm that lies **beyond its gate** carries `opens: true` (`realm-travel.mjs` finds out by
+walking with the gate shut): the app opens the gate for a hero put there, or he would stand shut in.

@@ -36,7 +36,7 @@ export class ObjectSystem {
     }
     this.barrier = null;
     if (d.barrier) {
-      const b = makeModel(g.assets, 'barrier');
+      const b = makeModel(g.assets, 'barrier', d.barrier.opts);          // (a realm can colour its gate: gp.barrier.opts = { tint })
       b.root.position.set(d.barrier.x, d.barrier.y, d.barrier.z);
       rotY(b, d.barrier.yaw || 0);
       g.dyn.add(b.root);

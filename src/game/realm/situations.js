@@ -69,7 +69,10 @@ export const SITUATIONS = {
   cave: {
     doc: 'inside the rock: a tunnel or a chamber under a roof, lit by crystals and torches, behind something (a waterfall, a door of ice)',
     check(g, e) {
-      const m = e.massifs.find((q) => q.inBoxXZ(g.x, g.z) && q.roofed(g.x, g.y, g.z, 3));
+      // (under the roof of a rock mass: right over the goal, or all round it - a skylight over the goal itself, the light pouring down on it, still leaves it in a chamber)
+      const roofedAt = (q, x, z) => q.inBoxXZ(x, z) && q.roofed(x, g.y, z, 3);
+      const ring = (q) => Array.from({ length: 8 }, (_, k) => roofedAt(q, g.x + Math.cos((k / 8) * Math.PI * 2) * 4.5, g.z + Math.sin((k / 8) * Math.PI * 2) * 4.5)).filter(Boolean).length;
+      const m = e.massifs.find((q) => roofedAt(q, g.x, g.z) || ring(q) >= 6);
       const d = e.walk.distNear(g.x, g.z, 3, g.y);
       return { ok: !!m && d < Infinity, detail: m ? `under the roof of '${m.id}', ${f1(d)} m of walking` : 'not under any rock mass' };
     },

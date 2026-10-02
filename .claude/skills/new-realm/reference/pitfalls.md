@@ -16,7 +16,13 @@
 * **A goal needs a floor:** the ring of light comes down on the floor under the last goal (`catchR` 5.4): `makeLevel` flattens a pad under every goal; `exit.floor` checks the floor is level and walkable.
 * **The ward and `level.summit`:** Gloaming Vale's gate draws a ward only when the level has `summit`; a realm without one has a plain barrier. The TRAVEL arrival code checks `level.summit` too.
 * **`onBeacon` opens the gate at `level.goal.gateAt` goals (default 4)** and says `words.gate`: set both for a gate that opens at another count.
-* **Doors count:** waking a Dawnhaven door changes `home-check.mjs`, `portal-test.mjs` (they count sleeping doors) and Dawnhaven's `world-hash`.
+* **Doors count:** waking a Dawnhaven door changes `home-check.mjs`, `home-bot.mjs`, `portal-test.mjs` (they count sleeping doors) and Dawnhaven's `world-hash` (heights, props and gems stay; the gameplay hash moves with the door's state).
+* **A goal under its own skylight is still in a cave.** The `cave` situation looks at the goal and round it (4.5 m, six of eight points under a roof); a shaft of air over the goal alone does not make it open ground.
+* **Under a cave's roof the highest surface is the roof.** `collision.support(x, z, 1e3, 1e3)` answers the top of the mountain; ask with the height of the floor you mean (`support(x, z, floorY, 0.9)`). The TRAVEL
+  generator does (`ref`); a script of your own that finds places must too.
+* **A prop that names a texture itself ignores the skin** (`kit.skin` remaps what is built through `kit.b`, not a parameter like a tree's `canopy`): a blossom tree is asked for as `canopy: 'leaves_blossom'`.
+* **`ctx.put` footprints reserve ground:** a tall prop with a wide footprint (the Icefall's `13`) keeps trees and rocks off a road's end; its origin is checked against roads too (`props.roads`), so a prop a road
+  runs through the middle of (a gate, a fall) is on the checker's list of those that may (`OK_ON_ROAD`).
 
 **Checks and tools**
 * **The walkmap cannot do everything the hero can.** It walks and steps up 0.62 m, takes drops of 0.9 m and (with `hop`) jumps 6.2 m between ground of about the same height; it cannot ride a bounce mushroom,

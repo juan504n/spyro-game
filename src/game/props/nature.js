@@ -8,6 +8,7 @@ import { GROUND } from './nature/ground.js';
 import { MAGIC } from './nature/magic.js';
 import { STRUCTURES } from './nature/structures.js';
 import { FUNGI } from './nature/fungi.js';
+import { FROST } from './nature/frost.js';
 import { unshadowed } from './nature/util.js';
 
 /**
@@ -22,5 +23,5 @@ function guard(fn) {
   };
 }
 
-const ALL = { ...TREES, ...ROCKS, ...GROUND, ...MAGIC, ...STRUCTURES, ...FUNGI };
+const ALL = { ...TREES, ...ROCKS, ...GROUND, ...MAGIC, ...STRUCTURES, ...FUNGI, ...FROST };
 export const NATURE = Object.fromEntries(Object.entries(ALL).map(([name, e]) => [name, { ...e, fn: guard(e.fn) }]));

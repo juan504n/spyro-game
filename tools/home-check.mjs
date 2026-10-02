@@ -24,7 +24,7 @@ const f1 = (v) => v.toFixed(1);
 // ---- the doors ---------------------------------------------------------------------------------------------------------------------
 {
   const sealed = gp.portals.filter((p) => p.state === 'sealed'), open = gp.portals.filter((p) => p.state === 'open');
-  check('five doors: one awake (Gloaming Vale), four that still sleep', gp.portals.length === 5 && open.length === 1 && open[0].target === 'gloaming' && sealed.length === 4 && sealed.every((p) => !p.target), `(${gp.portals.map((p) => `${p.id}:${p.state}`).join(' ')})`);
+  check('five doors: two awake (Gloaming Vale, Frostbloom Hollow), three that still sleep', gp.portals.length === 5 && open.length === 2 && open.map((p) => p.target).sort().join() === 'frostbloom,gloaming' && sealed.length === 3 && sealed.every((p) => !p.target), `(${gp.portals.map((p) => `${p.id}:${p.state}`).join(' ')})`);
   for (const d of DOORS) {
     const p = gp.portals.find((q) => q.id === d.id);
     const ys = [[-3, 0], [3, 0], [0, 0], [0, 3], [-3, 3], [3, 3], [0, 5.5]].map(([s, f]) => { const [x, z] = inFront(d, f, s); return collision.support(x, z, p.y + 1.0, 0.9).y; });

@@ -152,7 +152,7 @@ export function standingStones(kit, { x, z, rot = 0, scale = 1, y, r: ringR, cou
  * still looks right with the camera inside it), a little wider at the foot than at the top, its base at the placement height. It fades out at both ends; the beam texture's streaks
  * drift slowly down it. A warm pool of light and a few drifting motes at its foot. Not solid.
  */
-export function lightShaft(kit, { x, z, rot = 0, scale = 1, y, h, r0, r1, color }) {
+export function lightShaft(kit, { x, z, rot = 0, scale = 1, y, h, r0, r1, color, glow }) {
   h = num(h, 14, 2, 80); r0 = num(r0, 2.2, 0.4, 10); r1 = num(r1, 3.2, 0.4, 12);
   if (!Array.isArray(color) || color.length < 3 || color.some((v) => !Number.isFinite(v))) color = [1.0, 0.9, 0.62];
   kit.at(x, z, { rot, scale, y }, () => {
@@ -168,7 +168,7 @@ export function lightShaft(kit, { x, z, rot = 0, scale = 1, y, h, r0, r1, color 
       const a = (i / 2) * Math.PI, dx = Math.sin(a + 0.4) * r1 * 1.25, dz = Math.cos(a + 0.4) * r1 * 1.25;
       b.quad([-dx, 0, -dz], [dx, 0, dz], [dx * 0.72, h, dz * 0.72], [-dx * 0.72, h, -dz * 0.72], o([0, 0, 1, v1 * 0.8], 0.16, 0.05), [N, N, N, N]);
     }
-    kit.glow(0, 0.6, 0, { color: [1.0, 0.9, 0.66], size: 7, pool: r1 * 1.7, lightR: 15, lightK: 0.55 });
+    kit.glow(0, 0.6, 0, { color: Array.isArray(glow) && glow.length >= 3 && glow.every(Number.isFinite) ? glow : [1.0, 0.9, 0.66], size: 7, pool: r1 * 1.7, lightR: 15, lightK: 0.55 });      // (glow: the pool of light at its foot, warm unless a realm says otherwise)
     kit.emitter(0, h * 0.35, 0, { kind: 'sparkle', rate: 3.2, radius: r1 * 0.85 });
   });
 }
@@ -176,6 +176,6 @@ export function lightShaft(kit, { x, z, rot = 0, scale = 1, y, h, r0, r1, color 
 export const MAGIC = {
   crystal_cluster: { fn: crystalCluster, size: 5, note: 'glowing crystal cluster (color violet|cyan, count, size) with glow point + sparkles', defaults: { color: 'violet', count: 6 }, anchors: { core: [0, 1.8, 0] } },
   crystal_spire: { fn: crystalSpire, size: 7, note: 'tall crystal spire h up to 9 (color violet|cyan) with glow + sparkles', defaults: { color: 'violet', h: 8 }, anchors: { core: [0, 4, 0], tip: [0, 8, 0] } },
-  light_shaft: { fn: lightShaft, size: 7, note: 'a shaft of daylight (h, r0 at the top, r1 at the foot, color): additive column with a warm pool of light and drifting motes at its foot; not solid', defaults: { h: 14, r0: 2.2, r1: 3.2 } },
+  light_shaft: { fn: lightShaft, size: 7, note: 'a shaft of daylight (h, r0 at the top, r1 at the foot, color, glow = the pool at its foot): additive column with a warm pool of light and drifting motes at its foot; not solid', defaults: { h: 14, r0: 2.2, r1: 3.2 } },
   standing_stones: { fn: standingStones, size: 16, note: 'ring of runed monoliths around a glowing rune circle; r (ring radius), count', defaults: { r: 6, count: 7 }, anchors: { center: [0, 0.1, 0] } },
 };

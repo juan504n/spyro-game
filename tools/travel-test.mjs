@@ -9,6 +9,7 @@ import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 import path from 'node:path';
 import fs from 'node:fs';
 import { TRAVEL, travelPlaces, findPlace } from '../src/game/travel.js';
+import { REALMS } from '../src/game/realms.js';
 import { measureText } from '../src/engine/textures/font.js';
 
 const base = process.env.GV_URL || 'http://127.0.0.1:5173/';
@@ -133,7 +134,7 @@ const arrivalOk = (r, place, away) => r.realm === place.world && r.state === 'pl
   && r.off < 0.75 && Math.abs(r.dy) < 0.6 && Math.abs(r.dyaw) < 0.2 && Math.abs(r.cyaw) < 0.5
   && r.cp && r.cp.dx < 0.1 && Math.abs(r.cp.dy) < 0.2 && Math.abs(r.cp.yaw) < 0.01 && (!away || r.deaths === 0) && r.spx < 3.5 && arrivalBanner(r, place);
 /** the banner the arrival itself put up: the place's name over the world's */
-const arrivalBanner = (r, place) => !!r.arrival && r.arrival.banner === place.name && r.arrival.sub === (place.world === 'home' ? 'DAWNHAVEN' : 'GLOAMING VALE') && r.arrival.realm === place.world;
+const arrivalBanner = (r, place) => !!r.arrival && r.arrival.banner === place.name && r.arrival.sub === REALMS[place.world].name && r.arrival.realm === place.world;
 const describe = (r) => `(${r.realm}: ${f1(r.off)} m off, dy ${f1(r.dy)}, yaw ${r.dyaw.toFixed(2)}, cam ${r.cyaw.toFixed(2)}, Sparx ${f1(r.spx)} m, ${r.state}/${r.mode}, banner ${r.arrival && r.arrival.banner}${r.cp ? `, checkpoint ${f1(r.cp.dx)} m off` : ', no checkpoint'})`;
 
 // ---- part 1: the title menu, with the keyboard --------------------------------------------------------------------------------------------------
@@ -318,8 +319,8 @@ if (wanted('sweep')) {
   const t = await open('?skip=1&preserve=1');
   const { ev, key } = t;
   await t.frame(30, 1 / 30);
-  const bad = [], gates = [];
-  let n = 0, widest = 0, trips = 0, opened = false;
+  const bad = [], gates = [], realmGates = [];
+  let n = 0, widest = 0, trips = 0, opened = false, openedRealm = false;
   for (const w of TRAVEL) {
     for (const place of travelPlaces(w.world)) {
       const before = await ev(() => ({ realm: __game.realm.id, hp: __game.sparx ? __game.sparx.hp : null, deaths: __game.stats.deaths }));
@@ -334,7 +335,7 @@ if (wanted('sweep')) {
       await key('ArrowUp');
       await key('Enter');
       await arrived(t, place.world, place.key);
-      if (away) { trips++; opened = false; }
+      if (away) { trips++; opened = false; openedRealm = false; }
       await t.frame(6, 1 / 30);
       const r0 = await here(ev, place);
       await t.frame(60, 1 / 30);
@@ -355,12 +356,20 @@ if (wanted('sweep')) {
         if (inside) { gates.push(place.key); if (r.gateShut) why.push('inside the ward, and the Dawn Gate is still shut'); if (!/DAWN GATE/.test(r.hint || '') && !opened) why.push(`no hint that the gate was opened (${r.hint})`); opened = true; }
         else if (!opened && r.gateShut === false) why.push('the Dawn Gate was opened by a place outside its ward');
       }
+      // a realm's own gate (the ice gate of Frostbloom Hollow): shut until a place beyond it (`opens`) is gone to, which opens it for him, with a hint saying so
+      if (r.gate && place.world !== 'gloaming' && place.world !== 'home') {
+        if (place.opens) { realmGates.push(place.key); if (r.gateShut) why.push('beyond the gate, and the gate is still shut'); if (!/GATE WAS OPENED/.test(r.hint || '') && !openedRealm) why.push(`no hint that the gate was opened (${r.hint})`); openedRealm = true; }
+        else if (!openedRealm && r.gateShut === false) why.push('the gate was opened by a place that is not beyond it');
+      }
       n++;
       if (why.length) bad.push(`${place.key}: ${why.join('; ')}`);
     }
   }
-  check(`every place of the list (${n} of ${travelPlaces('gloaming').length + travelPlaces('home').length}) was gone to through the menu pages: asked ARE YOU SURE? on NO, took him there, he stands on it`, bad.length === 0 && n === travelPlaces('gloaming').length + travelPlaces('home').length, bad.length ? bad.join('\n      ') : `(${trips} trip(s) between the worlds, the rest hops; the widest line of text ${widest} px)`);
+  const total = TRAVEL.reduce((a, w) => a + travelPlaces(w.world).length, 0);
+  check(`every place of the list (${n} of ${total}) was gone to through the menu pages: asked ARE YOU SURE? on NO, took him there, he stands on it`, bad.length === 0 && n === total, bad.length ? bad.join('\n      ') : `(${trips} trip(s) between the worlds, the rest hops; the widest line of text ${widest} px)`);
   check('the places inside the Dawn Gate\'s ward (and only those) opened the gate for him', gates.join() === 'gloaming/observatory,gloaming/beacon-room', `(${gates.join(', ')})`);
+  const beyond = TRAVEL.filter((w) => w.world !== 'gloaming' && w.world !== 'home').flatMap((w) => travelPlaces(w.world).filter((p) => p.opens).map((p) => p.key));
+  check('the places of a realm that lie beyond its gate (and only those) opened it for him', realmGates.join() === beyond.join() && beyond.length > 0, `(${realmGates.join(', ')})`);
   await t.ctx.close();
 }
 

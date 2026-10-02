@@ -20,7 +20,7 @@ const f0 = (v) => (Number.isFinite(v) ? String(Math.round(v)) : String(v));
 /** how much a Snuffer of each kind weighs when the danger of a stretch of the journey is added up */
 export const DANGER = { basic: 1, bell: 2, thorn: 2 };
 /** props that may stand on a road (at its sides, the doors, the signposts: what is meant to be there) */
-const OK_ON_ROAD = new Set(['arch_gate', 'bridge_stone', 'bridge', 'lamp_post', 'realm_door', 'bunting', 'torch_stand', 'banner_pole', 'fence', 'wall_stone', 'flower_patch', 'tuft_patch', 'fern_patch', 'reeds', 'lilypads', 'stepping_stone', 'pier', 'crystal_cluster', 'crystal_spire', 'light_shaft', 'standing_stones', 'rock_arch', 'bench', 'gate_pillars', 'signpost', 'snow_drift', 'ice_floe']);
+const OK_ON_ROAD = new Set(['arch_gate', 'bridge_stone', 'bridge', 'lamp_post', 'realm_door', 'bunting', 'torch_stand', 'banner_pole', 'fence', 'wall_stone', 'flower_patch', 'tuft_patch', 'fern_patch', 'reeds', 'lilypads', 'stepping_stone', 'pier', 'crystal_cluster', 'crystal_spire', 'light_shaft', 'standing_stones', 'rock_arch', 'bench', 'gate_pillars', 'signpost', 'snow_drift', 'ice_floe', 'ice_fall']);
 
 /**
  * Where the two worlds that came before the rules depart from them, said once (they have no brief to waive in): Gloaming Vale was designed before the principles were written down, and
@@ -218,7 +218,7 @@ export function checkRealm(which, { log = () => {} } = {}) {
     for (const [a, b] of edges) { const ra = find(a), rb = find(b); if (ra === rb) cycles++; else par[ra] = rb; }
     if (isRealm) rule('design.loops', 'the roads make at least one loop (a way back that is not the way there)', cycles >= 1, `(${paths.length} roads, ${nodes.length} junctions and ends, ${cycles} independent loops)`);
     else skip('design.loops', 'a hub is not held to loops');
-    const rewards = [...goals, ...gp.chests, ...gp.npcs, ...gp.portals, ...gp.walls, ...(gp.mushrooms || []), ...gp.placed.filter((p) => /pier|arch_gate|gate_pillars|windmill|tower|forge|realm_door/.test(p.name))];
+    const rewards = [...goals, ...gp.chests, ...gp.npcs, ...gp.portals, ...gp.walls, ...(gp.mushrooms || []), ...gp.placed.filter((p) => /pier|arch_gate|gate_pillars|windmill|tower|forge|realm_door|ice_fall/.test(p.name))];
     const dead = ends.filter((e) => !e.joined && Math.hypot(e.x - sp.x, e.z - sp.z) > 25 && !rewards.some((o) => Math.hypot(o.x - e.x, o.z - e.z) < 30));
     rule('design.deadends', 'no road runs out into nothing: each ends at a junction, the start, or something worth the walk (a goal, a chest, a door, a person)', dead.length === 0, dead.map((e) => `${e.road}@${f0(e.x)},${f0(e.z)}`).join(' '));
   }

@@ -139,6 +139,32 @@ await check('the realm entered again is restored', async () => {
   return { ok: r.realm === id && r.restored && r.mode === 'complete' && r.lit && r.day > 0.95 && r.open, ...r };
 });
 
+// the door the hero came in by stands at the start of the realm and is awake: walked into, it leads back to the world he came from, and he comes out of the door of this realm there
+const door = await ev(() => { const q = window.__game.gameplay.portals.find((p) => p.kind === 'door' && p.target); return q ? { id: q.id, target: q.target, x: q.x, y: q.y, z: q.z, yaw: q.yaw } : null; });
+if (door) {
+  await check('the door behind him leads back', async () => {
+    await ev((d) => {
+      const g = window.__game, s = Math.sin(d.yaw), c = Math.cos(d.yaw), sup = g.collision.support(d.x + s * 5, d.z + c * 5, d.y + 1, 0.9);
+      window.__events = []; g.on('portal', (q) => window.__events.push(q.id));
+      g.player.place(d.x + s * 5, sup.y + 0.05, d.z + c * 5, d.yaw + Math.PI); g.cam.snapBehind(g.player); g.player.invulnT = 5;
+    }, door);
+    await ff(0.5);
+    await page.keyboard.down('KeyW');
+    let b = null;
+    for (let i = 0; i < 16 && !(b && b.state === 'traveling'); i++) { await ff(0.25); b = await ev(() => ({ state: window.__app.state, events: window.__events.slice() })); }
+    await page.keyboard.up('KeyW');
+    return { ok: !!b && b.state === 'traveling' && b.events.join() === door.id, state: b && b.state, events: b && b.events, target: door.target };
+  });
+  await arrived(door.target);
+  await check('... and he comes out where the way from this realm comes out', async () => {
+    const r = await ev((from) => {
+      const g = window.__game, p = g.player, a = g.gameplay.arrivals && g.gameplay.arrivals[from];
+      return { realm: g.realm.id, mode: g.mode, hud: g.hud.visible, arrival: a ? Math.hypot(p.x - a.x, p.z - a.z) : null };
+    }, id);
+    return { ok: r.realm === door.target && r.mode === 'play' && r.hud && (r.arrival === null || r.arrival < 2.5), ...r };
+  });
+}
+
 await check('no errors in the page', async () => ({ ok: errors.length === 0, errors: errors.slice(0, 3) }));
 await browser.close();
 console.log(failed ? `\n${failed} FAILED` : `\nall ${id} journey checks passed`);

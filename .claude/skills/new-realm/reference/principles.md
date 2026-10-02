@@ -43,7 +43,7 @@ documented departures in `tools/lib/realm-rules.mjs` (LEGACY): that is where the
 | `clearing` | level open ground off the road, ringed by trees and rocks | slope < 0.3, 3-45 m from a road, >= 4 trees/rocks within 24 m |
 | `island` | out on the water: an islet reached by stepping stones or a glide | water in >= 5 of 8 directions within 14 m |
 | `summit` | on top: the highest ground for 60 m, far above the start, at the end of a long climb | >= 18 m above the start, highest within 60 m, > 150 m of walking |
-| `cave` | inside the rock: a tunnel or chamber under a roof, lit by crystals and torches, behind something | under a massif's roof, reachable |
+| `cave` | inside the rock: a tunnel or chamber under a roof, lit by crystals and torches, behind something | under a massif's roof (over the goal, or all round it: a skylight over the goal itself is fine), reachable |
 | `glide` | across a gap: a shelf reached by gliding from higher ground (a long way round on foot is allowed, a short one is not) | a launch ledge within `glideReach`, no short walk |
 | `puzzle` | sealed until something is done: a cracked wall, a gate the other goals open | unreachable while shut, reachable once the walls are broken and the gate open |
 | `crater` | in a bowl: lower than the rim all round, guarded | the rim 4 m higher in 11 of 16 directions at 30 m, >= 2 Snuffers within 30 m |

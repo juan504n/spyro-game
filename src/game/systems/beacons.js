@@ -19,7 +19,8 @@ export class BeaconSystem {
   /**
    * defs: [{ id, name, x, y, z, big?, yaw?,
    *   model? (the model of the object: 'beacon'), beam? { off, on } (the colours of its beam before and after it is lit), glow? (the colour of its pool of light and its halo),
-   *   wisp? (the colour of the wisps that circle it while it is out), flame? (false: no flame over it once lit, its model has its own glow), spark? (the colour of the sparkles) }]
+   *   wisp? (the colour of the wisps that circle it while it is out), flame? (false: no flame over it once lit, its model has its own glow),
+   *   spark? { c0, c1 } ([r, g, b, a] from and to: the colours of the burst when it is lit), sparkle? [r, g, b] (the sparkles that drift up from it afterwards) }]
    */
   constructor(game, defs) {
     this.game = game;

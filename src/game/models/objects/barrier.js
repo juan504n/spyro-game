@@ -2,6 +2,8 @@
 // in the XY plane, visible from both sides). Three additive/half layers with different uv scrolls (dark veil, glowing
 // lattice, bright rim). setOpen(k): 0 = solid field .. 1 = dissolved (hidden).
 //
+// Colour: opts.tint = [r, g, b] multiplies the violet of the field (a realm's own gate: Frostbloom Hollow's ice gate is [0.5, 2.1, 1.1], a cold teal); default [1, 1, 1].
+//
 // Size: opts.w x opts.h (+ opts.wTop for a field that widens towards the top, opts.arch = height of an elliptical arch
 // on top, 0 = flat top). DEFAULT = the real Dawn Gate prop (gate_pillars: opening 6.0 wide x 11.5 tall, inner faces leaning
 // out to 6.6 at the top): w 6.2, wTop 6.7, h 11.6, no arch.  The original brief (12 x 11 arched) is
@@ -36,6 +38,8 @@ export function createBarrier(assets, opts = {}) {
   const N = [0, 0, 1];
   const C = [0, CY, 0];
   let veilMesh = null, glowMesh = null;
+  const TN = opts.tint || [1, 1, 1];
+  const tn = (c) => [c[0] * TN[0], c[1] * TN[1], c[2] * TN[2]];
   const T = 3.2;                                  // world units per texture repeat
   const uvOf = (p, o = 0) => [p[0] / T + o, p[1] / T];
 
@@ -49,11 +53,11 @@ export function createBarrier(assets, opts = {}) {
   };
   {
     const b = litBuilder(1, 101);
-    fan(b, [0.3, 0.2, 0.62], [0.55, 0.38, 0.95], 0.8, 1.0, T, 0);
+    fan(b, tn([0.3, 0.2, 0.62]), tn([0.55, 0.38, 0.95]), 0.8, 1.0, T, 0);
     veilMesh = rig.mesh(b, mVeil, null, { name: 'veil', order: 8 });
     const g = litBuilder(1, 102);
     g.translate(0, 0, 0.06);
-    fan(g, [0.3, 0.2, 0.55], [0.5, 0.34, 0.85], 0.5, 1.0, T, 0.37);
+    fan(g, tn([0.3, 0.2, 0.55]), tn([0.5, 0.34, 0.85]), 0.5, 1.0, T, 0.37);
     glowMesh = rig.mesh(g, mGlow, null, { name: 'glow', order: 9 });
     // rim band (inset 0.9): bright at the frame, fading into the field
     const r = litBuilder(1, 103);
@@ -62,7 +66,7 @@ export function createBarrier(assets, opts = {}) {
       const a = P[i], b2 = P[(i + 1) % n];
       const ia = inset(a), ib = inset(b2);
       const A = [a[0], a[1], 0.03], B = [b2[0], b2[1], 0.03], IB = [ib[0], ib[1], 0.03], IA = [ia[0], ia[1], 0.03];
-      const hot = [0.42, 0.28, 0.72];
+      const hot = tn([0.42, 0.28, 0.72]);
       r.quad(A, B, IB, IA, { uv: [0, 0, 1, 1], tints: [hot, hot, hot, hot], alphas: [1, 1, 0, 0] }, [N, N, N, N]);
     }
     rig.mesh(r, mRim, null, { name: 'rim', order: 10 });

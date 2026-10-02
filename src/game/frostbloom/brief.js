@@ -8,6 +8,7 @@
 // switchbacks to the gorge of the Hollow, which an ice gate shuts until four Frostbloom have bloomed. Five goals in five kinds of place: a landing, a clearing, an island, a cave and a crater.
 import { defineBrief, ptsOf } from '../realm/brief.js';
 import { FROST_ENVIRONMENT } from './environment.js';
+import { PLINTH, HEART } from './glacier.js';
 
 const DEG = Math.PI / 180;
 
@@ -41,13 +42,15 @@ export const REGIONS = [
   { id: 'rimewood', fall: 14, label: 'RIMEWOOD', pts: [[-78, 34, 3.0, 16], [-104, 40, 4.2, 24], [-128, 26, 5.0, 22]] },
   { id: 'rimeglade', fall: 5, sealed: true, pts: [[...at(RIME_GLADE, RIME_GLADE.r + 24), RIME_GLADE.h, 3.6], [...at(RIME_GLADE, RIME_GLADE.r + 5.5), RIME_GLADE.h, 3.4], [RIME_GLADE.x, RIME_GLADE.z, RIME_GLADE.h, RIME_GLADE.r]] },
   { id: 'icefall', fall: 14, label: 'THE ICEFALL', pts: [[78, 34, 3.0, 16], [106, 28, 5.0, 18], [130, 14, 8.0, 14], [148, 0, 11, 14]] },
+  // the plinth the glacier stands on: level ground under all its rock (glacier.js), the way into it from the Icefall's end
+  { id: 'glacier', fall: 12, label: 'THE GLACIER', pts: [[150, -26, PLINTH, 30], [148, -52, PLINTH, 36]] },
   { id: 'ridge', fall: 14, label: 'AURORA RIDGE', pts: [[0, -20, 3.4, 16], [-30, -40, 7.0, 12], [12, -60, 12, 11], [-28, -80, 18, 11], [14, -98, 25, 11], [0, -112, 33, 12]] },
   { id: 'lookout', fall: 8, label: 'AURORA LOOKOUT', pts: [[12, -60, 12, 8], [30, -60, 12, 6], [52, -64, 12, 6]] },
   { id: 'hollow', fall: 6, label: 'THE HOLLOW', pts: [[...at(HOLLOW, HOLLOW.r + 24), 34, 3.6], [...at(HOLLOW, HOLLOW.r + 5.5), HOLLOW.h, 3.4], [HOLLOW.x, HOLLOW.z, HOLLOW.h, HOLLOW.r]] },
 ];
 
 /** What every Frostbloom looks like (the model is models/objects/frostbloom.js): icy before it is thawed, blossom pink after; no flame over it, it glows itself. */
-const BLOOM = { model: 'frostbloom', beam: { off: [0.5, 0.82, 1.0], on: [1.0, 0.74, 0.88] }, glow: [1.0, 0.72, 0.86], wisp: [0.62, 0.92, 1.0], flame: false, spark: [1.0, 0.8, 0.92], sparkle: [1.0, 0.82, 0.92] };
+const BLOOM = { model: 'frostbloom', beam: { off: [0.5, 0.82, 1.0], on: [1.0, 0.74, 0.88] }, glow: [1.0, 0.72, 0.86], wisp: [0.62, 0.92, 1.0], flame: false, spark: { c0: [1.0, 0.84, 0.92, 1], c1: [1.0, 0.5, 0.76, 0] }, sparkle: [1.0, 0.82, 0.92] };
 
 export const BRIEF = defineBrief({
   id: 'frostbloom',
@@ -95,7 +98,7 @@ export const BRIEF = defineBrief({
     { id: 'trunk', surface: 'cobble', width: 6, pts: [[0, 174], [0, 154], [-4, 130], [0, 104], [0, 88]], gems: { every: 10, pattern: [1, 1, 2], lateral: 2.2 } },
     { id: 'ring', surface: 'dirt', width: 4.6, pts: ring(1.5, 0, 0).map((p) => [p[0], p[1]]), gems: { every: 11, pattern: [1, 1, 1, 2] } },
     { id: 'rimeroad', surface: 'dirt', width: 4, pts: [[-78, 34], [-104, 40], [-114, 34]], gems: { every: 9, pattern: [1, 1, 2] } },
-    { id: 'iceroad', surface: 'dirt', width: 4.6, pts: ptsOf(REGIONS, 'icefall'), gems: { every: 10, pattern: [1, 1, 2] } },
+    { id: 'iceroad', surface: 'dirt', width: 4.6, pts: [...ptsOf(REGIONS, 'icefall'), [150, -14]], gems: { every: 10, pattern: [1, 1, 2] } },
     { id: 'ridge', surface: 'cobble', width: 4.6, pts: [...ptsOf(REGIONS, 'ridge'), [0, -128]], gems: { every: 12, pattern: [1, 2, 1, 5] } },
   ],
 
@@ -106,7 +109,7 @@ export const BRIEF = defineBrief({
     { id: 'gate', name: 'GATE BLOOM', situation: 'landing', x: 14, z: 140, hint: 'BREATHE FIRE AT THE FROSTBLOOM TO THAW IT', hintAt: [8, 148], hintR: 10, ...BLOOM },
     { id: 'rime', name: 'RIMEWOOD BLOOM', situation: 'clearing', x: -122, z: 20, hint: 'A FROSTBLOOM SLEEPS IN A CLEARING OF RIMEWOOD', hintAt: [-100, 38], hintR: 14, ...BLOOM },
     { id: 'glass', name: 'GLASSWATER BLOOM', situation: 'island', x: 2, z: 50, pad: false, hint: 'HOP THE ICE FLOES OUT TO THE ISLET', hintAt: [0, 76], hintR: 12, ...BLOOM },
-    { id: 'ice', name: 'ICEFALL BLOOM', situation: 'cave', x: 144, z: -4, hint: 'A FROSTBLOOM SLEEPS IN THE ICE BEHIND THE ICEFALL', hintAt: [136, 10], hintR: 14, ...BLOOM },
+    { id: 'ice', name: 'ICEFALL BLOOM', situation: 'cave', x: HEART.x, z: HEART.z, pad: false, hint: 'A FROSTBLOOM SLEEPS IN THE ICE BEHIND THE ICEFALL', hintAt: [150, 6], hintR: 14, ...BLOOM },
     { id: 'heart', name: 'HEARTBLOOM', situation: 'crater', x: HOLLOW.x, z: HOLLOW.z, big: true, hint: 'THE HEARTBLOOM WAITS IN THE HOLLOW. LIGHT IT TO BRING BACK THE SPRING', hintAt: [0, -138], hintR: 14, ...BLOOM },
   ],
   exit: { name: 'DAWNHAVEN', tag: 'HOMEWORLD OF THE LANTERN KEEPERS', color: [0.7, 0.88, 1.0], target: 'home' },
@@ -118,11 +121,4 @@ export const BRIEF = defineBrief({
   ],
   gems: { min: 400 },
   danger: { safeRadius: 30 },
-
-  // what this realm does not do yet: each line is a to-do, printed by the checker until it is deleted
-  waive: [
-    ['goal.ice', 'the glacier\'s cave is not built yet'],
-    ['design.secrets', 'the ice vault is in the glacier, not built yet'],
-    ['design.deadends', 'the Icefall road runs on into the glacier\'s cave, not built yet'],
-  ],
 });

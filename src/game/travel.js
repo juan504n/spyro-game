@@ -79,7 +79,7 @@ export const TRAVEL = [
           { id: 'south-mouth', name: 'SOUTH MOUTH', x: 6, z: 2, yaw: PI },
           { id: 'echo-hall', name: 'ECHO HALL', x: 4.9, z: -42.6, yaw: PI },
           { id: 'winding-way', name: 'WINDING WAY', x: -14.4, z: -80.7, yaw: 2.4 },
-          { id: 'grotto', name: 'FROST GROTTO', x: 37.8, z: -85.7, y: 4.8, yaw: face(37.8, -85.7, 42.5, -87.5) },
+          { id: 'grotto', name: 'FROST GROTTO', x: 35.2, z: -84.7, yaw: face(35.2, -84.7, 42.5, -87.5) },       // (8 m from the Frostbloom door, which is awake: its light is 6 m)
           { id: 'vault', name: 'CRYSTAL VAULT', x: 4, z: -69, yaw: PI },
           { id: 'north-passage', name: 'NORTH PASSAGE', x: 33.9, z: -101.7, yaw: 2.6 },
         ],

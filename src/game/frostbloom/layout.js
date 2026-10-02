@@ -4,6 +4,7 @@
 import { makePopulate, goalsStage, exitStage, gemsStage, faceTo, inFront, flatSpot, band, lampsAlong, TAU } from '../realm/index.js';
 import { WATER_LEVEL } from '../level.js';
 import { BRIEF, REGIONS, LAKE, RIME_GLADE, HOLLOW, GATE, DOOR } from './brief.js';
+import { GLACIER, HEART, VAULT, PLINTH } from './glacier.js';
 
 const regionBand = (ctx, id, f0, f1, lo, hi) => band(ctx, REGIONS, id, f0, f1, lo, hi);
 const pts = (id) => REGIONS.find((r) => r.id === id).pts;
@@ -14,7 +15,7 @@ const blossom = (rng) => ({ canopy: 'leaves_blossom', size: rng.pick(['s', 'm', 
 
 export const populate = makePopulate(BRIEF, [
   goalsStage,
-  layoutThawGate, layoutGlasswater, layoutRimewood, layoutRidge, layoutHollow, layoutDanger, layoutScatter,
+  layoutThawGate, layoutGlasswater, layoutRimewood, layoutGlacier, layoutRidge, layoutHollow, layoutDanger, layoutScatter,
   exitStage,
   gemsStage,
 ], { seed: 6203 });
@@ -101,6 +102,76 @@ function layoutRimewood(ctx) {
   void RIME_GLADE;
 }
 
+// ---- the glacier: the Icefall over the mouth, the way in, the heart chamber under its skylight, the vault behind a cracked wall -------------------------------------
+/** where the glacier's south wall stands at the mouth (glacier.js: the bastion's face) */
+const FACE_Z = -7.2;
+
+/** torches along a tunnel, alternating sides, from `s0` every `every` metres */
+function torchesAlong(ctx, name, every, s0, s1 = Infinity, margin = 1.3) {
+  const len = GLACIER.length(name);
+  let k = 0;
+  for (let s = s0; s <= Math.min(len - 2, s1); s += every, k++) {
+    const q = GLACIER.at(name, s), p = GLACIER.at(name, s, (k % 2 ? 1 : -1) * (q.hw - margin));
+    ctx.put('torch_stand', p.x, p.z, { rot: p.yaw }, 1.2);
+  }
+}
+/** crystals at a tunnel's walls: [s, side (+ right, - left), count] */
+function crystalsIn(ctx, name, list) {
+  for (const [s, side, count] of list) { const p = GLACIER.at(name, s, side); ctx.put('crystal_cluster', p.x, p.z, { rot: (s * 7.3 + side) % TAU, color: 'cyan', count: count ?? 5 }, 2.2); }
+}
+/** a line of gems along a tunnel's middle, the values cycling */
+function gemsAlong(ctx, name, every, pattern, s0, s1 = Infinity) {
+  const len = GLACIER.length(name);
+  let k = 0;
+  for (let s = s0; s <= Math.min(len - 1.5, s1); s += every) { const p = GLACIER.at(name, s); ctx.addGem(p.x, p.z, pattern[k++ % pattern.length]); }
+}
+
+function layoutGlacier(ctx) {
+  const { gp, put, h } = ctx;
+  const lane = GLACIER.at('mouth', 0), mouth = GLACIER.at('mouth', 6);
+  // the frozen waterfall hangs over the mouth: its flows against the wall, an opening under it for the way in
+  put('ice_fall', lane.x, FACE_Z + 0.8, { rot: 0, h: 15, w: 22, gap: 10, gapH: 8.4 }, 13);
+  for (const side of [-1, 1]) {
+    const p = GLACIER.at('mouth', 1, side * (mouth.hw + 2.2)), c = GLACIER.at('mouth', 4, side * (mouth.hw + 5.2));
+    put('torch_stand', p.x, p.z, {}, 1.4);
+    put('crystal_cluster', c.x, c.z, { color: 'cyan', count: 5 }, 2.4);
+  }
+  gp.hints.push({ x: lane.x, z: lane.z + 8, r: 12, text: 'THE ICEFALL: A CAVE LIES BEHIND THE FROZEN WATER', dur: 7 });
+  // the way in: torches and crystals, a trail of gems up to the chamber
+  torchesAlong(ctx, 'mouth', 11, 16);
+  crystalsIn(ctx, 'mouth', [[14, -3.4, 5], [21, 3.4, 4], [27, -3.6, 5]]);
+  gemsAlong(ctx, 'mouth', 5.5, [1, 1, 2], 14);
+  for (const s of [20, 30]) { const p = GLACIER.at('mouth', s, s > 24 ? 2.4 : -2.4); ctx.addVase(p.x, p.z, s > 24 ? [1, 2] : [1, 1, 1], h(p.x, p.z)); }
+  const guard = GLACIER.at('mouth', 23, 2.2);
+  ctx.addEnemy(guard.x, guard.z, 'basic', 4);
+
+  // the heart chamber: the daylight of the skylight pours down on the Frostbloom, spires and crystals round its rim, guardians
+  const at = (deg, r) => [HEART.x + Math.cos(deg * TAU / 360) * r, HEART.z + Math.sin(deg * TAU / 360) * r];
+  put('light_shaft', HEART.x, HEART.z, { h: 13.5, r0: 2.2, r1: 3.3, color: [0.62, 0.86, 1.0], glow: [0.6, 0.85, 1.0] }, 0);
+  put('standing_stones', HEART.x, HEART.z, { r: 6.4, count: 7, glowColor: [0.7, 0.9, 1.0] }, 8);
+  for (const deg of [35, 140, 215, 310]) { const [x, z] = at(deg, 11.4); put('torch_stand', x, z, {}, 1.2); }
+  for (const [deg, r] of [[60, 10.8], [112, 11], [250, 10.6], [290, 10.8], [345, 10.6]]) { const [x, z] = at(deg, r); put('crystal_cluster', x, z, { rot: deg, color: 'cyan', count: 6 }, 2.6); }
+  for (const deg of [75, 275]) { const [x, z] = at(deg, 11.8); put('crystal_spire', x, z, { color: 'cyan', h: 7 }, 2.4); }
+  for (let i = 0; i < 10; i++) { const [x, z] = at(i * 36 + 18, 9.0); ctx.addGem(x, z, i % 5 === 0 ? 2 : 1); }
+  for (const [deg, g] of [[100, [1, 2]], [205, [5]], [330, [1, 1, 2]]]) { const [x, z] = at(deg, 9.6); ctx.addVase(x, z, g, h(x, z)); }
+  ctx.addEnemy(...at(205, 8.6), 'bell', 3);
+  ctx.addEnemy(...at(330, 8.6), 'thorn', 3);
+  gp.hints.push({ x: HEART.x, z: HEART.z + 8, r: 13, text: 'THE HEART OF THE GLACIER. THE FROSTBLOOM SLEEPS UNDER THE SKYLIGHT. A CRACKED WALL SHUTS THE WEST PASSAGE', dur: 8 });
+  gp.soundSources.push({ name: 'portal_hum', x: HEART.x, y: PLINTH + 2, z: HEART.z, range: 22, vol: 0.35 });
+
+  // the ice vault: a passage west out of the chamber, shut with a cracked wall; behind it a little round room of crystals and a chest
+  const m = GLACIER.at('vault', 5.5);
+  ctx.addWall(m.x, m.z, m.yaw, 7.0, 5.7, [25]);
+  const v0 = GLACIER.at('vault', 0);
+  gp.hints.push({ x: v0.x, z: v0.z + 3, r: 8, text: 'A CRACKED WALL OF ICE SHUTS THIS PASSAGE... TRY CHARGING IT', dur: 6 });
+  const va = (deg, r) => [VAULT.x + Math.cos(deg * TAU / 360) * r, VAULT.z + Math.sin(deg * TAU / 360) * r];
+  for (const [deg, count] of [[20, 5], [75, 6], [135, 5], [200, 6], [255, 5], [320, 5]]) { const [x, z] = va(deg, 5.4); if (Math.hypot(x - m.x, z - m.z) > 3.5) put('crystal_cluster', x, z, { rot: deg, color: 'cyan', count }, 2.2); }
+  const [cx, cz] = va(180, 3.6);
+  gp.chests.push({ x: cx, y: h(cx, cz), z: cz, yaw: -Math.PI / 2, gems: [10, 10, 5], secret: 'vault' });
+  const [px, pz] = va(0, 2.2);
+  gp.purple.push([px, h(px, pz) + 1.3, pz]);
+}
+
 // ---- Aurora Ridge: a climb in switchbacks to the Hollow, a lookout off its road ------------------------------------------------------------------------
 function layoutRidge(ctx) {
   const { gp, put, rng, h } = ctx;
@@ -126,7 +197,7 @@ function layoutHollow(ctx) {
   // the gate: two pillars in the gorge and a field of ice between them that melts when four Frostbloom have bloomed (the barrier: gp.barrier)
   put('gate_pillars', GATE.x, GATE.z, { rot: GATE.yaw }, 8);
   const gate = ctx.anchor('gate_pillars', 'barrier', GATE.x, GATE.z, { rot: GATE.yaw });
-  gp.barrier = { x: gate ? gate[0] : GATE.x, y: gate ? gate[1] - 5.75 : h(GATE.x, GATE.z), z: gate ? gate[2] : GATE.z, yaw: GATE.yaw };
+  gp.barrier = { x: gate ? gate[0] : GATE.x, y: gate ? gate[1] - 5.75 : h(GATE.x, GATE.z), z: gate ? gate[2] : GATE.z, yaw: GATE.yaw, opts: { tint: [0.5, 2.1, 1.1] } };       // (the field is ice teal, not the Dawn Gate's violet)
   gp.soundSources.push({ name: 'portal_hum', x: gp.barrier.x, y: gp.barrier.y + 4, z: gp.barrier.z, range: 38, vol: 1.2, when: 'barrier' });
   gp.hints.push({ x: GATE.x, z: GATE.z + 12, r: 10, text: 'THE ICE GATE MELTS WHEN FOUR FROSTBLOOMS HAVE BLOOMED', dur: 7 });
   for (const side of [-1, 1]) {

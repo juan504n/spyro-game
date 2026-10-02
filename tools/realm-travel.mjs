@@ -10,7 +10,7 @@ import { buildHeadless, addRuntimeColliders } from './headless-world.mjs';
 import { makeWalkmap } from './walkmap.mjs';
 import { makePlaceChecker } from './lib/travel-rules.mjs';
 import { measureText } from '../src/engine/textures/font.js';
-import { pointOn } from '../src/game/realm/country.js';
+import { pointOn, regionAt } from '../src/game/realm/country.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -30,7 +30,8 @@ export function findTravelPlaces(which) {
   const problems = [];
 
   /** a valid place near (x0, z0), looking at (fx, fz), arriving from the side of (bx, bz) when there is one: nearest candidates first */
-  const find = (id, name, x0, z0, fx, fz, bx = null, bz = null, rings = [0, 3, 4.5, 6, 8, 10, 13, 17, 22]) => {
+  // (`ref`: the height of the floor the place is meant for - a goal's, a chest's, a ribbon's: under a cave's roof the highest surface at a point is the roof, not where he stands)
+  const find = (id, name, x0, z0, fx, fz, bx = null, bz = null, rings = [0, 3, 4.5, 6, 8, 10, 13, 17, 22], ref = null) => {
     const base = bx === null ? 0 : Math.atan2(bz - z0, bx - x0);
     for (const d of rings) {
       const n = d === 0 ? 1 : 16;
@@ -40,7 +41,7 @@ export function findTravelPlaces(which) {
         const x = r2(x0 + Math.cos(a) * d), z = r2(z0 + Math.sin(a) * d);
         if (taken.some((t) => Math.hypot(t.x - x, t.z - z) < 4)) continue;
         const p = { id, name, x, z, yaw: r2(Math.atan2(fx - x, fz - z)) };
-        const sup = collision.support(x, z, 1e3, 1e3);
+        const sup = ref === null ? collision.support(x, z, 1e3, 1e3) : collision.support(x, z, ref, 0.9);
         if (Math.abs(sup.y - grid.heightAt(x, z)) > 0.15) p.y = r2(sup.y);
         const bad = checkPlace(p);
         if (Object.values(bad).every((v) => !v)) {
@@ -55,18 +56,18 @@ export function findTravelPlaces(which) {
   };
   const sp = gp.spawn;
   const goals = [], country = [], secrets = [];
-  for (const b of gp.beacons) { const g = brief ? brief.goals.find((q) => q.id === b.id) : null; goals.push(find(b.id, g ? g.name : b.name, b.x, b.z, b.x, b.z, sp.x, sp.z, [4, 5.5, 7, 9, 12, 16, 22])); }
-  country.push(find('start', 'THE START', sp.x, sp.z, sp.x + Math.sin(sp.yaw) * 20, sp.z + Math.cos(sp.yaw) * 20));
+  for (const b of gp.beacons) { const g = brief ? brief.goals.find((q) => q.id === b.id) : null; goals.push(find(b.id, g ? g.name : b.name, b.x, b.z, b.x, b.z, sp.x, sp.z, [4, 5.5, 7, 9, 12, 16, 22], b.y)); }
+  country.push(find('start', 'THE START', sp.x, sp.z, sp.x + Math.sin(sp.yaw) * 20, sp.z + Math.cos(sp.yaw) * 20, null, null, undefined, sp.y));
   for (const R of L.regions || []) {
     if (R.sealed || !R.label) continue;
     const [px, pz] = pointOn(R, 0.5), [qx, qz] = pointOn(R, 0.62);
     if (taken.some((t) => Math.hypot(t.x - px, t.z - pz) < 16)) continue;                  // (a part whose middle is where a place already is has no need of another)
-    country.push(find(R.id, R.label, px, pz, qx, qz));
+    country.push(find(R.id, R.label, px, pz, qx, qz, null, null, undefined, regionAt(R, px, pz).h));
   }
   for (const c of gp.chests.filter((q) => q.secret)) {
     if (taken.some((t) => Math.hypot(t.x - c.x, t.z - c.z) < 12)) continue;                // (a secret beside a goal is shown by the goal's place)
     const s = brief ? brief.secrets.find((q) => q.id === c.secret) : null;
-    secrets.push(find(`secret-${c.secret}`, s ? s.name : `SECRET ${c.secret.toUpperCase()}`, c.x, c.z, c.x, c.z, sp.x, sp.z, [3.5, 5, 7, 9, 12, 16]));
+    secrets.push(find(`secret-${c.secret}`, s ? s.name : `SECRET ${c.secret.toUpperCase()}`, c.x, c.z, c.x, c.z, sp.x, sp.z, [3.5, 5, 7, 9, 12, 16], c.y));
   }
   const chunk = (list, name) => {
     const ok = list.filter(Boolean), out = [];

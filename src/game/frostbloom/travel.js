@@ -9,7 +9,7 @@ export const TRAVEL_PLACES = {
         { id: 'gate', name: 'GATE BLOOM', x: 12.4, z: 143.66, yaw: 2.73 },
         { id: 'rime', name: 'RIMEWOOD BLOOM', x: -119.5, z: 23.12, yaw: -2.47 },
         { id: 'glass', name: 'GLASSWATER BLOOM', x: 1.89, z: 57, y: 0.45, yaw: 3.13 },
-        { id: 'ice', name: 'ICEFALL BLOOM', x: 141.47, z: -0.9, yaw: 2.46 },
+        { id: 'ice', name: 'ICEFALL BLOOM', x: 151.71, z: -44.72, yaw: 2.53 },
         { id: 'heart', name: 'HEARTBLOOM', x: 0, z: -154, yaw: 3.14, opens: true },
       ],
     },
@@ -28,6 +28,7 @@ export const TRAVEL_PLACES = {
       name: 'THE SECRETS',
       places: [
         { id: 'secret-rimeglade', name: 'THE FROZEN GLADE', x: -149.32, z: 76.34, yaw: -2.14 },
+        { id: 'secret-vault', name: 'THE ICE VAULT', x: 120.5, z: -49.37, yaw: -2.05 },
         { id: 'secret-lookout', name: 'AURORA LOOKOUT', x: 49.65, z: -60.56, yaw: -2.95 },
       ],
     },

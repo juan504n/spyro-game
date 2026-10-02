@@ -2,6 +2,7 @@
 export { defineBrief, ptsOf, RULES, SITUATION_IDS } from './brief.js';
 export { makeCountry, regionAt, pointOn, basin, mound, dryLand, flatten, glade, ravine, lerp, smooth } from './country.js';
 export { makeLevel, NO_LAKE } from './level.js';
+export { rockMass } from './rockmass.js';
 export { makePopulate, goalsStage, exitStage, gemsStage } from './populate.js';
 export { TAU, sum, faceTo, inFront, flatSpot, regionPts, along, roadAlong, roadOf, band, lampsAlong } from './helpers.js';
 

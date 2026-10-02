@@ -6,8 +6,8 @@ Verification here is a headless Chromium with a **software renderer** (SwiftShad
 ## For the realm itself
 | gate | command | protects |
 | --- | --- | --- |
-| the rules | `node tools/realm-check.mjs <id>` (or `tools/<id>-check.mjs`, which adds the realm's own) | the hard rules (deterministic build, firm start, reachable goals, the ring's floor, treasure) and the design principles (situations, journey, parts, levels, loops, dead ends, secrets, danger, gem trail, palette) |
-| the places of the TRAVEL menu | `node tools/realm-travel.mjs <id>` then `node tools/travel-check.mjs` | every place can be stood on, clear, named, not in a pocket |
+| the rules | `node tools/realm-check.mjs <id>` (or `tools/<id>-check.mjs`, which adds the realm's own: `frostbloom-check.mjs` checks its frosted roads, its skin, the glacier and the ice vault) | the hard rules (deterministic build, firm start, reachable goals, the ring's floor, treasure) and the design principles (situations, journey, parts, levels, loops, dead ends, secrets, danger, gem trail, palette) |
+| the places of the TRAVEL menu | `node tools/realm-travel.mjs <id>` then `node tools/travel-check.mjs` | every place can be stood on, clear, named, not in a pocket, in the walkable country (gate open); a place beyond a gate says `opens` |
 | the journey in the real game | `node tools/realm-test.mjs <id>` | boot, every goal lit by fire, the day climbs, the gate opens, finale, the ring carries him out, Dawnhaven, back in restored |
 | the map | `node tools/realm-map.mjs <id> map.png` and look | the shape of the design |
 | screenshots | `tools/shot.mjs`, `tools/play.mjs`, `?world=<id>&at=x,z,yaw` | what it looks like; the start, each goal, the finale, a cave, the sky at both moods |

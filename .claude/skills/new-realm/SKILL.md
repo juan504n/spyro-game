@@ -1,6 +1,6 @@
 ---
 name: new-realm
-description: Design and build a new realm (a level, "world") for this Spyro-style game - lay its foundation with the realm foundry, write its design brief from the principles of the PS1 games' hubs and levels, build its places, and hold it to the checks. Use when asked to add, design, start or extend a realm / level / world (Frostbloom Hollow, Tideglass Reach, Emberfall Crags, Skyweaver Spires, a new one), or to wake a sleeping door of Dawnhaven.
+description: Design and build a new realm (a level, "world") for this Spyro-style game - lay its foundation with the realm foundry, write its design brief from the principles of the PS1 games' hubs and levels, build its places, and hold it to the checks. Use when asked to add, design, start or extend a realm / level / world (Tideglass Reach, Emberfall Crags, Skyweaver Spires, a new one; Frostbloom Hollow, the first, is the worked example), or to wake a sleeping door of Dawnhaven.
 ---
 
 # New realm: the foundry workflow
@@ -12,6 +12,7 @@ the design to what made the original games' worlds good, as code. You supply the
 | --- | --- |
 | the kit a realm is built on (ground from ribbons, level descriptor, level-script stages, goal situations) | `src/game/realm/` |
 | the golden example the generator copies (a small complete realm that passes every rule) | `src/game/realm/starter/` |
+| a finished realm made with the foundry: a frozen country with a glacier cave, its own textures, skin and props | `src/game/frostbloom/` (and `tools/frostbloom-check.mjs`, its own checks) |
 | generator: foundation of a new realm, registered | `node tools/new-realm.mjs <id> --name "NAME" --tagline "..." [--door <door id> --wake-door]` |
 | the rules: hard (it works) + design (the principles) | `node tools/realm-check.mjs <id>` (rules in `tools/lib/realm-rules.mjs`) |
 | a map of the built world (terrain, roads, goals, Snuffers, chests, hints, props) | `node tools/realm-map.mjs <id> out.png` |
@@ -43,7 +44,7 @@ design lives in one place. `defineBrief` refuses a brief that is not a design ye
 
 **4. Build the places.** `layout.js` is a list of stages (`makePopulate(BRIEF, [goalsStage, layoutX, ..., exitStage, gemsStage])`): the kit provides the goals, the ring of light and the treasure; each part of the
 country is a function of your own that dresses it (props, enemies, vases, chests, walls, hints). `level.js` takes landforms the ribbons cannot make (`glade`, `ravine`, `flatten`, `mound`, rock masses
-for caves via `massifs`, a `groundRule` for the realm's own ground). New art goes where it belongs (`reference/recipe.md`: textures, props, goal model, environment).
+for caves via `massifs` - `rockMass` in `src/game/realm/rockmass.js` makes one from data, see `frostbloom/glacier.js` - and a `groundRule` for the realm's own ground). New art goes where it belongs (`reference/recipe.md`: textures, props, goal model, environment).
 
 **5. Run the checker until it is quiet, then delete the waivers.** `node tools/realm-check.mjs <id>` prints FAIL (fix it), WAIVE (a to-do you wrote or the starter left) and PASS. A rule may be waived only
 with a reason in `brief.waive`; a finished realm waives nothing. Add the realm's own checks to `tools/<id>-check.mjs`.

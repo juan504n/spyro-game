@@ -74,6 +74,12 @@ export function defineBrief(b) {
     need(typeof g.name === 'string' && g.name === g.name.toUpperCase(), `goal '${g.id}': name in UPPER CASE`);
     need(isXZ(g), `goal '${g.id}': x and z`);
     need(SITUATION_IDS.includes(g.situation), `goal '${g.id}': situation one of ${SITUATION_IDS.join(' | ')} (it is what the checker holds the place to)`);
+    // the look of a goal (BeaconSystem reads these: a colour of the wrong shape only fails when the hero first lights it)
+    const col = (v, n = 3) => Array.isArray(v) && v.length === n && v.every(isNum);
+    if (g.beam !== undefined) need(!!g.beam && col(g.beam.off) && col(g.beam.on), `goal '${g.id}': beam { off: [r, g, b], on: [r, g, b] } (its column of light before and after it is lit)`);
+    for (const k of ['glow', 'wisp', 'sparkle']) if (g[k] !== undefined) need(col(g[k]), `goal '${g.id}': ${k} [r, g, b]`);
+    if (g.spark !== undefined) need(!!g.spark && col(g.spark.c0, 4) && col(g.spark.c1, 4), `goal '${g.id}': spark { c0: [r, g, b, a], c1: [r, g, b, a] } (the colours of the burst when it is lit: from, to)`);
+    if (g.model !== undefined) need(typeof g.model === 'string', `goal '${g.id}': model the name of a model (models/objects.js)`);
   }
   const kinds = new Set(goals.map((g) => g.situation));
   need(kinds.size >= RULES.situationsMin(goals.length), `goals: ${kinds.size} different situations among ${goals.length} goals; at least ${RULES.situationsMin(goals.length)} (every goal in a place of its own kind)`);
