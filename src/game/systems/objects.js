@@ -23,6 +23,7 @@ export class ObjectSystem {
     this.braziers = (d.braziers || []).map((b) => this._brazier(b));
     this.mushrooms = (d.mushrooms || []).map((m) => this._mushroom(m));
     this.islands = d.islands || [];
+    this.whirlwinds = (d.whirlwinds || []).map((w) => this._whirlwind(w));          // (updrafts: realm/whirl.js has the physics, player.js applies it, the funnel is drawn here)
     this.time = 0;
 
     this.portcullis = null;
@@ -104,6 +105,14 @@ export class ObjectSystem {
     const pool = g.fx.decal({ pool: 'add', sprite: 'glow', x: b.x, z: b.z, r: 5, color: [1, 0.7, 0.3], alpha: 0 });
     pool.y = b.y + 0.08;
     return { ...b, model, lit: false, l: 0, pool };
+  }
+
+  _whirlwind(w) {
+    const g = this.game;
+    const model = makeModel(g.assets, 'whirlwind', { h: w.h, r: w.r });
+    model.root.position.set(w.x, w.y0, w.z);
+    g.dyn.add(model.root);
+    return { ...w, model, acc: 0 };
   }
 
   _mushroom(m) {
@@ -292,6 +301,12 @@ export class ObjectSystem {
       this.ward?.model.update?.(dt, { t, open: this.barrier.c.solid ? this.barrier.open : 1, px: game.player.x, pz: game.player.z });
     }
     if (this.sails) this.sails.model.update?.(dt, { angle: this.sails.angle });
+    for (const w of this.whirlwinds) {
+      w.model.update?.(dt, { t });
+      if (Math.hypot(game.player.x - w.x, game.player.z - w.z) > 110) continue;
+      w.acc += dt * (14 + w.h * 0.4);                                    // (more of its weather the taller it is)
+      while (w.acc >= 1) { w.acc -= 1; game.fx.whirlBit(w); }
+    }
   }
 }
 

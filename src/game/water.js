@@ -109,8 +109,15 @@ export function buildWater(grid, lighting, assets) {
   const shim = new Builder({ lighting });
   const base = lq ? { tile: lq.tile ?? 6, emissive: lq.emissive ?? 1, alpha: 1 } : { tile: 5, emissive: 0.1, alpha: 1 };
   const k = L.lake;
-  disc(surf, k.x, k.z, k.rx * 1.12, k.rz * 1.12, WATER_LEVEL, 44, 7, depthTint, { ...base });
-  disc(shim, k.x, k.z, k.rx * 1.12, k.rz * 1.12, WATER_LEVEL + 0.03, 44, 4, shimmer, { ...base, tile: lq ? (lq.tile ?? 6) * 0.7 : 3.5 });
+  if (L.sea) {
+    // a sea (Skyweaver Spires' clouds): one surface out to the horizon, cut finely enough that the fog (worked out at the vertices) is right a few dozen metres from the hero
+    const S = L.sea;
+    disc(surf, S.x, S.z, S.r, S.r, WATER_LEVEL, 72, 32, depthTint, { ...base });
+    disc(shim, S.x, S.z, S.r, S.r, WATER_LEVEL + 0.03, 72, 24, shimmer, { ...base, tile: lq ? (lq.tile ?? 6) * 0.7 : 3.5 });
+  } else {
+    disc(surf, k.x, k.z, k.rx * 1.12, k.rz * 1.12, WATER_LEVEL, 44, 7, depthTint, { ...base });
+    disc(shim, k.x, k.z, k.rx * 1.12, k.rz * 1.12, WATER_LEVEL + 0.03, 44, 4, shimmer, { ...base, tile: lq ? (lq.tile ?? 6) * 0.7 : 3.5 });
+  }
   for (const p of L.ponds) {
     disc(surf, p.x, p.z, p.rx * 1.15, p.rz * 1.15, WATER_LEVEL, 24, 4, depthTint, { ...base });
     disc(shim, p.x, p.z, p.rx * 1.15, p.rz * 1.15, WATER_LEVEL + 0.03, 24, 3, shimmer, { ...base, tile: lq ? (lq.tile ?? 6) * 0.7 : 3.5 });

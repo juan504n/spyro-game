@@ -7,6 +7,7 @@
 // him untouchable for a few seconds as after a respawn, and makes the place his checkpoint; a place inside the ward that seals the vale's summit (the observatory) opens the Dawn Gate first.
 import { TRAVEL_PLACES as TRAVEL_FROSTBLOOM } from './frostbloom/travel.js';
 import { TRAVEL_PLACES as TRAVEL_EMBERFALL } from './emberfall/travel.js';
+import { TRAVEL_PLACES as TRAVEL_SKYWEAVER } from './skyweaver/travel.js';
 // <realm-travel-imports>  (tools/realm-travel.mjs adds the import of a realm's places above this line)
 const PI = Math.PI;
 /** the yaw that looks from (x, z) towards (tx, tz) */
@@ -98,6 +99,7 @@ export const TRAVEL = [
   },
   TRAVEL_FROSTBLOOM,
   TRAVEL_EMBERFALL,
+  TRAVEL_SKYWEAVER,
   // <realm-travel-entries>  (tools/realm-travel.mjs adds the entry of a realm's places above this line)
 ];
 

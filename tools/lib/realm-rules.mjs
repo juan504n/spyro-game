@@ -7,6 +7,7 @@
 // the secrets) is skipped for a world that has none (Gloaming Vale, Dawnhaven): there the rules that need no brief are what is measured, which is how the thresholds were calibrated.
 import { buildHeadless, addRuntimeColliders, resolveRealm } from '../headless-world.mjs';
 import { makeWalkmap } from '../walkmap.mjs';
+import { airTools } from './air.mjs';
 import { SLOPE_WALK } from '../../src/game/collision.js';
 import { WATER_LEVEL } from '../../src/game/level.js';
 import { REALMS, DEFAULT_WORDS } from '../../src/game/realms.js';
@@ -67,10 +68,17 @@ export function checkRealm(which, { log = () => {} } = {}) {
   const badEnemies = gp.enemies.filter((e) => collision.blocking(e.x, h(e.x, e.z) + 0.5, e.z, 0.4) || h(e.x, e.z) < WATER_LEVEL + 0.2);
   addRuntimeColliders(collision, gp, grid);
   const { flood } = makeWalkmap({ grid, collision });
-  const walkShut = flood([sp.x, sp.z], { hop: 6.2 });
-  const walk = flood([sp.x, sp.z], { hop: 6.2, breakWalls: true, openGate: true });
+  // (the hero's own two walks: as things stand, and with every cracked wall broken and the gate open. A realm whose islands are joined in the air (`brief.air`: glides and whirlwinds, tools/lib/air.mjs)
+  // is held to the journey instead - the walk of the start's own ground and the ground of every landing he can get to - so that "can it be reached" means the same in a country of islands)
+  const footShut = flood([sp.x, sp.z], { hop: 6.2 });
+  const footWalk = flood([sp.x, sp.z], { hop: 6.2, breakWalls: true, openGate: true });
+  const airT = brief && brief.air ? airTools({ grid, collision, gp, brief, flood }) : null;
+  const airJ = airT ? airT.make({ start: [sp.x, sp.z], startY: sp.y, breakWalls: true, openGate: true }) : null;
+  const airShut = airT ? airT.make({ start: [sp.x, sp.z], startY: sp.y, breakWalls: false, openGate: false }) : null;
+  const walkShut = airShut ? airShut.map : footShut;
+  const walk = airJ ? airJ.map : footWalk;
   const near = (f, x, z, r = 3, y) => f.distNear(x, z, r, y);
-  const env = { grid, collision, gp, level: L, ctx, massifs, h, walk, walkShut };
+  const env = { grid, collision, gp, level: L, ctx, massifs, h, walk, walkShut, foot: footWalk, footShut, air: airJ, airShut };
 
   // ---- HARD: the world works ---------------------------------------------------------------------------------------------------------------
   {
@@ -79,7 +87,8 @@ export function checkRealm(which, { log = () => {} } = {}) {
   }
   {
     const sup = collision.support(sp.x, sp.z, sp.y + 1, 0.9), nrm = grid.normalAt(sp.x, sp.z);
-    rule('spawn.firm', 'the hero starts on firm, dry, level ground in the open', Math.abs(sup.y - sp.y) < 0.6 && nrm[1] >= SLOPE_WALK && sp.y > WATER_LEVEL + 0.5 && walkShut.count > 5000, `(y ${f1(sp.y)}, ${walkShut.count} cells reachable)`, { hard: true });
+    const open = airJ ? brief.air.startCells : 5000;          // (an island's own ground is not a country's: a realm of islands says how much room the start has)
+    rule('spawn.firm', 'the hero starts on firm, dry, level ground in the open', Math.abs(sup.y - sp.y) < 0.6 && nrm[1] >= SLOPE_WALK && sp.y > WATER_LEVEL + 0.5 && footShut.count > open, `(y ${f1(sp.y)}, ${footShut.count} cells reachable on foot${airJ ? `, ${open} wanted` : ''})`, { hard: true });
     if (isRealm) rule('spawn.road', 'the start is on or beside a road, so the way is plain from the first step', ctx.pathDist(sp.x, sp.z) < 12, `(${f1(ctx.pathDist(sp.x, sp.z))} m from the nearest)`);
   }
 
@@ -105,6 +114,20 @@ export function checkRealm(which, { log = () => {} } = {}) {
     }
   }
 
+  // the air: the links that join the islands where there is no way on foot (a realm with `brief.air`)
+  if (airJ) {
+    const bad = airJ.links.filter((E) => E.errors.length);
+    rule('air.links', 'every air link can be flown: a launch or a whirlwind the hero can get to, the landing within the reach of a glide (with its margin), nothing in the way, an island to land on', bad.length === 0, bad.length ? bad.map((E) => `${E.id}: ${E.errors.join('; ')}`).join(' | ') : `(${airJ.links.map((E) => `${E.id} ${f0(E.gap)} m across, ${f0(E.drop)} m down, ${f0((E.gap / (E.reach * 0.9)) * 100)}% of the reach`).join('; ')})`, { hard: true });
+    const idle = airJ.links.filter((E) => !E.active && !E.errors.length);
+    rule('air.reach', 'every air link starts from ground the hero can get to', idle.length === 0, idle.map((E) => E.id).join(' '), { hard: true });
+    // no island the hero can land on is a trap: each has a way off (a link that starts on it), but the one that holds the last goal
+    const lastG = goals[goals.length - 1];
+    const traps = airJ.floods.filter((F) => F.link && Number.isFinite(F.offset) && !airJ.links.some((E) => E.active && Number.isFinite(F.map.distNear(E.o.x, E.o.z, 2.4, E.o.y))) && !(F.map.distNear(lastG.x, lastG.z, 4, lastG.y) < Infinity));
+    rule('air.trap', 'no island the hero can land on is a trap: each has a way off by another link, but the one with the last goal', traps.length === 0, traps.map((F) => F.id).join(' '));
+    const stray = (gp.whirlwinds || []).filter((w) => !airJ.links.some((E) => E.kind === 'lift' && E.whirl === w.id) || !(airJ.map.distNear(w.x, w.z, 2.4, w.y0) < Infinity));
+    rule('air.whirls', 'every whirlwind is used by a link and stands where the hero can walk in', stray.length === 0, stray.map((w) => w.id).join(' '), { hard: true });
+  }
+
   // the treasure
   {
     rule('gems.total', 'the gems add up to a tidy round number', gp.gemsTotal % 50 === 0 && gp.gemsTotal >= (brief ? brief.gems.min : 300), `(${gp.gemsTotal})`, { hard: true });
@@ -115,7 +138,8 @@ export function checkRealm(which, { log = () => {} } = {}) {
     rule('gems.place', 'no gem or vase inside a solid thing, on a lake bed or outside the world', stuck.length + wet.length + out.length + vstuck.length === 0, `(${stuck.length} stuck, ${wet.length} wet, ${out.length} outside, ${vstuck.length} vases stuck)`, { hard: true });
     // gems on the ground (or a floor) must be reachable; the airborne ones (an arc over water or a chasm to glide along, 3 m or more over the ground) are picked up in the air, which the flood cannot
     // tell, and are held to a quarter of the treasure instead
-    const air = (o) => o.value && (o.y - h(o.x, o.z) > 3 || h(o.x, o.z) < WATER_LEVEL - 0.9);
+    // (the floor under a gem is whatever the hero would stand on there: a bridge, a pier or a slab of rock hanging in the air holds its gems as the ground does)
+    const air = (o) => { if (!o.value) return false; const f = collision.support(o.x, o.z, o.y, 0).y; return o.y - f > 3 || f < WATER_LEVEL - 0.9; };
     const lost = [...gp.gems, ...gp.vases].filter((o) => !air(o) && ![0.95, 2.4].some((dy) => near(walk, o.x, o.z, o.value ? 4.5 : 3.6, o.y - (o.value ? dy : 0)) < Infinity));
     rule('gems.reach', 'everything that lies about to be collected can be reached (97% of it)', lost.length <= (gp.gems.length + gp.vases.length) * 0.03, `(${lost.length} of ${gp.gems.length + gp.vases.length} out of reach${lost.length ? `: ${lost.slice(0, 4).map((o) => `${f1(o.x)},${f1(o.z)}`).join(' ')}` : ''})`, { hard: true });
     const aerial = gp.gems.filter(air);
@@ -235,7 +259,7 @@ export function checkRealm(which, { log = () => {} } = {}) {
     for (const [a, b] of edges) { const ra = find(a), rb = find(b); if (ra === rb) cycles++; else par[ra] = rb; }
     if (isRealm) rule('design.loops', 'the roads make at least one loop (a way back that is not the way there)', cycles >= 1, `(${paths.length} roads, ${nodes.length} junctions and ends, ${cycles} independent loops)`);
     else skip('design.loops', 'a hub is not held to loops');
-    const rewards = [...goals, ...gp.chests, ...gp.npcs, ...gp.portals, ...gp.walls, ...(gp.mushrooms || []), ...gp.placed.filter((p) => /pier|arch_gate|gate_pillars|windmill|tower|forge|realm_door|ice_fall|dragon_maw/.test(p.name))];
+    const rewards = [...goals, ...gp.chests, ...gp.npcs, ...gp.portals, ...gp.walls, ...(gp.mushrooms || []), ...(gp.whirlwinds || []), ...gp.placed.filter((p) => /pier|arch_gate|gate_pillars|windmill|tower|forge|realm_door|ice_fall|dragon_maw/.test(p.name))];
     // (a road that ends at the mouth of a cave leads into it: the cave's own way on is not a road the list can see)
     const atCave = (e) => massifs.some((m) => m.inBoxXZ(e.x, e.z) && [[8, 0], [-8, 0], [0, 8], [0, -8], [6, 6], [-6, 6], [6, -6], [-6, -6], [14, 0], [-14, 0], [0, 14], [0, -14]].some(([dx, dz]) => m.roofed(e.x + dx, e.y, e.z + dz, 3)));
     const dead = ends.filter((e) => !e.joined && Math.hypot(e.x - sp.x, e.z - sp.z) > 25 && !rewards.some((o) => Math.hypot(o.x - e.x, o.z - e.z) < 30) && !atCave(e));

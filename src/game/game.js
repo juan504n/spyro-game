@@ -124,7 +124,7 @@ export class Game {
       this.beacons = new BeaconSystem(this, gp.beacons || []);
       this.enemies = new EnemySystem(this, gp.enemies || []);
       this.critters = new CritterSystem(this, gp.bunnies || []);
-      this.objects = new ObjectSystem(this, { vases: gp.vases, chests: gp.chests, walls: gp.walls, braziers: gp.braziers, portcullis: gp.portcullis, barrier: gp.barrier, mushrooms: gp.mushrooms, sails: gp.sails, islands: gp.islands });
+      this.objects = new ObjectSystem(this, { vases: gp.vases, chests: gp.chests, walls: gp.walls, braziers: gp.braziers, portcullis: gp.portcullis, barrier: gp.barrier, mushrooms: gp.mushrooms, sails: gp.sails, islands: gp.islands, whirlwinds: gp.whirlwinds });
       this.ambient = new Ambient(this, this.world.lights || [], this.world.emitters || []);
       this.npcs = new NpcSystem(this, gp.npcs || [], gp.hints || []);
       this.portals = new PortalSystem(this, gp.portals || []);
@@ -191,10 +191,15 @@ export class Game {
     p.on.hurt = () => { sfx('hurt', { vol: 1 }); this.cam.shake(0.35, 0.3); fx.hitSpark(p.x, p.y + 0.6, p.z, 1); };
     p.on.die = () => { sfx('die', { vol: 1 }); this.stats.deaths++; this.deathT = 0; this.audio?.duck?.(0.6, 2.2); };
     const lava = this.level.liquid && this.level.liquid.splash === 'lava';                // (a realm whose lake is lava: sparks and a hiss for the splash)
-    p.on.splash = (depth) => { if (lava) { fx.lavaSplash(p.x, 0, p.z, depth > 0.9 ? 1.5 : 0.8); sfx('flame', { vol: depth > 0.9 ? 0.8 : 0.4, pitch: 0.7 }); return; } fx.splash(p.x, 0, p.z, depth > 0.9 ? 1.5 : 0.8); sfx('splash', { vol: depth > 0.9 ? 1 : 0.5 }); };
+    const cloud = this.level.liquid && this.level.liquid.splash === 'cloud';              // (a sea of cloud: a puff of white, a breath of wind)
+    p.on.splash = (depth) => {
+      if (lava) { fx.lavaSplash(p.x, 0, p.z, depth > 0.9 ? 1.5 : 0.8); sfx('flame', { vol: depth > 0.9 ? 0.8 : 0.4, pitch: 0.7 }); return; }
+      if (cloud) { fx.puff(p.x, 0.6, p.z, depth > 0.9 ? 2.6 : 1.4); sfx('glide_start', { vol: 0.5, pitch: 0.7 }); return; }
+      fx.splash(p.x, 0, p.z, depth > 0.9 ? 1.5 : 0.8); sfx('splash', { vol: depth > 0.9 ? 1 : 0.5 });
+    };
     p.on.drown = () => {
-      if (lava) { fx.lavaSplash(p.x, 0, p.z, 2.2); sfx('flame', { vol: 1, pitch: 0.6 }); } else { fx.splash(p.x, 0, p.z, 1.8); sfx('splash', { vol: 1 }); }
-      const k = this.level.lake, inLake = Math.hypot((p.x - k.x) / k.rx, (p.z - k.z) / k.rz) < 1.25;
+      if (lava) { fx.lavaSplash(p.x, 0, p.z, 2.2); sfx('flame', { vol: 1, pitch: 0.6 }); } else if (cloud) { fx.puff(p.x, 0.8, p.z, 3.2); sfx('glide_start', { vol: 0.8, pitch: 0.55 }); } else { fx.splash(p.x, 0, p.z, 1.8); sfx('splash', { vol: 1 }); }
+      const k = this.level.sea || this.level.lake, inLake = this.level.sea ? true : Math.hypot((p.x - k.x) / k.rx, (p.z - k.z) / k.rz) < 1.25;
       this.hud.hint(inLake ? (k.deepHint || 'MIRRORMERE IS TOO DEEP! FIND THE STONES OR GLIDE') : 'THE WATER IS TOO DEEP HERE. FIND ANOTHER WAY', 4);
     };
     p.on.respawn = () => { sfx('respawn', { vol: 0.8 }); fx.puff(p.x, p.y + 0.5, p.z, 0.8); };

@@ -352,6 +352,15 @@ export class Fx {
     this.spawn({ pool: 'half', frames: ['smoke_0', 'smoke_1'], overLife: true, x, y, z, vx: this.rnd(-0.1, 0.4), vy: this.rnd(0.7, 1.1), vz: this.rnd(-0.2, 0.2), life: this.rnd(2.2, 3.4), size: [0.7 * scale, 2.6 * scale], c0: [0.9, 0.85, 1, 0.9], c1: [0.9, 0.85, 1, 0], rot: this.rnd(0, 6), spin: this.rnd(-0.3, 0.3) });
   }
 
+  /** a whirlwind's own weather (realm/whirl.js): a mote of wind on the column's surface at a random height, thrown round it and up (bits of cloud now and then) */
+  whirlBit(w) {
+    const t = this.rnd(0, 0.95), y = w.y0 + t * w.h, r = w.r * (1 + 0.7 * t) * this.rnd(0.7, 1.05), a = this.rnd(0, Math.PI * 2);
+    const x = w.x + Math.sin(a) * r, z = w.z + Math.cos(a) * r, v = this.rnd(5, 8);
+    const vx = Math.cos(a) * v, vz = -Math.sin(a) * v;                       // (counter-clockwise, tangent to the column)
+    if (Math.random() < 0.35) this.spawn({ pool: 'half', frames: ['puff_0', 'puff_1', 'puff_2', 'puff_3'], overLife: true, x, y, z, vx, vy: this.rnd(3, 6), vz, life: this.rnd(0.9, 1.5), size: [1.0, 2.6], c0: [0.9, 0.96, 1, 0.55], c1: [1, 1, 1, 0] });
+    else this.spawn({ pool: 'add', sprite: 'spark_small', x, y, z, vx, vy: this.rnd(4, 9), vz, life: this.rnd(0.5, 0.9), size: [0.4, 0.12], c0: [0.8, 0.95, 1, 0.9], c1: [1, 1, 1, 0] });
+  }
+
   firefly(x, y, z) {
     this.spawn({ pool: 'add', sprite: 'firefly', x, y, z, vx: this.rnd(-0.5, 0.5), vy: this.rnd(-0.1, 0.4), vz: this.rnd(-0.5, 0.5), life: this.rnd(3, 6), size: [0.3, 0.3], c0: [0.9, 1, 0.4, 0.9], c1: [0.9, 1, 0.4, 0.9], overLife: false, pulse: true });
   }

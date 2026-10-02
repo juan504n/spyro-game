@@ -577,6 +577,25 @@ function cliffBasalt(mossy = true) {
   return c;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Skyweaver Spires: the ground of the islands above the cloud. Skyturf is windswept turf in cool sage and pale teal; the marble of the spires is cream strata with fine blue-grey veins; the roads are
+// cloudstone flags with sky-blue moss in the joints, and a pale trodden path; the far rock is a lavender haze.
+// ---------------------------------------------------------------------------------------------
+const SKT = ['#2e4a30', '#486a3c', '#6c8c50', '#94b068', '#bed48a', '#e8efb4'];
+function skyturf() { return paintGrass(3101, SKT, { cells: 4, tufts: 40 }).c; }
+
+const MB = ['#4a4c68', '#6c6e8c', '#9498b0', '#bcbcc8', '#dcd6d0', '#f6f0e4'];
+function cliffMarble() {
+  const c = paintCliff(3201, { ramp: MB }, false);
+  const rng = new RNG(3202);
+  // fine veins of blue-grey running across the strata
+  for (let i = 0; i < 4; i++) {
+    const p = walk(rng, rng.int(0, 32), rng.int(0, 32), rng.int(10, 16), [1, rng.float(-0.35, 0.35)], 0.35);
+    polyline(c, p, '#7c8cb4');
+  }
+  return c;
+}
+
 export function terrainTextures() {
   return {
     grass_a: rec(grassA(), true, false),
@@ -610,6 +629,15 @@ export function terrainTextures() {
     cliff_basalt: rec(cliffBasalt(), true, false, { roll: 'x' }),
     cliff_basalt_bare: rec(cliffBasalt(false), true, false, { roll: 'x' }),
     far_ember: rec(paintFarRock(2003, ['#5c3c38', '#6c4842', '#7e564e']), true, false),
+    // the ground of Skyweaver Spires: turf and marble, the cloudstone roads, the far rock
+    skyturf: rec(skyturf(), true, false),
+    cliff_marble: rec(cliffMarble(), true, false, { roll: 'x' }),
+    cobble_sky: rec(paintCobble({
+      ramp: ['#58587a', '#7a7a9a', '#a0a0b8', '#c4c2d0', '#e2dede', '#f8f4ec'], moss: ['#78aec0', '#9acad8', '#bce0ea', '#e2f6fa'], seed: 3301,
+      fams: [{ d: '#a0a0b8', m: '#c4c2d0', l: '#f0ece4' }, { d: '#9090aa', m: '#b4b2c6', l: '#dcd8da' }, { d: '#a0a0b8', m: '#c4c2d0', l: '#f0ece4' }, { d: '#7a7a9a', m: '#a0a0b8', l: '#c4c2d0' }],
+    }), true, false, { roll: 'xy' }),
+    path_sky: rec(paintDirt(['#6e6a64', '#8c867c', '#aca493', '#c8bfaa', '#e0d6c0', '#f4ecd8'], 3311), true, false),
+    far_sky: rec(paintFarRock(3003, ['#a4aed2', '#b6bedc', '#c8d0e8']), true, false),
     cliff: rec(cliffLav(), true, false, { roll: 'x' }),
     cliff_warm: rec(cliffWarm(), true, false, { roll: 'x' }),
     cliff_bare: rec(cliffBare(), true, false, { roll: 'x' }),

@@ -101,6 +101,30 @@ const EMBER_ON = { o: INK, Y: '#ffd24a', w: '#fff4c0', y: '#f08a22', R: '#c4401a
 const EMBER_OFF = { o: INK, Y: '#6a3a30', w: '#8a4a38', y: '#4e2a22', R: '#38160f', S: '#4a3a34', s: '#2e2420', h: '#6e5a4e' };
 
 /* ---------------------------------------------------------------------------------------------- */
+/* bell 12x16: the goal of Skyweaver Spires, silent (bell_off) and ringing (bell_on)                   */
+/* ---------------------------------------------------------------------------------------------- */
+const BELL_MAP = [
+  '.....oo.....',
+  '....oYYo....',
+  '....oYYo....',
+  '...ooYYoo...',
+  '..oYYYYYYo..',
+  '.oYYwYYYYYo.',
+  '.oYwYYYYYYo.',
+  '.oYwYYYYYyo.',
+  '.oYYYYYYYyo.',
+  'oYYwYYYYYYyo',
+  'oYYwYYYYYyyo',
+  'oYYYYYYYYyyo',
+  'oyyyyyyyyyyo',
+  'oooooooooooo',
+  '....oRRo....',
+  '.....oo.....',
+];
+const BELL_ON = { o: INK, Y: '#f0bc48', w: '#fff4c0', y: '#b87a20', R: '#ffe08a' };
+const BELL_OFF = { o: INK, Y: '#68718a', w: '#8c97b2', y: '#434b62', R: '#566078' };
+
+/* ---------------------------------------------------------------------------------------------- */
 /* heart 10x9                                                                                       */
 /* ---------------------------------------------------------------------------------------------- */
 const HEART_MAP = [
@@ -381,6 +405,8 @@ export function buildIcons() {
   U.bloom_off = fromMap(BLOOM_MAP, BLOOM_OFF, 'bloom_off');
   U.ember_on = fromMap(EMBER_MAP, EMBER_ON, 'ember_on');
   U.ember_off = fromMap(EMBER_MAP, EMBER_OFF, 'ember_off');
+  U.bell_on = fromMap(BELL_MAP, BELL_ON, 'bell_on');
+  U.bell_off = fromMap(BELL_MAP, BELL_OFF, 'bell_off');
   U.sparx_blue = sparxIcon(RAMPS.gemBlue);
   U.sparx_green = sparxIcon(RAMPS.gemGreen);
   U.sparx_yellow = sparxIcon(RAMPS.gemGold);

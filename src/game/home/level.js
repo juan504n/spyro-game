@@ -82,7 +82,7 @@ const DOOR_DEFS = [
   // in the forge at the head of the canyon
   { id: 'emberfall', name: 'EMBERFALL CRAGS', tag: 'A REALM OF EMBERS AND STONE', x: 152, z: -164, look: [150, -138], color: [1.0, 0.58, 0.28], target: 'emberfall' },
   // on the summit of the Crag
-  { id: 'skyweaver', name: 'SKYWEAVER SPIRES', tag: 'A REALM ABOVE THE CLOUDS', x: SUMMIT.x + 3, z: SUMMIT.z - 5, y: SUMMIT.y, look: [SUMMIT.x - 6, SUMMIT.z + 9], color: [1.0, 0.78, 0.92], target: null },
+  { id: 'skyweaver', name: 'SKYWEAVER SPIRES', tag: 'A REALM ABOVE THE CLOUDS', x: SUMMIT.x + 3, z: SUMMIT.z - 5, y: SUMMIT.y, look: [SUMMIT.x - 6, SUMMIT.z + 9], color: [1.0, 0.78, 0.92], target: 'skyweaver' },
 ];
 export const DOORS = DOOR_DEFS.map((d) => ({ ...d, yaw: Math.atan2(d.look[0] - d.x, d.look[1] - d.z), h: DOOR_H }));
 /** where the hero comes out of the first door's light: 11 m in front of it */

@@ -4,7 +4,9 @@
 //
 // check(goal, env) -> { ok, detail }; `env` is what the checker has built (tools/realm-check.mjs):
 //   grid, collision, gp, level, ctx (the dry ctx), massifs, h(x, z),
-//   walk (a flood from the spawn with every cracked wall broken, the gate open and jumps allowed: tools/walkmap.mjs), walkShut (the same as things stand: walls whole, the gate shut)
+//   walk (a flood from the spawn with every cracked wall broken, the gate open and jumps allowed: tools/walkmap.mjs), walkShut (the same as things stand: walls whole, the gate shut);
+//   in a realm whose islands are joined in the air (brief.air) they are the whole journey (walks, glides, rides: tools/lib/air.mjs) and `foot` / `footShut` are the start's own ground,
+//   `air` the journey's links (enteredBy / leavesFrom a place); in any other realm `foot` is `walk`
 import { WATER_LEVEL } from '../level.js';
 import { SITUATION_IDS } from './brief.js';
 
@@ -18,6 +20,11 @@ export function glideReach(drop) {
   const t = (drop + 2.9) / 3.1;
   return t <= 0 ? 0 : 4.4 + 13.5 * t;
 }
+/**
+ * How far a glide carries a hero who begins it from a hover (the top of a whirlwind: realm/whirl.js) `drop` metres above where he lands: no run-up and no jump, the glide's 13.5 m/s for as long as he
+ * falls at its 3.1 m/s. (The same numbers as above, so the same margin applies.)
+ */
+export function liftReach(drop) { return drop <= 0 ? 0 : (13.5 * drop) / 3.1; }
 /** a margin on that: the hero is a person with a thumb, not a ballistic curve */
 export const GLIDE_MARGIN = 0.75;
 
@@ -81,30 +88,45 @@ export const SITUATIONS = {
   glide: {
     doc: 'across a gap: a ledge or shelf the hero reaches by gliding from higher ground (it may have a long way round on foot, never a short one; with no way on foot at all it must have a way off by a glide)',
     check(g, e) {
-      const foot = e.walk.distNear(g.x, g.z, 3, g.y);
+      const foot0 = e.foot || e.walk;                                      // (the ground he can walk to from the start: a launch is a place he stands on)
+      const foot = foot0.distNear(g.x, g.z, 3, g.y);
       let best = null;
-      e.walk.each((x, y, z) => {
+      foot0.each((x, y, z) => {
         const gap = Math.hypot(x - g.x, z - g.z);
         if (gap < 10) return;
         const drop = y - g.y;
         if (gap > glideReach(drop) * GLIDE_MARGIN) return;
-        const dFoot = e.walk.dist(x, z, y);
+        const dFoot = foot0.dist(x, z, y);
         if (!best || gap < best.gap) best = { x, y, z, gap, drop, dFoot };
       });
       if (!best) return { ok: false, detail: 'no ledge to glide from within reach' };
       const detour = foot === Infinity ? Infinity : foot - best.dFoot;
       // a way off: a shelf with no way on foot is no trap - ground of the walkable country lower than the goal, 10 m or more off, within reach of a glide from it (a hero who falls in the lava
-      // comes back to the last firm ground, which is the shelf: from there he must be able to glide on)
-      let off = null;
+      // comes back to the last firm ground, which is the shelf: from there he must be able to glide on). In a country of islands (brief.air) it is a link that starts on the shelf's island
+      // (a whirlwind to ride up, a glide to another island): the hero who falls in the cloud comes back to the shelf as well.
+      let off = null, links = null;
       if (foot === Infinity) {
-        e.walk.each((x, y, z) => {
+        if (e.air) links = e.air.leavesFrom(g.x, g.z, g.y);
+        else e.walk.each((x, y, z) => {
           const gap = Math.hypot(x - g.x, z - g.z), drop = g.y - y;
           if (gap < 10 || drop < 1 || y < WATER_LEVEL + 0.6 || gap > glideReach(drop) * GLIDE_MARGIN) return;                // (dry ground: not the shallows of the lava)
           if (!off || gap < off.gap) off = { x, y, z, gap, drop };
         });
       }
-      const way = foot === Infinity ? (off ? `; off again by a glide to (${f1(off.x)}, ${f1(off.y)}, ${f1(off.z)}): ${f1(off.gap)} m across, ${f1(off.drop)} m down` : '; NO WAY OFF the shelf by a glide') : '';
-      return { ok: (foot === Infinity || detour > 2.2 * best.gap + 40) && (foot !== Infinity || !!off), detail: `launch from (${f1(best.x)}, ${f1(best.y)}, ${f1(best.z)}): ${f1(best.gap)} m across, ${f1(best.drop)} m down; ${foot === Infinity ? 'no way on foot' : `${f1(detour)} m more on foot than from the launch`}${way}` };
+      const wayOff = e.air ? !!(links && links.length) : !!off;
+      const way = foot === Infinity ? (e.air ? (wayOff ? `; off again by ${links.map((q) => `${q.kind} '${q.id}'`).join(', ')}` : '; NO WAY OFF the shelf by a link') : off ? `; off again by a glide to (${f1(off.x)}, ${f1(off.y)}, ${f1(off.z)}): ${f1(off.gap)} m across, ${f1(off.drop)} m down` : '; NO WAY OFF the shelf by a glide') : '';
+      return { ok: (foot === Infinity || detour > 2.2 * best.gap + 40) && (foot !== Infinity || wayOff), detail: `launch from (${f1(best.x)}, ${f1(best.y)}, ${f1(best.z)}): ${f1(best.gap)} m across, ${f1(best.drop)} m down; ${foot === Infinity ? 'no way on foot' : `${f1(detour)} m more on foot than from the launch`}${way}` };
+    },
+  },
+
+  lift: {
+    doc: 'up a whirlwind: a place the hero reaches by riding an updraft and gliding from its top; there is no way on foot, and the ride is the only way up',
+    check(g, e) {
+      if (!e.air) return { ok: false, detail: 'a lift goal needs the air journey of the brief (brief.air: its links and the whirlwinds)' };
+      const foot = e.foot.distNear(g.x, g.z, 3, g.y);
+      const via = e.air.enteredBy(g.x, g.z, g.y), off = e.air.leavesFrom(g.x, g.z, g.y);
+      // (entered by a ride: the island he lands on from a whirlwind; no way on foot; and a way off - he must not be stuck up there)
+      return { ok: foot === Infinity && !!via && via.kind === 'lift' && off.length > 0, detail: `${foot === Infinity ? 'no way on foot' : `${f1(foot)} m on foot (it must be none)`}; ${via ? `reached by the ${via.kind} '${via.id}'` : 'reached by no link'}; ${off.length ? `off again by ${off.map((q) => `${q.kind} '${q.id}'`).join(', ')}` : 'NO WAY OFF'}` };
     },
   },
 

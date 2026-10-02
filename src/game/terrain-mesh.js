@@ -104,7 +104,7 @@ export function terrainPicker(grid) {
     if (L.steepSlope === undefined && h > 30 && slope > 0.42) return [cliff, 'high and sloping, y > 30 and slope > 0.42'];
     // (a level can have no patches: a hillside is then grass right up to the steep limit above, the homeworld's hills are domes of grass, and no ragged border of rock and grass lies across their flanks)
     if (!tidy && !L.noRockPatches && slope > 0.5 && (slope > rockLimit(x, z) || nearGate)) return [warm ? 'cliff_warm' : 'cliff', nearGate ? 'sloping near the Dawn Gate, slope > 0.5' : 'sloping, rock and grass patches, slope > 0.5'];
-    if (h > 42) return [FAR, 'very high, y > 42'];
+    if (h > (L.rockLine ?? 42)) return [FAR, `very high, y > ${L.rockLine ?? 42}`];            // (a realm of high islands moves the line: level.rockLine)
     // a level with grounds of its own (a paved court, garden beds...) names them here: L.groundRule(x, z, h, slope, { r, surface, pd }) -> [texture, rule] or nothing
     if (L.groundRule) { const c = L.groundRule(x, z, h, slope, { r, surface, pd }); if (c) return c; }
     if (L.village && Math.hypot(x - L.village.x, z - (L.village.z - 4)) < 9.5) return ['flagstone', 'village plaza'];

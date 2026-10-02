@@ -147,11 +147,53 @@ function paintLava() {
   return c;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Cloud sea (Skyweaver Spires): the surface of the sea of cloud the islands stand in - big soft billows, pearl on lavender-blue, the lit crowns of the puffs in white, a haze between them.
+// Whirl: the whirlwind's funnel, drawn additively (black is nothing): long streaks of wind slanting up the tile, pale cyan to white, fading at both ends.
+// ---------------------------------------------------------------------------------------------
+const CS = ['#8e9cc8', '#a8b4d8', '#c4cee8', '#dce2f4', '#eef2fb', '#ffffff'];
+function paintCloudSea() {
+  const c = new Canvas(32, 32, true, CS[2]);
+  const rng = new RNG(5401);
+  const f = field(32, 32, 5402, 2, 2, 4);
+  const tones = [CS[1], CS[2], CS[2], CS[3], CS[3], CS[3], CS[4], CS[4]];
+  for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) c.set(x, y, bandPick(tones, f[y * 32 + x], x, y, 0.5, 1));
+  // a few big soft billows, back to front, low in contrast (the sea is a surface of cloud, not a heap of bubbles): a shaded underside, a pearl body, a lit crown only on the biggest
+  const pts = poisson(rng, 32, 32, 5, 11).sort((a, b) => a[1] - b[1]);
+  pts.forEach(([x, y], i) => {
+    const rx = rng.pick([6.5, 7.5, 8.5]), ry = rx - rng.pick([1.5, 2.2, 3]);
+    c.blob(x, y, rx, ry, CS[2], CS[3], i % 2 ? CS[4] : CS[5]);
+  });
+  // the haze between them and a few white glints on the crowns
+  const g = field(32, 32, 5403, 4, 4, 2);
+  for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) if (g[y * 32 + x] > 0.8) c.set(x, y, CS[4]);
+  for (const [x, y] of poisson(rng, 32, 32, 6, 8)) { c.dot(x, y, CS[5]); c.dot(x + 1, y, CS[5]); }
+  return c;
+}
+
+const WH = ['#14283c', '#2a4c6c', '#5a8cb0', '#9cc8e0', '#d4eef8', '#ffffff'];
+function paintWhirl() {
+  const c = new Canvas(32, 32, true, '#000000');
+  const rng = new RNG(5501);
+  for (let i = 0; i < 9; i++) {
+    const x0 = rng.int(0, 32), y0 = rng.int(0, 32), len = rng.int(12, 24), slope = rng.float(0.25, 0.6);
+    for (let k = 0; k < len; k++) {
+      const fade = Math.sin((k / len) * Math.PI);
+      const col = WH[Math.min(5, Math.round(fade * (rng.chance(0.15) ? 5 : 3.4)))];
+      c.dot(x0 + k, y0 + Math.round(k * slope), col);
+      if (fade > 0.6 && rng.chance(0.5)) c.dot(x0 + k, y0 + Math.round(k * slope) + 1, WH[1]);
+    }
+  }
+  return c;
+}
+
 export function waterTextures() {
   return {
     water: rec(paintWater(), true, false),
     waterfall: rec(paintWaterfall(), true, false, { roll: 'xy' }),
     foam: rec(paintFoam(), true, true, { roll: 'xy' }),
     lava: rec(paintLava(), true, false, { roll: 'xy' }),
+    cloud_sea: rec(paintCloudSea(), true, false, { roll: 'xy' }),
+    whirl: rec(paintWhirl(), true, false, { roll: 'xy' }),
   };
 }

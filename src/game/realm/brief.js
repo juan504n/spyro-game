@@ -7,7 +7,7 @@
 // defineBrief applies the defaults and refuses a brief that could not describe a realm (it throws with every problem it found, so one run lists them all).
 
 /** The situations a goal can stand in. Every one is a different kind of place with a different way to it (see situations.js, which says how each is checked). */
-export const SITUATION_IDS = ['landing', 'clearing', 'island', 'summit', 'cave', 'glide', 'puzzle', 'crater'];
+export const SITUATION_IDS = ['landing', 'clearing', 'island', 'summit', 'cave', 'glide', 'puzzle', 'crater', 'lift'];
 
 /** The rules a realm's brief is held to: how many goals, how many different situations among them, how many parts the country has... (the checker has the rest). */
 export const RULES = {

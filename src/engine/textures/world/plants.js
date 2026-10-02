@@ -313,6 +313,20 @@ function flowerEmber() {
   return c;
 }
 
+// Skyweaver Spires: a windflower - a slender bent stalk and a head of white petals with a gold heart and a pale blue shadow
+function flowerSky() {
+  const c = new Canvas(16, 16, false);
+  const ST = ['#2a5058', '#3e7a78', '#62a8a0'];
+  for (const [x, y, t] of curve(8, 15, 9, 7, -0.5, 10)) c.dot(Math.round(x), Math.round(y), t > 0.5 ? ST[2] : ST[1]);
+  blade(c, 8, 13, 3, 9, -0.5, { lit: ST[2], mid: ST[1], dark: ST[0], tip: '#a8d8c8', root: ST[1] }, 2);
+  blade(c, 8, 12, 13, 9, 0.5, { lit: ST[2], mid: ST[1], dark: ST[0], tip: '#a8d8c8', root: ST[1] }, 2);
+  const P = ['#8aa0d8', '#d0def8', '#ffffff'];
+  const hx = 9, hy = 6;
+  for (const a of [0, 1.26, 2.51, 3.77, 5.03]) c.blob(hx + Math.cos(a - 1.57) * 2.5, hy + Math.sin(a - 1.57) * 2.5, 1.4, 1.4, P[0], P[1], P[2]);
+  c.dot(hx, hy, '#ffc84a'); c.dot(hx - 1, hy, '#f0a020');
+  return c;
+}
+
 function reeds() {
   const c = new Canvas(16, 32, false);
   // long blade leaves
@@ -430,6 +444,7 @@ export function plantTextures() {
     pine: rec(paintPine(), true, false),
     pine_snow: rec(paintPine({ shade: '#14403c', back: '#1c5a54', mid: '#2e7864', light: '#9cc4d4', tip: '#e6f2fa' }, 4502), true, false),
     pine_char: rec(paintPine({ shade: '#140e0c', back: '#241812', mid: '#3a2a20', light: '#5c4030', tip: '#e8661c' }, 4503), true, false),
+    pine_sky: rec(paintPine({ shade: '#1c4048', back: '#2c6462', mid: '#4a9084', light: '#86c4b0', tip: '#d4f0e4' }, 4504), true, false),
     leaves_blossom: rec(leavesBlossom(), true, false),
     leaves_frost: rec(leavesFrost(), true, false),
     mushroom_cap: rec(paintMushroomCap(), false, false),
@@ -439,6 +454,7 @@ export function plantTextures() {
     flower_yellow: rec(flowerYellow(), false, true),
     flower_blue: rec(flowerBlue(), false, true),
     flower_ember: rec(flowerEmber(), false, true),
+    flower_sky: rec(flowerSky(), false, true),
     reeds: rec(reeds(), false, true),
     fern: rec(fern(), false, true),
     lilypad: rec(lilypad(), false, true),

@@ -24,7 +24,7 @@
   const state = () => { const p = G().player; return { x: +p.x.toFixed(1), y: +p.y.toFixed(1), z: +p.z.toFixed(1), grounded: p.grounded, dead: p.dead }; };
 
   /**
-   * Walk/jump/glide to (tx,tz). o: { tol, timeout, glide (hold glide when airborne), auto (jump ledges/gaps), fly (jump at start) }
+   * Walk/jump/glide to (tx,tz). o: { tol, timeout, glide (hold glide when airborne), auto (jump ledges/gaps), fly (jump at start), trace (an array: gets a line every 3 frames), careful (0.7 of full speed, jump at the very edge: for hops) }
    */
   function goto(tx, tz, o = {}) {
     install();
@@ -37,6 +37,7 @@
       if (d < tol && (o.ignoreY || true)) { ctl.mx = ctl.my = 0; ctl.jump = false; return { ok: true, t: +t.toFixed(1), ...state() }; }
       if (G().hud.talking) { edge('confirm'); ctl.mx = ctl.my = 0; tick(); t += STEP; continue; }   // click through dialogue
       heading(dx / d, dz / d);
+      if (o.careful) { ctl.mx *= 0.7; ctl.my *= 0.7; }               // (a person hopping across slabs does not run flat out: a jump at full speed flies 8.7 m)
       ctl.jump = false;
       jumpCd -= STEP;
       if (p.dead) return { ok: false, reason: 'dead', ...state() };
@@ -44,7 +45,7 @@
         airFrames = 0; glidePhase = 0;
         if (o.auto !== false && jumpCd <= 0) {
           // look ahead for a ledge/gap/water
-          const la = Math.min(2.4 + p.speed * 0.12, d);
+          const la = Math.min(o.careful ? 1.3 : 2.4 + p.speed * 0.12, d);
           const ax = p.x + (dx / d) * la, az = p.z + (dz / d) * la;
           const sup = col.support(ax, az, p.y, 0.6);
           const drop = p.y - sup.y;
@@ -63,6 +64,7 @@
       // keep the jump key held for the first few airborne frames so the jump is full height
       if (!p.grounded && airFrames < 6) ctl.jump = true;
       tick(); t += STEP;
+      if (o.trace && Math.round(t / STEP) % 3 === 0) o.trace.push(`${t.toFixed(2)}s (${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}) ${p.grounded ? 'ground' : 'air'}${ctl.jump ? ' JUMP' : ''}`);
       if (Math.floor(t) !== Math.floor(t - STEP)) {
         if (lastD - d < 0.6 && p.grounded) stuck++; else stuck = 0;
         lastD = d;

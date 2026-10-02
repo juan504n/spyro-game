@@ -13,6 +13,7 @@
 //                             partial has a whole number of cycles per loop so the seam is exact
 //   waterfall       LOOP 3 s  pink + band + brown noise layers with slow periodic level drift
 //   windmill        LOOP 3 s  four blade passes per loop: whoosh + wood creak + tock over a low bed
+//   whirl           LOOP 3 s  a whirlwind: a band of wind whose centre swings round (3 turns per loop) over a high hiss and a low roar, the level rising and falling twice
 //   ui_move         1.5 kHz wood tick;  ui_select  E6 -> A6 marimba pair;  ui_back  A5 -> E5
 //   ui_start        D-major-add9 saw stab + bell chord + boom + rising air sweep (title "PRESS START")
 //   dialog_open     two rising triangle blips;  dialog_blip  50 ms triangle blip (repeat per letter)
@@ -126,6 +127,14 @@ export const WORLD_SFX = {
     const b = loopNoise(3, s + 1, { mode: 'bp', f0: 2600, fMod: 1200, q: 0.5, cut: [[5, 1, 0.2]], amp: [[9, 1, 0.6]], floor: 0.5 });
     const low = loopNoise(3, s + 2, { colour: 'brown', mode: 'lp', f0: 400, q: 0.7, amp: [[2, 1, 0]], floor: 0.7, hp2: 60 });
     return loopFinish(layer(3, [[lvl(a, 0.3), 0, 1], [lvl(b, 0.15), 0, 1], [lvl(low, 0.2), 0, 1]]), -12, 0.1);
+  },
+
+  whirl() {
+    const s = seedOf('whirl');
+    const a = loopNoise(3, s, { colour: 'pink', mode: 'bp', f0: 700, fMod: 520, q: 0.9, cut: [[3, 1, 0.1]], amp: [[2, 0.5, 0.2], [5, 0.2, 0.6]], floor: 0.55 });
+    const hi = loopNoise(3, s + 1, { mode: 'bp', f0: 1900, fMod: 900, q: 1.2, cut: [[6, 1, 0.4]], amp: [[3, 0.7, 0.5]], floor: 0.3 });
+    const low = loopNoise(3, s + 2, { colour: 'brown', mode: 'lp', f0: 260, q: 0.7, amp: [[1, 1, 0]], floor: 0.7, hp2: 50 });
+    return loopFinish(layer(3, [[lvl(a, 0.3), 0, 1], [lvl(hi, 0.1), 0, 1], [lvl(low, 0.2), 0, 1]]), -13, 0.1);
   },
 
   windmill() {

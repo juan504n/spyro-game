@@ -7,6 +7,8 @@
 //   cliffs { cool, warm }            the textures of its tall faces        warmRock(x, z, h)   where the cliffs are the warm kind
 //   descriptor                       anything else the level should carry (merged last)
 // The textures a realm gives its own ground come from its brief: `lakeTextures { floor, shore, pebbles }`, `roadTextures { cobble, dirt }` and `farRock` (names of textures: terrain-mesh.js and world.js read them).
+// A realm whose land is islands in a SEA (Skyweaver Spires' sea of cloud) says `brief.sea = { name, deepHint, radius }`: there is no lake's bowl and no rule that keeps the ground dry, the ground that is
+// not an island is the fill of the country (country.mountain.base, below the waterline: nobody sees it, the sea is opaque) and `level.sea` tells water.js to draw the surface out to `radius`.
 import { makeCountry, basin, mound, dryLand, flatten } from './country.js';
 
 /** The engine wants a lake (the water, the debug readout and the drowning hint read it): a realm without one has a speck of one far outside its world, which touches nothing. */
@@ -15,7 +17,8 @@ export const NO_LAKE = { x: 6000, z: 6000, rx: 1, rz: 1, bed: -1, name: 'NO LAKE
 export function makeLevel(brief, extras = {}) {
   const { regions, seed, mountain, roll } = brief.country;
   const C = makeCountry({ seed, regions, mountain, roll });
-  const lake = brief.lake || NO_LAKE;
+  const sea = brief.sea || null;
+  const lake = sea ? { ...NO_LAKE, name: sea.name || NO_LAKE.name, ...(sea.deepHint ? { deepHint: sea.deepHint } : {}) } : (brief.lake || NO_LAKE);
   const half = brief.world.size / 2;
   // every goal stands on a level pad (7 m across, 9 for a big goal, easing back into the land over 6 more) at the height the ground has there with the realm's landforms cut in (the floor of a
   // crater, not the mountain it was cut from): the ring of light over the last goal needs a floor to come down on, and the hero a place to stand. A goal with `pad: false` (one on an islet, in a
@@ -28,6 +31,7 @@ export function makeLevel(brief, extras = {}) {
     let h = C.ground(x, z);
     if (extras.landforms) h = extras.landforms(h, x, z, C, L);
     for (const q of padsFor(L)) h = flatten(h, x, z, q.x, q.z, q.r, q.fall, q.y);
+    if (sea) return h;                                   // (islands in a sea: the ground is what the ribbons and landforms say, below the waterline wherever there is no island)
     if (brief.lake) {
       h = basin(h, x, z, lake, () => (C.n2(C.nB, x + 50, z, 0.06, 2) - 0.5) * 0.9);
       for (const m of lake.islets || []) h = mound(h, x, z, m, lake.bed);
@@ -72,6 +76,8 @@ export function makeLevel(brief, extras = {}) {
     roadTextures: brief.roadTextures,
     farRock: brief.farRock,
     goal: { gateAt: brief.gate ? brief.gate.at : undefined, ...(brief.goal || {}) },
+    ...(sea ? { sea: { x: 0, z: 0, r: sea.radius ?? 700, name: lake.name, deepHint: sea.deepHint } } : {}),
+    ...(brief.rockLine !== undefined ? { rockLine: brief.rockLine } : {}),
     brief,
     ...(extras.descriptor || {}),
   };

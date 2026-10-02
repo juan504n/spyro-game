@@ -3,6 +3,7 @@
 import { SLOPE_WALK } from './collision.js';
 import { WATER_LEVEL, WARD_RADIUS } from './level.js';
 import { aimBearing, aimStep } from './aim.js';
+import { whirlStep, whirlHolds, WHIRL } from './realm/whirl.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -167,7 +168,9 @@ export class Player {
     this.dirx = fx; this.dirz = fz;
 
     // ---- horizontal velocity ---------------------------------------------------------------------------------------
-    const inWaterSlow = this.inWater ? 0.62 : 1;
+    const whirls = this.game.objects && this.game.objects.whirlwinds;
+    const held = !!(whirls && whirls.length && whirlHolds(whirls, this));              // (inside the column of a whirlwind his running is weak: realm/whirl.js)
+    const inWaterSlow = (this.inWater ? 0.62 : 1) * (held ? WHIRL.hold : 1);
     if (this.hurtT > 0) {
       // knockback: friction only
       const k = Math.exp(-3.2 * dt);
@@ -202,8 +205,11 @@ export class Player {
       this.emit('jump');
     }
 
+    // ---- the whirlwind: inside the column of an updraft (realm/whirl.js) he is carried up, and gravity is the column's, not his ------------------------------------
+    const inWhirl = held && whirlStep(whirls, this, dt);
+
     // ---- vertical ------------------------------------------------------------------------------------------------------
-    if (!this.grounded || this.steep) {
+    if (!inWhirl && (!this.grounded || this.steep)) {
       this.vy -= P.gravity * dt;
       if (this.gliding) this.vy = Math.max(this.vy, -P.glideFall);
       else this.vy = Math.max(this.vy, -P.maxFall);

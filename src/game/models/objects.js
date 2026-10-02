@@ -15,6 +15,8 @@ import { createCrackedWall } from './objects/wall.js';
 import { createPortal } from './objects/portal.js';
 import { createFrostbloom } from './objects/frostbloom.js';
 import { createEmberstone } from './objects/emberstone.js';
+import { createWhirlwind } from './objects/whirlwind.js';
+import { createWindbell } from './objects/windbell.js';
 
 export const OBJECTS = {
   beacon: {
@@ -31,6 +33,16 @@ export const OBJECTS = {
     create: createEmberstone,
     size: 4.2,
     note: 'Emberstone (the goal of Emberfall Crags): a coal caged in shards of basalt that opens and blazes as it kindles; setLit(k) 0 cold .. 1 burning; opts.big = x2.2 Heartforge; anchors flame/base/top',
+  },
+  windbell: {
+    create: createWindbell,
+    size: 4.4,
+    note: 'Windbell (the goal of Skyweaver Spires): a bronze bell hung in a frame of two marble pillars and a lintel on a plinth with a ring of runes; dull blue-grey and still until it is rung, then it warms to gold, swings, and a heart of light, a turning hoop of runes and a halo come on; setLit(k) 0 silent .. 1 ringing; opts.big = x2.2 Loom Bell; anchors flame/base/top',
+  },
+  whirlwind: {
+    create: createWhirlwind,
+    size: 12,
+    note: 'Whirlwind (the updraft of Skyweaver Spires): a funnel of streaked wind that widens as it rises, two veils of additive air scrolling round it in opposite directions, a ring of wind at its foot; origin = the middle of the foot; opts.h (column height), r (radius at the foot)',
   },
   vase: {
     create: createVase,
