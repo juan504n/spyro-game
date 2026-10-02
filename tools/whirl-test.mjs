@@ -58,7 +58,8 @@ check('the lift is full to six metres under the top and eases to a hover', liftS
     if (wasIn && !inside && exitSpeed === null) exitSpeed = p.speed;
     wasIn = inside;
   }
-  check('running straight through the middle and keeping the stick pushed: the thick air slows him and lifts him, he is not thrown through at full speed', top > 5 && (exitSpeed === null || exitSpeed < 6), `(lifted ${top.toFixed(1)} m, left it at ${exitSpeed === null ? 'never' : exitSpeed.toFixed(1)} m/s)`);
+  // (with his running kept whole inside the column - WHIRL.hold 1 - he is lifted 6 m and carried out of it at 5.5 m/s; held at 0.35 of a run he is lifted 16 m and leaves at 2.8: the thresholds are between)
+  check('running straight through the middle and keeping the stick pushed: the thick air slows him and lifts him well up (a third of the column), he is not thrown through', top > 12 && (exitSpeed === null || exitSpeed < 4), `(lifted ${top.toFixed(1)} m, left it at ${exitSpeed === null ? 'never' : exitSpeed.toFixed(1)} m/s)`);
 }
 
 // ---- not touched outside it ---------------------------------------------------------------------------------------------------------

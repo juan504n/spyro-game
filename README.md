@@ -265,8 +265,8 @@ The summit of the Crag, at the end of the ledge road, has a door that wakes: **S
 <p align="center">
   <img src="docs/shots/22-skyweaver-skygate.png" width="49%" alt="The Skygate: the cobbled road to the first Windbell across sage turf, torches and pines, the title banner">
   <img src="docs/shots/23-skyweaver-slabs.png" width="49%" alt="A row of slabs of marble hanging in the air across the cloud sea, a chest on the lonely slab beside it, the Cloud Islet beyond">
-  <img src="docs/shots/24-skyweaver-glide.png" width="49%" alt="Gliding down from the Cloud Islet over the cloud to the Lowfield">
-  <img src="docs/shots/25-skyweaver-whirlwind.png" width="49%" alt="The first whirlwind between the Kite Isle and the Orchard Terrace: a funnel of streaked wind rising out of the Lowfield">
+  <img src="docs/shots/24-skyweaver-glide.png" width="49%" alt="Gliding in over the cloud to the Lowfield: the third Windbell in its ring of stones, the road to the first whirlwind between two cliffs">
+  <img src="docs/shots/25-skyweaver-whirlwind.png" width="49%" alt="Riding the first whirlwind: the hero carried up its funnel of streaked wind between the Kite Isle and the Orchard Terrace">
   <img src="docs/shots/26-skyweaver-spires.png" width="49%" alt="The Spindle Spires: four needles of marble joined by slabs, the fourth Windbell and the third whirlwind on the highest, the Loom far behind">
   <img src="docs/shots/27-skyweaver-loom.png" width="49%" alt="The Loom Bell ringing in the bright morning at the foot of the Loom, a tower of marble with bronze bands">
 </p>
