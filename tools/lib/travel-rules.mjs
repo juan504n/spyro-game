@@ -3,7 +3,7 @@
 // arrives), inside the world, named by the debug readout's areas, and not in a pocket (walking ground all round him). Shared by tools/travel-check.mjs (which holds every place of every world
 // to it) and tools/realm-travel.mjs (which finds the places of a new realm).
 import { SLOPE_WALK } from '../../src/game/collision.js';
-import { WATER_LEVEL } from '../../src/game/level.js';
+import { tideHigh } from '../../src/game/realm/tide.js';
 import { heroSpot } from '../../src/game/travel.js';
 import { areaAt } from '../../src/game/debuginfo.js';
 
@@ -32,7 +32,7 @@ export function makePlaceChecker(W, flood, wBroken = null) {
     let tight = solidAt(p.x, sup.y, p.z, 0.55) ? 9 : 0;
     for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; if (solidAt(p.x + Math.cos(a) * 1.3, sup.y, p.z + Math.sin(a) * 1.3, 0.55)) tight++; }
     if (tight) bad.clear = String(tight);
-    if (sup.kind === 'terrain') { grid.normalAt(p.x, p.z, nrm); if (nrm[1] < SLOPE_WALK) bad.slope = 'steep'; if (sup.y < WATER_LEVEL + 0.2) bad.water = 'wet'; }
+    if (sup.kind === 'terrain') { grid.normalAt(p.x, p.z, nrm); if (nrm[1] < SLOPE_WALK) bad.slope = 'steep'; if (sup.y < tideHigh(level.tide) + 0.2) bad.water = 'wet'; }          // (in a realm with a tide: not where the sea comes at high tide)
     else if (sup.n && sup.n.ny < SLOPE_WALK) bad.slope = 'steep';
     for (const e of gp.enemies || []) if (Math.hypot(e.x - p.x, e.z - p.z) < 6) { bad.enemy = 'beside a Snuffer'; break; }
     for (const q of gp.portals || []) if (q.state === 'open' && Math.hypot(q.x - p.x, q.z - p.z) < 6) { bad.door = 'in an awake door\'s light'; break; }

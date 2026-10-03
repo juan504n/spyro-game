@@ -4,7 +4,6 @@
 //   bell  — armoured with a brass bell: fire bounces off, one ram does it
 //   thorn — spiked: ramming hurts YOU, one breath of fire is the answer
 import { makeModel } from '../models/fallback.js';
-import { WATER_LEVEL } from '../level.js';
 import { ENEMY_DROPS } from '../economy.js';
 
 const VARIANTS = {
@@ -47,7 +46,7 @@ export class EnemySystem {
     col.pushOut(e, e.y, e.h, 0.55);
     const n = col.normalAt(e.x, e.z);
     const gh = col.heightAt(e.x, e.z);
-    if (n[1] < 0.66 || gh < WATER_LEVEL - 0.5 || gh - e.y > 0.9) { e.x = ox; e.z = oz; return false; }
+    if (n[1] < 0.66 || gh < this.game.waterY - 0.5 || gh - e.y > 0.9) { e.x = ox; e.z = oz; return false; }
     const sup = col.support(e.x, e.z, e.y, 0.6);
     if (e.y - sup.y > 1.3) { e.x = ox; e.z = oz; return false; }   // never walk off a ledge
     e.y = sup.y;

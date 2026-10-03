@@ -2,6 +2,7 @@
 // like PS1 sprites). Layout adapts to the internal width (4:3 = 320, wide modes = more columns).
 import { drawText, measureText, wrapText } from '../engine/textures/font.js';
 import { generateUI, drawPanel, drawBar } from '../engine/textures/ui.js';
+import { tideDir } from './realm/tide.js';
 
 const GOLD = ['#fff4b0', '#ffc03c', '#e07818'];
 const LILAC = ['#f4eeff', '#b8a8e8'];
@@ -104,6 +105,8 @@ export class Hud {
         pix.blit(ic, x0 + 6 + i * 14, 8 + bob);
       }
     }
+    // ---- the tide (a realm that has one) -----------------------------------------------------------------------------------
+    if (g.tide) this._drawTide(pix, W);
     // ---- banner ------------------------------------------------------------------------------------------------------
     if (this.bannerState) {
       const b = this.bannerState;
@@ -131,6 +134,23 @@ export class Hud {
     }
     // ---- dialogue ------------------------------------------------------------------------------------------------------
     if (this.dlg) this._drawDialogue(pix);
+  }
+
+  /** The tide's gauge, under the goals: the water's height between its low and its high (a notch at the mean), and an arrow for the way it is going: orange up while it comes in, green down while it goes out. */
+  _drawTide(pix, W) {
+    const g = this.game, st = g.stats;
+    const w = (st.beaconsTotal || 5) * 14 + 8, x0 = W - w - 4, y0 = 30;
+    drawPanel(pix, x0, y0, w, 14, { style: 'hud' });
+    const k = Math.max(0, Math.min(1, (g.waterY - g.waterLo) / ((g.waterHi - g.waterLo) || 1)));
+    const bx = x0 + 6, bw = w - 12 - 9, by = y0 + 5, fill = Math.round(bw * k);
+    pix.rect(bx - 1, by - 1, bw + 2, 6, INK);
+    pix.rect(bx, by, bw, 4, '#1c3050');
+    if (fill > 0) pix.rect(bx, by, fill, 4, '#5ae0d0');
+    if (fill > 1) pix.rect(bx + fill - 1, by, 1, 4, '#d8fff8');
+    pix.rect(bx + (bw >> 1), by + 4, 1, 1, '#fff4b0');                                     // (the mean level)
+    const up = tideDir(g.tide, g.time) > 0, ax = x0 + w - 9, ay = y0 + 4, col = up ? '#ffb060' : '#70f0c0';
+    pix.rect(ax - 1, ay - 1, 7, 7, INK);
+    for (let r = 0; r < 3; r++) pix.rect(ax + (up ? 2 - r : r), ay + r, up ? 1 + 2 * r : 5 - 2 * r, 1, col);
   }
 
   _drawDialogue(pix) {

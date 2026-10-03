@@ -3,7 +3,6 @@
 // 3D models (models/creatures/butterfly.js): the ordinary healing ones are white with a soft glow, the blue ones bigger, deep blue and shining, with a sparkle trail and a chime,
 // and a flock of ambient ones in every shade of blue drifts about the meadows near Spyro.
 import { makeModel } from '../models/fallback.js';
-import { WATER_LEVEL } from '../level.js';
 
 const TAU = Math.PI * 2;
 const wrap = (a) => { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TAU; return a; };
@@ -128,7 +127,7 @@ export class CritterSystem {
           const ox = b.x, oz = b.z;
           b.x += Math.sin(b.yaw) * sp * dt; b.z += Math.cos(b.yaw) * sp * dt;
           col.pushOut(b, b.y, b.h, 0.5);
-          if (col.heightAt(b.x, b.z) < WATER_LEVEL + 0.2 || col.normalAt(b.x, b.z)[1] < 0.7) { b.x = ox; b.z = oz; b.dir += 2; }
+          if (col.heightAt(b.x, b.z) < game.waterY + 0.2 || col.normalAt(b.x, b.z)[1] < 0.7) { b.x = ox; b.z = oz; b.dir += 2; }
         } else { b.hopping = b.state !== 'idle' ? true : false; b.hop = 0; if (b.state === 'idle') b.jy = 0; }
       } else b.jy = 0;
       b.y = col.support(b.x, b.z, b.y, 0.5).y;
@@ -198,7 +197,7 @@ export class CritterSystem {
       const hs = Math.hypot(a.vx, a.vz), want = hs > 0.3 ? Math.atan2(a.vx, a.vz) : a.yaw, d = wrap(want - a.yaw);
       a.yaw += d * (1 - Math.exp(-5 * dt));
       a.turn = lerp(a.turn, clamp1(d * 1.5), 0.15);
-      a.vis += ((gy > WATER_LEVEL + 0.3 ? 1 : 0) - a.vis) * (1 - Math.exp(-3 * dt));      // (only over dry land: none out over the lake)
+      a.vis += ((gy > game.waterY + 0.3 ? 1 : 0) - a.vis) * (1 - Math.exp(-3 * dt));      // (only over dry land: none out over the lake)
     }
   }
 

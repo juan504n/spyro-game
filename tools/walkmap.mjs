@@ -7,22 +7,28 @@
 //   const w = flood([x, z], { breakWalls: false, openGate: false, startY, mask, hop });  (mask(x, y, z) -> false keeps the walk out of a cell: a flood along one corridor;
 //                                                                                          hop: a metre figure (6.2 is what a plain jump makes) lets the walk jump from the edge of the ground to ground
 //                                                                                          of about the same height that far off, over water or a gap: stepping stones, lily pads, a small ravine)
+//   `water` (the height the sea stands at: WATER_LEVEL unless a realm has a tide, realm/tide.js; by default its low tide) says which ground is the lake's deep: the player's own rule, with the water where
+//   it is. A realm with a tide is walked at its low tide (what the hero can reach, waiting) and at its high (what he can reach without waiting for it to go out): flood(start, { water: tideHigh }).
+//   `seeds` ([[x, z, y?], ...]) floods from many places at once: the distance is then to the NEAREST of them (how far the hero is from firm ground, say).
 //   const w = flood([x, z]);       w.has(x, z, y?)   w.dist(x, z, y?)   w.distNear(x, z, r, y?)   w.yAt(x, z)   w.route(x, z, r, y?) -> [[x, y, z, metres], ...]
 import { SLOPE_WALK } from '../src/game/collision.js';
 import { WATER_LEVEL } from '../src/game/level.js';
+import { tideLow, tideHigh } from '../src/game/realm/tide.js';
 
 export const CELL = 1.2;
 const BAND = 3;
 
 export function makeWalkmap({ grid, collision }) {
   const half = grid.half, N = Math.floor((2 * half) / CELL);
-  const lq = grid.level && grid.level.liquid, WET = WATER_LEVEL - (lq && lq.burnDepth ? lq.burnDepth : 0.9);       // (the ground below this is the lake's deep: the player's own rule, player.js _water; a lake of lava burns from a touch)
+  const tide = (grid.level && grid.level.tide) || null, LOW = tideLow(tide), HIGH = tideHigh(tide);       // (a realm with a tide is walked at its low tide unless the flood says otherwise: that is what the hero can reach)
+  const lq = grid.level && grid.level.liquid, DEEP = lq && lq.burnDepth ? lq.burnDepth : 0.9;       // (the ground more than this under the water is the lake's deep: the player's own rule, player.js _water; a lake of lava burns from a touch)
   const cx = (i) => -half + (i + 0.5) * CELL, cz = (j) => -half + (j + 0.5) * CELL;
   const nrm = [0, 1, 0];
   const cellAt = (x, z) => { const i = Math.floor((x + half) / CELL), j = Math.floor((z + half) / CELL); return i >= 0 && j >= 0 && i < N && j < N ? j * N + i : -1; };
   const band = (y) => Math.floor((y + 10) / BAND);
 
-  const flood = (start, { breakWalls = false, openGate = false, startY, mask, hop = 0 } = {}) => {
+  const flood = (start, { breakWalls = false, openGate = false, startY, mask, hop = 0, water = LOW, seeds } = {}) => {
+    const WET = water - DEEP;
     // states: parallel arrays; byKey finds a state by (cell, band), byCell lists a cell's states
     const S = { cell: [], y: [], d: [], parent: [], done: [] };
     const byKey = new Map(), byCell = new Map();
@@ -45,7 +51,8 @@ export function makeWalkmap({ grid, collision }) {
       if (s === undefined) { s = S.cell.length; S.cell.push(cell); S.y.push(y); S.d.push(d); S.parent.push(parent); S.done.push(0); byKey.set(key, s); let l = byCell.get(cell); if (!l) byCell.set(cell, l = []); l.push(s); push([d, s]); return; }
       if (d < S.d[s] && !S.done[s]) { S.d[s] = d; S.y[s] = y; S.parent[s] = parent; push([d, s]); }
     };
-    add(cellAt(start[0], start[1]), startY ?? collision.support(start[0], start[1], 1e3, 1e3).y, 0, -1);
+    if (seeds) for (const q of seeds) add(cellAt(q[0], q[1]), q[2] ?? collision.support(q[0], q[1], 1e3, 1e3).y, 0, -1);
+    else add(cellAt(start[0], start[1]), startY ?? collision.support(start[0], start[1], 1e3, 1e3).y, 0, -1);
     let count = 0;
     while (heap.length) {
       const [d0, s0] = pop();
@@ -122,5 +129,5 @@ export function makeWalkmap({ grid, collision }) {
       each(fn) { for (let s = 0; s < S.cell.length; s++) if (S.done[s]) { const c = S.cell[s], i = c % N, j = (c - i) / N; fn(cx(i), S.y[s], cz(j)); } },
     };
   };
-  return { flood, N, cx, cz, cellAt };
+  return { flood, N, cx, cz, cellAt, tideLow: LOW, tideHigh: HIGH };
 }

@@ -95,7 +95,7 @@ function nearRoad(grid, x, z, pi, pd) {
 }
 
 /** Everything about the ground at (x, z): height, slope, the texture the mesh gives it (and the rule that chose it), road / river / lake. */
-export function groundAt(grid, x, z) {
+export function groundAt(grid, x, z, sea = WATER_LEVEL) {
   const s = grid.n + 1;
   const i = Math.max(0, Math.min(grid.n, Math.round((x + grid.half) / grid.cell))), j = Math.max(0, Math.min(grid.n, Math.round((z + grid.half) / grid.cell)));
   const k = j * s + i;
@@ -112,7 +112,7 @@ export function groundAt(grid, x, z) {
     road: nearRoad(grid, x, z, pi, pd),
     river: grid.riverDist[k] < 6 ? grid.riverDist[k] : null,
     lake: Math.hypot((x - L.lake.x) / L.lake.rx, (z - L.lake.z) / L.lake.rz),
-    water: WATER_LEVEL - grid.heightAt(x, z),              // metres of water over the ground here (negative = dry)
+    water: sea - grid.heightAt(x, z),                      // metres of water over the ground here (negative = dry); `sea` is the water's height now (it moves in a realm with a tide)
   };
 }
 
@@ -203,14 +203,14 @@ export function hintZonesAt(game, x, z, y) {
  * the way but a prop is (props without a collider: flowers, reeds, ferns...).
  */
 export function castRay(game, o, d, maxD = 240) {
-  const grid = game.grid, col = game.collision;
+  const grid = game.grid, col = game.collision, sea = game.waterY ?? WATER_LEVEL;
   let prevT = 0, prevY = o.y;
   let hit = null;
   for (let t = 0.5; t <= maxD && !hit; t += t < 60 ? 0.5 : 1) {
     const x = o.x + d.x * t, y = o.y + d.y * t, z = o.z + d.z * t;
     const gh = grid.heightAt(x, z);
-    if (prevY >= WATER_LEVEL && y < WATER_LEVEL && gh < WATER_LEVEL) {           // crossed the water's surface over a lake / river bed
-      const k = (prevY - WATER_LEVEL) / (prevY - y);
+    if (prevY >= sea && y < sea && gh < sea) {                                   // crossed the water's surface over a lake / river bed
+      const k = (prevY - sea) / (prevY - y);
       hit = { kind: 'water', t: prevT + (t - prevT) * k };
       break;
     }
@@ -231,7 +231,7 @@ export function castRay(game, o, d, maxD = 240) {
   }
   if (!hit) return { kind: 'none', t: maxD, x: o.x + d.x * maxD, y: o.y + d.y * maxD, z: o.z + d.z * maxD };
   hit.x = o.x + d.x * hit.t; hit.y = o.y + d.y * hit.t; hit.z = o.z + d.z * hit.t;
-  if (hit.kind === 'water') hit.y = WATER_LEVEL;
+  if (hit.kind === 'water') hit.y = sea;
   if (hit.kind === 'terrain') { const g = groundAt(grid, hit.x, hit.z); hit.tex = g.tex; hit.why = g.why; hit.slope = g.slope; hit.cell = g.cell; hit.road = g.drawn; }
   return hit;
 }
@@ -280,7 +280,7 @@ export function collect(game, extra = {}) {
     grounded: !!p.grounded,
     stand: p.groundKind === 'collider' && p.groundC ? { kind: 'collider', c: p.groundC } : { kind: 'terrain' },
     area: areaAt(L, p.x, p.z, p.y),
-    ground: groundAt(game.grid, p.x, p.z),
+    ground: groundAt(game.grid, p.x, p.z, game.waterY ?? WATER_LEVEL),
     props: nearestProps(placed, p.x, p.z, 3, 60, p.y),
     things: nearestThings(game, p.x, p.y, p.z, 3),
     colliders: nearestColliders(game.collision, p.x, p.z, 2, 14, p.y),

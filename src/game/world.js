@@ -78,6 +78,8 @@ export function* buildWorldSteps(assets, populate, level) {
   world.water = buildWater(grid, lighting, assets);
   world.scene.add(world.water);
   world.timings.water = performance.now() - t;
+  /** A realm with a tide moves its water to `y` every frame (water.js tideSurface); in every other world the surface is where it was cut. */
+  world.setWaterLevel = (y) => { if (world.water.setLevel) world.water.setLevel(y); };
 
   // roads: cobble / dirt ribbons DRAPED on the terrain mesh (see roads.js) with worn, darker edges
   t = performance.now();

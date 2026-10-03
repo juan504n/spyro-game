@@ -1,6 +1,6 @@
 // Ambient life: halos + light pools for every lamp/window/crystal, prop emitters (chimney smoke, sparkles, mist),
 // dusk fireflies and daytime pollen motes around the player.
-import { WATER_LEVEL, WARD_RADIUS } from '../level.js';
+import { WARD_RADIUS } from '../level.js';
 
 const rnd = (a, b) => a + (b - a) * Math.random();
 
@@ -131,7 +131,7 @@ export class Ambient {
       const a = Math.random() * 6.28, r = rnd(4, 22);
       const x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r;
       const gy = game.collision.heightAt(x, z);
-      if (gy > WATER_LEVEL + 0.3) { if (game.level.ambient && game.level.ambient.dusk === 'ember') game.fx.ember(x, gy + rnd(0.3, 1.6), z); else game.fx.firefly(x, gy + rnd(0.6, 2.8), z); }
+      if (gy > game.waterY + 0.3) { if (game.level.ambient && game.level.ambient.dusk === 'ember') game.fx.ember(x, gy + rnd(0.3, 1.6), z); else game.fx.firefly(x, gy + rnd(0.6, 2.8), z); }
     }
     this.moteAcc += dt * 4 * day;
     while (this.moteAcc >= 1) {
@@ -149,8 +149,8 @@ export class Ambient {
       if (sp > 2 && this.stepAcc > stride) {
         this.stepAcc = 0;
         if (p.inWater) {
-          if (game.level.liquid && game.level.liquid.splash === 'lava') { game.fx.lavaSplash(p.x, WATER_LEVEL, p.z, 0.45); game.audio?.sfx('flame', { vol: 0.3, pitch: 0.7 }); }
-          else { game.fx.splash(p.x, WATER_LEVEL, p.z, 0.45); game.audio?.sfx('splash', { vol: 0.35, pitch: 1.3 }); }
+          if (game.level.liquid && game.level.liquid.splash === 'lava') { game.fx.lavaSplash(p.x, game.waterY, p.z, 0.45); game.audio?.sfx('flame', { vol: 0.3, pitch: 0.7 }); }
+          else { game.fx.splash(p.x, game.waterY, p.z, 0.45); game.audio?.sfx('splash', { vol: 0.35, pitch: 1.3 }); }
         }
         else {
           game.fx.dust(p.x - p.dirx * 0.5, p.y, p.z - p.dirz * 0.5, p.chargeT > 0 ? 3 : 1, 0.3);

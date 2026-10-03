@@ -9,7 +9,7 @@ import { buildHeadless, addRuntimeColliders, resolveRealm } from '../headless-wo
 import { makeWalkmap } from '../walkmap.mjs';
 import { airTools } from './air.mjs';
 import { SLOPE_WALK } from '../../src/game/collision.js';
-import { WATER_LEVEL } from '../../src/game/level.js';
+import { tideLow, tideHigh, tideAbove, drownDepth, refugeReach } from '../../src/game/realm/tide.js';
 import { REALMS, DEFAULT_WORDS } from '../../src/game/realms.js';
 import { measureText } from '../../src/engine/textures/font.js';
 import { generateWorldTextures } from '../../src/engine/textures/world.js';
@@ -59,13 +59,16 @@ export function checkRealm(which, { log = () => {} } = {}) {
 
   const h = (x, z) => grid.heightAt(x, z);
   const lim = grid.half - 6;
+  // the water: a realm with a tide (level.tide: realm/tide.js) has water that stands anywhere between its low tide and its high; everywhere else both are WATER_LEVEL, and what the rules measured against
+  // the water's height, they measure against these (the dry ground a Snuffer stands on is dry at the high tide, a gem on the bed of the deep is on the bed at the low)
+  const tide = L.tide || null, sea0 = tideLow(tide), sea1 = tideHigh(tide);
   const massifs = world.massifs || [];
   const sp0 = isRealm ? gp.spawn : gp.arrivals[Object.keys(gp.arrivals)[0]] || gp.spawn;
   const sp = { ...sp0, y: sp0.y ?? h(sp0.x, sp0.z) };       // (a hub's arrival is a place in front of a door: x, z and yaw)
   // (what the game adds when it starts is added after the placement checks: a vase's own collider would hold the vase inside a solid thing)
   const stuckGems = gp.gems.filter((g) => collision.blocking(g.x, g.y, g.z, 0.1));
   const stuckVases = gp.vases.filter((v) => collision.blocking(v.x, v.y + 0.5, v.z, 0));
-  const badEnemies = gp.enemies.filter((e) => collision.blocking(e.x, h(e.x, e.z) + 0.5, e.z, 0.4) || h(e.x, e.z) < WATER_LEVEL + 0.2);
+  const badEnemies = gp.enemies.filter((e) => collision.blocking(e.x, h(e.x, e.z) + 0.5, e.z, 0.4) || h(e.x, e.z) < sea1 + 0.2);
   addRuntimeColliders(collision, gp, grid);
   const { flood } = makeWalkmap({ grid, collision });
   // (the hero's own two walks: as things stand, and with every cracked wall broken and the gate open. A realm whose islands are joined in the air (`brief.air`: glides and whirlwinds, tools/lib/air.mjs)
@@ -88,7 +91,7 @@ export function checkRealm(which, { log = () => {} } = {}) {
   {
     const sup = collision.support(sp.x, sp.z, sp.y + 1, 0.9), nrm = grid.normalAt(sp.x, sp.z);
     const open = airJ ? brief.air.startCells : 5000;          // (an island's own ground is not a country's: a realm of islands says how much room the start has)
-    rule('spawn.firm', 'the hero starts on firm, dry, level ground in the open', Math.abs(sup.y - sp.y) < 0.6 && nrm[1] >= SLOPE_WALK && sp.y > WATER_LEVEL + 0.5 && footShut.count > open, `(y ${f1(sp.y)}, ${footShut.count} cells reachable on foot${airJ ? `, ${open} wanted` : ''})`, { hard: true });
+    rule('spawn.firm', 'the hero starts on firm, dry, level ground in the open', Math.abs(sup.y - sp.y) < 0.6 && nrm[1] >= SLOPE_WALK && sp.y > sea1 + 0.5 && footShut.count > open, `(y ${f1(sp.y)}, ${footShut.count} cells reachable on foot${airJ ? `, ${open} wanted` : ''})`, { hard: true });
     if (isRealm) rule('spawn.road', 'the start is on or beside a road, so the way is plain from the first step', ctx.pathDist(sp.x, sp.z) < 12, `(${f1(ctx.pathDist(sp.x, sp.z))} m from the nearest)`);
   }
 
@@ -132,7 +135,7 @@ export function checkRealm(which, { log = () => {} } = {}) {
   {
     rule('gems.total', 'the gems add up to a tidy round number', gp.gemsTotal % 50 === 0 && gp.gemsTotal >= (brief ? brief.gems.min : 300), `(${gp.gemsTotal})`, { hard: true });
     const stuck = stuckGems;
-    const wet = gp.gems.filter((g) => h(g.x, g.z) < WATER_LEVEL - 0.9 && g.y < WATER_LEVEL + 1);
+    const wet = gp.gems.filter((g) => h(g.x, g.z) < sea0 - 0.9 && g.y < sea0 + 1);
     const out = [...gp.gems, ...gp.vases, ...gp.chests].filter((o) => Math.abs(o.x) > lim || Math.abs(o.z) > lim);
     const vstuck = stuckVases;
     rule('gems.place', 'no gem or vase inside a solid thing, on a lake bed or outside the world', stuck.length + wet.length + out.length + vstuck.length === 0, `(${stuck.length} stuck, ${wet.length} wet, ${out.length} outside, ${vstuck.length} vases stuck)`, { hard: true });
@@ -142,9 +145,9 @@ export function checkRealm(which, { log = () => {} } = {}) {
     // world the ground is the terrain's, as the rules were calibrated on Gloaming Vale: its sky isles' gems count as aerial)
     const air = (o) => {
       if (!o.value) return false;
-      if (!airJ) return o.y - h(o.x, o.z) > 3 || h(o.x, o.z) < WATER_LEVEL - 0.9;
+      if (!airJ) return o.y - h(o.x, o.z) > 3 || h(o.x, o.z) < sea0 - 0.9;
       const f = collision.support(o.x, o.z, o.y, 0).y;
-      return o.y - f > 3 || f < WATER_LEVEL - 0.9;
+      return o.y - f > 3 || f < sea0 - 0.9;
     };
     const lost = [...gp.gems, ...gp.vases].filter((o) => !air(o) && ![0.95, 2.4].some((dy) => near(walk, o.x, o.z, o.value ? 4.5 : 3.6, o.y - (o.value ? dy : 0)) < Infinity));
     rule('gems.reach', 'everything that lies about to be collected can be reached (97% of it)', lost.length <= (gp.gems.length + gp.vases.length) * 0.03, `(${lost.length} of ${gp.gems.length + gp.vases.length} out of reach${lost.length ? `: ${lost.slice(0, 4).map((o) => `${f1(o.x)},${f1(o.z)}`).join(' ')}` : ''})`, { hard: true });
@@ -215,7 +218,7 @@ export function checkRealm(which, { log = () => {} } = {}) {
   // the country: its parts, its levels
   {
     let lo = Infinity, hi = -Infinity, hiAt = null;
-    walk.each((x, y, z) => { if (y > WATER_LEVEL - 0.5) { lo = Math.min(lo, y); if (y > hi) { hi = y; hiAt = [x, y, z]; } } });
+    walk.each((x, y, z) => { if (y > sea0 - 0.5) { lo = Math.min(lo, y); if (y > hi) { hi = y; hiAt = [x, y, z]; } } });
     rule('design.levels', 'the walkable country has levels: it climbs at least 25 m from its lowest to its highest ground', hi - lo >= RULES.heightSpanMin, `(y ${f1(lo)}..${f1(hi)})`);
     const rewards = [...goals, ...gp.chests, ...gp.npcs, ...gp.portals.filter((p) => p.kind === 'door'), ...gp.walls].map((o) => ({ x: o.x, y: o.y ?? 0, z: o.z }));
     const top = rewards.filter((o) => Math.hypot(o.x - hiAt[0], o.z - hiAt[2]) < 45 && Math.abs(o.y - hiAt[1]) < 12);
@@ -227,7 +230,7 @@ export function checkRealm(which, { log = () => {} } = {}) {
       if (R.sealed) continue;
       let miss = 0, total = 0;
       for (const [x, z, py, hw] of R.pts) {
-        if (h(x, z) < WATER_LEVEL + 0.5) continue;
+        if (h(x, z) < sea0 + 0.5) continue;
         if (massifs.some((m) => m.inBoxXZ(x, z) && (m.dist(x, py + 1, z) < 1 || m.roofed(x, py, z, 2)))) continue;
         total++;
         if (!(near(walk, x, z, Math.min(6, hw * 0.4), py) < Infinity)) miss++;
@@ -326,6 +329,58 @@ export function checkRealm(which, { log = () => {} } = {}) {
     for (const t of [L.farRock, ...Object.values(L.roadTextures || {}), ...Object.values(L.lakeTextures || {}), ...Object.values(L.cliffs || {})]) used.add(t);
     const missing = [...used].filter((t) => t && t !== '_' && !have.has(t));
     rule('textures.exist', 'every texture the realm uses is one the game has (a misspelt name draws flat magenta)', missing.length === 0, missing.length ? `(missing: ${missing.join(' ')})` : `(${used.size} textures)`, { hard: true });
+  }
+
+  // ---- THE TIDE: a realm whose water rises and falls (level.tide, realm/tide.js) --------------------------------------------------------------
+  // The ground is made at the mean level and the walk map above is the hero's at the LOW tide (what he can reach, waiting for the water to go out); these hold the country to the high tide as well:
+  // nothing he must stand on is under it, nowhere he can walk is too far from ground that is safe when it comes in, it takes something from him and does not take everything.
+  if (tide) {
+    const drown = drownDepth(L), deepAtHigh = sea1 - drown + 0.1;             // (ground lower than this is deeper than he can stand in when the sea is in)
+    const high = (st, o = {}) => flood(st, { ...o, water: sea1 });
+    const walkHigh = airT ? airTools({ grid, collision, gp, brief, flood: high }).make({ start: [sp.x, sp.z], startY: sp.y, breakWalls: true, openGate: true }).map : high([sp.x, sp.z], { hop: 6.2, breakWalls: true, openGate: true });
+    const floor = (o) => collision.support(o.x, o.z, (o.y ?? h(o.x, o.z)) + 0.5, 0.6).y;
+    const stands = [...goals.map((o) => ['goal ' + o.id, o]), ...gp.chests.map((o) => ['chest', o]), ...gp.npcs.map((o) => ['person', o]), ...gp.portals.map((o) => ['door', o]), ...gp.vases.map((o) => ['vase', o])];
+    const wet = stands.filter(([, o]) => floor(o) < sea1 + 0.3);
+    rule('tide.dry', 'everything the hero finds standing - a goal, a chest, a person, a door, a vase - is above the high tide', wet.length === 0, wet.length ? `(under it: ${wet.slice(0, 5).map(([k, o]) => `${k}@${f1(o.x)},${f1(o.z)} ${f1(floor(o))} m`).join(' ')})` : `(the high tide is ${f1(sea1)} m; the lowest of ${stands.length} stands at ${f1(Math.min(...stands.map(([, o]) => floor(o))))})`, { hard: true });
+
+    // where he can be at the low tide and is drowned at the high (ground lower than `deepAtHigh`), and where he is not: ground that is safe to wait on (`refuge`) or to be set back on (`shore`, as player.js
+    // remembers it: above the sea even at the high tide, or a deck)
+    const lowest = [], refuge = [], shore = [];
+    footWalk.each((x, y, z) => {
+      const prop = y > h(x, z) + 0.3;
+      if (!prop && y < deepAtHigh) lowest.push([x, y, z]);
+      else refuge.push([x, z, y]);
+      if (prop || y >= sea1 + 0.6) shore.push([x, z, y]);
+    });
+    if (lowest.length) {
+      const fromRefuge = flood(null, { seeds: refuge, breakWalls: true, openGate: true }), fromShore = flood(null, { seeds: shore, breakWalls: true, openGate: true });
+      let far = 0, farAt = null, farS = 0, farSAt = null;
+      for (const [x, y, z] of lowest) {
+        const d = fromRefuge.dist(x, z, y), e = fromShore.dist(x, z, y);
+        if (d > far) { far = d; farAt = [x, z]; }
+        if (e > farS) { farS = e; farSAt = [x, z]; }
+      }
+      const reach = refugeReach(tide, undefined, drown);
+      rule('tide.refuge', 'nowhere the hero can walk at the low tide is too far from ground the high tide does not drown him on (the time the water takes to rise over his head, wading, halved)', far <= reach, `(${lowest.length} cells are deeper than ${f1(drown)} m at the high tide; the farthest is ${f0(far)} m from ground that is not, at ${farAt ? `${f0(farAt[0])},${f0(farAt[1])}` : '-'}; the most the rise allows is ${f0(reach)} m)`, { hard: true });
+      rule('tide.shore', 'and ground that is above the sea even at the high tide - where a drowned hero is set back - is within 130 m of all of it', farS <= 130, `(the farthest is ${f0(farS)} m from it, at ${farSAt ? `${f0(farSAt[0])},${f0(farSAt[1])}` : '-'})`);
+    } else rule('tide.refuge', 'the high tide drowns the hero somewhere he can walk at the low tide (or it is no tide to speak of)', false, '(the sea never gets deeper than he can stand in)');
+
+    // what the tide does to the journey: it shuts some ways (a goal is out of reach at the high tide), never the first and never the finale, and not for long
+    const reachH = goals.map((g) => near(walkHigh, g.x, g.z, 4, g.y - 0.5) < Infinity), cut = goals.filter((g, i) => !reachH[i]);
+    rule('tide.gates', 'the tide is part of the journey: at least one goal cannot be reached at the high tide (it is the water going out that opens the way)', cut.length >= 1, `(cut off at the high tide: ${cut.map((g) => g.id).join(', ') || 'none'})`);
+    rule('tide.open', 'the journey begins and ends without waiting: the first goal and the last can be reached at the high tide', reachH[0] && reachH[reachH.length - 1], `(${goals.map((g, i) => `${g.id} ${reachH[i] ? 'open' : 'cut'}`).join(', ')})`);
+    // (the longest the sea can shut the way: while the lowest bare ground on the best walk to a goal is deeper under it than he can wade)
+    let wait = 0, waitFor = '';
+    goals.forEach((g, i) => {
+      if (reachH[i]) return;
+      let low = Infinity;
+      for (const [x, y, z] of walk.route(g.x, g.z, 4, g.y - 0.5) || []) if (y <= h(x, z) + 0.3) low = Math.min(low, y);
+      const shut = Number.isFinite(low) ? tideAbove(tide, low + drown) * tide.period : 0;
+      if (shut > wait) { wait = shut; waitFor = g.id; }
+    });
+    rule('tide.wait', 'no way is shut by the sea for long: a hero who comes to it at the worst moment waits 45 s at most', wait <= 45, `(the longest is ${f0(wait)} s, the way to ${waitFor || '-'}; the tide's period is ${f0(tide.period)} s)`);
+    const takes = 1 - high([sp.x, sp.z], { hop: 6.2, breakWalls: true, openGate: true }).count / footWalk.count;
+    rule('tide.takes', 'the high tide takes a real part of the country from the hero: 4% or more of the ground he can walk at the low tide', takes >= 0.04, `(${(takes * 100).toFixed(1)}% of ${footWalk.count} cells)`);
   }
 
   const failed = results.filter((r) => !r.ok && !r.waived);

@@ -96,12 +96,23 @@ export function buildWater(grid, lighting, assets) {
   const lq = L.liquid || null;
   const group = new THREE.Group();
   group.name = 'water';
-  const depthTint = (x, z) => {
-    const h = grid.heightAt(x, z);
-    const d = clamp((WATER_LEVEL - h) / 4.2);
+  // a realm with a tide (realm/tide.js) has a surface that moves: the group is lifted and lowered with the water, and the shallows are tinted again as it goes (see below). `level.tide.tint`
+  // = { shallow, deep, scale } is the colour of its sea over the shallows and over the deeps, and the metres of depth over which the one turns into the other (4.2 in every other world)
+  const tide = L.tide || null;
+  const palette = (tide && tide.tint) || null;
+  const scale = (palette && palette.scale) || 4.2;
+  /** the tint of the surface over ground of height `h` when the water stands at `level` */
+  const tintAt = (h, level) => {
+    const d = clamp((level - h) / scale);
     if (lq) return [lq.shallow[0] + (lq.deep[0] - lq.shallow[0]) * d, lq.shallow[1] + (lq.deep[1] - lq.shallow[1]) * d, lq.shallow[2] + (lq.deep[2] - lq.shallow[2]) * d];
+    if (palette) return [palette.shallow[0] + (palette.deep[0] - palette.shallow[0]) * d, palette.shallow[1] + (palette.deep[1] - palette.shallow[1]) * d, palette.shallow[2] + (palette.deep[2] - palette.shallow[2]) * d];
     // shallow = light teal, deep = indigo-blue
     return [0.40 - 0.20 * d, 0.68 - 0.32 * d, 0.98 - 0.16 * d];
+  };
+  const rec = tide ? [] : null;          // (a tide: the x, z of every vertex of the surface, in the order the builder was given them)
+  const depthTint = (x, z) => {
+    if (rec) rec.push(x, z);
+    return tintAt(grid.heightAt(x, z), WATER_LEVEL);
   };
   const shimmer = lq ? () => lq.shimmer : () => [0.24, 0.34, 0.42];
 
@@ -112,8 +123,8 @@ export function buildWater(grid, lighting, assets) {
   if (L.sea) {
     // a sea (Skyweaver Spires' clouds): one surface out to the horizon, cut finely enough that the fog (worked out at the vertices) is right a few dozen metres from the hero
     const S = L.sea;
-    disc(surf, S.x, S.z, S.r, S.r, WATER_LEVEL, 72, 32, depthTint, { ...base });
-    disc(shim, S.x, S.z, S.r, S.r, WATER_LEVEL + 0.03, 72, 24, shimmer, { ...base, tile: lq ? (lq.tile ?? 6) * 0.7 : 3.5 });
+    disc(surf, S.x, S.z, S.r, S.r, WATER_LEVEL, S.segs ?? 72, S.rings ?? 32, depthTint, { ...base });          // (a sea that is a tide's says how finely it is cut: the shallows are tinted by its vertices)
+    disc(shim, S.x, S.z, S.r, S.r, WATER_LEVEL + 0.03, S.segs ?? 72, Math.round((S.rings ?? 32) * 0.75), shimmer, { ...base, tile: lq ? (lq.tile ?? 6) * 0.7 : 3.5 });
   } else {
     disc(surf, k.x, k.z, k.rx * 1.12, k.rz * 1.12, WATER_LEVEL, 44, 7, depthTint, { ...base });
     disc(shim, k.x, k.z, k.rx * 1.12, k.rz * 1.12, WATER_LEVEL + 0.03, 44, 4, shimmer, { ...base, tile: lq ? (lq.tile ?? 6) * 0.7 : 3.5 });
@@ -132,13 +143,53 @@ export function buildWater(grid, lighting, assets) {
     group.add(m);
     return m;
   };
+  let surfMesh;
   if (lq) {
-    add(surf, assets.mat(lq.texture, { scroll: lq.scroll || [0.012, 0.005], decal: true }), 5);                      // (opaque and self-lit: it glows in the dusk)
+    surfMesh = add(surf, assets.mat(lq.texture, { scroll: lq.scroll || [0.012, 0.005], decal: true }), 5);                      // (opaque and self-lit: it glows in the dusk)
     add(shim, assets.mat(lq.texture, { mode: 'add', scroll: [-0.01, 0.016], decal: true }), 6);
   } else {
-    add(surf, assets.mat('water', { mode: 'half', scroll: [0.018, 0.007], decal: true, alpha: 1.0 }), 5);
-    add(shim, assets.mat('water', { mode: 'add', scroll: [-0.014, 0.022], decal: true }), 6);
+    surfMesh = add(surf, assets.mat((palette && palette.texture) || 'water', { mode: 'half', scroll: [0.018, 0.007], decal: true, alpha: 1.0 }), 5);
+    add(shim, assets.mat((palette && palette.texture) || 'water', { mode: 'add', scroll: [-0.014, 0.022], decal: true }), 6);
   }
   add(river, assets.mat('water', { mode: 'half', scroll: [0, -0.32], decal: true }), 5);
+  if (tide && surfMesh) group.setLevel = tideSurface(group, surfMesh, grid, lighting, rec, base.emissive, tide, tintAt);
   return group;
+}
+
+/**
+ * The surface of a tide: `setLevel(y)` lifts the whole group to the water's height (the surface was cut at the mean level) and, when the water has moved a little since, tints the shallows again for
+ * the depth that is over the ground there NOW - the colour of the water is what tells the hero how deep it is - by writing the vertex colours in place (only the vertices whose tint can change
+ * between the low tide and the high: the deeps and the high ground keep what they were baked with). What the builder baked is the tint at the mean level times the light there (builder.js _vert:
+ * tint * 0.5 * (light + (1.15 - light) * emissive)), so the light is sampled once, here, and the colour is made again with a new tint.
+ */
+function tideSurface(group, mesh, grid, lighting, rec, emissive, tide, tintAt) {
+  const lo = WATER_LEVEL - tide.amp, hi = WATER_LEVEL + tide.amp, reach = (tide.tint && tide.tint.scale) || 4.2;
+  const A = mesh.geometry.attributes.aCol, B = mesh.geometry.attributes.aColB;
+  const ids = [], hs = [], mA = [], mB = [];
+  const out = new Float32Array(6);
+  for (let v = 0; v < rec.length / 2; v++) {
+    const x = rec[2 * v], z = rec[2 * v + 1], h = grid.heightAt(x, z);
+    if (h >= hi || h <= lo - reach) continue;                                // (over the high ground or the deeps the tint is the same at every tide)
+    lighting.sample(out, x, WATER_LEVEL, z, 0, 1, 0);
+    ids.push(v); hs.push(h);
+    for (let c = 0; c < 3; c++) { mA.push(out[c] + (1.15 - out[c]) * emissive); mB.push(out[3 + c] + (1.15 - out[3 + c]) * emissive); }
+  }
+  let tinted = WATER_LEVEL;
+  const retint = (level) => {
+    for (let k = 0; k < ids.length; k++) {
+      const t = tintAt(hs[k], level), o = ids[k] * 4;
+      for (let c = 0; c < 3; c++) {
+        A.array[o + c] = (clamp(t[c] * 0.5 * mA[k * 3 + c]) * 255) | 0;
+        B.array[o + c] = (clamp(t[c] * 0.5 * mB[k * 3 + c]) * 255) | 0;
+      }
+    }
+    A.needsUpdate = true; B.needsUpdate = true;
+  };
+  const setLevel = (y) => {
+    group.position.y = y - WATER_LEVEL;
+    if (Math.abs(y - tinted) >= 0.03) { retint(y); tinted = y; }
+  };
+  setLevel.tidal = ids.length;                                              // (how many vertices are tinted again as the water moves: for the tests)
+  setLevel.retint = retint;
+  return setLevel;
 }

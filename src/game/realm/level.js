@@ -8,7 +8,10 @@
 //   descriptor                       anything else the level should carry (merged last)
 // The textures a realm gives its own ground come from its brief: `lakeTextures { floor, shore, pebbles }`, `roadTextures { cobble, dirt }` and `farRock` (names of textures: terrain-mesh.js and world.js read them).
 // A realm whose land is islands in a SEA (Skyweaver Spires' sea of cloud) says `brief.sea = { name, deepHint, radius }`: there is no lake's bowl and no rule that keeps the ground dry, the ground that is
-// not an island is the fill of the country (country.mountain.base, below the waterline: nobody sees it, the sea is opaque) and `level.sea` tells water.js to draw the surface out to `radius`.
+// not an island is the fill of the country (country.mountain.base, below the waterline: nobody sees it, the sea is opaque) and `level.sea` tells water.js to draw the surface out to `radius` (`segs` and
+// `rings` say how finely it is cut: the default 72 by 32 suits a sea nobody wades in).
+// A realm whose water RISES AND FALLS (Tideglass Reach) says `brief.tide = { period, amp, start, hint, tint }` (realm/tide.js): the ground is made at the mean level, WATER_LEVEL, and the tide moves the
+// surface that is drawn and the water the hero drowns in (Game.waterY) round it.
 import { makeCountry, basin, mound, dryLand, flatten } from './country.js';
 
 /** The engine wants a lake (the water, the debug readout and the drowning hint read it): a realm without one has a speck of one far outside its world, which touches nothing. */
@@ -76,7 +79,8 @@ export function makeLevel(brief, extras = {}) {
     roadTextures: brief.roadTextures,
     farRock: brief.farRock,
     goal: { gateAt: brief.gate ? brief.gate.at : undefined, ...(brief.goal || {}) },
-    ...(sea ? { sea: { x: 0, z: 0, r: sea.radius ?? 700, name: lake.name, deepHint: sea.deepHint } } : {}),
+    ...(sea ? { sea: { x: 0, z: 0, r: sea.radius ?? 700, name: lake.name, deepHint: sea.deepHint, ...(sea.segs ? { segs: sea.segs } : {}), ...(sea.rings ? { rings: sea.rings } : {}) } } : {}),
+    ...(brief.tide ? { tide: { start: 0, ...brief.tide } } : {}),
     ...(brief.rockLine !== undefined ? { rockLine: brief.rockLine } : {}),
     brief,
     ...(extras.descriptor || {}),

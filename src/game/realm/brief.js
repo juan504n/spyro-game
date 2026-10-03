@@ -20,6 +20,8 @@ export const RULES = {
   gemsMin: 400,
 };
 
+import { tideProblems } from './tide.js';
+
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const isXZ = (o) => o && isNum(o.x) && isNum(o.z);
 
@@ -91,6 +93,17 @@ export function defineBrief(b) {
     need(!b.lake, 'sea: a realm has a lake or a sea, not both');
     need(b.sea && typeof b.sea.name === 'string' && b.sea.name === b.sea.name.toUpperCase() && typeof b.sea.deepHint === 'string' && b.sea.deepHint === b.sea.deepHint.toUpperCase(), 'sea: { name, deepHint } in UPPER CASE (the hint a hero who has fallen into it is shown), radius optional');
     need(!b.sea || b.sea.radius === undefined || (isNum(b.sea.radius) && b.sea.radius >= 100), 'sea.radius: metres (the surface is drawn out to it), 100 or more');
+    need(!b.sea || ((b.sea.segs === undefined || (Number.isInteger(b.sea.segs) && b.sea.segs >= 24 && b.sea.segs <= 200)) && (b.sea.rings === undefined || (Number.isInteger(b.sea.rings) && b.sea.rings >= 8 && b.sea.rings <= 96))), 'sea.segs, sea.rings: how finely the surface is cut (whole numbers: 24 to 200 round, 8 to 96 out; 72 by 32 by default)');
+  }
+  // a TIDE (Tideglass Reach): the sea rises and falls round the mean level; realm/tide.js says what the numbers are and the checker (the `tide.*` rules) holds the country to them
+  if (b.tide !== undefined) {
+    for (const m of tideProblems(b.tide)) err(m);
+    need(!!b.sea || !!b.lake, 'tide: a tide needs water to rise and fall in: brief.sea (or brief.lake)');
+    if (b.tide && b.tide.hint !== undefined) need(typeof b.tide.hint === 'string' && b.tide.hint === b.tide.hint.toUpperCase(), 'tide.hint: UPPER CASE (what a hero who has drowned on ground that is only under water at high tide is told)');
+    if (b.tide && b.tide.tint !== undefined) {
+      const t = b.tide.tint, col = (v) => Array.isArray(v) && v.length === 3 && v.every(isNum);
+      need(t && col(t.shallow) && col(t.deep) && (t.scale === undefined || (isNum(t.scale) && t.scale >= 1 && t.scale <= 8)), 'tide.tint: { shallow: [r, g, b], deep: [r, g, b], scale (metres of depth over which the one turns into the other, 1 to 8: 4.2 by default), texture (a water texture name) }');
+    }
   }
   if (b.rockLine !== undefined) need(isNum(b.rockLine) && b.rockLine > 0, 'rockLine: the height in metres over which the ground is drawn as far rock (42 by default; a realm of high islands says where)');
   // the AIR: how islands are joined where there is no way on foot (a glide from a ledge, or a ride up a whirlwind and a glide from its top); tools/lib/air.mjs holds each link to the numbers

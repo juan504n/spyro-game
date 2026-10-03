@@ -23,6 +23,8 @@ import { Ambient } from './systems/ambient.js';
 import { NpcSystem } from './systems/npc.js';
 import { PortalSystem } from './systems/portals.js';
 import { realmsDone } from './progress.js';
+import { WATER_LEVEL } from './level.js';
+import { tideLevel, tideLow, tideHigh, drownDepth } from './realm/tide.js';
 
 export const STEP = 1 / 60;
 const CAMERA_HINT = {
@@ -53,6 +55,11 @@ export class Game {
     this.populate = opts.populate || this.realm.populate || null;
     this.withSystems = opts.systems !== false;
     this.time = 0;
+    // the water's height: WATER_LEVEL for ever, except in a realm with a tide (realm/tide.js), where it is the live height at the game's time and waterLo / waterHi are the lowest and the highest it gets
+    this.tide = this.level.tide || null;
+    this.waterY = tideLevel(this.tide, 0);
+    this.waterLo = tideLow(this.tide);
+    this.waterHi = tideHigh(this.tide);
     this.acc = 0;
     this.frames = 0;
     this.day = 0;
@@ -193,14 +200,16 @@ export class Game {
     const lava = this.level.liquid && this.level.liquid.splash === 'lava';                // (a realm whose lake is lava: sparks and a hiss for the splash)
     const cloud = this.level.liquid && this.level.liquid.splash === 'cloud';              // (a sea of cloud: a puff of white, a breath of wind)
     p.on.splash = (depth) => {
-      if (lava) { fx.lavaSplash(p.x, 0, p.z, depth > 0.9 ? 1.5 : 0.8); sfx('flame', { vol: depth > 0.9 ? 0.8 : 0.4, pitch: 0.7 }); return; }
-      if (cloud) { fx.puff(p.x, 0.6, p.z, depth > 0.9 ? 2.6 : 1.4); sfx('glide_start', { vol: 0.5, pitch: 0.7 }); return; }
-      fx.splash(p.x, 0, p.z, depth > 0.9 ? 1.5 : 0.8); sfx('splash', { vol: depth > 0.9 ? 1 : 0.5 });
+      if (lava) { fx.lavaSplash(p.x, this.waterY, p.z, depth > 0.9 ? 1.5 : 0.8); sfx('flame', { vol: depth > 0.9 ? 0.8 : 0.4, pitch: 0.7 }); return; }
+      if (cloud) { fx.puff(p.x, this.waterY + 0.6, p.z, depth > 0.9 ? 2.6 : 1.4); sfx('glide_start', { vol: 0.5, pitch: 0.7 }); return; }
+      fx.splash(p.x, this.waterY, p.z, depth > 0.9 ? 1.5 : 0.8); sfx('splash', { vol: depth > 0.9 ? 1 : 0.5 });
     };
     p.on.drown = () => {
-      if (lava) { fx.lavaSplash(p.x, 0, p.z, 2.2); sfx('flame', { vol: 1, pitch: 0.6 }); } else if (cloud) { fx.puff(p.x, 0.8, p.z, 3.2); sfx('glide_start', { vol: 0.8, pitch: 0.55 }); } else { fx.splash(p.x, 0, p.z, 1.8); sfx('splash', { vol: 1 }); }
+      if (lava) { fx.lavaSplash(p.x, this.waterY, p.z, 2.2); sfx('flame', { vol: 1, pitch: 0.6 }); } else if (cloud) { fx.puff(p.x, this.waterY + 0.8, p.z, 3.2); sfx('glide_start', { vol: 0.8, pitch: 0.55 }); } else { fx.splash(p.x, this.waterY, p.z, 1.8); sfx('splash', { vol: 1 }); }
       const k = this.level.sea || this.level.lake, inLake = this.level.sea ? true : Math.hypot((p.x - k.x) / k.rx, (p.z - k.z) / k.rz) < 1.25;
-      this.hud.hint(inLake ? (k.deepHint || 'MIRRORMERE IS TOO DEEP! FIND THE STONES OR GLIDE') : 'THE WATER IS TOO DEEP HERE. FIND ANOTHER WAY', 4);
+      // (in a realm with a tide, ground that the sea only covers at high tide says so: the tide is in, wait for it or take the high road)
+      const tidal = this.tide && this.tide.hint && this.grid.heightAt(p.x, p.z) > this.waterLo - drownDepth(this.level);
+      this.hud.hint(tidal ? this.tide.hint : inLake ? (k.deepHint || 'MIRRORMERE IS TOO DEEP! FIND THE STONES OR GLIDE') : 'THE WATER IS TOO DEEP HERE. FIND ANOTHER WAY', 4);
     };
     p.on.respawn = () => { sfx('respawn', { vol: 0.8 }); fx.puff(p.x, p.y + 0.5, p.z, 0.8); };
     p.on.wall = (c) => { sfx('charge_hit', { vol: 1 }); this.cam.shake(0.35, 0.25); fx.hitSpark(p.x + p.dirx, p.y + 0.6, p.z + p.dirz, 1.3); fx.puff(p.x + p.dirx * 1.2, p.y + 0.6, p.z + p.dirz * 1.2, 0.6); void c; };
@@ -286,6 +295,7 @@ export class Game {
 
   step(dt) {
     this.time += dt;
+    if (this.tide) this.waterY = tideLevel(this.tide, this.time);
     if (this.timers.length) {
       const due = [];
       for (const T of this.timers) { T.t -= dt; if (T.t <= 0) due.push(T); }
@@ -341,6 +351,7 @@ export class Game {
     sh.r = 0.85 + h * 0.06; sh.alpha = Math.max(0.15, 0.85 - h * 0.09);
     sh.visible = !p.dead || p.deadT < 1.4;
     if (!paused) for (const s of this.systems) if (s.frame) s.frame(dt, alpha, this);
+    if (this.tide) this.world.setWaterLevel(this.waterY);
     this.world.updateEnvironment(this.camera, this.day, this.time, dt, this.enclosure);
     this.fx.update(paused ? 0 : dt, this.camera);
     this.audio?.setDay?.(this.day);

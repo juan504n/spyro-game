@@ -294,7 +294,7 @@ export class Player {
     this._water(dt);
     if (this.grounded && !this.inWater && this.hurtT <= 0) {
       this.safeT -= dt;
-      if (this.safeT <= 0 && (this.groundKind === 'collider' || this.groundKind === 'solid' || col.heightAt(this.x, this.z) > WATER_LEVEL + 0.6)) {
+      if (this.safeT <= 0 && (this.groundKind === 'collider' || this.groundKind === 'solid' || col.heightAt(this.x, this.z) > (this.game.waterHi ?? WATER_LEVEL) + 0.6)) {      // (in a realm with a tide: ground the sea does not reach even at high tide)
         this.safe.x = this.x; this.safe.y = this.y; this.safe.z = this.z; this.safe.yaw = this.yaw; this.safeT = 0.5;
       }
     }
@@ -405,12 +405,13 @@ export class Player {
     const col = this.game.collision;
     const onProp = this.groundKind === 'collider' || this.groundKind === 'solid';          // (a deck, a stair, a ledge of rock: the water below does not count)
     const ground = onProp ? this.y : col.heightAt(this.x, this.z);
-    const depth = WATER_LEVEL - ground;
+    const sea = this.game.waterY ?? WATER_LEVEL;                // (the water's height now: the tide of a realm that has one moves it, see realm/tide.js; everywhere else it is WATER_LEVEL)
+    const depth = sea - ground;
     const wasIn = this.inWater;
-    this.inWater = !onProp && depth > 0.05 && (this.grounded || this.y < WATER_LEVEL + 0.1);
+    this.inWater = !onProp && depth > 0.05 && (this.grounded || this.y < sea + 0.1);
     if (this.inWater && !wasIn) this.emit('splash', depth);
     const lethal = (this.game.level && this.game.level.liquid && this.game.level.liquid.burnDepth) || 0.95;        // (a lake of lava burns at a touch: level.liquid.burnDepth; water drowns from 0.95 m)
-    if (this.inWater && depth > lethal && (this.y < WATER_LEVEL - 0.3 || this.grounded)) {
+    if (this.inWater && depth > lethal && (this.y < sea - 0.3 || this.grounded)) {
       this.waterT += dt;
       if (this.waterT > 0.28) { this.emit('drown'); this.respawnSafe(true); }
     } else this.waterT = Math.max(0, this.waterT - dt * 2);
