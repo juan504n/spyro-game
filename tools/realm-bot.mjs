@@ -180,9 +180,9 @@ for (let i = 0; i < legs.length; i++) {
       for (const a of leg.acts || []) {
         if (a.kind === 'walk') {
           for (const [x, z] of a.route) {
-            const s = __bot.goto(x, z, { tol: 1.8, timeout: 20, auto: true, careful: a.hops });
+            const tr = [], s = __bot.goto(x, z, { tol: 1.8, timeout: 20, auto: true, careful: a.hops, trace: tr });
             walked += s.t || 0;
-            if (!s.ok) return { ok: false, reason: `${s.reason} on the way`, at: s.x === undefined ? null : [s.x, s.y, s.z], towards: [+x.toFixed(1), +z.toFixed(1)], seconds: +walked.toFixed(1) };
+            if (!s.ok) return { ok: false, reason: `${s.reason} on the way`, at: s.x === undefined ? null : [s.x, s.y, s.z], towards: [+x.toFixed(1), +z.toFixed(1)], seconds: +walked.toFixed(1), trace: tr.slice(-8) };
           }
           continue;
         }
@@ -205,9 +205,9 @@ for (let i = 0; i < legs.length; i++) {
         notes.push(`${a.kind === 'lift' ? 'glided out' : 'glided'} ${a.gap.toFixed(0)} m to ${a.land.slice(0, 2).map((v) => v.toFixed(0)).join(', ')}`);
       }
       for (const [x, z] of leg.acts ? [] : leg.route) {
-        const s = __bot.goto(x, z, { tol: 1.8, timeout: 20, auto: true });
+        const tr = [], s = __bot.goto(x, z, { tol: 1.8, timeout: 20, auto: true, trace: tr });
         walked += s.t || 0;
-        if (!s.ok) return { ok: false, reason: `${s.reason} on the way`, at: s.x === undefined ? null : [s.x, s.y, s.z], towards: [+x.toFixed(1), +z.toFixed(1)], seconds: +walked.toFixed(1) };
+        if (!s.ok) return { ok: false, reason: `${s.reason} on the way`, at: s.x === undefined ? null : [s.x, s.y, s.z], towards: [+x.toFixed(1), +z.toFixed(1)], seconds: +walked.toFixed(1), trace: tr.slice(-8) };
       }
       let note = notes.join('; ');
       if (leg.glide) {
@@ -246,7 +246,13 @@ for (let i = 0; i < legs.length; i++) {
   if (!r.ok) {
     failed++;
     // (what the world says about the gate and the tide at the failure: a hero held by a gate that did not open, or by the sea, is told apart from one held by a step)
-    r.world = await page.evaluate(() => { const G = window.__game, b = G.objects && G.objects.barrier; return { lit: G.beacons.lit, gate: b ? { target: b.target, open: +b.open.toFixed(2), solid: !!b.c.solid } : null, water: +G.waterY.toFixed(2), t: +G.time.toFixed(0) }; });
+    r.world = await page.evaluate(() => {
+      const G = window.__game, b = G.objects && G.objects.barrier, p = G.player, near = (o) => Math.hypot(o.x - p.x, o.z - p.z);
+      // (and what is within 3 m of him: a Snuffer, a collider his body overlaps - the difference between a step he cannot climb and something standing in his way)
+      const snuffers = ((G.enemies && G.enemies.list) || []).filter((e) => near(e) < 4).map((e) => `${e.variant || e.kind || '?'}@${e.x.toFixed(1)},${e.z.toFixed(1)}${e.dead ? ' dead' : ''}`);
+      const solid = G.collision.near(p.x, p.z).filter((c) => c.solid && c.y1 > p.y + 0.3 && c.y0 < p.y + 1.0 && G.collision.inside(c, p.x, p.z, 0.8)).map((c) => `${c.tag || c.type}[${c.x.toFixed(1)},${c.z.toFixed(1)} y${c.y0.toFixed(1)}..${c.y1.toFixed(1)}]`);
+      return { lit: G.beacons.lit, gate: b ? { target: b.target, open: +b.open.toFixed(2), solid: !!b.c.solid } : null, water: +G.waterY.toFixed(2), t: +G.time.toFixed(0), grounded: p.grounded, kind: p.groundKind, snuffers, solid };
+    });
   }
   console.log(r.ok ? (leg.skipped ? 'SKIP' : 'PASS') : 'FAIL', `goal ${i + 1} of ${legs.length}, ${leg.id}: ${r.ok ? (leg.skipped ? `${leg.skipped}; put beside it and lit (${r.lit} lit)` : `walked ${leg.metres.toFixed(0)} m of route in ${r.seconds} s${r.note ? `, ${r.note}` : ''}, lit (${r.lit} lit)`) : r.reason}`, r.ok && !verbose ? '' : JSON.stringify(r), `(${((Date.now() - t0) / 1000).toFixed(1)}s)`);
   if (!r.ok) break;                                  // (nothing after a goal that cannot be reached means anything)

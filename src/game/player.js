@@ -227,7 +227,8 @@ export class Player {
       const n = col.normalAt(this.x, this.z);
       if (n[1] < SLOPE_WALK) {            // (also while gliding: otherwise a glide into a cliff rides up its face)
         const hNew = col.heightAt(this.x, this.z), hOld = col.heightAt(ox, oz);
-        if (hNew > hOld + 0.001 && hNew > this.y - 0.2) {
+        // (not when what he walks on is a prop - a deck, a stair, a pier - that rises: the steep terrain under it is not the face he climbs, and a bridge laid over the crest of a steep rim stood him still on it)
+        if (hNew > hOld + 0.001 && hNew > this.y - 0.2 && !(this.grounded && col.support(this.x, this.z, this.y, P.stepUp).kind === 'collider')) {
           const ul = Math.hypot(n[0], n[2]) || 1;
           const ux = -n[0] / ul, uz = -n[2] / ul;
           const vu = this.vx * ux + this.vz * uz;
