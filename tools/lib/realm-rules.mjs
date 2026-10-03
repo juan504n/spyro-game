@@ -81,7 +81,7 @@ export function checkRealm(which, { log = () => {} } = {}) {
   const walkShut = airShut ? airShut.map : footShut;
   const walk = airJ ? airJ.map : footWalk;
   const near = (f, x, z, r = 3, y) => f.distNear(x, z, r, y);
-  const env = { grid, collision, gp, level: L, ctx, massifs, h, walk, walkShut, foot: footWalk, footShut, air: airJ, airShut };
+  const env = { grid, collision, gp, level: L, ctx, massifs, h, walk, walkShut, foot: footWalk, footShut, air: airJ, airShut, flood };
 
   // ---- HARD: the world works ---------------------------------------------------------------------------------------------------------------
   {
@@ -346,7 +346,8 @@ export function checkRealm(which, { log = () => {} } = {}) {
     // where he can be at the low tide and is drowned at the high (ground lower than `deepAtHigh`), and where he is not: ground that is safe to wait on (`refuge`) or to be set back on (`shore`, as player.js
     // remembers it: above the sea even at the high tide, or a deck)
     const lowest = [], refuge = [], shore = [];
-    footWalk.each((x, y, z) => {
+    const onFoot = flood([sp.x, sp.z], { breakWalls: true, openGate: true });       // (what he can walk to: a jump across the deep to a bar of sand is a risk he takes, not a place the road leads)
+    onFoot.each((x, y, z) => {
       const prop = y > h(x, z) + 0.3;
       if (!prop && y < deepAtHigh) lowest.push([x, y, z]);
       else refuge.push([x, z, y]);

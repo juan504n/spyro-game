@@ -8,6 +8,7 @@
 import { TRAVEL_PLACES as TRAVEL_FROSTBLOOM } from './frostbloom/travel.js';
 import { TRAVEL_PLACES as TRAVEL_EMBERFALL } from './emberfall/travel.js';
 import { TRAVEL_PLACES as TRAVEL_SKYWEAVER } from './skyweaver/travel.js';
+import { TRAVEL_PLACES as TRAVEL_TIDEGLASS } from './tideglass/travel.js';
 // <realm-travel-imports>  (tools/realm-travel.mjs adds the import of a realm's places above this line)
 const PI = Math.PI;
 /** the yaw that looks from (x, z) towards (tx, tz) */
@@ -69,7 +70,7 @@ export const TRAVEL = [
         name: 'LAKE AND CANYON',
         places: [
           { id: 'lake-shore', name: 'MIRROR LAKE SHORE', x: 128, z: 92, yaw: PI },
-          { id: 'pier-end', name: 'TIDEGLASS PIER', x: 128, z: 43.4, y: 0.3, yaw: PI },
+          { id: 'pier-end', name: 'TIDEGLASS PIER', x: 128, z: 49.4, y: 0.3, yaw: PI },
           { id: 'islet', name: 'THE ISLET', x: 111.5, z: 62.5, yaw: face(111.5, 62.5, 114, 62) },
           { id: 'canyon', name: 'EMBER CANYON', x: 136, z: -54, yaw: PI },
           { id: 'forge', name: 'THE FORGE', x: 151.6, z: -154.5, yaw: face(151.6, -154.5, 152, -164) },
@@ -100,6 +101,7 @@ export const TRAVEL = [
   TRAVEL_FROSTBLOOM,
   TRAVEL_EMBERFALL,
   TRAVEL_SKYWEAVER,
+  TRAVEL_TIDEGLASS,
   // <realm-travel-entries>  (tools/realm-travel.mjs adds the entry of a realm's places above this line)
 ];
 

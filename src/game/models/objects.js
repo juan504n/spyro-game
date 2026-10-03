@@ -17,6 +17,7 @@ import { createFrostbloom } from './objects/frostbloom.js';
 import { createEmberstone } from './objects/emberstone.js';
 import { createWhirlwind } from './objects/whirlwind.js';
 import { createWindbell } from './objects/windbell.js';
+import { createTidelens } from './objects/tidelens.js';
 
 export const OBJECTS = {
   beacon: {
@@ -38,6 +39,11 @@ export const OBJECTS = {
     create: createWindbell,
     size: 4.4,
     note: 'Windbell (the goal of Skyweaver Spires): a bronze bell hung in a frame of two marble pillars and a lintel on a plinth with a ring of runes; dull blue-grey and still until it is rung, then it warms to gold, swings, and a heart of light, a turning hoop of runes and a halo come on; setLit(k) 0 silent .. 1 ringing; opts.big = x2.2 Loom Bell; anchors flame/base/top',
+  },
+  tidelens: {
+    create: createTidelens,
+    size: 4.6,
+    note: 'Tide Lens (the goal of Tideglass Reach): a lens of sea-glass in a brass ring on a spindle above a plinth of sea-stone with a ring of runes; dull grey-green and slow until it is lit, then the glass clears to aquamarine, the lens spins on its spindle, and a heart of light, a turning hoop of runes and a halo come on; setLit(k) 0 dark .. 1 shining; opts.big = x2.2 Tideglass; anchors flame/base/top',
   },
   whirlwind: {
     create: createWhirlwind,

@@ -139,7 +139,7 @@ await run('arrival', () => {
   __bot.tick(120);
   return { ok: Math.hypot(p.x - a.x, p.z - a.z) < 0.5 && !G.player.locked && !G.portals.busy && Math.hypot(p.x - d.x, p.z - d.z) > 9 && Math.hypot(G.gameplay.spawn.x - a.x, G.gameplay.spawn.z - a.z) < 0.5, at: [+p.x.toFixed(1), +p.z.toFixed(1)] };
 });
-for (const door of ['gloaming', 'frostbloom', 'emberfall', 'skyweaver']) { DATA.door = door; await run(`door-opens-${door}`, (D) => {
+for (const door of ['gloaming', 'frostbloom', 'tideglass', 'emberfall', 'skyweaver']) { DATA.door = door; await run(`door-opens-${door}`, (D) => {
   // walking into an awake door's light raises the 'portal' event (the app turns it into the trip to the realm behind it); the others only talk
   const G = __game, p = G.player, door = D.door;
   const seen = [];
@@ -153,11 +153,13 @@ for (const door of ['gloaming', 'frostbloom', 'emberfall', 'skyweaver']) { DATA.
   return { ok: r.seen.join() === door && r.locked && r.busy, ...r };
 }); }
 await run('sealed-doors', () => {
-  // the doors that still sleep stay shut: the hero runs at each one and is stopped by the stone, no trip begins
+  // the doors that still sleep stay shut: the hero runs at each one and is stopped by the stone, no trip begins (none sleeps since Tideglass Reach woke: the run is held for the day a sixth door is cut)
   const G = __game, p = G.player, out = [];
   const seen = [];
   G.on('portal', (d) => seen.push(d.id));
-  for (const id of ['tideglass']) {
+  const doors = G.portals.list.filter((q) => q.def.kind === 'door'), sleeping = doors.filter((q) => !q.def.target).map((q) => q.def.id);
+  if (!sleeping.length) return { ok: doors.length === 5 && doors.every((q) => q.state === 'open'), none: 'every door is awake', doors: doors.map((q) => `${q.def.id}:${q.state}`) };
+  for (const id of sleeping) {
     const dd = G.portals.get(id).def, s = Math.sin(dd.yaw), c = Math.cos(dd.yaw);
     __bot.place(dd.x + s * 5, dd.z + c * 5, dd.yaw + Math.PI, dd.y);
     __bot.goto(dd.x - s * 3, dd.z - c * 3, { tol: 0.4, timeout: 6, auto: false });
@@ -228,7 +230,7 @@ await run('elder', () => {
   const second = G.hud.dlg && G.hud.dlg.pages.slice();
   G.hud.dlg = null; G.locked = false; p.locked = false; N.talking = false;
   const a = G.gameplay.arrivals.gloaming;
-  const ok = speaker === 'ELDER WICK' && first && first.length >= 5 && /DAWNHAVEN/.test(first[0]) && /CRAG/.test(first[1]) && /SLEEP/.test(first[2]) && /GUARDIAN/.test(first[3]) && second && second.length >= 2 && second.length < first.length && /SECRETS/.test(second.at(-1)) && !!d && Math.hypot(N.x - a.x, N.z - a.z) < 30;
+  const ok = speaker === 'ELDER WICK' && first && first.length >= 5 && /DAWNHAVEN/.test(first[0]) && /CRAG/.test(first[1]) && /AWAKE/.test(first[2]) && /GUARDIAN/.test(first[3]) && second && second.length >= 2 && second.length < first.length && /SECRETS/.test(second.at(-1)) && !!d && Math.hypot(N.x - a.x, N.z - a.z) < 30;
   return { ok, speaker, first, second };
 });
 await run('mill-lookout', () => {

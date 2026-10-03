@@ -14,13 +14,17 @@ const { grid: g, gp, level: L } = buildHeadless(id);
 const N = Math.ceil(g.size * S), p = new Pix(N, N), nrm = [0, 1, 0];
 let hi = -1e9;
 for (const v of g.heights) hi = Math.max(hi, v);
+// (a realm with a tide: the ground the sea goes over is drawn in two shades - turquoise: bare at the low tide, under the water from the mean; sand: bare until the water is above the mean, under it at the high tide)
+const tide = L.tide || null, lowTide = tide ? WATER_LEVEL - tide.amp : WATER_LEVEL, highTide = tide ? WATER_LEVEL + tide.amp : WATER_LEVEL;
 for (let py = 0; py < N; py++) {
   for (let px = 0; px < N; px++) {
     const x = -g.half + px / S, z = -g.half + py / S, h = g.heightAt(x, z);
     g.normalAt(x, z, nrm);
     const shade = 0.55 + 0.6 * Math.max(0, nrm[0] * -0.5 + nrm[1] * 0.7 + nrm[2] * -0.5), slope = (Math.acos(nrm[1]) * 180) / Math.PI;
     let r, gg, b;
-    if (h < WATER_LEVEL) { const d = Math.min(1, -h / 4.5); r = 40 - 20 * d; gg = 120 - 50 * d; b = 190 - 60 * d; }
+    if (h < lowTide) { const d = Math.min(1, -h / 4.5); r = 40 - 20 * d; gg = 120 - 50 * d; b = 190 - 60 * d; }
+    else if (tide && h < WATER_LEVEL) { r = 110; gg = 200; b = 196; }
+    else if (tide && h < highTide) { r = 228; gg = 210; b = 152; }
     else { const k = Math.min(1, h / Math.max(20, hi)); r = 70 + 150 * k; gg = 150 + 60 * k - 80 * k * k; b = 60 + 150 * k; }
     r *= shade; gg *= shade; b *= shade;
     if (slope > 40 && h >= WATER_LEVEL) { r = r * 0.6 + 90; gg *= 0.55; b *= 0.55; }

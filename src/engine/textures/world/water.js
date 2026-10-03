@@ -4,11 +4,11 @@ import { Canvas, RNG, field, bandPick, poisson, lattice, cells, rec } from './ki
 
 const WA = RAMPS.water;
 
-function paintWater() {
+function paintWater(WA = RAMPS.water, seed = 5001, crest = '#68bcda') {
   const c = new Canvas(32, 32, true, WA[3]);
-  const rng = new RNG(5001);
+  const rng = new RNG(seed);
   // lazy depth mottling: darker and lighter drifts, very low contrast structure
-  const f = field(32, 32, 5002, 3, 2, 2);
+  const f = field(32, 32, seed + 1, 3, 2, 2);
   const tones = [WA[2], WA[3], WA[3], WA[3], WA[3], WA[3], WA[4]];
   for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) c.dot(x, y, bandPick(tones, f[y * 32 + x], x, y, 0.4, 1));
   // wave crests: arched highlights with a lighter body and, on some, a dark trough under them.
@@ -28,12 +28,12 @@ function paintWater() {
       const dy = -Math.round(Math.sin(Math.PI * t) * a.amp);
       const x = a.x + i, y = a.y + dy;
       c.dot(x, y, t > 0.3 && t < 0.62 && a.len > 9 ? WA[5] : WA[4]);
-      c.dot(x, y + 1, '#68bcda');
+      c.dot(x, y + 1, crest);
       if (a.trough && i > 2 && i < a.len - 3) c.dot(x, y + 2, WA[2]);
     }
   }
   // choppy little ripples
-  for (const [x, y] of poisson(rng, 32, 32, 9, 6)) { c.hl(x, y, 3, '#68bcda'); c.hl(x + 1, y + 1, 2, WA[2]); }
+  for (const [x, y] of poisson(rng, 32, 32, 9, 6)) { c.hl(x, y, 3, crest); c.hl(x + 1, y + 1, 2, WA[2]); }
   // sparkles
   const sp = poisson(rng, 32, 32, 6, 8);
   sp.forEach(([x, y], i) => {
@@ -190,6 +190,7 @@ function paintWhirl() {
 export function waterTextures() {
   return {
     water: rec(paintWater(), true, false),
+    water_tide: rec(paintWater(['#082830', '#0e4a52', '#176e72', '#2a9690', '#6cc4b4', '#c8f0e4'], 5301, '#4cb8a6'), true, false),
     waterfall: rec(paintWaterfall(), true, false, { roll: 'xy' }),
     foam: rec(paintFoam(), true, true, { roll: 'xy' }),
     lava: rec(paintLava(), true, false, { roll: 'xy' }),

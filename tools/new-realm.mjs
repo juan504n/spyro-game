@@ -105,7 +105,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (!r.ok) { for (const p of r.problems) console.log('PROBLEM', p); process.exit(1); }
   if (r.dry) { console.log('would write:'); for (const f of r.files) console.log('  ', f); process.exit(0); }
   console.log(`laid the foundation of '${id}' in src/game/${id}/ (brief.js, level.js, layout.js, index.js), tools/${id}-check.mjs, and registered it in src/game/realms.js`);
-  if (a.flags.has('wake-door')) console.log(r.woke ? `woke the door '${r.door}' of Dawnhaven (src/game/home/level.js): its target is '${id}' now (home-check.mjs and portal-test.mjs count the sleeping doors: update them)` : `WARNING: no sleeping door '${r.door}' found in src/game/home/level.js`);
+  if (a.flags.has('wake-door')) console.log(r.woke ? `woke the door '${r.door}' of Dawnhaven (src/game/home/level.js): its target is '${id}' now (home-check.mjs, home-bot.mjs and portal-test.mjs count the awake doors: update them, and re-pin Dawnhaven: node tools/world-hash.mjs --write home)` : `WARNING: no sleeping door '${r.door}' found in src/game/home/level.js`);
   const run = (args) => spawnSync('node', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
   const t = run(['tools/realm-travel.mjs', id]);
   console.log((t.stdout + t.stderr).trim().split('\n').slice(-3).join('\n'));

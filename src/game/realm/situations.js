@@ -130,6 +130,23 @@ export const SITUATIONS = {
     },
   },
 
+  bridge: {
+    doc: 'out over the water, reached by a bridge: a stack or a rock standing in the sea, and the only way to it a span of the realm\'s own making (glass, stone) over the water',
+    check(g, e) {
+      // (water in at least five of eight directions within 14 m, as an island's: it stands out in the sea; and the best walk to it crosses 12 m or more of deck, standing well over the ground under it)
+      let wet = 0;
+      for (let k = 0; k < 8; k++) {
+        const a = (k * Math.PI) / 4;
+        for (const r of [7, 10, 14]) if (e.h(g.x + Math.cos(a) * r, g.z + Math.sin(a) * r) < WATER_LEVEL - 0.3) { wet++; break; }
+      }
+      const route = e.walk.route(g.x, g.z, 4, g.y - 0.5) || [];
+      let deck = 0;
+      for (let i = 1; i < route.length; i++) if (route[i][1] > e.h(route[i][0], route[i][2]) + 2.5 && route[i - 1][1] > e.h(route[i - 1][0], route[i - 1][2]) + 2.5) deck += route[i][3] - route[i - 1][3];
+      const d = e.walk.distNear(g.x, g.z, 3, g.y);
+      return { ok: wet >= 5 && deck >= 12, detail: `water in ${wet} of 8 directions within 14 m, the walk of ${f1(d)} m crosses ${f1(deck)} m of bridge (12 or more)` };
+    },
+  },
+
   puzzle: {
     doc: 'sealed until something is done: a cracked wall to charge, a gate that opens when others are lit',
     check(g, e) {

@@ -212,6 +212,32 @@ function paintSunGlow() {
   return c;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Sea-glass: panes of green glass in lead (Tideglass Reach's bridges and lenses). Drawn half-blended (50% over what is behind it): the sea shows through the panes, the lead and the bright
+// streaks do not. 2 x 2 panes a tile, each a little lighter at the top left, a diagonal streak of light across it, a bubble or two.
+// ---------------------------------------------------------------------------------------------
+function paintGlass() {
+  const c = new Canvas(16, 16, true);
+  const rng = new RNG(5701);
+  const G = ['#4aa89a', '#66c4b0', '#8ee0cc', '#b6f2e0', '#e2fff6'], LEAD = '#1b4e4c';
+  for (let py = 0; py < 2; py++) for (let px = 0; px < 2; px++) {
+    const x0 = px * 8, y0 = py * 8;
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+      const d = (x + y) / 14;                                           // lighter at the top left
+      c.dot(x0 + x, y0 + y, dpick([G[3], G[2], G[1], G[0]], clamp(d * 0.9 + (rng.next() - 0.5) * 0.12, 0, 1), x0 + x, y0 + y, 1));
+    }
+    // the streak: a diagonal run of light, two pixels wide
+    for (let i = 1; i < 6; i++) { c.dot(x0 + 1 + i, y0 + 6 - i, G[4]); if (i > 1 && i < 5) c.dot(x0 + 2 + i, y0 + 6 - i, G[3]); }
+    // a bubble
+    const bx = x0 + 2 + rng.int(0, 4), by = y0 + 2 + rng.int(0, 4);
+    c.dot(bx, by, G[4]); c.dot(bx + 1, by + 1, G[0]);
+  }
+  // the lead: a dark line round each pane, a lit edge under it on the top and left
+  for (let i = 0; i < 16; i++) { c.dot(i, 0, LEAD); c.dot(i, 8, LEAD); c.dot(0, i, LEAD); c.dot(8, i, LEAD); }
+  for (let i = 1; i < 16; i++) { if (i % 8 !== 0) { c.dot(i, 1, G[4]); c.dot(i, 9, G[4]); c.dot(1, i, G[4]); c.dot(9, i, G[4]); } }
+  return c;
+}
+
 export function magicTextures() {
   return {
     crystal_violet: rec(paintCrystal(V), false, false),
@@ -224,5 +250,6 @@ export function magicTextures() {
     portal_swirl: rec(paintPortalSwirl(), false, false),
     beam: rec(paintBeam(), true, false),
     sun_glow: rec(paintSunGlow(), false, false),
+    glass: rec(paintGlass(), true, false),
   };
 }

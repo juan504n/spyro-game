@@ -118,7 +118,7 @@ function paintMoss() {
 // ---------------------------------------------------------------------------------------------
 // Packed earth
 // ---------------------------------------------------------------------------------------------
-function paintDirt(DD = D, seed = 1401) {
+function paintDirt(DD = D, seed = 1401, peb = { h: '#e0dbe4', b: '#a09aa8' }) {
   const D = DD;
   const c = new Canvas(32, 32, true, D[3]);
   const rng = new RNG(seed);
@@ -134,7 +134,7 @@ function paintDirt(DD = D, seed = 1401) {
   // pebbles: hand-drawn 3-4px stones (lit top-left, shaded bottom, drop shadow); ellipses this small turn into plus signs
   const PEBBLES = [['.hb.', 'bbbd', '.dd.'], ['hbb', 'bbd', '.dd'], ['hb', 'bd']];
   for (const [x, y] of poisson(rng, 32, 32, 8, 5)) {
-    const key = { h: '#e0dbe4', b: rng.chance(0.5) ? '#a09aa8' : D[5], d: D[1] };
+    const key = { h: peb.h, b: rng.chance(0.5) ? peb.b : D[5], d: D[1] };
     c.stamp(x, y, rng.pick(PEBBLES), key);
     c.dot(x + 1, y + 3, D[1]);
   }
@@ -596,6 +596,54 @@ function cliffMarble() {
   return c;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Tideglass Reach: the ground of a coast. The sand of the flats - dry and pale, rippled by the water that has left it, and wet, dark and shining under the tide's reach - the sea floor, dune turf in
+// blue-green, slate-teal strata flecked with salt, the roads of sea-stone with weed in the joints and of pale shell-sand, the far rock of a teal haze.
+// ---------------------------------------------------------------------------------------------
+/** rippled sand: the ripple lines of paintSand with a ramp of their own; `wet` makes it dark and shiny (more glints, a sheen along the crests), with a few shells on it */
+function paintTideSand(R, seed, wet) {
+  const c = new Canvas(32, 32, true, R[1]);
+  const rng = new RNG(seed);
+  const f = field(32, 32, seed + 1, 3, 3, 2);
+  const tones = [R[0], R[1], R[1], R[1], R[2], R[2]];
+  for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) c.set(x, y, bandPick(tones, f[y * 32 + x], x, y, 0.4, 1));
+  [3, 10, 17, 25].forEach((y0, r) => {
+    const amp = 1 + (r % 2), cyc = 1 + (r % 2), ph = r * 1.7;
+    for (let x = 0; x < 32; x++) {
+      const off = Math.round(Math.sin((x / 32) * Math.PI * 2 * cyc + ph) * amp);
+      if (((x * 5 + r * 13) % 19) < 3) continue;
+      if (wet || (x + r) % 3 === 0) c.dot(x, y0 + off, wet ? R[0] : R[1]);                  // (dry sand: a trough only now and then, and not as dark: a regular pattern of scales tires the eye over a whole beach)
+      c.dot(x, y0 + off + 1, wet ? R[4] : R[3]);
+      if ((x + r) % 3 === 0) c.dot(x, y0 + off + 2, R[2]);
+    }
+  });
+  for (const [x, y] of poisson(rng, 32, 32, wet ? 6 : 8, 5)) {
+    c.dot(x, y, wet ? '#e8fff8' : '#fffbe8');
+    if (rng.chance(0.4)) { c.dot(x + 1, y, R[4]); c.dot(x - 1, y, R[4]); c.dot(x, y + 1, R[4]); c.dot(x, y - 1, R[4]); }
+  }
+  for (const [x, y] of poisson(rng, 32, 32, 10, 4)) c.dot(x, y, R[0]);
+  // a few shells: a pale fleck with a darker one under it
+  for (const [x, y] of poisson(rng, 32, 32, 3, 11)) { c.dot(x, y, wet ? '#f4ece0' : '#fff6ea'); c.dot(x + 1, y + 1, R[0]); }
+  return c;
+}
+const TSD = ['#aa9c6c', '#cbbe8c', '#e0d4a4', '#eee4bc', '#f9f2d6'];          // dry sand: pale, a little green in its shadows
+const TSW = ['#3a4c48', '#566a60', '#74887a', '#98ac98', '#c2d6c8'];          // wet sand: dark grey-green, a sheen on the crests
+const SFL = ['#0c2226', '#143236', '#1e4448', '#2a585a', '#3a6e6c', '#528888'];            // the sea floor: dark sediment, seen through the water
+const TT = ['#1a463c', '#2a6650', '#42866a', '#68a888', '#98caa2', '#cdeabe'];        // dune turf: blue-green, silvered by the wind
+function tideTurf() { return paintGrass(4101, TT, { cells: 4, tufts: 40 }).c; }
+const CTS = ['#182a32', '#28424c', '#3e5e66', '#5c8084', '#84a4a0', '#bccfc4'];       // slate-teal strata
+function cliffTide() {
+  const c = paintCliff(4201, { ramp: CTS }, false);
+  const rng = new RNG(4202);
+  // salt: pale flecks and a bloom where the wet has dried
+  for (const [x, y] of poisson(rng, 32, 32, 9, 4)) { c.dot(x, y, '#dceee0'); if (rng.chance(0.4)) c.dot(x + 1, y, '#b4d0c4'); }
+  for (let i = 0; i < 3; i++) {
+    const p = walk(rng, rng.int(0, 32), rng.int(0, 32), rng.int(9, 14), [1, rng.float(-0.3, 0.3)], 0.35);
+    polyline(c, p, '#7ca4a0');
+  }
+  return c;
+}
+
 export function terrainTextures() {
   return {
     grass_a: rec(grassA(), true, false),
@@ -638,6 +686,18 @@ export function terrainTextures() {
     }), true, false, { roll: 'xy' }),
     path_sky: rec(paintDirt(['#6e6a64', '#8c867c', '#aca493', '#c8bfaa', '#e0d6c0', '#f4ecd8'], 3311), true, false),
     far_sky: rec(paintFarRock(3003, ['#a4aed2', '#b6bedc', '#c8d0e8']), true, false),
+    // the ground of Tideglass Reach: sand dry and wet, the sea floor, dune turf, slate strata, the sea-stone roads, the far rock
+    sand_tide: rec(paintTideSand(TSD, 4001, false), true, false),
+    sand_wet: rec(paintTideSand(TSW, 4011, true), true, false),
+    sea_floor: rec(paintDirt(SFL, 4021, { h: '#7ab4aa', b: '#3c7470' }), true, false),
+    tideturf: rec(tideTurf(), true, false),
+    cliff_tide: rec(cliffTide(), true, false, { roll: 'x' }),
+    cobble_tide: rec(paintCobble({
+      ramp: ['#243840', '#3c5660', '#5e7e86', '#88a8a8', '#b4ccc4', '#e6f0e6'], moss: ['#2e8478', '#4ea898', '#80ccb8', '#cff0e6'], seed: 4401,
+      fams: [{ d: '#88a8a8', m: '#b4ccc4', l: '#e6f0e6' }, { d: '#7898a0', m: '#a2bcb8', l: '#d4e4dc' }, { d: '#88a8a8', m: '#b4ccc4', l: '#e6f0e6' }, { d: '#5e7e86', m: '#88a8a8', l: '#b4ccc4' }],
+    }), true, false, { roll: 'xy' }),
+    path_tide: rec(paintDirt(['#7a7256', '#9a916e', '#bbae86', '#d3c79f', '#e8deb8', '#f7f0d2'], 4411, { h: '#f4ecd2', b: '#b4a884' }), true, false),
+    far_tide: rec(paintFarRock(4003, ['#5f979c', '#76acae', '#92c2c0']), true, false),
     cliff: rec(cliffLav(), true, false, { roll: 'x' }),
     cliff_warm: rec(cliffWarm(), true, false, { roll: 'x' }),
     cliff_bare: rec(cliffBare(), true, false, { roll: 'x' }),

@@ -97,7 +97,8 @@ export function buildWater(grid, lighting, assets) {
   const group = new THREE.Group();
   group.name = 'water';
   // a realm with a tide (realm/tide.js) has a surface that moves: the group is lifted and lowered with the water, and the shallows are tinted again as it goes (see below). `level.tide.tint`
-  // = { shallow, deep, scale } is the colour of its sea over the shallows and over the deeps, and the metres of depth over which the one turns into the other (4.2 in every other world)
+  // = { shallow, deep, scale, shimmer, texture } is the colour of its sea over the shallows and over the deeps, the metres of depth over which the one turns into the other (4.2 in every other world), the tint of the
+  // additive layer that moves over it and the texture it is drawn with
   const tide = L.tide || null;
   const palette = (tide && tide.tint) || null;
   const scale = (palette && palette.scale) || 4.2;
@@ -114,7 +115,7 @@ export function buildWater(grid, lighting, assets) {
     if (rec) rec.push(x, z);
     return tintAt(grid.heightAt(x, z), WATER_LEVEL);
   };
-  const shimmer = lq ? () => lq.shimmer : () => [0.24, 0.34, 0.42];
+  const shimmer = lq ? () => lq.shimmer : palette && palette.shimmer ? () => palette.shimmer : () => [0.24, 0.34, 0.42];
 
   const surf = new Builder({ lighting });
   const shim = new Builder({ lighting });

@@ -125,6 +125,30 @@ const BELL_ON = { o: INK, Y: '#f0bc48', w: '#fff4c0', y: '#b87a20', R: '#ffe08a'
 const BELL_OFF = { o: INK, Y: '#68718a', w: '#8c97b2', y: '#434b62', R: '#566078' };
 
 /* ---------------------------------------------------------------------------------------------- */
+/* lens 12x16: the goal of Tideglass Reach, dark (lens_off) and shining (lens_on)                     */
+/* ---------------------------------------------------------------------------------------------- */
+const LENS_MAP = [
+  '....oooo....',
+  '..ooBBBBoo..',
+  '.oBGGGGGGBo.',
+  '.oBGwwGGGBo.',
+  'oBGGwWGGGGBo',
+  'oBGGwGGGGGBo',
+  'oBGGGGGGggBo',
+  'oBGGGGGGggBo',
+  '.oBGGGGggBo.',
+  '.oBBGGggBBo.',
+  '..ooBBBBoo..',
+  '....oSSo....',
+  '....oSSo....',
+  '...oSSSSo...',
+  '.oLLLSSLLLo.',
+  '..oooooooo..',
+];
+const LENS_ON = { o: INK, B: '#e0b040', G: '#7ef0d0', w: '#f4fffb', W: '#ffffff', g: '#38b8a0', S: '#4a7078', L: '#6a8e92' };
+const LENS_OFF = { o: INK, B: '#8a7448', G: '#64847c', w: '#8aa89f', W: '#a8c4bc', g: '#3e5a56', S: '#4a5a60', L: '#5e7074' };
+
+/* ---------------------------------------------------------------------------------------------- */
 /* heart 10x9                                                                                       */
 /* ---------------------------------------------------------------------------------------------- */
 const HEART_MAP = [
@@ -407,6 +431,8 @@ export function buildIcons() {
   U.ember_off = fromMap(EMBER_MAP, EMBER_OFF, 'ember_off');
   U.bell_on = fromMap(BELL_MAP, BELL_ON, 'bell_on');
   U.bell_off = fromMap(BELL_MAP, BELL_OFF, 'bell_off');
+  U.lens_on = fromMap(LENS_MAP, LENS_ON, 'lens_on');
+  U.lens_off = fromMap(LENS_MAP, LENS_OFF, 'lens_off');
   U.sparx_blue = sparxIcon(RAMPS.gemBlue);
   U.sparx_green = sparxIcon(RAMPS.gemGreen);
   U.sparx_yellow = sparxIcon(RAMPS.gemGold);

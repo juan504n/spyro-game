@@ -78,7 +78,7 @@ const DOOR_DEFS = [
   // deep in the Crag, at the far end of the Frost Grotto
   { id: 'frostbloom', name: 'FROSTBLOOM HOLLOW', tag: 'A REALM OF ICE AND BLOSSOM', x: 42.5, z: -87.5, look: [28, -82], color: [0.55, 0.85, 1.0], target: 'frostbloom' },
   // at the end of the long pier out on Mirror Lake
-  { id: 'tideglass', name: 'TIDEGLASS REACH', tag: 'A REALM OF TIDES AND GLASS', x: 128, z: 38.4, y: WATER_LEVEL, look: [128, 100], color: [0.38, 0.92, 0.82], target: null },
+  { id: 'tideglass', name: 'TIDEGLASS REACH', tag: 'A REALM OF TIDES AND GLASS', x: 128, z: 38.4, y: WATER_LEVEL, look: [128, 100], color: [0.38, 0.92, 0.82], target: 'tideglass' },
   // in the forge at the head of the canyon
   { id: 'emberfall', name: 'EMBERFALL CRAGS', tag: 'A REALM OF EMBERS AND STONE', x: 152, z: -164, look: [150, -138], color: [1.0, 0.58, 0.28], target: 'emberfall' },
   // on the summit of the Crag

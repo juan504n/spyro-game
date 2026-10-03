@@ -25,20 +25,30 @@ const f1 = (v) => v.toFixed(1);
 // ---- the Elder says which realms burn (it was always the vale, before a second door woke) --------------------------------------------------------------
 {
   const say = (realms) => homeLines({ progress: { realms, home: { secrets: [] } } }, {})[0];
-  const a = say({}), b = say({ gloaming: { done: true } }), c = say({ frostbloom: { done: true } }), d = say({ gloaming: { done: true }, frostbloom: { done: true } }), e = say({ gloaming: { done: true }, frostbloom: { done: true }, emberfall: { done: true } }), f = say({ gloaming: { done: true }, frostbloom: { done: true }, emberfall: { done: true }, skyweaver: { done: true } });
-  check('the Elder welcomes the hero, and names the realms that burn (the one, the other, both, three, all four)', !/BURN/.test(a) && /^WELCOME TO DAWNHAVEN, SPYRO! GLOAMING VALE, FROSTBLOOM HOLLOW, EMBERFALL CRAGS AND SKYWEAVER SPIRES BURN BRIGHT AGAIN, AND THEIR DOORS SHINE GOLD/.test(f) && /^WELCOME TO DAWNHAVEN, SPYRO! GLOAMING VALE, FROSTBLOOM HOLLOW AND EMBERFALL CRAGS BURN BRIGHT AGAIN, AND THEIR DOORS SHINE GOLD/.test(e) && /^WELCOME TO DAWNHAVEN, SPYRO! GLOAMING VALE BURNS BRIGHT AGAIN, AND ITS DOOR SHINES GOLD/.test(b) && /FROSTBLOOM HOLLOW BURNS BRIGHT/.test(c) && !/GLOAMING/.test(c) && /GLOAMING VALE AND FROSTBLOOM HOLLOW BURN BRIGHT AGAIN, AND THEIR DOORS SHINE GOLD/.test(d), `(${c})`);
+  const a = say({}), b = say({ gloaming: { done: true } }), c = say({ frostbloom: { done: true } }), d = say({ gloaming: { done: true }, frostbloom: { done: true } }), e = say({ gloaming: { done: true }, frostbloom: { done: true }, emberfall: { done: true } }), f = say({ gloaming: { done: true }, frostbloom: { done: true }, emberfall: { done: true }, skyweaver: { done: true } }), g = say({ gloaming: { done: true }, frostbloom: { done: true }, emberfall: { done: true }, skyweaver: { done: true }, tideglass: { done: true } });
+  check('the Elder welcomes the hero, and names the realms that burn (the one, the other, both, three, four, all five)', !/BURN/.test(a) && /^WELCOME TO DAWNHAVEN, SPYRO! GLOAMING VALE, FROSTBLOOM HOLLOW, TIDEGLASS REACH, EMBERFALL CRAGS AND SKYWEAVER SPIRES BURN BRIGHT AGAIN, AND THEIR DOORS SHINE GOLD/.test(g) && /^WELCOME TO DAWNHAVEN, SPYRO! GLOAMING VALE, FROSTBLOOM HOLLOW, EMBERFALL CRAGS AND SKYWEAVER SPIRES BURN BRIGHT AGAIN, AND THEIR DOORS SHINE GOLD/.test(f) && /^WELCOME TO DAWNHAVEN, SPYRO! GLOAMING VALE, FROSTBLOOM HOLLOW AND EMBERFALL CRAGS BURN BRIGHT AGAIN, AND THEIR DOORS SHINE GOLD/.test(e) && /^WELCOME TO DAWNHAVEN, SPYRO! GLOAMING VALE BURNS BRIGHT AGAIN, AND ITS DOOR SHINES GOLD/.test(b) && /FROSTBLOOM HOLLOW BURNS BRIGHT/.test(c) && !/GLOAMING/.test(c) && /GLOAMING VALE AND FROSTBLOOM HOLLOW BURN BRIGHT AGAIN, AND THEIR DOORS SHINE GOLD/.test(d), `(${c})`);
 }
 
-// ---- the Elder counts the doors that still sleep, in words that are right for one --------------------------------------------------------------------------
+// ---- the Elder counts the doors that still sleep, in words that are right for none, one and two (every door is awake now; the words stay held, for a sixth door) ------------------------------
 {
   const pages = homeLines({ progress: { realms: {}, home: { secrets: [] } } }, {});
-  check('the Elder says which doors still sleep: one (Tideglass Reach) is "ONE STILL SLEEPS", not "1 STILL SLEEP"', /ONE STILL SLEEPS: TIDEGLASS REACH\.$/.test(pages[2]), `(${pages[2].slice(-44)})`);
+  check('the Elder says every door is awake now: "ALL OF THEM ARE AWAKE", nothing sleeps', /ONE IN THE FORGE\. ALL OF THEM ARE AWAKE\.$/.test(pages[2]) && !/SLEEP/.test(pages[2]), `(${pages[2].slice(-44)})`);
+  // the grammar for the doors that sleep, held with a door put to sleep for a moment (the data is given back)
+  const saved = DOORS.map((d) => d.target), say = () => homeLines({ progress: { realms: {}, home: { secrets: [] } } }, {})[2];
+  try {
+    DOORS.find((d) => d.id === 'tideglass').target = null;
+    const one = say();
+    DOORS.find((d) => d.id === 'skyweaver').target = null;
+    const two = say();
+    check('the Elder\'s words for the doors that sleep: one is "ONE STILL SLEEPS", two are "2 STILL SLEEP" (both named)', /ONE STILL SLEEPS: TIDEGLASS REACH\.$/.test(one) && /2 STILL SLEEP: TIDEGLASS REACH AND SKYWEAVER SPIRES\.$/.test(two), `(${one.slice(-30)} | ${two.slice(-52)})`);
+  } finally { DOORS.forEach((d, i) => { d.target = saved[i]; }); }
+  check('the doors\' data is back as it was (all awake)', DOORS.every((d) => d.target) && /ALL OF THEM ARE AWAKE\.$/.test(say()));
 }
 
 // ---- the doors ---------------------------------------------------------------------------------------------------------------------
 {
   const sealed = gp.portals.filter((p) => p.state === 'sealed'), open = gp.portals.filter((p) => p.state === 'open');
-  check('five doors: four awake (Gloaming Vale, Frostbloom Hollow, Emberfall Crags, Skyweaver Spires), one that still sleeps (Tideglass)', gp.portals.length === 5 && open.length === 4 && open.map((p) => p.target).sort().join() === 'emberfall,frostbloom,gloaming,skyweaver' && sealed.length === 1 && sealed.every((p) => !p.target), `(${gp.portals.map((p) => `${p.id}:${p.state}`).join(' ')})`);
+  check('five doors, every one awake (Gloaming Vale, Frostbloom Hollow, Emberfall Crags, Skyweaver Spires, Tideglass Reach), none that still sleeps', gp.portals.length === 5 && open.length === 5 && open.map((p) => p.target).sort().join() === 'emberfall,frostbloom,gloaming,skyweaver,tideglass' && sealed.length === 0, `(${gp.portals.map((p) => `${p.id}:${p.state}`).join(' ')})`);
   for (const d of DOORS) {
     const p = gp.portals.find((q) => q.id === d.id);
     const ys = [[-3, 0], [3, 0], [0, 0], [0, 3], [-3, 3], [3, 3], [0, 5.5]].map(([s, f]) => { const [x, z] = inFront(d, f, s); return collision.support(x, z, p.y + 1.0, 0.9).y; });

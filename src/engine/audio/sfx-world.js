@@ -4,6 +4,9 @@
 //                          D-sus bell chord (D5 A5 D6 E6 A6) and warm D3/A3 swell, small stone room
 //   windbell_ring   2.6 s  a bronze Windbell struck (Skyweaver Spires' goals): the clapper's tick, four bell voices (A2 hum, A3 with a long tail, E4 over it, E5 high) and a breath of wind that
 //                          swells under them, glass shimmer on the tail, a big stone room
+//   lens_ring       2.6 s  a Tide Lens struck (Tideglass Reach's goals): the tick of glass, five bright glass-bell voices (E4 hum, E5, G#5, B5, E6 with short tails), a wash of water swelling under them,
+//                          a glimmer of sparkles on the tail, a big stone room
+//   surf            LOOP 6 s  the sea on a flat shore: two swells a loop, a band of noise whose centre brightens at the crest over a low brown rumble and a hiss of foam; the seam exact
 //   lantern_beam    1.2 s  five sine partials gliding up a fifth with 9 Hz shimmer + rising noise + sparkles
 //   barrier_open    2.0 s  swelling 90 -> 200 Hz rumble + 42 Hz growl, then glass shatter at 0.85 s
 //   gate_creak      0.95 s two stick-slip creaks (110 -> 190 Hz and 220 -> 330 Hz) + wooden thunk
@@ -48,6 +51,25 @@ export const WORLD_SFX = {
     const shim = tinkles(2.2, s + 2, 10, 2800, 6200, { tauLo: 0.1, tauHi: 0.35, tMax: 1.6, gain: 0.25, decayGain: 0.5 });
     const b = layer(2.6, [[lvl(tick, 0.5), 0, 0.9], ...voices, [lvl(air, 0.08), 0.1, 1], [shim, 0.15, 0.5]]);
     return fin(reverbMono(b, 'chamber', 0.35, 0.35), { grit: 0.15, fadeOut: 400 });
+  },
+
+  lens_ring() {
+    const s = seedOf('lens_ring');
+    const tick = noiseFilt(0.1, s, { mode: 'bp', f0: 3000, f1: 7000, q: 0.9, env: (t) => Math.exp(-t / 0.012) });
+    const voices = [[hz('E5'), 2.4, 1.1, 1.0, 0.001, 0.5], [hz('B5'), 2.2, 0.9, 1.0, 0.001, 0.36], [hz('E6'), 2.0, 0.8, 1.0, 0.0012, 0.3], [hz('G#5'), 2.3, 1.3, 0.8, 0.002, 0.26], [hz('E4'), 2.5, 1.9, 0.6, 0.003, 0.3]].map(([f, sec, tau, br, atk, g]) => [bell(f, sec, tau, br, atk), 0, g]);
+    const wash = noiseFilt(2.4, s + 1, { mode: 'bp', f0: 500, f1: 1500, q: 1.1, env: (t, x) => pkSin(x, 1.6) });
+    const shim = tinkles(2.2, s + 2, 14, 3200, 7600, { tauLo: 0.08, tauHi: 0.3, tMax: 1.7, gain: 0.3, decayGain: 0.5 });
+    const b = layer(2.6, [[lvl(tick, 0.5), 0, 0.9], ...voices, [lvl(wash, 0.08), 0.05, 1], [shim, 0.12, 0.55]]);
+    return fin(reverbMono(b, 'chamber', 0.3, 0.35), { grit: 0.12, fadeOut: 400 });
+  },
+
+  surf() {
+    const s = seedOf('surf');
+    const sec = 6;
+    const a = loopNoise(sec, s, { colour: 'pink', mode: 'bp', f0: 800, fMod: 700, q: 0.7, cut: [[2, 1, 0.12]], amp: [[2, 1, 0.0], [4, 0.25, 0.3]], floor: 0.12 });
+    const low = loopNoise(sec, s + 1, { colour: 'brown', mode: 'lp', f0: 320, q: 0.7, amp: [[2, 0.8, 0.02]], floor: 0.35, hp2: 50 });
+    const foam = loopNoise(sec, s + 2, { mode: 'hp', f0: 3600, q: 0.6, amp: [[2, 1, 0.16], [6, 0.2, 0.5]], floor: 0.05 });
+    return loopFinish(layer(sec, [[lvl(a, 0.3), 0, 1], [lvl(low, 0.2), 0, 1], [lvl(foam, 0.06), 0, 1]]), -14, 0.1);
   },
 
   lantern_beam() {

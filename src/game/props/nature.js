@@ -11,6 +11,7 @@ import { FUNGI } from './nature/fungi.js';
 import { FROST } from './nature/frost.js';
 import { EMBER } from './nature/ember.js';
 import { SKY } from './nature/sky.js';
+import { TIDE } from './nature/tide.js';
 import { unshadowed } from './nature/util.js';
 
 /**
@@ -25,5 +26,5 @@ function guard(fn) {
   };
 }
 
-const ALL = { ...TREES, ...ROCKS, ...GROUND, ...MAGIC, ...STRUCTURES, ...FUNGI, ...FROST, ...EMBER, ...SKY };
+const ALL = { ...TREES, ...ROCKS, ...GROUND, ...MAGIC, ...STRUCTURES, ...FUNGI, ...FROST, ...EMBER, ...SKY, ...TIDE };
 export const NATURE = Object.fromEntries(Object.entries(ALL).map(([name, e]) => [name, { ...e, fn: guard(e.fn) }]));

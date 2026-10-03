@@ -19,7 +19,7 @@ export { SR } from './synth.js';
 export const SFX_NAMES = Object.keys(SFX);
 
 /** Sounds that are seamless loops (use audio.loop()). */
-export const LOOP_NAMES = ['glide_loop', 'flame_loop', 'charge_loop', 'portal_hum', 'waterfall', 'windmill', 'whirl'];
+export const LOOP_NAMES = ['glide_loop', 'flame_loop', 'charge_loop', 'portal_hum', 'waterfall', 'windmill', 'whirl', 'surf'];
 
 /** Optional per-sound runtime multiplier (name -> factor); empty: nothing is trimmed behind the caller's back. */
 export const SFX_TRIM = {};

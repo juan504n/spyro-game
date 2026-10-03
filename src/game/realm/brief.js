@@ -7,7 +7,7 @@
 // defineBrief applies the defaults and refuses a brief that could not describe a realm (it throws with every problem it found, so one run lists them all).
 
 /** The situations a goal can stand in. Every one is a different kind of place with a different way to it (see situations.js, which says how each is checked). */
-export const SITUATION_IDS = ['landing', 'clearing', 'island', 'summit', 'cave', 'glide', 'puzzle', 'crater', 'lift'];
+export const SITUATION_IDS = ['landing', 'clearing', 'island', 'summit', 'cave', 'glide', 'puzzle', 'crater', 'lift', 'bridge'];
 
 /** The rules a realm's brief is held to: how many goals, how many different situations among them, how many parts the country has... (the checker has the rest). */
 export const RULES = {
@@ -102,7 +102,7 @@ export function defineBrief(b) {
     if (b.tide && b.tide.hint !== undefined) need(typeof b.tide.hint === 'string' && b.tide.hint === b.tide.hint.toUpperCase(), 'tide.hint: UPPER CASE (what a hero who has drowned on ground that is only under water at high tide is told)');
     if (b.tide && b.tide.tint !== undefined) {
       const t = b.tide.tint, col = (v) => Array.isArray(v) && v.length === 3 && v.every(isNum);
-      need(t && col(t.shallow) && col(t.deep) && (t.scale === undefined || (isNum(t.scale) && t.scale >= 1 && t.scale <= 8)), 'tide.tint: { shallow: [r, g, b], deep: [r, g, b], scale (metres of depth over which the one turns into the other, 1 to 8: 4.2 by default), texture (a water texture name) }');
+      need(t && col(t.shallow) && col(t.deep) && (t.scale === undefined || (isNum(t.scale) && t.scale >= 1 && t.scale <= 8)), 'tide.tint: { shallow: [r, g, b], deep: [r, g, b], scale (metres of depth over which the one turns into the other, 1 to 8: 4.2 by default), shimmer [r, g, b] (the additive layer), texture (a water texture name) }');
     }
   }
   if (b.rockLine !== undefined) need(isNum(b.rockLine) && b.rockLine > 0, 'rockLine: the height in metres over which the ground is drawn as far rock (42 by default; a realm of high islands says where)');
