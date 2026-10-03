@@ -122,27 +122,29 @@ function ramJump({ ram = true, releaseInAir = false } = {}) {
 // The rule that stops a runner climbing a steep face read the TERRAIN under him: a glass bridge laid over the rim of a stack stood the hero still on it (the first run of the realm walker at Tideglass
 // Reach: the terrain under the deck was steep and rising towards the stack, and the deck rose a few centimetres on the way). On a prop that rises he walks; on the bare face he is still stopped.
 function rimWalk({ deck }) {
-  // terrain: flat at 12 m for z >= 0, falling away steeply towards -z (the face rises towards +z); the deck is a collider 3.8 m wide from z = -6 to z = 1 at 12.1 m rising 0.05 m a metre
-  const terrain = (z) => (z >= 0 ? 12 : 12 + 3 * z);
+  // with a deck: terrain flat at 12 m for z >= 0 and falling away steeply towards -z (a rim that rises towards +z), under a deck of collider 3.8 m wide from z = -6 to z = 1 at 12.1 m rising 0.05 m a metre;
+  // without: flat ground at 9 m, a steep wall from z = -1 up to 12 m at z = 0.5, flat ground on top (a face to climb: the rule must stop him at its foot)
+  const terrain = deck ? (z) => (z >= 0 ? 12 : 12 + 3 * z) : (z) => (z >= 0.5 ? 12 : z <= -1 ? 9 : 9 + 2 * (z + 1));
+  const steep = deck ? (z) => z < 0.5 : (z) => z > -1.2 && z < 0.6;
   const deckTop = (x, z) => (deck && Math.abs(x) <= 1.9 && z >= -6 && z <= 1 ? 12.1 + 0.05 * (z + 6) : -Infinity);
   const col = {
     support: (x, z, feet, up) => { const t = terrain(z), d = deckTop(x, z); return d > t && d <= feet + up ? { y: d, kind: 'collider', c: {} } : { y: t, kind: 'terrain', c: null }; },
-    normalAt: (x, z) => (z < 0.5 ? [0, 0.3, -0.95] : [0, 1, 0]),                 // (the face rises towards +z, so its normal leans towards -z)
+    normalAt: (x, z) => (steep(z) ? [0, 0.3, -0.95] : [0, 1, 0]),                 // (the face rises towards +z, so its normal leans towards -z)
     heightAt: (x, z) => Math.max(terrain(z), deckTop(x, z)),
     pushOut: () => null,
   };
   const game = { gfx: { settings: { ...DEFAULT_SETTINGS } }, collision: col, level: { valley: { x: 0, z: 0, rx: 1e6, rz: 1e6 } }, objects: {}, beacons: null, enemies: null };
   const p = new Player(game, null);
-  p.place(0, deck ? deckTop(0, -5) : terrain(-0.5), deck ? -5 : -0.5, 0);
+  p.place(0, deck ? deckTop(0, -5) : terrain(-4), deck ? -5 : -4, 0);
   const input = { move: { x: 0, y: 1 }, held: {}, edge: {}, pressed(a) { return !!this.edge[a]; }, down(a) { return !!this.held[a]; } };
   const z0 = p.z;
   for (let i = 0; i < 90; i++) { p.update(DT, input, 0); input.edge = {}; }
-  return { moved: p.z - z0, kind: p.groundKind };
+  return { moved: p.z - z0, kind: p.groundKind, z: p.z };
 }
 {
   const onDeck = rimWalk({ deck: true }), bare = rimWalk({ deck: false });
   check('a hero on a deck that rises over the crest of a steep rim walks on (he is not stopped by the terrain under it)', onDeck.moved > 8, `(${onDeck.moved.toFixed(1)} m in 1.5 s)`);
-  check('... and one on the bare steep face is still held back by it', bare.moved < 1.5, `(${bare.moved.toFixed(1)} m in 1.5 s)`);
+  check('... and one who runs at a bare steep face is still stopped at its foot (the rule is not gone)', bare.moved > 2 && bare.z < -0.8, `(${bare.moved.toFixed(1)} m in 1.5 s, stopped at z ${bare.z.toFixed(1)}; the foot is at -1)`);
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nall control checks passed');
