@@ -48,7 +48,12 @@ export function glassBridge(kit, { x, z, x2, z2, y1, y2, width }) {
       // the girders (either side of the deck) and a tie beam under it, every pane
       for (const sd of [-1, 1]) { const gx = sd * (W - 0.15); slab(iron, gx - 0.15, gx + 0.15, s0, s1, a + 0.02, b + 0.02, 0.5, { tile: 2, color: IC }); }
       slab(iron, -W + 0.2, W - 0.2, sm - 0.12, sm + 0.12, yAt(sm) - 0.35, yAt(sm) - 0.35, 0.16, { tile: 2, color: [0.5, 0.78, 0.78] });
-      kit.box(0, sm, W, seg / 2 + 0.04, yAt(sm) - 0.7, yAt(sm), { top: true, tag: 'glass_bridge' });
+      // the colliders: three to a pane, each as high as the highest of the pane's glass over it (the hero stands a hair above the glass, never in it, and the steps of the staircase he walks down are 0.1 m);
+      // the deck at each end is higher than the ground it lands on, so that the ground's steep rim never comes up through it and holds him back
+      for (let j = 0; j < 3; j++) {
+        const c0 = s0 + (seg * j) / 3, c1 = s0 + (seg * (j + 1)) / 3, top = Math.max(yAt(c0), yAt(c1));
+        kit.box(0, (c0 + c1) / 2, W, seg / 6 + 0.03, top - 0.7, top, { top: true, tag: 'glass_bridge' });
+      }
     }
     // posts with a lantern, every ~4 m either side
     const np = Math.max(2, Math.round(L / 4));

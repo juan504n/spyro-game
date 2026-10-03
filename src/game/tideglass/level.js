@@ -5,7 +5,7 @@
 import { makeLevel, smooth, flatten } from '../realm/index.js';
 import { nearOnLine } from '../massif.js';
 import { valueNoise, fbm } from '../../engine/textures/pix.js';
-import { BRIEF, REGIONS, FLATS, CAIRNS, POOL, BANKS, GATE } from './brief.js';
+import { BRIEF, REGIONS, FLATS, CAIRNS, POOL, BANKS, GATE, NECK_Y } from './brief.js';
 import { WEEPING } from './weeping.js';
 
 const nBar = valueNoise(4301), nRipple = valueNoise(4302);
@@ -47,10 +47,9 @@ const CAIRN_SPOTS = cairnSpots();
 const hwOf = (id) => REGIONS.find((r) => r.id === id).pts;
 const harbourPts = hwOf('harbour');
 
-let gateY = null;                                         // (the ground at the Sea Gate before the pad is made: the pad is level at it)
 export const LEVEL = makeLevel(BRIEF, {
   landforms(h, x, z, C) {
-    if (Math.hypot(x - GATE.x, z - GATE.z) < 14) { if (gateY === null) gateY = C.ground(GATE.x, GATE.z); h = flatten(h, x, z, GATE.x, GATE.z, 6.0, 2.5, gateY); }       // (the gate's threshold is a step 1 m high: the ground there is level)
+    if (Math.hypot(x - GATE.x, z - GATE.z) < 14) h = flatten(h, x, z, GATE.x, GATE.z, 6.0, 2.5, NECK_Y);       // (the gate's threshold is a flat slab: the ground there is level, and so is the road, which is pinned at the same height: brief.js)
     h = shoal(h, x, z, FLATS);
     for (const A of FLATS.arms) h = shoal(h, x, z, A);
     for (const c of CAIRN_SPOTS) h = bank(h, x, z, c);

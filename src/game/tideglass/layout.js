@@ -186,7 +186,7 @@ function layoutHigh(ctx) {
 function layoutStacks(ctx) {
   const { gp, put, h } = ctx, g = goal('court');
   BRIDGES.forEach((B, i) => {
-    const y1 = h(B.from[0], B.from[1]) + 0.02, y2 = h(B.to[0], B.to[1]) + 0.02;
+    const y1 = h(B.from[0], B.from[1]) + 0.08, y2 = h(B.to[0], B.to[1]) + 0.08;       // (a hair over the ground each end lands on: the deck, not the ground's rim, holds him)
     put('glass_bridge', B.from[0], B.from[1], { x2: B.to[0], z2: B.to[1], y1, y2, width: B.width }, 0);
     // a gem over every 4.5 m of the deck: the way across is shown
     const L = Math.hypot(B.to[0] - B.from[0], B.to[1] - B.from[1]), n = Math.max(2, Math.floor(L / 4.5));
@@ -195,10 +195,10 @@ function layoutStacks(ctx) {
   const A = stack('stackA'), Bk = stack('stackB'), C = stack('stackC'), K = stack('court');
   // the first stack: a torch either side of the way across, a crystal; the second: a bench to look at the Reach from, a crystal
   put('torch_stand', A.x - 2.8, A.z + 1.4, {}, 1.2); put('torch_stand', A.x + 2.6, A.z - 1.6, {}, 1.2);
-  put('crystal_cluster', A.x + 0.6, A.z + 2.6, { color: 'cyan', count: 5 }, 2.2);
-  put('bench', Bk.x - 2.6, Bk.z + 0.4, { rot: faceTo(Bk.x - 2.6, Bk.z + 0.4, Bk.x - 30, Bk.z + 10) }, 1.6);
-  put('crystal_cluster', Bk.x + 2.2, Bk.z - 2.4, { color: 'cyan', count: 4 }, 2.2);
-  put('torch_stand', Bk.x - 0.8, Bk.z + 3.2, {}, 1.2);
+  put('crystal_cluster', A.x - 2.9, A.z - 0.2, { color: 'cyan', count: 5 }, 2.2);
+  put('bench', Bk.x - 2.8, Bk.z - 0.6, { rot: faceTo(Bk.x - 2.8, Bk.z - 0.6, Bk.x - 30, Bk.z - 4) }, 1.6);
+  put('crystal_cluster', Bk.x + 1.8, Bk.z - 2.6, { color: 'cyan', count: 4 }, 2.2);
+  put('torch_stand', Bk.x - 2.0, Bk.z + 2.4, {}, 1.2);
   // the court: a ring of standing stones round the lens, torches, flowers
   put('standing_stones', g.x, g.z, { r: 7.4, count: 6, glowColor: [0.5, 1.0, 0.86] }, 9);
   gemRing(ctx, g.x, g.z, 4.2, 8, [1, 1, 2], 0.3);
@@ -300,11 +300,8 @@ function layoutDanger(ctx) {
       if (ctx.ok(x, z, { r: 1.6, path: 0, maxSlope: 0.5, minH: 3 })) { ctx.addEnemy(x, z, kind, 4); return; }
     }
   });
-  // the stacks: one on the first, a bell on the second, two thorns guarding the court (each on the nearest clear spot: the props of a stack's top leave little room)
-  const A = stack('stackA'), B = stack('stackB'), K = stack('court');
-  const nearSpot = (x, z) => { for (let d = 0; d < 7; d += 0.8) for (let k = 0; k < 12; k++) { const a = (k / 12) * TAU, px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d; if (ctx.ok(px, pz, { r: 1.8, path: 0, maxSlope: 0.5, minH: 3 })) return [px, pz]; } return [x, z]; };
-  ctx.addEnemy(...nearSpot(A.x - 1.2, A.z + 1.0), 'basic', 2);
-  ctx.addEnemy(...nearSpot(B.x + 1.4, B.z - 1.2), 'bell', 2);
+  // the stacks: nothing on the first two (a stack is 8 m across and a hero put there by the TRAVEL menu must not be beside a Snuffer), two thorns guarding the court where the glass ends
+  const K = stack('court');
   ctx.addEnemy(K.x - 4.0, K.z + 2.6, 'thorn', 3);
   ctx.addEnemy(K.x + 4.4, K.z - 2.0, 'thorn', 3);
   ctx.gp.hints.push({ x: -60, z: -112, r: 9, text: 'ARMOURED SNUFFERS: FIRE BOUNCES OFF BELLS, SPIKES HURT WHEN RAMMED', dur: 7 });

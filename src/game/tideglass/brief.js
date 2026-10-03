@@ -24,13 +24,15 @@ const PI = Math.PI;
  * the surface). `fall`: the metres beyond a ribbon's edge over which the ground drops to the fill, the steeper the smaller. A ribbon of two points close together is a round rock. The sand of the flats is
  * not a ribbon: it is a shoal (FLATS below, level.js) the sea fill is raised to, so that a rock can stand in it. `label` names a part (debug readout, TRAVEL menu).
  */
+/** the height of the ridge's neck, the level stretch the Sea Gate stands on (the ribbon's two points there, the road's pins there, the pad the gate's ground is flattened to) */
+export const NECK_Y = 20.2;
 export const REGIONS = [
   { id: 'harbour', fall: 5, label: 'THE HARBOUR', pts: [[-208, 22, 4, 12], [-186, 18, 4, 17], [-162, 12, 4, 14]] },
   { id: 'strand', fall: 6, label: 'THE STRAND', pts: [[-164, 16, 3.8, 9], [-146, 28, 1.4, 10], [-128, 40, -0.2, 12]] },
   { id: 'hill', fall: 6, label: 'THE HIGH ROAD', pts: [[-166, 6, 4, 9], [-170, -20, 7, 9], [-174, -48, 10, 9], [-166, -76, 13, 9], [-150, -98, 14, 10]] },
   { id: 'walk', fall: 6, label: 'THE CLIFFWALK', pts: [[-150, -98, 14, 10], [-112, -112, 14.5, 10], [-70, -118, 15, 10], [-26, -116, 15, 10], [18, -108, 14.5, 10], [58, -96, 14, 10], [96, -80, 14, 10]] },
-  // the ridge to the headland: a neck 12.8 m wide at the Sea Gate - no wider than the gate's two pillars stand (their plinths cover the ground from 2.3 to 7.7 m either side of the middle of the road), so that nothing is left to walk round them by: the sea is the wall on both sides - then the climb to the lighthouse
-  { id: 'ridge', fall: 8, label: 'THE HEADLAND', pts: [[96, -80, 14, 10], [118, -72, 17.5, 11], [124, -76, 19, 6.4], [134, -82, 21, 6.4], [144, -92, 25, 11], [154, -106, 30.5, 13], [156, -124, 35, 14], [146, -140, 38, 17]] },
+  // the ridge to the headland: a neck 12.8 m wide at the Sea Gate - no wider than the gate's two pillars stand (their plinths cover the ground from 2.3 to 7.7 m either side of the middle of the road), so that nothing is left to walk round them by: the sea is the wall on both sides. The neck is LEVEL between its two points (the road is carved to its own line through them, and the gate's threshold is a flat slab: on a slope its front edge would stand over the step a hero can climb) - then the climb to the lighthouse
+  { id: 'ridge', fall: 8, label: 'THE HEADLAND', pts: [[96, -80, 14, 10], [118, -72, 17.5, 11], [124, -76, NECK_Y, 6.4], [134, -82, NECK_Y, 6.4], [144, -92, 25, 11], [154, -106, 30.5, 13], [156, -124, 35, 14], [146, -140, 38, 17]] },
   { id: 'stair', fall: 6, label: 'THE WEEPING STAIR', pts: [[92, 14, -0.3, 7], [86, -12, 3, 7], [82, -34, 7, 7], [86, -56, 11, 7], [96, -80, 14, 8]] },
   { id: 'pearl', fall: 5, label: 'PEARL ROCK', pts: [[-44, 52, -0.3, 8], [-38, 38, 3, 7.5], [-28, 30, 6, 7.5], [-18, 32, 8.5, 8]] },
   { id: 'stackA', fall: 5, label: 'THE FIRST STACK', pts: [[12, -82, 13, 5], [13, -82, 13, 5]] },
@@ -74,7 +76,7 @@ const stackAt = (id) => { const R = REGIONS.find((q) => q.id === id), p = R.pts[
 function span(id, from, to, o = {}) {
   const A = from.id ? stackAt(from.id) : { x: from.x, z: from.z, r: 0 }, B = to.id ? stackAt(to.id) : { x: to.x, z: to.z, r: 0 };
   const L = Math.hypot(B.x - A.x, B.z - A.z), ux = (B.x - A.x) / L, uz = (B.z - A.z) / L;
-  const a = A.r ? A.r - 0.4 : 0, b = B.r ? B.r - (o.endIn ?? 0.4) : 0;
+  const a = A.r ? A.r - (o.startIn ?? 2.0) : 0, b = B.r ? B.r - (o.endIn ?? 2.0) : 0;       // (a deck lands 2 m inside the rim: the top of a stack is flat only to a metre or so short of its radius, and a hero cannot climb the rim)
   return { id, from: [A.x + ux * a, A.z + uz * a], to: [B.x - ux * b, B.z - uz * b], width: o.width ?? 3.8 };
 }
 export const BRIDGES = [
@@ -92,6 +94,16 @@ export const LIGHTHOUSE = { x: 154, z: -149 };
 
 /** What every Tide Lens looks like (models/objects/tidelens.js): a disc of sea-glass in a ring of brass on a post, grey-green and dark until it is lit, then a shining aquamarine, ringing out in rings of light. */
 const LENS = { model: 'tidelens', sfx: 'lens_ring', beam: { off: [0.3, 0.52, 0.56], on: [0.55, 1.0, 0.88] }, glow: [0.5, 1.0, 0.86], wisp: [0.7, 1.0, 0.95], flame: false, spark: { c0: [0.8, 1.0, 0.94, 1], c1: [0.35, 0.9, 0.8, 0] }, sparkle: [0.7, 1.0, 0.9] };
+
+/**
+ * The headland road: the ridge's points, with the road PINNED at the neck's height at five points along the neck (the ground along a road is carved to the road's own profile, which is the ground
+ * smoothed over 13 m: one pin would be a spike in a slope, and the gate's flat threshold would stand over a step the hero cannot climb)
+ */
+function neckRoad() {
+  const P = ptsOf(REGIONS, 'ridge'), a = P[2], b = P[3];
+  const pin = [0, 0.25, 0.5, 0.75, 1].map((t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, NECK_Y]);
+  return [...P.slice(0, 2), ...pin, ...P.slice(4)];
+}
 
 export const BRIEF = defineBrief({
   id: 'tideglass',
@@ -148,7 +160,7 @@ export const BRIEF = defineBrief({
     { id: 'pearl', surface: 'dirt', width: 3.6, pts: [[-44, 64], [-44, 52], [-38, 38], [-28, 30], [-18, 32]], gems: { every: 9, pattern: [1, 1, 2] } },
     { id: 'hill', surface: 'dirt', width: 4.6, pts: [[-164, 14], [-168, -8], [-172, -34], [-170, -60], [-158, -86], [-150, -98]], gems: { every: 10, pattern: [1, 1, 2] } },
     { id: 'walk', surface: 'cobble', width: 5, pts: ptsOf(REGIONS, 'walk'), gems: { every: 10, pattern: [1, 1, 1, 2] } },
-    { id: 'ridge', surface: 'cobble', width: 4.6, pts: ptsOf(REGIONS, 'ridge'), gems: { every: 10, pattern: [1, 1, 2] } },
+    { id: 'ridge', surface: 'cobble', width: 4.6, pts: neckRoad(), gems: { every: 10, pattern: [1, 1, 2] } },
     { id: 'stair', surface: 'dirt', width: 4.4, pts: ptsOf(REGIONS, 'stair'), gems: { every: 10, pattern: [1, 1, 2] } },
   ],
 

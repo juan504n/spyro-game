@@ -27,8 +27,8 @@ export const TRAVEL_PLACES = {
     {
       name: 'THE COUNTRY (2)',
       places: [
-        { id: 'stackA', name: 'THE FIRST STACK', x: 16.66, z: -80.28, yaw: -1.97 },
-        { id: 'stackB', name: 'THE SECOND STACK', x: 23.35, z: -54.77, yaw: 0.43 },
+        { id: 'stackA', name: 'THE FIRST STACK', x: 15.27, z: -80.85, yaw: -1.98 },
+        { id: 'stackB', name: 'THE SECOND STACK', x: 24.5, z: -52, yaw: 1.57 },
         { id: 'stackC', name: 'THE LONE STACK', x: 48.38, z: -41.88, yaw: 2.33 },
       ],
     },

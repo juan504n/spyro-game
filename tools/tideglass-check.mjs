@@ -3,6 +3,7 @@
 //   node tools/tideglass-check.mjs
 import { checkRealm } from './lib/realm-rules.mjs';
 import { terrainPicker } from '../src/game/terrain-mesh.js';
+import { SLOPE_WALK } from '../src/game/collision.js';
 import { WATER_LEVEL } from '../src/game/level.js';
 import { tideLevel, tideLow, tideHigh, drownDepth } from '../src/game/realm/tide.js';
 import { BRIEF, FLATS, POOL, BRIDGES, GATE, DOOR } from '../src/game/tideglass/brief.js';
@@ -93,7 +94,7 @@ const f1 = (v) => v.toFixed(1), pct = (a, b) => `${Math.round((a / b) * 100)}%`;
       const L = Math.hypot(b.to[0] - b.from[0], b.to[1] - b.from[1]), ux = (b.to[0] - b.from[0]) / L, uz = (b.to[1] - b.from[1]) / L;
       if (!placed.some((p) => Math.hypot(p.x - b.from[0], p.z - b.from[1]) < 0.3)) problems.push(`${b.id}: not placed`);
       if (b.width < 3.3) problems.push(`${b.id}: ${f1(b.width)} m wide`);
-      let prev = null, worst = 0, gaps = 0;
+      let prev = null, worst = 0, gaps = 0, steep = 0;
       for (let d = 1.0; d <= L - 1.0; d += 0.6) {
         const x = b.from[0] + ux * d, z = b.from[1] + uz * d, s = collision.support(x, z, 40, 0.4);
         if (s.kind !== 'collider') gaps++;
@@ -102,6 +103,13 @@ const f1 = (v) => v.toFixed(1), pct = (a, b) => `${Math.round((a / b) * 100)}%`;
       }
       if (gaps) problems.push(`${b.id}: ${gaps} gaps in the deck`);
       if (worst > 0.35) problems.push(`${b.id}: a step of ${f1(worst)} m`);
+      // from 2 m before the start to 2 m past the end, on the axis and 1.5 m to either side (where a hero runs, and where he drifts to): what holds him is the deck, or ground he can stand on - never the
+      // steep rim of the ground sticking up through the deck's end and standing him still (the real controller would not climb it: that was the first run of the bot)
+      for (let d = -2.0; d <= L + 2.0; d += 0.3) for (const lat of [-1.5, 0, 1.5]) {
+        const x = b.from[0] + ux * d - uz * lat, z = b.from[1] + uz * d + ux * lat, s = collision.support(x, z, 40, 0.5);
+        if (s.kind === 'terrain' && grid.normalAt(x, z)[1] < SLOPE_WALK) steep++;
+      }
+      if (steep) problems.push(`${b.id}: ${steep} steep terrain cells at its ends or under it`);
       const mid = collision.support(b.from[0] + ux * L / 2, b.from[1] + uz * L / 2, 40, 0.4), mid0 = h(b.from[0] + ux * L / 2, b.from[1] + uz * L / 2);
       if (mid.y - mid0 < 6) problems.push(`${b.id}: ${f1(mid.y - mid0)} m over the ground at the middle`);
       for (const [sx, sz, px, pz, nm] of [[b.from[0], b.from[1], -ux, -uz, 'start'], [b.to[0], b.to[1], ux, uz, 'end']]) {
@@ -124,6 +132,14 @@ const f1 = (v) => v.toFixed(1), pct = (a, b) => `${Math.round((a / b) * 100)}%`;
     let a = 0, b = 0;
     for (let s = 0; s <= 14; s += 0.25) { if (h(GATE.x + uz * s, GATE.z - ux * s) >= gateY - 1.2) b = s; if (h(GATE.x - uz * s, GATE.z + ux * s) >= gateY - 1.2) a = s; }
     check('the Sea Gate is across the whole neck: the ground at the gate is level with the threshold no wider than the pillars\' plinths (7.7 m either side of the middle, nothing to walk round them by)', !!gp.barrier && Math.hypot(gp.barrier.x - GATE.x, gp.barrier.z - GATE.z) < 1 && a <= 7.6 && b <= 7.6 && a >= 5 && b >= 5, `(ground within 1.2 m of the threshold's height: ${f1(a)} m one way, ${f1(b)} m the other)`);
+    // ... and the way through it, once it is open, has no step the body cannot climb (0.62 m): the threshold is a flat slab, the road under it is pinned level (brief.js neckRoad)
+    let step = 0, prevY = null;
+    for (let a = -8; a <= 8; a += 0.3) {
+      const x = GATE.x + ux * a, z = GATE.z + uz * a, y = collision.support(x, z, 60, 0.5).y;
+      if (prevY !== null) step = Math.max(step, y - prevY);
+      prevY = y;
+    }
+    check('... and once it is open the way through it has no step over 0.45 m to climb (the threshold is a flat slab on a road pinned level)', step <= 0.45, `(the highest step on the way through is ${f1(step)} m)`);
     const four = BRIEF.goals.slice(0, 4).map((g) => goal(g.id)), lights = four.map((g) => walkShut.distNear(g.x, g.z, 4, g.y - 0.5));
     check('... it opens at four lenses of five; shut, the Tideglass cannot be walked to, open it can - and the four lenses that open it are all in reach while it is shut', BRIEF.gate.at === 4 && BRIEF.goals.length === 5 && walkShut.distNear(g5.x, g5.z, 4, g5.y - 0.5) === Infinity && at(g5) < Infinity && lights.every((d) => d < Infinity), `(shut: ${four.map((g, i) => `${g.id} ${Number.isFinite(lights[i]) ? Math.round(lights[i]) : 'cut'}`).join(', ')}, light ${walkShut.distNear(g5.x, g5.z, 4, g5.y - 0.5)}; open: light ${Math.round(at(g5))} m)`);
   }

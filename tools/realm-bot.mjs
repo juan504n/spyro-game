@@ -5,8 +5,11 @@
 // walk to a goal is a list of legs - walk, glide, lift - and he plays them all: he walks to a launch, runs off and glides to the island the link lands on, or walks into a whirlwind, is carried to
 // its top and glides out of it. Time is the bot's (tools/bot-inject.js: the fixed step runs without
 // rendering, so a realm is walked in seconds); the hero cannot be hurt (this is a test of the way, not of the Snuffers), but a lake of lava still burns. It catches what a flood fill over cells
-// cannot: a stair the body cannot climb, a hop that is a hair too long, a glide that falls short, a slope that slides, a wall of props, a gate that does not open.
-//   node tools/realm-bot.mjs <realm id> [--verbose]      (needs the dev server on :5173, GV_HMR=0 recommended; GV_URL=http://127.0.0.1:PORT/ tests another server)
+// cannot: a stair the body cannot climb, a hop that is a hair too long, a glide that falls short, a slope that slides, a wall of props, a gate that does not open. In a realm with a TIDE (level.tide) the
+// walk map is the low tide's, so each leg is set out as the water ebbs into the last quarter of its fall - the way a person waits for the sea at the cairns - and a leg on which the sea drowns the hero
+// is a failed leg; and a realm with a gate (gp.barrier) has it tried first by the real controller, which runs, jumps and glides at it from the side he comes from: shut, it holds (nothing round the
+// pillars, nothing over them).
+//   node tools/realm-bot.mjs <realm id> [--verbose | --plan]      (--plan prints the routes and does not walk them; needs the dev server on :5173 otherwise, GV_HMR=0 recommended; GV_URL=http://127.0.0.1:PORT/ tests another server)
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +17,7 @@ import { buildHeadless, addRuntimeColliders } from './headless-world.mjs';
 import { makeWalkmap } from './walkmap.mjs';
 import { launchCells, exitCells } from './lib/glide.mjs';
 import { airTools } from './lib/air.mjs';
+import { tideLow } from '../src/game/realm/tide.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const id = process.argv[2], verbose = process.argv.includes('--verbose');
@@ -25,10 +29,23 @@ addRuntimeColliders(W.collision, W.gp, W.grid);
 const { flood } = makeWalkmap(W);
 const brief = W.level.brief, gateAt = brief && brief.gate ? brief.gate.at : null;
 const sp = W.gp.spawn, goals = W.gp.beacons;
+// (a realm with a tide: the routes are the walk map's with the water where it stands at the START of the window each leg is begun in - 0.5 m over the low tide, ebbing - so that no route cuts across ground
+// that is only wadable at the very bottom of the tide; the road, and the sand the road crosses, are all safe from there for the 35 s or so before the water comes up to drown him)
+const WATER = W.level.tide ? tideLow(W.level.tide) + 0.5 : undefined, WATER_ON = WATER !== undefined;
 const USE = +(process.env.GLIDE_USE || 1.0);                                           // (a glide uses at most this share of the reach the situation check allows: the check's own margin is already a person's, not a ballistic curve's)
 // (every third point of a route; every point of a hop: the cells either side of a gap are where he must leave and land, a straight line between waypoints would run off a slab)
 const gapAt = (route, k) => k > 0 && Math.hypot(route[k][0] - route[k - 1][0], route[k][2] - route[k - 1][2]) > 2.1;
-const thin = (route) => route.filter((_, k) => k % 3 === 0 || k === route.length - 1 || gapAt(route, k) || gapAt(route, k + 1)).map(([x, , z]) => [x, z]);
+// (a realm with a tide has cliffs into the sea all along its roads, and the shortest route hugs every corner of them: a straight line between points three cells apart would cut the corner and walk off
+// the rim, so every cell of the route is a point of it there)
+const rimOf = (m) => (x, y, z) => {                    // (a cell is off the rim when, on the ground, nothing within m metres falls more than 4 m below it; on a deck over the water, when a metre of deck lies all round it)
+  if (y > W.grid.heightAt(x, z) + 1.0) {
+    for (let k = 0; k < 8; k++) if (W.collision.support(x + Math.cos(k * Math.PI / 4), z + Math.sin(k * Math.PI / 4), y + 0.7, 0.3).y < y - 0.6) return false;
+    return true;
+  }
+  for (let k = 0; k < 8; k++) if (y - W.grid.heightAt(x + Math.cos(k * Math.PI / 4) * m, z + Math.sin(k * Math.PI / 4) * m) > 4) return false;
+  return true;
+};
+const thin = (route) => route.filter((_, k) => WATER_ON || k % 3 === 0 || k === route.length - 1 || gapAt(route, k) || gapAt(route, k + 1)).map(([x, , z]) => [x, z]);
 let from = { x: sp.x, z: sp.z, y: sp.y };
 const legs = [];
 const airT = brief && brief.air ? airTools({ grid: W.grid, collision: W.collision, gp: W.gp, brief, flood }) : null;
@@ -44,8 +61,14 @@ goals.forEach((b, i) => {
     from = { x: last[0], z: last[2], y: last[1] };
     return;
   }
-  const w = flood([from.x, from.z], { startY: from.y, hop: 6.2, openGate: open(i) });
-  const route = w.route(b.x, b.z, 4.5, b.y);
+  // (a route that needs no jump is the one a person walks - the roads - and the one he is held to; the jumps of the walk map are for the goals that cannot be reached without them. In a realm with a tide
+  // a route keeps 3 m (or the most the country allows: 2.5, 2) from the edge of a cliff into the sea where it can: the shortest path hugs every rim, and a runner does not turn on a rim)
+  let w = null, route = null;
+  for (const hop of [0, 6.2]) for (const mask of WATER_ON ? [rimOf(3), rimOf(2.5), rimOf(2), undefined] : [undefined]) {
+    if (route && route.length) break;
+    w = flood([from.x, from.z], { startY: from.y, hop, openGate: open(i), water: WATER, mask });
+    route = w.route(b.x, b.z, 4.5, b.y);
+  }
   const kind = brief ? (brief.goals.find((g) => g.id === b.id) || {}).situation : null;
   if ((!route || !route.length) && kind === 'glide') {
     const cands = launchCells(w, b, { use: USE }), L = cands[cands.length - 1];        // (the nearest ledge: the one the situation check found)
@@ -75,6 +98,23 @@ goals.forEach((b, i) => {
   from = { x: last[0], z: last[2], y: last[1] };
 });
 
+if (process.argv.includes('--plan')) {                  // (the routes as planned, one line a leg - the points he walks through, and how far - and no walk)
+  for (const l of legs) console.log(l.id, l.route ? `${Math.round(l.metres)} m, ${l.route.length} points:` : `no route: ${l.why || ''}`, l.route ? l.route.map(([x, z]) => `${Math.round(x)},${Math.round(z)}`).join(' ') : '');
+  process.exit(0);
+}
+
+// ---- the gate, tried first: the side he comes from is the side of the walk's cells before the gate (the walk to the last goal with the gate open crosses it) ----------------------------------------------------
+let gateTrial = null;
+if (W.gp.barrier && gateAt !== null && !airT) {
+  const B = W.gp.barrier, fx = Math.sin(B.yaw || 0), fz = Math.cos(B.yaw || 0), last = goals[goals.length - 1];
+  const route = flood([sp.x, sp.z], { hop: 6.2, openGate: true, water: WATER }).route(last.x, last.z, 4.5, last.y) || [];
+  const k = route.findIndex((c) => Math.hypot(c[0] - B.x, c[2] - B.z) < 4);
+  if (k > 8) {
+    const c = route[k - 8], side = Math.sign((c[0] - B.x) * fx + (c[2] - B.z) * fz) || 1;
+    gateTrial = { x: B.x, z: B.z, y: B.y, fx, fz, side };
+  }
+}
+
 // ---- the walk, in the page -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 640, height: 480 } });
@@ -87,14 +127,48 @@ await page.waitForTimeout(1500);
 await page.evaluate(() => { __bot.god(); __bot.tick(30); });
 
 let failed = 0;
+if (gateTrial) {
+  // (from the side he comes from, with jumps and glides: seven straight runs across the neck at the gate, from 9 and 14 m before it to 14 m past it, and runs that swing out round the pillars' outer faces
+  // at 7 to 10 m from the middle, from 6, 9 and 14 m before; each ends four seconds later. None may end standing beyond the gate: grounded, alive, and still up on its ridge)
+  const r = await page.evaluate((T) => {
+    const G = window.__game, p = G.player, ends = [], t0 = G.time;
+    const px = T.fz, pz = -T.fx;                                                    // (across the gate)
+    const along = (x, z) => ((x - T.x) * T.fx + (z - T.z) * T.fz) * -T.side;       // (positive: beyond the gate)
+    const at = (a, lat) => [T.x - T.fx * T.side * a + px * lat, T.z - T.fz * T.side * a + pz * lat];         // (a metres beyond the gate - before it when negative - and lat metres across)
+    const runs = [];
+    for (const lat of [-6.5, -4, -2, 0, 2, 4, 6.5]) for (const from of [9, 14]) runs.push(['straight', lat, from, at(-from, lat), at(14, lat)]);
+    for (const lat of [-6.5, 6.5]) for (const from of [6, 9, 14]) for (const [ta, tl] of [[5, 10], [8, 8.5], [11, 7]]) for (const sg of [-1, 1]) if (Math.sign(lat) === sg) runs.push(['round', lat, from, at(-from, lat), at(ta, tl * sg)]);
+    for (const [kind, lat, from, [sx, sz], [tx, tz]] of runs) {
+      __bot.place(sx, sz, Math.atan2(tx - sx, tz - sz));
+      __bot.goto(tx, tz, { tol: 1.5, timeout: 9, auto: true, glide: true });
+      __bot.tick(240);
+      ends.push([kind, lat, from, +along(p.x, p.z).toFixed(1), +p.y.toFixed(1), p.grounded && !p.dead]);
+    }
+    return { runs: ends.length, ends, through: ends.filter((e) => e[3] > 1.5 && e[4] > T.y - 3 && e[5]), furthest: Math.max(...ends.map((e) => e[3])), clock: +(G.time - t0).toFixed(0) };
+  }, gateTrial);
+  const ok = r.through.length === 0;
+  if (!ok) failed++;
+  console.log(ok ? 'PASS' : 'FAIL', `the gate holds against the real controller (${r.runs} runs, jumps and glides, straight at it and round the pillars, from the side he comes from: none ends standing beyond it)`, ok && !verbose ? `(the furthest any got was ${r.furthest} m past the line, in the air or on the sea's cliff, and was put back)` : JSON.stringify(r));
+  await page.evaluate((s) => { __bot.place(s.x, s.z, s.yaw); __bot.tick(30); }, sp);
+}
 for (let i = 0; i < legs.length; i++) {
   const leg = legs[i], t0 = Date.now();
   let r;
   if (!leg.route) r = { ok: false, reason: leg.why || 'the walk map finds no way to it' };
   else {
     r = await page.evaluate(({ leg, i }) => {
-      const G = window.__game;
-      let walked = 0;
+      const G = window.__game, P = G.player;
+      let walked = 0, waited = 0, drowned = 0;
+      const drownAt = [];
+      // (a realm with a tide: the walk map is the low tide's, so the leg is set out as the water ebbs into the last quarter of its fall, below 0.5 m over its lowest: he lets it rise past the window if he is
+      // in it, then waits for it to go down to it - the way a person waits for the sea at the cairns - and the crossing of the sand is done before it turns)
+      if (G.tide) {
+        while (G.waterY < G.waterLo + 0.9 && waited < 200) { __bot.tick(30); waited += 0.5; }
+        while (G.waterY > G.waterLo + 0.5 && waited < 200) { __bot.tick(30); waited += 0.5; }
+      }
+      const wasDrown = P.on.drown;
+      P.on.drown = (...a) => { drowned++; drownAt.push([+P.x.toFixed(0), +P.z.toFixed(0), +G.waterY.toFixed(2)]); return wasDrown && wasDrown(...a); };
+      const body = () => {
       const at = () => { const s = __bot.state(); return [s.x, s.y, s.z]; };
       const landed = (x, z, y, what) => {                // (a glide ends on firm ground near where it was meant to)
         __bot.tick(150);
@@ -162,9 +236,18 @@ for (let i = 0; i < legs.length; i++) {
         note += `; glided off ${E.gap.toFixed(0)} m to (${E.x.toFixed(0)}, ${E.y.toFixed(0)}, ${E.z.toFixed(0)})`;
       }
       return { ok: true, reason: '', seconds: +walked.toFixed(1), at: __bot.state(), lit: G.beacons.lit, note };
+      };
+      const out = body();
+      P.on.drown = wasDrown;
+      if (drowned) return { ...out, ok: false, reason: `the sea drowned him ${drowned} time(s) on the way (the water stood at ${G.waterY.toFixed(1)} m, the tide is ${G.tide ? G.tide.period : 0} s round)`, waited, drownedAt: drownAt };
+      return G.tide ? { ...out, waited, note: `${out.note ? out.note + '; ' : ''}waited ${waited.toFixed(0)} s for the ebb` } : out;
     }, { leg, i });
   }
-  if (!r.ok) failed++;
+  if (!r.ok) {
+    failed++;
+    // (what the world says about the gate and the tide at the failure: a hero held by a gate that did not open, or by the sea, is told apart from one held by a step)
+    r.world = await page.evaluate(() => { const G = window.__game, b = G.objects && G.objects.barrier; return { lit: G.beacons.lit, gate: b ? { target: b.target, open: +b.open.toFixed(2), solid: !!b.c.solid } : null, water: +G.waterY.toFixed(2), t: +G.time.toFixed(0) }; });
+  }
   console.log(r.ok ? (leg.skipped ? 'SKIP' : 'PASS') : 'FAIL', `goal ${i + 1} of ${legs.length}, ${leg.id}: ${r.ok ? (leg.skipped ? `${leg.skipped}; put beside it and lit (${r.lit} lit)` : `walked ${leg.metres.toFixed(0)} m of route in ${r.seconds} s${r.note ? `, ${r.note}` : ''}, lit (${r.lit} lit)`) : r.reason}`, r.ok && !verbose ? '' : JSON.stringify(r), `(${((Date.now() - t0) / 1000).toFixed(1)}s)`);
   if (!r.ok) break;                                  // (nothing after a goal that cannot be reached means anything)
 }

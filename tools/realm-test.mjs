@@ -3,6 +3,7 @@
 // leads to, and the realm entered again from there is found restored. Between the steps the app's clock is run forward in 1/30 s steps so waiting does not take real time.
 //   node tools/realm-test.mjs <realm id>      (needs the dev server on :5173, GV_HMR=0 recommended; GV_URL=http://127.0.0.1:PORT/ tests another server, e.g. a scratch checkout's)
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { tideLevel } from '../src/game/realm/tide.js';
 
 const id = process.argv[2];
 if (!id) { console.log('usage: node tools/realm-test.mjs <realm id>'); process.exit(1); }
@@ -81,6 +82,88 @@ await check('the sky wears the realm\'s palette', async () => {
   });
   return { ok: !r.own || (r.clouds && r.ridge), ...r };
 });
+
+// a realm with a TIDE (level.tide, realm/tide.js: Tideglass Reach): the sea of the real game rises and falls on the game's clock - the water, the surface that is drawn and the tint of its shallows - and the high
+// tide drowns a hero who stands on the sand where it comes, sets him back on ground it never reaches and tells him why, while a hero standing on such ground (a cairn) stays dry
+const tide = await ev(() => { const g = window.__game, T = g.level.tide; return T ? { period: T.period, amp: T.amp, start: T.start || 0, texture: (T.tint && T.tint.texture) || null, hint: T.hint || null, lo: g.waterLo, hi: g.waterHi } : null; });
+if (tide) {
+  const now = () => ev(() => window.__game.time);
+  const nextAt = async (high) => {                      // the next game time at which the water stands at its lowest (or highest): low where t/period + start is a whole number, high half a round later
+    const t = await now(), P = tide.period, at = (k) => P * (k - tide.start + (high ? 0.5 : 0));
+    let k = Math.floor(t / P + tide.start) - 1;
+    while (at(k) < t + 0.05) k++;
+    return at(k);
+  };
+  await check('the sea rises and falls on the game\'s clock: the water, the surface that is drawn and the tint of its shallows (at the start, at low water, at high water)', async () => {
+    const read = () => ev((tex) => {
+      const g = window.__game, w = g.world.water, m = w.children.find((c) => c.material && c.material.name === tex) || w.children[0], A = m.geometry.attributes.aCol.array;
+      let sum = 0; for (let i = 0; i < A.length; i += 4) sum += A[i] + A[i + 1] + A[i + 2];
+      return { t: g.time, y: g.waterY, group: w.position.y, tinted: w.setLevel ? w.setLevel.tidal : 0, colour: sum, surface: m.material.name };
+    }, tide.texture);
+    const a = await read();
+    await ff((await nextAt(false)) - a.t);
+    const lo = await read();
+    await ff(tide.period / 2);
+    const hi = await read();
+    const near = (x, y) => Math.abs(x - y) < 0.04;
+    return { ok: near(a.y, tideLevel(tide, a.t)) && near(a.group, a.y) && near(lo.y, tide.lo) && near(lo.group, tide.lo) && near(hi.y, tide.hi) && near(hi.group, tide.hi) && lo.tinted > 100 && lo.colour !== hi.colour && (!tide.texture || hi.surface === tide.texture), start: { t: +a.t.toFixed(1), y: +a.y.toFixed(2) }, low: { y: +lo.y.toFixed(2), group: +lo.group.toFixed(2) }, high: { y: +hi.y.toFixed(2), group: +hi.group.toFixed(2) }, retinted: lo.tinted, surface: hi.surface };
+  });
+  // where the sea comes: the bare sand nearest the start that the high tide drowns him on (1.15 m under it or more), and the nearest ground that stays dry (0.8 m over it) to it
+  const spot = await ev(() => {
+    const g = window.__game, col = g.collision, grid = g.grid, sp = g.gameplay.spawn, lo = g.waterLo, hi = g.waterHi;
+    // (firm and flat: the floor is where the ground is and nothing within 2.5 m of it is more than 0.4 m higher or lower, so that he stands where he is put and is not carried off down a bank)
+    const firm = (x, z, y) => {
+      if (Math.abs(col.support(x, z, y + 1, 0.6).y - y) >= 0.2) return false;
+      for (let k = 0; k < 8; k++) if (Math.abs(grid.heightAt(x + Math.cos(k * Math.PI / 4) * 2.5, z + Math.sin(k * Math.PI / 4) * 2.5) - y) > 0.4) return false;
+      return true;
+    };
+    const sand = [], dry = [];
+    for (let x = -216; x <= 216; x += 4) for (let z = -216; z <= 216; z += 4) {
+      const y = grid.heightAt(x, z);
+      if (y >= lo + 0.2 && hi - y >= 1.15 && firm(x, z, y)) sand.push({ x, z, y, d: Math.hypot(x - sp.x, z - sp.z) });
+      else if (y >= hi + 0.8 && firm(x, z, y)) dry.push({ x, z, y });
+    }
+    sand.sort((a, b) => a.d - b.d);
+    const s = sand[0];
+    if (!s) return null;
+    dry.sort((a, b) => Math.hypot(a.x - s.x, a.z - s.z) - Math.hypot(b.x - s.x, b.z - s.z));
+    return { sand: s, dry: dry[0] || null, sands: sand.length };
+  });
+  await check('the high tide drowns a hero on the sand, once, and sets him back on ground it does not reach, telling him why', async () => {
+    if (!spot || !spot.dry) return { ok: false, reason: 'no sand the high tide drowns him on, or no dry ground near it', spot };
+    await ff((await nextAt(false)) - (await now()));              // (low water: the sand is bare)
+    const r = await ev(([sand, dry]) => {
+      const g = window.__game, p = g.player, log = [];
+      let drowned = 0, hint = null, atDrown = null;
+      const was = p.on.drown;
+      p.on.drown = (...a) => { drowned++; atDrown = +g.waterY.toFixed(2); const r = was && was(...a); hint = g.hud.hintState ? g.hud.hintState.text : null; return r; };
+      p.place(sand.x, g.grid.heightAt(sand.x, sand.z) + 0.05, sand.z, 0); p.invulnT = 120; p.safe = { x: dry.x, y: dry.y, z: dry.z, yaw: 0 };
+      for (let t = 0; t < 48; t += 1 / 30) {                       // (from low water to a little after high water)
+        window.__app.update(1 / 30);
+        if (Math.round(t * 30) % 90 === 0) log.push([+t.toFixed(0), +g.waterY.toFixed(1), drowned]);
+      }
+      p.on.drown = was;
+      return { drowned, atDrown, dead: p.dead, hint, back: +Math.hypot(p.x - dry.x, p.z - dry.z).toFixed(1), swim: p.inWater, log };
+    }, [spot.sand, spot.dry]);
+    return { ok: r.drowned === 1 && !r.dead && r.back < 4 && !r.swim && r.atDrown > spot.sand.y + 0.9 && (!tide.hint || r.hint === tide.hint), sand: { x: +spot.sand.x.toFixed(0), z: +spot.sand.z.toFixed(0), y: +spot.sand.y.toFixed(2) }, ...r };
+  });
+  await check('... and a hero on dry ground at the high tide stays dry', async () => {
+    if (!spot || !spot.dry) return { ok: false, reason: 'no dry ground' };
+    await ff((await nextAt(true)) - (await now()) - 5);           // (a few seconds before high water)
+    const r = await ev((dry) => {
+      const g = window.__game, p = g.player;
+      let drowned = 0;
+      const was = p.on.drown;
+      p.on.drown = (...a) => { drowned++; return was && was(...a); };
+      p.place(dry.x, g.grid.heightAt(dry.x, dry.z) + 0.05, dry.z, 0); p.invulnT = 120; p.safe = { x: dry.x, y: dry.y, z: dry.z, yaw: 0 };
+      let wet = 0;
+      for (let t = 0; t < 10; t += 1 / 30) { window.__app.update(1 / 30); if (p.inWater) wet++; }
+      p.on.drown = was;
+      return { drowned, wet, water: +g.waterY.toFixed(2), dead: p.dead, y: +p.y.toFixed(2) };
+    }, spot.dry);
+    return { ok: r.drowned === 0 && r.wet === 0 && !r.dead && r.water > tide.hi - 0.3, ...r };
+  });
+}
 
 // a realm whose lake is not water (level.liquid: Emberfall Crags' lava, Skyweaver Spires' sea of cloud): the surface is drawn with the liquid's texture, the dusk's life is the one the level names (embers,
 // not fireflies), and a touch of it burns where the descriptor says (water drowns from 0.95 m, lava from `burnDepth`). A SEA (level.sea: the ground that is not an island lies far below the surface)
