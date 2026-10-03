@@ -1,4 +1,4 @@
-# Pitfalls: what went wrong in rounds 17-23, so that it does not go wrong again
+# Pitfalls: what went wrong in rounds 17-24, so that it does not go wrong again
 
 **Building a level**
 * **`lake` is required.** The water, the debug readout, the drowning hint and `ctx.lakeD` all read `level.lake`. A realm without a lake uses `NO_LAKE` (a speck 6 km away); `makeLevel` does it for you.
@@ -57,6 +57,17 @@
 * **A whirlwind is not a lift unless he can glide out of it**: `whirlStep` sets `jumpsUsed >= 1` (a glide needs a jump used), and a glide lasts while jump is held: a test that presses and releases jump before it looks sees no glide.
 * **TRAVEL in a country of islands**: the walkable country is the whole journey (`journeyMap` in `tools/lib/air.mjs`), the pocket test counts hops (a spire is 78 cells of its own), and a Dawnhaven place within 6 m of a door that woke must be moved (`home/north-passage`, `home/summit`).
 * **Words with a count in them**: the Elder said "1 STILL SLEEP" when one door was left (`home/dialogue.js`).
+
+**A sea with a tide** (Tideglass Reach)
+* **The tide moves nothing that is built once.** The ground, its textures, where props stand, the roads and the baked light are made at the MEAN level (`WATER_LEVEL`); only what is decided now reads `Game.waterY`. A level script that read the live level would build a different world each run and `build.deterministic` would say so.
+* **A landform that raises ground to a floor raises everything under it.** `mound()` as a bank lifted the whole world to -0.5 m (every height in it); a bank is a hump that never lowers and rises only inside its radius (`bank()` in `tideglass/level.js`).
+* **A road is carved to its own profile, and the profile is the ground smoothed over 13 m** (`terrain.js` `pathProfile`: three passes of a 9-point mean; control points with a third element are pinned exactly, but one pin is a spike in a slope). A flat thing on a road - a gate's threshold slab, a deck's apron - ends up a step high on a slope: the flat pad under the gate was tilted by the road through it and the threshold stood 0.63 m over the ground in front of it, a hair more than the 0.62 m a hero climbs. Pin the road level at several points through the place, and check the step (`tideglass-check`).
+* **The Dawn Gate's plinths cover 2.3-7.7 m either side of its middle.** A ridge neck of 15 m left a strip of ground outside them and the walk with the gate shut was 7 m longer than with it open: the neck must be no wider than the plinths, and `walkShut` must not reach what is behind the gate.
+* **The controller will not step from a deck onto the steep rim of the ground**, even when the rim stands 1 cm higher than the deck: support picks the higher surface and the steep terrain is not a surface to walk on. A bridge lands 2 m inside the rim of a stack, a hair (0.08 m) over the ground it lands on, and its colliders are never lower than its glass.
+* **A route that is the shortest path hugs every corner**, and a runner does not turn on a rim: the walker keeps every cell of a route as a point, keeps 2.5-3 m from a cliff's rim (a metre of deck round a cell on a bridge), and takes the roads before the jumps (the walk map's hop across a notch at the stair's corner was real to the map and a fall to the controller). Plan the walker's routes for the water as it stands at the start of the window the leg is begun in, not at the bottom of the tide: a route across ground that is only wadable at the very bottom drowned him.
+* **A TRAVEL place must be 6 m from a Snuffer and from an awake door's light**: a Snuffer on an 8 m stack leaves no place on it, and Dawnhaven's `pier-end` (5 m from the door that woke) moved to the spot the realm's own door puts him (11 m).
+* **A test that stands a hero on a cell must stand him on flat ground**: the first cell the drowning test picked was on the foot of a bank, and he slid into the deep before the tide came.
+* **A walk with hops is not a walk a person does.** `flood({ hop })` is for goals that cannot be reached without a jump (slabs, lily pads); it is not what a road is. A realm walker asks for a hop-free route first.
 
 **The kit**
 * **Keep the starter passing.** It is the golden example the generator copies; `node tools/foundry-test.mjs` builds a scratch realm from it, checks it and plays it. A change to the kit that breaks it is a

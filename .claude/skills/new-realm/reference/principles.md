@@ -46,8 +46,13 @@ documented departures in `tools/lib/realm-rules.mjs` (LEGACY): that is where the
 | `cave` | inside the rock: a tunnel or chamber under a roof, lit by crystals and torches, behind something | under a massif's roof (over the goal, or all round it: a skylight over the goal itself is fine), reachable |
 | `glide` | across a gap: a shelf reached by gliding from higher ground (a long way round on foot is allowed, a short one is not) | a launch ledge within `glideReach`, no short walk |
 | `lift` | up a whirlwind: the island a ride sets the hero down on (Skyweaver Spires' spire) | no way on foot, entered by a lift link of `brief.air`, a way off by another link |
+| `bridge` | out over the water, reached by a span of the realm's own making (Tideglass Reach's glass bridges between sea stacks) | water in >= 5 of 8 directions within 14 m; the walk to it crosses >= 12 m of bridge (a prop surface more than 3 m over the ground) |
 | `puzzle` | sealed until something is done: a cracked wall, a gate the other goals open | unreachable while shut, reachable once the walls are broken and the gate open |
 | `crater` | in a bowl: lower than the rim all round, guarded | the rim 4 m higher in 11 of 16 directions at 30 m, >= 2 Snuffers within 30 m |
 
-Ideas the research listed that the game does not do yet (good for a realm that wants something new; whirlwinds that lift the hero were done by Skyweaver Spires): a hedge (or ice) maze, cannons that clear a path, a balloonist to the
-next world, underwater and behind-a-waterfall tunnels, a portal that shows the sky of the world behind it.
+Ideas the research listed that the game does not do yet (good for a realm that wants something new; whirlwinds that lift the hero were done by Skyweaver Spires, a tunnel behind a waterfall by Tideglass Reach): a hedge (or ice) maze, cannons that clear a path, a balloonist to the
+next world, underwater tunnels, a portal that shows the sky of the world behind it.
+
+## What a moving hazard asks (the tide of Tideglass Reach: `reference/contract.md`, the `tide.*` rules)
+
+The tide is a hazard that comes and goes, and the principle behind its rules is the one the research gives for every hazard in these games: **the hero must be able to read it, and must never be trapped by it.** *Readable:* a gauge on the HUD, posts in the water painted at the low tide, the mean and the high, the water's colour that is the depth under it, a hint in the realm's words when it takes him. *Never trapped:* everything he finds standing is over the high tide (`tide.dry`), ground he can stand on at the high tide is within the reach of a wading hero while the water rises over his head, halved (`tide.refuge`), where a drowned hero is set back is near (`tide.shore`), no way is shut for long (`tide.wait`), the first goal and the last are open at every hour (`tide.open`). *A real part of the journey:* the tide shuts at least one way (`tide.gates`) and takes a real share of the ground (`tide.takes`) - or it is scenery.

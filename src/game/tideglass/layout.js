@@ -110,6 +110,8 @@ function layoutFlats(ctx) {
   // a tide post in the shallows, where the strand meets the flats, and one on the far side
   put('tide_post', -112, 63, { lo: LO, hi: HI }, 2);
   put('tide_post', 40, 58, { lo: LO, hi: HI }, 2);
+  // the sea, heard from the first step to the last: surf on the shore of the harbour and the strand, over the flats, and about the stacks (the cave's beach has its own, below)
+  for (const [x, z, range, vol] of [[-172, 8, 80, 0.7], [-140, 34, 80, 0.7], [-40, 62, 100, 0.6], [24, -64, 90, 0.5]]) gp.soundSources.push({ name: 'surf', x, y: 0, z, range, vol });
   // the signpost at the strand's foot
   put('signpost', -134, 36, { rot: 0.6, boards: [
     { yaw: yawTo(1, 0.45), y: 3.4, len: 2.4, tint: [0.6, 0.95, 0.85] },            // east: the causeway, Pearl Rock and the Weeping Cliff
