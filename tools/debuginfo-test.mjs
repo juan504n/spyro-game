@@ -221,6 +221,13 @@ const game = { grid, collision, gameplay: gp, level: LEVEL, player };
   check('full mode shows game, camera, input, performance, view and the errors', ['GAME', 'CAM', 'INPUT', 'PERF', 'GPU', 'VIEW', 'ERR'].every((t) => row(fx, t)), `(${fx.map((r) => r.tag).join(' ')})`);
   const ce = D.format(D.collect(game, { pose, errorCount: 3 }), 1);
   check('compact mode flags that errors were logged', /3 errors/.test(row(ce, 'ERR')), `(${row(ce, 'ERR')})`);
+  // the trail: what happened lately, so that a screenshot of the readout says how he came to stand where he does (the last thing in the compact readout, the last five in the full one; a repeat is counted)
+  game.trail = [{ t: 0, n: 1, text: 'ARRIVED FROM TIDEGLASS' }, { t: 1.2, n: 1, text: 'CHECKPOINT' }, { t: 3.4, n: 14, text: 'DROWNED' }];
+  const tc = D.format(D.collect(game, { pose }), 1), tf = D.format(D.collect(game, { pose }), 2);
+  check('the TRAIL row: the last thing in the compact readout (a repeat counted: "DROWNED x14"), the last five in the full', row(tc, 'TRAIL') === '3s DROWNED x14' && /ARRIVED FROM TIDEGLASS.*CHECKPOINT.*3s DROWNED x14/.test(row(tf, 'TRAIL')), `(${row(tc, 'TRAIL')} / ${row(tf, 'TRAIL')})`);
+  game.trail = [];
+  check('... and no row at all while nothing has happened', !D.format(D.collect(game, { pose }), 1).some((r) => r.tag === 'TRAIL'));
+  delete game.trail;
   pos(0, 96);
   const d2 = D.collect(game, { pose: { ox: 0, oy: 60, oz: 96, dx: 0, dy: -1, dz: 0 } });
   check('collect reads the state and the road from the level (main road at the village edge)', d2.state === 'idle' && d2.ground.road && d2.ground.road.id === 'main', `(state ${d2.state}, road ${d2.ground.road && d2.ground.road.id})`);

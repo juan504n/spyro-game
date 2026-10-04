@@ -75,6 +75,7 @@ export class Game {
     this.timers = [];
     this.stats = { gems: 0, gemsTotal: 400, beacons: 0, beaconsTotal: 5, enemies: 0, bunnies: 0, vases: 0, chests: 0, walls: 0, deaths: 0, time: 0 };
     this.checkpoint = null;
+    this.trail = [];             // what happened lately, newest last (note(): the debug readout's TRAIL)
     this.loops = {};
     this.fade = { a: 0, target: 0, speed: 2, color: [0, 0, 0] };       // (a portal fades to white, everything else to black)
     this.deathT = 0;
@@ -121,6 +122,7 @@ export class Game {
     this.checkpoint = { x: sp.x, y: (sp.y ?? gy) + 0.05, z: sp.z, yaw: sp.yaw };
     this.shadow = this.fx.decal({ pool: 'half', sprite: 'shadow_blob', r: 0.85, color: [0.25, 0.25, 0.35], alpha: 0.8 });
     this.bindPlayerEvents();
+    this.note(this.from ? `ARRIVED FROM ${String(this.from).toUpperCase()}` : 'STARTED');
     await progress(0.7, 'AWAKENING SNUFFERS');
     await tick();
 
@@ -195,8 +197,8 @@ export class Game {
     p.on.glide = () => { sfx('glide_start', { vol: 0.8 }); sfx('flap', { vol: 0.6 }); };
     p.on.flame = () => sfx('flame', { vol: 0.9, jitter: 0.03 });
     p.on.charge = () => { sfx('charge_start', { vol: 0.9 }); fx.dust(p.x, p.y, p.z, 4, 0.5); };
-    p.on.hurt = () => { sfx('hurt', { vol: 1 }); this.cam.shake(0.35, 0.3); fx.hitSpark(p.x, p.y + 0.6, p.z, 1); };
-    p.on.die = () => { sfx('die', { vol: 1 }); this.stats.deaths++; this.deathT = 0; this.audio?.duck?.(0.6, 2.2); };
+    p.on.hurt = () => { sfx('hurt', { vol: 1 }); this.cam.shake(0.35, 0.3); fx.hitSpark(p.x, p.y + 0.6, p.z, 1); this.note('HURT'); };
+    p.on.die = () => { sfx('die', { vol: 1 }); this.stats.deaths++; this.deathT = 0; this.audio?.duck?.(0.6, 2.2); this.note('DIED'); };
     const lava = this.level.liquid && this.level.liquid.splash === 'lava';                // (a realm whose lake is lava: sparks and a hiss for the splash)
     const cloud = this.level.liquid && this.level.liquid.splash === 'cloud';              // (a sea of cloud: a puff of white, a breath of wind)
     p.on.splash = (depth) => {
@@ -205,13 +207,14 @@ export class Game {
       fx.splash(p.x, this.waterY, p.z, depth > 0.9 ? 1.5 : 0.8); sfx('splash', { vol: depth > 0.9 ? 1 : 0.5 });
     };
     p.on.drown = () => {
+      this.note('DROWNED');
       if (lava) { fx.lavaSplash(p.x, this.waterY, p.z, 2.2); sfx('flame', { vol: 1, pitch: 0.6 }); } else if (cloud) { fx.puff(p.x, this.waterY + 0.8, p.z, 3.2); sfx('glide_start', { vol: 0.8, pitch: 0.55 }); } else { fx.splash(p.x, this.waterY, p.z, 1.8); sfx('splash', { vol: 1 }); }
       const k = this.level.sea || this.level.lake, inLake = this.level.sea ? true : Math.hypot((p.x - k.x) / k.rx, (p.z - k.z) / k.rz) < 1.25;
       // (in a realm with a tide, ground that the sea only covers at high tide says so: the tide is in, wait for it or take the high road)
       const tidal = this.tide && this.tide.hint && this.grid.heightAt(p.x, p.z) > this.waterLo - drownDepth(this.level);
       this.hud.hint(tidal ? this.tide.hint : inLake ? (k.deepHint || 'MIRRORMERE IS TOO DEEP! FIND THE STONES OR GLIDE') : 'THE WATER IS TOO DEEP HERE. FIND ANOTHER WAY', 4);
     };
-    p.on.respawn = () => { sfx('respawn', { vol: 0.8 }); fx.puff(p.x, p.y + 0.5, p.z, 0.8); };
+    p.on.respawn = () => { sfx('respawn', { vol: 0.8 }); fx.puff(p.x, p.y + 0.5, p.z, 0.8); this.note('SET BACK'); };
     p.on.wall = (c) => { sfx('charge_hit', { vol: 1 }); this.cam.shake(0.35, 0.25); fx.hitSpark(p.x + p.dirx, p.y + 0.6, p.z + p.dirz, 1.3); fx.puff(p.x + p.dirx * 1.2, p.y + 0.6, p.z + p.dirz * 1.2, 0.6); void c; };
     p.on.bounce = () => {};
   }
@@ -234,7 +237,21 @@ export class Game {
     return true;
   }
 
-  setCheckpoint(cp) { this.checkpoint = { ...cp }; this.hud.hint('CHECKPOINT SAVED', 2.2); this.audio?.sfx('checkpoint', { vol: 0.7 }); }
+  setCheckpoint(cp) { this.checkpoint = { ...cp }; this.hud.hint('CHECKPOINT SAVED', 2.2); this.audio?.sfx('checkpoint', { vol: 0.7 }); this.note('CHECKPOINT'); }
+
+  /** A line for the debug readout's TRAIL: what happened lately (newest last), so that a screenshot of the readout says how the hero came to stand where he does. A repeat is counted, not listed again. */
+  note(text) {
+    const last = this.trail[this.trail.length - 1];
+    if (last && last.text === text) { last.n++; last.t = this.time; return; }
+    this.trail.push({ t: this.time, n: 1, text });
+    if (this.trail.length > 12) this.trail.shift();
+  }
+
+  /** Where the world begins: the place a fresh start puts the hero (dry and firm by every world's checks). Where a hero is set back when the place he would be set back to is one that takes him again (Player.respawnSafe). */
+  startSpot() {
+    const sp = this.gameplay.spawn || this.level.spawn;
+    return sp ? { x: sp.x, y: sp.y ?? this.grid.heightAt(sp.x, sp.z), z: sp.z, yaw: sp.yaw } : null;
+  }
 
   respawn() {
     const c = this.checkpoint;
@@ -250,6 +267,7 @@ export class Game {
 
   onBeacon(b, n) {
     const total = this.beacons.list.length, isLast = n >= total;
+    this.note(`LANTERN ${n} OF ${total}`);
     this.hud.pulse('beacons');
     this.hud.banner(`${b.def.name} ${this.words.lit}`, `${n} OF ${total} ${this.words.goals}`, 3.4);
     // (a realm with a gate that the lanterns open: it opens when `level.goal.gateAt` goals are lit (Gloaming Vale's Dawn Gate: four) and says `words.gate`)

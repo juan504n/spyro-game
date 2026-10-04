@@ -251,6 +251,7 @@ class App {
   _onPortal(d) {
     if (this.state === 'traveling' || !d.target) return;
     const g = this.game, st = g.stats;
+    g.note(`ENTERED ${String(d.id).toUpperCase()}`);
     // the gems picked up since the finale (or in a restored visit) count if they beat the best so far
     if (g.realm.kind === 'realm' && this.progress.realms[g.realm.id]) noteRealmGems(this.progress, g.realm.id, st.gems, st.gemsTotal);
     this.travelTo(d.target);
@@ -347,6 +348,7 @@ class App {
   _placeHero(g, place) {
     const sp = heroSpot(g.grid, place), p = g.player, S = g.level.summit;
     p.place(sp.x, sp.y, sp.z, sp.yaw);
+    g.note(`PLACED AT ${String(place.key || '?').toUpperCase()}`);
     p.invulnT = WARP_GRACE;
     g.checkpoint = { ...sp };
     g.hud.hintState = null;
@@ -598,12 +600,25 @@ class App {
         this._debugRow(),
         { type: 'toggle', label: 'SHOW COLLIDERS', get: () => !!gfx.settings.debugColliders, set: (v) => gfx.set('debugColliders', v) },
         { type: 'choice', label: 'TEXT SIZE', options: [0, 1, 2], labels: ['SMALL', 'NORMAL', 'LARGE'], get: () => gfx.settings.debugSize, set: (i, opts) => gfx.set('debugSize', opts[i]) },
+        { type: 'action', label: 'COPY REPORT', action: () => this.copyReport() },
         { type: 'action', label: 'BACK', hidden: this._touchOnly(), action: (m) => m.close() },
       ],
       extra: lines,
       draw: (pix, x, y) => lines.forEach((l, i) => drawText(pix, l, x, y + i * 10, { style: 'outline', color: '#e8e0ff', outlineColor: INK })),
       footer: this._changeHint(),
     };
+  }
+
+  /** The readout as text (the build, where the hero is, the state of the game, what happened lately) onto the clipboard where the page may, else a hint to take a screenshot instead: what to send along with "it went wrong". */
+  async copyReport() {
+    const text = this.debug.report(), hud = this.game.hud;
+    let ok = false;
+    try { await navigator.clipboard.writeText(text); ok = true; } catch (e) { /* not allowed on this page */ }
+    if (!ok) {
+      try { const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;left:0;top:0;opacity:0'; document.body.appendChild(ta); ta.select(); ok = !!document.execCommand('copy'); ta.remove(); } catch (e) { ok = false; }
+    }
+    hud.hint(ok ? 'REPORT COPIED: PASTE IT TO WHOEVER IS FIXING THE GAME' : 'COULD NOT COPY: TURN DEBUG MODE ON AND TAKE A SCREENSHOT', 5);
+    return ok;
   }
 
   // ---- per-frame ---------------------------------------------------------------------------------------------------------------

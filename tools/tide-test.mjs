@@ -59,7 +59,8 @@ const T = { period: 90, amp: 1.4, start: 0 };
 const heightAt = (x) => (x < 0 ? -0.4 : x < 10 ? 1.8 : 3.0);
 const collision = { support: (x) => ({ y: heightAt(x), kind: 'terrain', c: null }), normalAt: () => [0, 1, 0], heightAt: (x) => heightAt(x), pushOut: () => null };
 function world(tide) {
-  const game = { gfx: { settings: { ...DEFAULT_SETTINGS } }, collision, level: { valley: { x: 0, z: 0, rx: 1e6, rz: 1e6 } }, objects: null, beacons: null, enemies: null };
+  const game = { gfx: { settings: { ...DEFAULT_SETTINGS } }, collision, level: { valley: { x: 0, z: 0, rx: 1e6, rz: 1e6 } }, objects: null, beacons: null, enemies: null,
+    gameplay: { spawn: { x: 30, y: 3.0, z: 0, yaw: 0 } }, startSpot() { const sp = this.gameplay.spawn; return { x: sp.x, y: sp.y, z: sp.z, yaw: sp.yaw }; } };      // (Game.startSpot: where the world begins)
   if (tide !== undefined) { game.waterY = tide ? tideLevel(tide, 0) : 0; game.waterHi = tideHigh(tide); game.waterLo = tideLow(tide); }
   const p = new Player(game, null);
   const input = { move: { x: 0, y: 0 }, held: {}, edge: {}, pressed(a) { return !!this.edge[a]; }, down(a) { return !!this.held[a]; } };
@@ -122,6 +123,24 @@ const run = (step, secs) => { for (let i = 0; i < Math.round(secs / DT); i++) st
   run(g.step, 1.0);
   collision.heightAt = ground; collision.support = (x) => ({ y: heightAt(x), kind: 'terrain', c: null });
   check('... and 2.5 m under the mean level is the deep: he drowns, as in every lake', g.events.includes('drown'), `(${g.events.join()})`);
+  // a safe spot that would take him again is no safe spot (the data once put one on the bed of a lake: an arrival with no height; he drowned there and was set back to the same place, for ever): he is set
+  // back at the start of the world instead, once, and stays there dry
+  const deep = (x) => (x < 20 ? -2.5 : 3.0);
+  const saveSup = collision.support, saveH = collision.heightAt;
+  collision.heightAt = deep; collision.support = (x) => ({ y: deep(x), kind: 'terrain', c: null });
+  const h = world(undefined);
+  h.p.place(-20, -2.5, 0, 0);                                 // (place() makes the spot his safe spot: here it is 2.5 m under the water)
+  run(h.step, 3.0);
+  const drowns = h.events.filter((e) => e === 'drown').length;
+  check('a safe spot that is itself under 2.5 m of water sends him to the start of the world, once (not to the same bed again and again), and he stands there dry', drowns === 1 && h.p.x === 30 && h.p.y > 2.9 && !h.p.inWater && h.p.safe.x === 30, `(${drowns} drownings, at x ${f2(h.p.x)} y ${f2(h.p.y)}, safe ${f2(h.p.safe.x)})`);
+  // ... and one that is dry is still where he goes back to
+  const k = world(undefined);
+  k.p.place(40, 3.0, 0, 0);
+  run(k.step, 0.5);
+  k.p.x = -20; k.p.y = -2.5; k.p.vx = k.p.vy = k.p.vz = 0; k.p.grounded = false;
+  run(k.step, 1.0);
+  check('... a safe spot that is dry is still where a drowned hero goes back to (the start is for the spot that takes him again)', k.events.includes('drown') && k.p.x === 40, `(at x ${f2(k.p.x)})`);
+  collision.support = saveSup; collision.heightAt = saveH;
 }
 
 // ---- the walk map at a water level --------------------------------------------------------------------------------------------------

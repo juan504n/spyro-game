@@ -285,6 +285,7 @@ export function collect(game, extra = {}) {
     things: nearestThings(game, p.x, p.y, p.z, 3),
     colliders: nearestColliders(game.collision, p.x, p.z, 2, 14, p.y),
     hints: hintZonesAt(game, p.x, p.z, p.y),
+    trail: (game.trail || []).slice(-12),
     aim: null,
     extra,
   };
@@ -312,6 +313,9 @@ export function colliderText(c) {
   return `${shape} y ${f1(c.y0)}-${f1(c.y1)}${c.top ? ' top' : ''}${c.solid === false ? ' (off)' : ''}`;
 }
 const colliderName = (c) => (c.prop ? `${c.prop.name}${src(c.prop)}` : `${c.tag || 'collider'}${c.src ? ` [${c.src}]` : ''}`);
+
+/** "12s DROWNED x14": one line of the trail (the seconds the game has run, the thing, how many times running) */
+export const trailText = (e) => `${Math.round(e.t)}s ${e.text}${e.n > 1 ? ` x${e.n}` : ''}`;
 
 /** The readout's rows for `level` 1 (compact) or 2 (full). Each is { tag, text, cls }; cls tints the row ('' | 'aim' | 'warn' | 'dim'). */
 export function format(data, level = 1) {
@@ -346,6 +350,9 @@ export function format(data, level = 1) {
     row('COLL', `${f1(d)} m ${colliderText(c)}  ${colliderName(c)}`);
   }
   for (const h of data.hints) row('HINT', trim(h.text, 34) + src(h), 'dim');
+  // what happened lately (the last one in the compact readout, the last five in the full): how he came to stand where he does
+  const tr = data.trail || [];
+  if (tr.length) row('TRAIL', tr.slice(level > 1 ? -5 : -1).map(trailText).join('  |  '), 'dim');
   const n = ex.errorCount || 0;
   if (n && level < 2) row('ERR', `${n} error${n > 1 ? 's' : ''} logged (full mode lists them)`, 'warn');
   if (level < 2) return rows;

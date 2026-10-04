@@ -22,7 +22,7 @@ Verification here is a headless Chromium with a **software renderer** (SwiftShad
 | Gloaming Vale | `node tools/level-check.mjs`, `node tools/realm-check.mjs gloaming` |
 | Dawnhaven | `node tools/home-check.mjs` (about 90 s; it holds the way home from each of the five realms as data: a floor of its own height, over the water, clear, level with its door, on the walk), `node tools/home-bot.mjs`, `node tools/realm-check.mjs home` |
 | the props | `node tools/prop-lint.mjs` |
-| the game loop | `node tools/bot.mjs`, `node tools/playthrough.mjs`, `node tools/portal-test.mjs` (also: home from each of the five realms, on his feet at that realm's door), `node tools/menu-test.mjs`, `node tools/travel-test.mjs` |
+| the game loop | `node tools/bot.mjs`, `node tools/playthrough.mjs`, `node tools/portal-test.mjs` (also: home from each of the five realms, on his feet at that realm's door), `node tools/arrival-test.mjs` (every way of putting him somewhere, in every world: a fresh start, each TRAVEL place, a respawn at each checkpoint, a set-back that would take him again), `node tools/menu-test.mjs`, `node tools/travel-test.mjs` |
 | a full render fingerprint (browser; every geometry attribute of both old worlds) | the geohash harness of round 21 (scratch; `world-hash` is the quick Node version of it) |
 
 A realm that wakes a door changes Dawnhaven (its door is awake: `gp.portals`, `gp.arrivals`): update the expectations that count sleeping doors (`home-check.mjs`, `portal-test.mjs`, `menu-test.mjs`/

@@ -6,7 +6,7 @@
 // placed it, what the centre of the screen is pointing at, and which build is running. Turn it on with F3 (off > compact > full), the
 // pause / title menu's DEBUG MODE row or Options > DEBUG; it is remembered between visits.
 import * as THREE from 'three';
-import { collect, format, toText, BUILD } from './debuginfo.js';
+import { collect, format, toText, trailText, BUILD } from './debuginfo.js';
 import { errorLines, errorCount } from '../engine/errlog.js';
 import { isTouchDevice } from '../engine/device.js';
 
@@ -180,6 +180,13 @@ export class DebugHud {
     ex.view = `${window.innerWidth}x${window.innerHeight} dpr ${f2(window.devicePixelRatio || 1)}  ${plat ? plat[0] : 'browser'}  ${isTouchDevice() ? 'touch' : 'no touch'} (${navigator.maxTouchPoints | 0} pts)${safe.top > 0 ? `  safe top ${f1(safe.top)}` : ''}`;
     ex.errors = errorLines();
     return ex;
+  }
+
+  /** The whole readout as text, as at the full level whatever the mode, with the entire trail under it: what to send along with a report that something went wrong (App.copyReport). */
+  report() {
+    const data = collect(this.game, this._extra(2));
+    const rows = format(data, 2).filter((r) => r.tag !== 'TRAIL');
+    return `${toText(rows)}\nTRAIL (oldest first)\n${data.trail.map((e) => `  ${trailText(e)}`).join('\n') || '  -'}`;
   }
 
   /** Called every frame by the app. */

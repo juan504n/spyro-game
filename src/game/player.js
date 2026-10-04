@@ -411,15 +411,27 @@ export class Player {
     const wasIn = this.inWater;
     this.inWater = !onProp && depth > 0.05 && (this.grounded || this.y < sea + 0.1);
     if (this.inWater && !wasIn) this.emit('splash', depth);
-    const lethal = (this.game.level && this.game.level.liquid && this.game.level.liquid.burnDepth) || 0.95;        // (a lake of lava burns at a touch: level.liquid.burnDepth; water drowns from 0.95 m)
+    const lethal = this.lethalDepth;
     if (this.inWater && depth > lethal && (this.y < sea - 0.3 || this.grounded)) {
       this.waterT += dt;
       if (this.waterT > 0.28) { this.emit('drown'); this.respawnSafe(true); }
     } else this.waterT = Math.max(0, this.waterT - dt * 2);
   }
 
+  /** How deep the liquid must stand over what he is on to take him: water drowns from 0.95 m, a lake of lava burns at a touch (level.liquid.burnDepth). */
+  get lethalDepth() { return (this.game.level && this.game.level.liquid && this.game.level.liquid.burnDepth) || 0.95; }
+
+  /** Would the liquid take him at once if he stood at (x, y, z)? What stands over the bed - a deck, a ledge of rock - keeps him dry whatever lies under it. */
+  _deadlyAt(x, y, z) {
+    const sup = this.game.collision.support(x, z, y + 0.5, 0.9);
+    return sup.kind === 'terrain' && (this.game.waterY ?? WATER_LEVEL) - sup.y > this.lethalDepth;
+  }
+
   respawnSafe(fromHazard = false) {
-    const s = this.safe;
+    let s = this.safe;
+    // A safe spot that would take him again is no safe spot (the data put him there: an arrival with no height once put him on the bed of the lake, and he drowned in the same place for ever): the start of
+    // the world is dry by every check the worlds are held to, and from then on it is his safe spot
+    if (fromHazard && this._deadlyAt(s.x, s.y, s.z)) { const b = this.game.startSpot && this.game.startSpot(); if (b) s = this.safe = { ...b }; }
     this.x = this.px = s.x; this.y = this.py = s.y + 0.05; this.z = this.pz = s.z;
     this.yaw = this.pyaw = s.yaw;
     this.vx = this.vy = this.vz = 0;

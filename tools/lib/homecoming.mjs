@@ -7,6 +7,7 @@
 //
 //   const r = await homecoming(ev, 'tideglass');   // (after a second or two of standing in Dawnhaven)      homeOk(r)  - the verdict
 // A realm with no door in Dawnhaven (the foundry's scratch realm) comes out at Dawnhaven's start: there is no door to measure against.
+import { standOk } from './standing.mjs';
 
 /** the facts about where he stands, from the page: `ev` is the page.evaluate of the test */
 export const homecoming = (ev, from) => ev((from) => {
@@ -18,6 +19,6 @@ export const homecoming = (ev, from) => ev((from) => {
   };
 }, from);
 
-/** the verdict: in Dawnhaven, playing, on a floor (his feet on the surface the game says is there), a quarter metre over the water, at the place the data names, with no drowning hint, and - where there is a door - in front of it (9-13 m) and level with it (1 m) */
-export const homeOk = (r) => r.realm === 'home' && r.mode === 'play' && r.hud && r.grounded && !r.dead && Math.abs(r.at[1] - r.floor) < 0.15 && r.at[1] > r.water + 0.25 && r.arrival < 0.5 && !/TOO DEEP/.test(r.hint || '')
+/** the verdict: in Dawnhaven, playing, standing (lib/standing.mjs: on a floor, over the water, no drowning hint), at the place the data names, and - where there is a door - in front of it (9-13 m) and level with it (1 m) */
+export const homeOk = (r) => r.realm === 'home' && r.mode === 'play' && r.hud && standOk(r) && r.arrival < 0.5
   && (r.doorY === null || (Math.abs(r.at[1] - r.doorY) < 1.0 && r.along > 9 && r.along < 13));
