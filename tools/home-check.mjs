@@ -102,6 +102,20 @@ const f1 = (v) => v.toFixed(1);
   const along = a ? (a.x - gate.x) * Math.sin(gate.yaw) + (a.z - gate.z) * Math.cos(gate.yaw) : 0;
   check('the way home from the Court: he comes out 11 m in front of the gate, on the floor (a height of its own), clear, facing out of it', !!a && Math.abs(sup.y - a.y) < 0.15 && !collision.blocking(a.x, a.y + 0.5, a.z, 0.4) && !collision.blocking(a.x, a.y + 1.2, a.z, 0.4) && along > 9 && along < 13 && Math.abs(a.yaw - gate.yaw) < 1e-6 && Math.abs(a.y - gate.y) < 3.5, a ? `(${f1(along)} m in front, floor ${f1(sup.y)} at ${f1(a.y)})` : '(none)');
   check('two hints at the gate, one for while it is shut and one for while it is open (the game shows the one that is true)', gp.hints.filter((q) => q.shut).length === 1 && gp.hints.filter((q) => q.open).length === 1 && /SEALED/.test(gp.hints.find((q) => q.shut).text) && /OPEN/.test(gp.hints.find((q) => q.open).text));
+  // the way into the open gate is a climb he can make: along the approach (from 8 m before the opening to the opening, every 0.25 m, on five lines across it) the floor never rises more than 0.45 m in a step (a hero
+  // climbs 0.62). The prop's threshold slab once stood 0.66 m over the ground in front of it: the door was open and nobody could walk into it.
+  {
+    let worst = -Infinity, where = '';
+    for (const x of [-2.4, -1.2, 0, 1.2, 2.4]) {
+      let prev = null;
+      for (let dz = 8; dz >= 0.5; dz -= 0.25) {
+        const y = collision.support(b.x + x, b.z + dz, b.y + 4, 0.5).y;
+        if (prev !== null && y - prev > worst) { worst = y - prev; where = `${f1(dz)} m before it, ${f1(x)} m off its axis`; }
+        prev = y;
+      }
+    }
+    check('the way into the open gate is a climb he can make: the floor along the approach never rises more than 0.45 m in a step', worst < 0.45, `(the steepest step ${worst.toFixed(2)} m, ${where})`);
+  }
   // the Elder follows the gate: shut with four realms and a hero who has not seen it, open (once it has opened), free (once the Guardian is)
   const all5 = { gloaming: { done: true }, frostbloom: { done: true }, emberfall: { done: true }, skyweaver: { done: true }, tideglass: { done: true } }, four = { gloaming: { done: true }, frostbloom: { done: true }, emberfall: { done: true }, skyweaver: { done: true } };
   const say = (realms, gateOpen, freed, again = false) => { const npc = again ? { talks: 1 } : {}; return homeLines({ progress: { realms, home: { secrets: [], gate: gateOpen }, guardian: { freed } }, portals: { isOpen: (id) => id === 'guardian' && gateOpen } }, npc).join(' | '); };

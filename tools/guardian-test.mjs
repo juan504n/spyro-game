@@ -150,7 +150,7 @@ await check('the-hud-and-the-stone', async () => {
     B._beginStoop();
     upd(Math.round(60 * 2.2));
     out.sub = B.sub;
-    out.gold = count([255, 192, 60], 100, 0, 220, 50);
+    out.gold = count([255, 192, 60], 100, 18, 220, 26);                // (the rows of the window's bar: the panel's title above it is gold too)
     out.shown = S.hudState().windowOn;
     // let him sleep again (he is left behind), as the fight check begins it afresh
     p.place(0, g.collision.heightAt(0, 70) + 0.05, 70, Math.PI); p.invulnT = 0;
@@ -158,7 +158,7 @@ await check('the-hud-and-the-stone', async () => {
     out.slept = B.mode;
     return out;
   });
-  return { ok: walk.ok && asleepBar === 0 && r.bar > 80 && r.mode === 'fight' && r.state1 === 'aim' && r.amber > 15 && (r.state2 === 'lock' || r.state2 === 'drop') && r.hot > 15 && r.threats > 0 && r.stuck && r.nearest > 1.8 && r.ahead < 5 && r.sub === 'window' && r.gold > 100 && r.shown && r.slept === 'asleep', walked: walk.ok, asleepBar, ...r };
+  return { ok: walk.ok && asleepBar === 0 && r.bar > 80 && r.mode === 'fight' && r.state1 === 'aim' && r.amber > 15 && (r.state2 === 'lock' || r.state2 === 'drop') && r.hot > 15 && r.threats > 0 && r.stuck && r.nearest > 1.8 && r.ahead < 5 && r.sub === 'window' && r.gold > 200 && r.shown && r.slept === 'asleep', walked: walk.ok, asleepBar, ...r };
 });
 
 await check('the-fight-is-won', async () => {
