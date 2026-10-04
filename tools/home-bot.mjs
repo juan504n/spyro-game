@@ -150,7 +150,8 @@ await run('arrivals', () => {
     out.push([id, +p.y.toFixed(2), ok]);
     if (!ok) return { ok: false, reason: `${id}: not standing on his floor`, at: [+p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2)], want: a, out };
   }
-  return { ok: out.length === 5, out };
+  // (the five doors of the realms and the Guardian's gate, whose door of light brings him home from the Court: the data has all six and the controller holds each)
+  return { ok: out.map((q) => q[0]).sort().join() === ['emberfall', 'frostbloom', 'gloaming', 'guardian', 'skyweaver', 'tideglass'].join(), out };
 });
 for (const door of ['gloaming', 'frostbloom', 'tideglass', 'emberfall', 'skyweaver']) { DATA.door = door; await run(`door-opens-${door}`, (D) => {
   // walking into an awake door's light raises the 'portal' event (the app turns it into the trip to the realm behind it); the others only talk
@@ -170,7 +171,7 @@ await run('sealed-doors', () => {
   const G = __game, p = G.player, out = [];
   const seen = [];
   G.on('portal', (d) => seen.push(d.id));
-  const doors = G.portals.list.filter((q) => q.def.kind === 'door'), sleeping = doors.filter((q) => !q.def.target).map((q) => q.def.id);
+  const doors = G.portals.list.filter((q) => q.def.kind === 'door' && !q.def.gate), sleeping = doors.filter((q) => !q.def.target).map((q) => q.def.id);       // (the Guardian's gate is a door of light that opens with the five: it is not one of these)
   if (!sleeping.length) return { ok: doors.length === 5 && doors.every((q) => q.state === 'open'), none: 'every door is awake', doors: doors.map((q) => `${q.def.id}:${q.state}`) };
   for (const id of sleeping) {
     const dd = G.portals.get(id).def, s = Math.sin(dd.yaw), c = Math.cos(dd.yaw);

@@ -73,6 +73,15 @@ await check('the-gate-seen-again-is-open-at-once', async () => {
   return { ok: r.mode === 'open' && r.state === 'play' && r.open && !r.barrierShut && r.beam > 0.95 && r.k > 0.95 && !r.locked, ...r };
 });
 
+await check('the-ceremony-is-played-once', async () => {
+  // (he comes home from a realm again: the gate is open already, nothing is played, and he is given his place at once)
+  await ev(() => window.__app.travelTo('home', { from: 'frostbloom' }));
+  await arrived('home', ['play', 'ceremony']);
+  await ff(0.6);
+  const r = await ev(() => { const g = window.__game, d = g.portals.get('guardian'); return { mode: g.gateMode, state: window.__app.state, hmode: g.mode, open: g.portals.isOpen('guardian'), beam: +d.beamK.toFixed(2), locked: g.locked, hud: g.hud.visible }; });
+  return { ok: r.mode === 'open' && r.state === 'play' && r.hmode === 'play' && r.open && r.beam > 0.95 && !r.locked && r.hud, ...r };
+});
+
 await check('the-light-takes-him-to-the-court', async () => {
   // the hero is put 8 m in front of the gate looking at it, and walks into the light with the real key
   await ev(() => { const g = window.__game, b = g.gameplay.barrier, p = g.player; p.place(b.x, b.y + 0.05, b.z + 8, Math.PI); g.cam.snapBehind(p); p.invulnT = 5; g.checkpoint = { x: b.x, y: b.y, z: b.z + 8, yaw: Math.PI }; });
@@ -87,8 +96,74 @@ await check('the-light-takes-him-to-the-court', async () => {
   return { ok: gone && r.realm === 'guardian' && r.kind === 'arena' && r.mode === 'play' && r.boss === 'asleep' && Math.abs(r.at[1] - 93) < 1.5 && r.total === 3 && r.lanterns === 0 && !r.freed && standOk(s), ...r };
 });
 
-await check('the-fight-is-won', async () => {
+// ---- what the HUD says: the boss bar, the arrows for the dangers he cannot see, the window's bars (the HUD is drawn by the app's real update: its pixels are read back) -----------------------------------
+await check('the-hud-and-the-stone', async () => {
   await installDriver(page, root);
+  const asleepBar = await ev(() => {
+    /** how many pixels of exactly this colour are in a box of the HUD, as ONE update draws it (the page's own frame clears the HUD before the app's update; here that is done by hand, once, before the frame counted) */
+    window.__hudCount = (c, x0, y0, x1, y1) => { const pix = window.__app.gfx.hud; window.__app.gfx.clearHud(); window.__appUpdate(1 / 60); let n = 0; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = (y * pix.w + x) * 4; if (pix.data[i] === c[0] && pix.data[i + 1] === c[1] && pix.data[i + 2] === c[2]) n++; } return n; };
+    return window.__hudCount([90, 74, 168], 100, 0, 220, 40);          // the fists of the boss bar: none while he sleeps (the hero stands at the door of the Court, 120 m away)
+  });
+  const walk = await ev(() => window.__bot.goto(0, 10, { tol: 1.5, timeout: 40, auto: true }));       // (and this walk wakes him)
+  const r = await ev(() => {
+    const g = window.__game, p = g.player, B = g.boss.brain, S = g.boss, count = window.__hudCount;
+    const upd = (n) => { for (let i = 0; i < n; i++) window.__appUpdate(1 / 60); };
+    const out = {};
+    p.invulnT = 999;                                                   // (nothing in this check may hurt him)
+    upd(60 * 4.2);                                                     // (the roar)
+    for (let i = 0; i < 600 && !B.fists.some((q) => q.state === 'hover'); i++) upd(1);       // (his fists form: 1.2 s)
+    out.mode = B.mode;
+    out.bar = count([90, 74, 168], 100, 0, 220, 40);                    // ... two blocks of stone while he fights
+    // a slam that will fall BEHIND him (under the chase camera): an arrow at the edge of the screen, amber while the circle follows, red once it has locked
+    p.place(0, g.collision.heightAt(0, -5) + 0.05, -5, Math.PI); g.cam.snapBehind(p); p.invulnT = 999;       // (on the floor of the court, facing the dais)
+    upd(6);
+    const f = B.fists.find((q) => q.state === 'hover');
+    const base = count([255, 176, 48], 200, 110, 316, 236) + count([255, 58, 42], 200, 110, 316, 236);
+    B._startSlam(f, { x: p.x + 10, z: p.z + 10 });                     // (the brain's own slam, started by hand: only where it is aimed is chosen)
+    upd(Math.round(60 * 0.75));
+    out.state1 = f.state;
+    out.amber = count([255, 176, 48], 200, 110, 316, 236) - base;
+    upd(Math.round(60 * 0.8));
+    out.state2 = f.state;
+    out.hot = count([255, 58, 42], 200, 110, 316, 236) + count([255, 255, 255], 200, 110, 316, 236) - base;
+    out.threats = S.hudState().threats.length;
+    upd(60 * 3);                                                       // (it lands; the ring runs; the fist is stuck)
+    // a fist that has landed is a solid: run at it with the stick held and the stone stops him (a ring of 1.7 m: he cannot come nearer than that and his own body)
+    const st = B.fists.find((q) => q.state === 'stuck');
+    out.stuck = !!st;
+    if (st) {
+      p.place(st.x, g.collision.heightAt(st.x, st.z + 7) + 0.05, st.z + 7, Math.PI); g.cam.snapBehind(p); p.invulnT = 999;
+      window.__bot.ctl.mx = 0; window.__bot.ctl.my = 1;
+      let nearest = 99;
+      for (let i = 0; i < 70 && st.state === 'stuck'; i++) { upd(1); nearest = Math.min(nearest, Math.hypot(p.x - st.x, p.z - st.z)); }
+      window.__bot.ctl.my = 0;
+      out.nearest = +nearest.toFixed(2);
+    }
+    // a slam in front of him, near: he sees it on the floor, and no arrow is drawn
+    const g2 = B.fists.find((q) => q.state === 'hover');
+    const yaw = g.cam.yaw, fx = Math.sin(yaw), fz = Math.cos(yaw);
+    const base2 = count([255, 176, 48], 40, 40, 316, 236) + count([255, 58, 42], 40, 40, 316, 236);
+    if (g2) { B._startSlam(g2, { x: p.x + fx * 8, z: p.z + fz * 8 }); upd(Math.round(60 * 0.7)); }
+    out.ahead = (count([255, 176, 48], 40, 40, 316, 236) + count([255, 58, 42], 40, 40, 316, 236)) - base2;
+    out.aheadState = g2 && g2.state;
+    // the stoop: the window's gold bar
+    B._beginStoop();
+    upd(Math.round(60 * 2.2));
+    out.sub = B.sub;
+    out.gold = count([255, 192, 60], 100, 0, 220, 50);
+    out.shown = S.hudState().windowOn;
+    // let him sleep again (he is left behind), as the fight check begins it afresh
+    p.place(0, g.collision.heightAt(0, 70) + 0.05, 70, Math.PI); p.invulnT = 0;
+    upd(30);
+    out.slept = B.mode;
+    return out;
+  });
+  return { ok: walk.ok && asleepBar === 0 && r.bar > 80 && r.mode === 'fight' && r.state1 === 'aim' && r.amber > 15 && (r.state2 === 'lock' || r.state2 === 'drop') && r.hot > 15 && r.threats > 0 && r.stuck && r.nearest > 1.8 && r.ahead < 5 && r.sub === 'window' && r.gold > 100 && r.shown && r.slept === 'asleep', walked: walk.ok, asleepBar, ...r };
+});
+
+await check('the-fight-is-won', async () => {
+  // (Sparx is green, two hits down: the first lantern must heal him; the Snuffers of the later phases must come out of the floor)
+  await ev(() => { const g = window.__game; g.sparx.hp = 1; window.__litHp = []; g.on('guardian-lit', () => window.__litHp.push(g.sparx.hp)); });
   const walk = await ev(() => window.__bot.goto(0, 16, { tol: 2, timeout: 40, auto: true }));
   let last = null;
   for (let chunk = 0; chunk < 300; chunk++) {
@@ -96,7 +171,8 @@ await check('the-fight-is-won', async () => {
     if (last.mode === 'freed' || last.t > 400) break;
   }
   const log = await ev(() => window.__fight.log);
-  return { ok: walk.ok && last.mode === 'freed' && log.lit === 3 && log.cracks >= 6, walked: walk.ok, mode: last.mode, t: last.t, hits: log.hits, deaths: log.deaths, cracks: log.cracks, lit: log.lit, kills: log.kills };
+  const litHp = await ev(() => window.__litHp);
+  return { ok: walk.ok && last.mode === 'freed' && log.lit === 3 && log.cracks >= 6 && litHp.length === 3 && litHp[0] === 3 && log.maxHelpers >= 3 && log.kills >= 2, walked: walk.ok, mode: last.mode, t: last.t, hits: log.hits, deaths: log.deaths, cracks: log.cracks, lit: log.lit, kills: log.kills, helpers: log.maxHelpers, healedAt: litHp };
 });
 
 await check('the-ending-plays', async () => {

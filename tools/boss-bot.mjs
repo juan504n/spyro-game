@@ -37,6 +37,8 @@ console.log('walk to the court:', JSON.stringify(walk));
 if (!walk.ok) { console.log('FAIL: the walk up the gorge road'); await browser.close(); process.exit(1); }
 
 // ---- the fight --------------------------------------------------------------------------------------------------------------------------------
+// (a hero who stands still stands in the court, where the fists fall: at the mouth he is out of their reach, 5 m beyond where they can land)
+if (opts.idle) await ev(() => window.__bot.goto(0, -12, { tol: 2, timeout: 20, auto: true }));
 let last = null, t0 = Date.now(), shotN = 0, seen = 0;
 if (shots) fs.mkdirSync(shots, { recursive: true });
 // (with --shots a picture is taken a few frames after each of these things happens, and every 10 s of the fight)
@@ -73,6 +75,8 @@ if (won && flag('ending')) {
   console.log(endingOk ? 'PASS the ending plays through to free roam' : 'FAIL the ending');
 }
 await browser.close();
-const ok = expectWin ? won && endingOk && errors.length === 0 : !won && errors.length === 0;
-console.log(ok ? 'PASS' : 'FAIL', expectWin ? 'the Guardian is freed' : 'a fight that must not be won was not won', errors.length ? `(${errors.length} errors)` : '');
+// (a hero who stands still must also be HURT, again and again: the fists hurt for real, Sparx takes it and the fourth hit sets him back; with the hurt cut off he would stand there unharmed and still not win)
+const hurtOk = !opts.idle || info.log.deaths >= 2;
+const ok = expectWin ? won && endingOk && errors.length === 0 : !won && hurtOk && errors.length === 0;
+console.log(ok ? 'PASS' : 'FAIL', expectWin ? 'the Guardian is freed' : opts.idle ? `a hero who stands still was set back ${info.log.deaths} times and did not win` : 'a fight that must not be won was not won', errors.length ? `(${errors.length} errors)` : '');
 process.exit(ok ? 0 : 1);

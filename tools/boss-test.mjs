@@ -103,6 +103,19 @@ function breakFists(b, h) {
   d.waves.push({ x: 0, z: 0, r: 5, max: 12, hit: false });
   run(d, 3, hero(10, 0, 1.2));
   check('a ring that has reached its radius is gone (nothing lingers)', d.waves.length === 0, `(${d.waves.length} rings)`);
+  // a ring dies out: a hero 20 m from where a slam landed is not reached by it in any phase (it reaches 9, 14 and 16 m)
+  for (const lit of [0, 1, 2]) {
+    const r = fighting(lit, 30, 0);
+    run(r, 12, hero(30, 0), {}, 'slam');                           // (the first slam lands on him)
+    const far = run(r, 3, hero(30, 20));                           // (and he is 20 m away before the ring has gone a few metres: the next slam is a couple of seconds off; only that first ring is counted)
+    const fromFirst = far.filter((e) => e.type === 'hit' && e.what === 'wave' && Math.hypot(e.fx - 30, e.fz) < 1.5).length;
+    check(`a ring dies out: 20 m from where the slam landed the hero is not reached by it (phase ${lit}, it reaches ${G.slam.waveMax[lit]} m)`, fromFirst === 0, `(${fromFirst} hits from the first ring)`);
+  }
+  const e = fighting(0, 10, 0);
+  e.slamT = 99;
+  e.waves.push({ x: 0, z: 0, r: 5, max: 12, hit: false });
+  ev = run(e, 1.5, { x: 10, y: 0, z: 0, r: 0.55, invuln: true });
+  check('a hero who is blinking untouchable (after a hit) is not hurt by the ring that runs over him', hitsOf(ev, 'wave') === 0 && count(ev, 'hit') === 0, `(${hitsOf(ev, 'wave')} hits)`);
 }
 
 // ---- the stuck fist and the ram ---------------------------------------------------------------------------------------------------------------
@@ -192,6 +205,13 @@ function breakFists(b, h) {
   const inv = fighting(2, 30, 0);
   const ev2 = run(inv, 30, { x: 30, y: 0, z: 0, r: 0.55, invuln: true });
   check('a hero who cannot be hurt (the blink after a hit) is not hurt, whatever lands on him', count(ev2, 'hit') === 0 && count(ev2, 'slam') > 0, `(${count(ev2, 'slam')} slams, ${count(ev2, 'hit')} hits)`);
+  const invB = run(fighting(1, 30, 0), 12, { x: 30, y: 0, z: 0, r: 0.55, invuln: true });
+  check('... nor by a bolt that flies into him (it still bursts)', hitsOf(invB, 'bolt') === 0 && count(invB, 'bolt-burst') >= 1, `(${count(invB, 'bolt')} bolts, ${count(invB, 'bolt-burst')} bursts, ${hitsOf(invB, 'bolt')} hits)`);
+  const invG = run(fighting(2, 30, 0), 14, { x: 30, y: 0, z: 0, r: 0.55, invuln: true });
+  check('... nor by a circle of gloom that bursts under him', hitsOf(invG, 'gloom') === 0 && count(invG, 'gloom-burst') >= 5, `(${count(invG, 'gloom-burst')} bursts, ${hitsOf(invG, 'gloom')} hits)`);
+  // (and the same three, to a hero who can be hurt, do hurt: the checks above are not empty)
+  const hurt = run(fighting(2, 30, 0), 30, hero(30, 0));
+  check('(the same hero without the blink is hit by all of them: a slam, a bolt and a circle of gloom)', hitsOf(hurt, 'slam') >= 1 && hitsOf(hurt, 'bolt') >= 1 && hitsOf(hurt, 'gloom') >= 1, `(${hitsOf(hurt, 'slam')} slam, ${hitsOf(hurt, 'bolt')} bolt, ${hitsOf(hurt, 'gloom')} gloom)`);
   const script = (t) => hero(Math.cos(t * 0.6) * 20, Math.sin(t * 0.6) * 20);
   const A = JSON.stringify(run(fighting(2, 20, 0), 25, script)), B = JSON.stringify(run(fighting(2, 20, 0), 25, script));
   check('the same hero does the same fight twice: the same events at the same moments (no random numbers but the brain\'s own)', A === B && A.length > 200, `(${A.length} bytes)`);
