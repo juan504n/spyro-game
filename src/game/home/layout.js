@@ -354,8 +354,11 @@ function layoutAscent(ctx) {
   const G = L.guard;
   lampsAlong(ctx, 'ascent', 22, 8);
   const gx = G.x, gz = G.z + 6;
-  put('gate_pillars', gx, gz, { rot: 0 }, 8);
-  const gate = ctx.anchor('gate_pillars', 'barrier', gx, gz, { rot: 0 });
+  // (the gate stands on the ground of its FRONT edge: the Ascent climbs towards it, and its threshold slab, 14 cm over where it is set, was 66 cm over the ground where the hero comes to it - 4 cm more than he can step -
+  // so that, now that a door of light stands in the opening and he is to walk into it, the first thing in his way was a step he could not take)
+  const gy = Math.min(h(gx, gz), h(gx - 2.4, gz + 2.5), h(gx + 2.4, gz + 2.5)) - 0.1;
+  put('gate_pillars', gx, gz, { rot: 0, y: gy }, 8);
+  const gate = ctx.anchor('gate_pillars', 'barrier', gx, gz, { rot: 0, y: gy });
   gp.barrier = { x: gate ? gate[0] : gx, y: gate ? gate[1] - 5.75 : h(gx, gz), z: gate ? gate[2] : gz, yaw: 0 };       // sealed until the lanterns of every realm burn (Game.openGate)
   gp.soundSources.push({ name: 'portal_hum', x: gp.barrier.x, y: gp.barrier.y + 4, z: gp.barrier.z, range: 40, vol: 1.2, when: 'barrier' });
   gp.hints.push({ x: gx, z: gz + 12, r: 11, text: 'THE GUARDIAN\'S GATE IS SEALED. IT WILL OPEN WHEN THE LANTERNS OF EVERY REALM BURN', dur: 7, shut: true });

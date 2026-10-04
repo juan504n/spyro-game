@@ -9,6 +9,7 @@ import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { installDriver } from './lib/boss-driver.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASE = process.env.GV_URL || 'http://127.0.0.1:5173/';
@@ -28,62 +29,7 @@ await page.goto(BASE + '?world=guardian&preserve=1');
 await page.waitForFunction(() => window.__ready || window.__error, null, { timeout: 180000 });
 const err = await ev(() => window.__error);
 if (err) { console.log('BOOT ERROR', String(err).slice(0, 400)); process.exit(1); }
-await page.addScriptTag({ content: fs.readFileSync(path.join(root, 'tools/bot-inject.js'), 'utf8') });
-await ev(async (opts) => {
-  const mod = await import('/tools/lib/duel.mjs');
-  const G = window.__game, bot = window.__bot, app = window.__app;
-  window.__appUpdate = app.update.bind(app);                              // (bot.install() stops the real-time loop: the bot drives the app's own update, so that the ending plays)
-  bot.install();
-  const mem = {}, prev = { jump: false, flame: false, charge: false };
-  const snap = () => {
-    const p = G.player, cfg = G.boss.cfg, B = G.boss.brain;
-    return {
-      t: G.time,
-      hero: { x: p.x, y: p.y, z: p.z, yaw: p.yaw, dirx: p.dirx, dirz: p.dirz, vx: p.vx, vz: p.vz, vy: p.vy, grounded: p.grounded, up: Math.max(0, p.y - G.collision.heightAt(p.x, p.z)), canAct: p.canAct, dead: p.dead, chargeT: p.chargeT, flameT: p.flameT, flameCd: p.flameCd, chargeCd: p.chargeCd },
-      arena: { cx: cfg.x, cz: cfg.z, r: cfg.arenaR, bodyR: cfg.bodyR, pillars: cfg.pillars },
-      boss: { mode: B.mode, sub: B.sub, lit: B.lit, phase: B.phase, crown: B.crown, contact: B.contact, charge: B.charge, fists: B.fists.map((f) => ({ ...f })), waves: B.waves.map((w) => ({ ...w })), bolts: B.bolts.map((b) => ({ ...b })), circles: B.circles.map((c) => ({ ...c })), lanternPos: (j) => B.lanternPos(j) },
-      enemies: G.enemies.list.filter((e) => e.state !== 'dead').map((e) => ({ x: e.x, z: e.z, variant: e.variant })),
-    };
-  };
-  const apply = (a) => {
-    const ctl = bot.ctl, Y = G.cam.yaw;
-    ctl.my = (a.dx * Math.sin(Y) + a.dz * Math.cos(Y)) * a.mag; ctl.mx = (-a.dx * Math.cos(Y) + a.dz * Math.sin(Y)) * a.mag;
-    ctl.jump = !!a.jump; if (a.jump && !prev.jump) bot.edge('jump');
-    ctl.flame = !!a.flame; if (a.flame && !prev.flame) bot.edge('flame');
-    ctl.charge = !!a.charge; if (a.charge && !prev.charge) bot.edge('charge');
-    prev.jump = !!a.jump; prev.flame = !!a.flame; prev.charge = !!a.charge;
-  };
-  const log = { events: [], hits: 0, deaths: 0, byWhat: {}, cracks: 0, lit: 0, lost: 0, maxHelpers: 0, kills: 0 };
-  const B = G.boss.brain, orig = B.emit.bind(B);
-  B.emit = (t, o) => {
-    const rec = `${B.t.toFixed(1)}s ${t}${o && o.what ? ' ' + o.what : ''}${o && o.n ? ' ' + o.n : ''}${o && o.phase !== undefined ? ' p' + o.phase : ''}`;
-    if (!/^(\d|\.)+s (slam-telegraph|slam-lock|bolt-burst|gloom-burst|bolt|gloom)$/.test(rec)) log.events.push(rec);
-    if (t === 'hit') { log.hits++; log.byWhat[o.what] = (log.byWhat[o.what] || 0) + 1; }
-    if (t === 'crack') log.cracks++;
-    if (t === 'lit') log.lit++;
-    if (t === 'window-lost') log.lost++;
-    orig(t, o);
-  };
-  G.on('enemy', () => { log.kills++; });
-  window.__fight = {
-    log, mem,
-    /** n frames of policy + the game's own update: returns where the fight is */
-    run(n, popts) {
-      for (let i = 0; i < n; i++) {
-        if (B.mode === 'freed') break;
-        if (G.hud.talking) { bot.edge('confirm'); }
-        if (i % 3 === 0 || !window.__fight.act) window.__fight.act = mod.policy(snap(), mem, popts);
-        apply(window.__fight.act);
-        window.__appUpdate(1 / 60);
-        if (G.player.dead && !window.__fight.wasDead) { log.deaths++; window.__fight.wasDead = true; }
-        if (!G.player.dead) window.__fight.wasDead = false;
-        log.maxHelpers = Math.max(log.maxHelpers, G.boss.helpers.filter((h) => h.state !== 'dead').length);
-      }
-      const p = G.player;
-      return { t: +B.t.toFixed(1), mode: B.mode, sub: B.sub, lit: B.lit, fists: B.fists.map((f) => f.state).join('/'), hero: [+p.x.toFixed(1), +p.z.toFixed(1)], hp: G.sparx.hp, dead: p.dead, hits: log.hits, deaths: log.deaths, cracks: log.cracks, state: window.__app.state };
-    },
-  };
-}, opts);
+await installDriver(page, root);
 
 // ---- up the gorge road to the court (the real walk, door to mouth) ---------------------------------------------------------------------------------
 const walk = await ev(() => { const r = window.__bot.goto(0, 16, { tol: 2, timeout: 40, auto: true }); return { ...r, at: window.__bot.state() }; });
@@ -117,7 +63,7 @@ let endingOk = true;
 if (won && flag('ending')) {
   const states = [];
   for (let i = 0; i < 400; i++) {
-    const r = await ev(() => { const F = window.__fight; for (let k = 0; k < 30; k++) { if (window.__game.hud.talking) window.__bot.edge('confirm'); if (window.__app.state === 'credits' || window.__app.state === 'endresults') { window.__bot.edge('confirm'); window.__game.input.uiEdge.confirm = true; } window.__appUpdate(1 / 60); } return { state: window.__app.state, mode: window.__game.mode, talking: window.__game.hud.talking, locked: window.__game.locked }; });
+    const r = await ev(() => { for (let k = 0; k < 30; k++) { if (window.__game.hud.talking) window.__bot.edge('confirm'); if (window.__app.state === 'credits' || window.__app.state === 'endresults') { window.__bot.edge('confirm'); window.__game.input.uiEdge.confirm = true; } window.__appUpdate(1 / 60); } return { state: window.__app.state, mode: window.__game.mode, talking: window.__game.hud.talking, locked: window.__game.locked }; });
     if (!states.length || states[states.length - 1] !== r.state) states.push(r.state);
     if (r.state === 'play' && r.mode === 'complete') break;
   }

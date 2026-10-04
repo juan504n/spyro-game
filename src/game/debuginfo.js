@@ -286,6 +286,7 @@ export function collect(game, extra = {}) {
     colliders: nearestColliders(game.collision, p.x, p.z, 2, 14, p.y),
     hints: hintZonesAt(game, p.x, p.z, p.y),
     trail: (game.trail || []).slice(-12),
+    boss: game.boss ? bossFacts(game.boss) : null,
     aim: null,
     extra,
   };
@@ -313,6 +314,9 @@ export function colliderText(c) {
   return `${shape} y ${f1(c.y0)}-${f1(c.y1)}${c.top ? ' top' : ''}${c.solid === false ? ' (off)' : ''}`;
 }
 const colliderName = (c) => (c.prop ? `${c.prop.name}${src(c.prop)}` : `${c.tag || 'collider'}${c.src ? ` [${c.src}]` : ''}`);
+
+/** The Guardian's state for the readout (the Court only): what he is doing, the phase, the lanterns, his fists, the hits the hero has taken */
+const bossFacts = (b) => { const B = b.brain; return { mode: B.mode, sub: B.sub, phase: B.phase, lit: B.lit, fists: B.fists.map((f) => f.state), crown: num(B.crown), hits: b.hitsTaken, helpers: b.helpers.filter((h) => h.state !== 'dead').length }; };
 
 /** "12s DROWNED x14": one line of the trail (the seconds the game has run, the thing, how many times running) */
 export const trailText = (e) => `${Math.round(e.t)}s ${e.text}${e.n > 1 ? ` x${e.n}` : ''}`;
@@ -350,6 +354,7 @@ export function format(data, level = 1) {
     row('COLL', `${f1(d)} m ${colliderText(c)}  ${colliderName(c)}`);
   }
   for (const h of data.hints) row('HINT', trim(h.text, 34) + src(h), 'dim');
+  if (data.boss) { const b = data.boss; row('BOSS', `${b.mode}${b.sub ? '/' + b.sub : ''}  phase ${b.phase}  lit ${b.lit}/3  fists ${b.fists.join(' ')}  crown ${f1(b.crown)}  hits ${b.hits}${b.helpers ? `  Snuffers ${b.helpers}` : ''}`, 'dim'); }
   // what happened lately (the last one in the compact readout, the last five in the full): how he came to stand where he does
   const tr = data.trail || [];
   if (tr.length) row('TRAIL', tr.slice(level > 1 ? -5 : -1).map(trailText).join('  |  '), 'dim');
