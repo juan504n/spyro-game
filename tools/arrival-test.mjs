@@ -9,7 +9,7 @@ import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 import { standing, standOk } from './lib/standing.mjs';
 
 const BASE = process.env.GV_URL || 'http://127.0.0.1:5173/';
-const WORLDS = process.argv.slice(2).length ? process.argv.slice(2) : ['gloaming', 'home', 'frostbloom', 'emberfall', 'skyweaver', 'tideglass'];       // (the Guardian's Court joins the list when it is built)
+const WORLDS = process.argv.slice(2).length ? process.argv.slice(2) : ['gloaming', 'home', 'frostbloom', 'emberfall', 'skyweaver', 'tideglass', 'guardian'];
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 640, height: 480 } });
 const errors = [];

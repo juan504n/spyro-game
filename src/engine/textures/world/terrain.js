@@ -515,6 +515,37 @@ function paintRuneRing() {
   return c;
 }
 
+/**
+ * The Guardian's Court (guardian/layout.js `court_runes`): the rings of runes in its floor, drawn ADDITIVELY (black is nothing, the rings are light), one disc of it the size of the court. Three rings
+ * (a thin one at 0.38 of the radius, a broad one at 0.63 - where the pillars stand - and a bright one at 0.8), eight ticks between the outer two, a dot on the bright one every 22.5 degrees and a star
+ * in the middle. Not tiled; 64 x 64, like the other glow textures.
+ */
+function paintCourtRunes() {
+  const N = 64, c = new Canvas(N, N, false, '#000000'), V = RAMPS.crystalViolet, G = ['#5a3a10', '#a87818', '#e8b83c', '#fff0a0'];
+  const cx = N / 2, cy = N / 2, R = N / 2 - 1;
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const dx = x + 0.5 - cx, dy = y + 0.5 - cy, r = Math.hypot(dx, dy) / R, ang = Math.atan2(dy, dx);
+      let k = null;
+      const ring = (r0, w, col, halo = 0) => {
+        const d = Math.abs(r - r0);
+        if (d < w) k = col; else if (halo && d < w + halo && !k) k = V[1];
+      };
+      ring(0.38, 0.012, V[3], 0.02);
+      ring(0.63, 0.03, V[4], 0.025);
+      ring(0.8, 0.018, V[5], 0.03);
+      ring(0.955, 0.012, V[2]);
+      const seg = (ang + Math.PI) / (Math.PI / 4), near = Math.abs(seg - Math.round(seg));
+      if (r > 0.66 && r < 0.77 && near < 0.07) k = V[3];                                      // (the eight ticks, between the broad ring and the bright one)
+      const dot = (ang + Math.PI) / (Math.PI / 8), nd = Math.abs(dot - Math.round(dot));
+      if (Math.abs(r - 0.8) < 0.05 && nd * r * (Math.PI / 8) * R < 0.9) k = G[3];              // (the gold dots on the bright ring)
+      if (r < 0.14) k = Math.abs(((ang + Math.PI) / (Math.PI / 4)) % 1 - 0.5) < 0.18 ? G[2] : r < 0.07 ? G[1] : V[2];   // (the star in the middle)
+      if (k) c.set(x, y, k);
+    }
+  }
+  return c;
+}
+
 
 // ---------------------------------------------------------------------------------------------
 // Ash and cinder (Emberfall Crags): the ground of the burnt country. Ash is warm grey drifts with wind ripples, clinker (dark cinders) and pale flecks; cinder is scorched earth, nearly black,
@@ -704,5 +735,6 @@ export function terrainTextures() {
     cliff_warm_bare: rec(cliffWarmBare(), true, false, { roll: 'x' }),
     far_rock: rec(paintFarRock(), true, false),
     rune_ring: rec(paintRuneRing(), false, false),
+    rune_court: rec(paintCourtRunes(), false, false),
   };
 }

@@ -9,6 +9,7 @@ import { TRAVEL_PLACES as TRAVEL_FROSTBLOOM } from './frostbloom/travel.js';
 import { TRAVEL_PLACES as TRAVEL_EMBERFALL } from './emberfall/travel.js';
 import { TRAVEL_PLACES as TRAVEL_SKYWEAVER } from './skyweaver/travel.js';
 import { TRAVEL_PLACES as TRAVEL_TIDEGLASS } from './tideglass/travel.js';
+import { TRAVEL_PLACES as TRAVEL_GUARDIAN } from './guardian/travel.js';
 // <realm-travel-imports>  (tools/realm-travel.mjs adds the import of a realm's places above this line)
 const PI = Math.PI;
 /** the yaw that looks from (x, z) towards (tx, tz) */
@@ -102,6 +103,7 @@ export const TRAVEL = [
   TRAVEL_EMBERFALL,
   TRAVEL_SKYWEAVER,
   TRAVEL_TIDEGLASS,
+  TRAVEL_GUARDIAN,
   // <realm-travel-entries>  (tools/realm-travel.mjs adds the entry of a realm's places above this line)
 ];
 

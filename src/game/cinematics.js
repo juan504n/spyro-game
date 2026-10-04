@@ -81,3 +81,19 @@ export function finaleShot(game, beacon, portal = null, dur = 13, lead = 6.2) {
     return { pos: [0, 1, 2].map((i) => lerp(end.pos[i], a.pos[i], w)), look: [0, 1, 2].map((i) => lerp(end.look[i], a.look[i], w)), fov: lerp(end.fov, a.fov, w) };
   };
 }
+
+/**
+ * The Guardian's Gate opens (Dawnhaven, when the fifth realm burns: App._gateCeremony): the camera stands on the road 30 m in front of the gate, low, looking at the field between the pillars; it comes
+ * closer as the field dissolves and the door of light is lit in its place, and climbs the beam that rises out of it. `b` is the gate's barrier record in the gameplay data (x, y = the floor, z).
+ */
+export function gateShot(b) {
+  const gx = b.x, gy = b.y, gz = b.z;
+  return (t, k) => {
+    const u = ease(clamp(k, 0, 1)), up = ease(clamp((k - 0.64) / 0.36, 0, 1));
+    return {
+      pos: [gx + lerp(-15, 6, u), gy + lerp(4.2, 7.0, u) + up * 54, gz + lerp(30, 20, u) + up * 10],
+      look: [gx, gy + 6.5 + up * 52, gz],
+      fov: lerp(56, 62, u) + up * 8,
+    };
+  };
+}

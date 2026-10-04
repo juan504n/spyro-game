@@ -10,6 +10,7 @@ import { REALM as FROSTBLOOM } from './frostbloom/index.js';
 import { REALM as EMBERFALL } from './emberfall/index.js';
 import { REALM as SKYWEAVER } from './skyweaver/index.js';
 import { REALM as TIDEGLASS } from './tideglass/index.js';
+import { REALM as GUARDIAN } from './guardian/index.js';
 // <realm-imports>  (tools/new-realm.mjs adds the import of a new realm above this line)
 
 /**
@@ -44,6 +45,7 @@ export const REALMS = {
   emberfall: EMBERFALL,
   skyweaver: SKYWEAVER,
   tideglass: TIDEGLASS,
+  guardian: GUARDIAN,
   // <realm-entries>  (tools/new-realm.mjs adds the entry of a new realm above this line)
 };
 

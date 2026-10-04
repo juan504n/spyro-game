@@ -22,6 +22,7 @@ import { ObjectSystem } from './systems/objects.js';
 import { Ambient } from './systems/ambient.js';
 import { NpcSystem } from './systems/npc.js';
 import { PortalSystem } from './systems/portals.js';
+import { BossSystem } from './systems/boss.js';
 import { realmsDone } from './progress.js';
 import { WATER_LEVEL } from './level.js';
 import { tideLevel, tideLow, tideHigh, drownDepth } from './realm/tide.js';
@@ -52,6 +53,8 @@ export class Game {
     this.progress = opts.progress || null;
     this.from = opts.from || null;
     this.restored = !!opts.restored;
+    this.freed = !!opts.freed;                                           // (the Guardian's Court, entered after the ending: he sits quiet on his dais)
+    this.gateMode = opts.gate || null;                                   // (Dawnhaven: 'open' = the Guardian's Gate stands open already, 'ceremony' = it opens when he arrives (App._gateCeremony), else it is shut)
     this.populate = opts.populate || this.realm.populate || null;
     this.withSystems = opts.systems !== false;
     this.time = 0;
@@ -105,7 +108,7 @@ export class Game {
     this.overlay = this.counter.overlay;
     if (this.gameplay.gemsTotal) this.stats.gemsTotal = this.gameplay.gemsTotal;
     // what the lanterns on the HUD count: a realm's goal objects, or the doors of the homeworld (one for each realm)
-    this.stats.beaconsTotal = (this.realm.kind === 'homeworld' ? (this.gameplay.portals || []).filter((q) => q.kind === 'door').length : (this.gameplay.beacons || []).length) || 5;
+    this.stats.beaconsTotal = (this.realm.kind === 'homeworld' ? (this.gameplay.portals || []).filter((q) => q.kind === 'door' && !q.gate).length : this.gameplay.boss ? this.gameplay.boss.lanterns : (this.gameplay.beacons || []).length) || 5;       // (the Guardian's Court: the three lanterns of his crown)
     // a world with a fixed hour (the homeworld is always at daybreak) starts and stays there; the realm's day follows its lanterns
     if (this.realm.day !== undefined && this.realm.day !== null) this.day = this.dayTarget = this.realm.day;
     // what the lanterns on the HUD count: the beacons of a realm, the restored realms in the homeworld
@@ -137,10 +140,12 @@ export class Game {
       this.ambient = new Ambient(this, this.world.lights || [], this.world.emitters || []);
       this.npcs = new NpcSystem(this, gp.npcs || [], gp.hints || []);
       this.portals = new PortalSystem(this, gp.portals || []);
+      this.boss = gp.boss ? new BossSystem(this, gp.boss, { freed: !!this.freed }) : null;               // (the Guardian's Court: systems/boss.js)
       // step order: abilities/AI first, then pickups
-      this.systems = [this.sparx, this.beacons, this.enemies, this.critters, this.objects, this.gems, this.ambient, this.npcs, this.portals];
+      this.systems = [this.sparx, this.beacons, this.enemies, this.critters, this.objects, this.gems, this.ambient, this.npcs, this.portals, ...(this.boss ? [this.boss] : [])];
       this.on('beacon', (b, n) => this.onBeacon(b, n));
       if (this.restored) this._restore();
+      if (this.realm.kind === 'homeworld') this._gateAtBuild();
     }
     this.buildTime = performance.now() - t0;
     await progress(1, 'READY');
@@ -157,6 +162,24 @@ export class Game {
     this.beacons?.restore();
     this.objects?.restore();
     this.portals?.restore();
+  }
+
+  /**
+   * Dawnhaven's gate as the hero finds it: open already (he has seen it open, or comes in by the title's visit or the TRAVEL menu: no ceremony) with its door of light and its beam at rest, or shut (and, in
+   * 'ceremony' mode, about to open before his eyes when he arrives: App._gateCeremony). Once the Guardian is free the beam and the door's light are gold.
+   */
+  _gateAtBuild() {
+    if (this.gateMode === 'open') { this.objects?.openBarrierAtOnce(); this.portals?.openGateAtOnce(); }
+    if (this.progress && this.progress.guardian && this.progress.guardian.freed) this.portals?.gildGate();
+  }
+
+  /** The Guardian's Gate opens: the field between the pillars dissolves (a rumble), and a moment later a door of light stands in its place and a beam climbs into the sky. */
+  openGate() {
+    if (!this.objects || !this.objects.barrier || !this.portals || !this.portals.get('guardian')) return false;
+    this.objects.openBarrier();
+    this.after(1.7, () => this.portals.pop('guardian'));
+    this.note('THE GATE OPENS');
+    return true;
   }
 
   /**
@@ -263,6 +286,7 @@ export class Game {
     this.cam.snapBehind(p);
     this.audio?.sfx('respawn');
     this.fx.puff(c.x, c.y + 0.5, c.z, 1);
+    this.emit('respawned');                                // (the Guardian begins the phase again: systems/boss.js)
   }
 
   onBeacon(b, n) {

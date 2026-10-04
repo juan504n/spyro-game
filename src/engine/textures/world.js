@@ -71,6 +71,7 @@ export const WORLD_TEXTURE_NOTES = {
   cliff_warm_bare: 'Sandstone variant of cliff_bare (the Ember Canyon\'s walls).',
   far_rock: 'Three close colours, no fine detail, for distant mountains so they read smooth under fog; 32px = 16+ units.',
   rune_ring: 'NOT tiled. Dark slab with a pale glowing rune ring; a decal quad ~6 units wide under each lantern plinth (ring radius = 0.8 of the half width, centre hub is dark).',
+  rune_court: 'NOT tiled, ADDITIVE (black is nothing): the rings of runes in the Guardian\'s Court, one disc of it the size of the court - a thin ring at 0.38 of the radius, a broad one at 0.63, a bright one at 0.8 with gold dots, eight ticks between, a star in the middle.',
   // buildings
   brick: 'Lavender-grey running-bond stone bricks (16x8 px per brick); 32px = 3 units (bricks 1.5 x 0.75).',
   brick_warm: 'Terracotta bricks with cream mortar; same layout and scale as brick.',

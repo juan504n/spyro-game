@@ -356,9 +356,19 @@ function layoutAscent(ctx) {
   const gx = G.x, gz = G.z + 6;
   put('gate_pillars', gx, gz, { rot: 0 }, 8);
   const gate = ctx.anchor('gate_pillars', 'barrier', gx, gz, { rot: 0 });
-  gp.barrier = { x: gate ? gate[0] : gx, y: gate ? gate[1] - 5.75 : h(gx, gz), z: gate ? gate[2] : gz, yaw: 0 };       // sealed for good: nothing opens it (yet)
+  gp.barrier = { x: gate ? gate[0] : gx, y: gate ? gate[1] - 5.75 : h(gx, gz), z: gate ? gate[2] : gz, yaw: 0 };       // sealed until the lanterns of every realm burn (Game.openGate)
   gp.soundSources.push({ name: 'portal_hum', x: gp.barrier.x, y: gp.barrier.y + 4, z: gp.barrier.z, range: 40, vol: 1.2, when: 'barrier' });
-  gp.hints.push({ x: gx, z: gz + 12, r: 11, text: 'THE GUARDIAN\'S GATE IS SEALED. IT WILL OPEN WHEN THE LANTERNS OF EVERY REALM BURN', dur: 7 });
+  gp.hints.push({ x: gx, z: gz + 12, r: 11, text: 'THE GUARDIAN\'S GATE IS SEALED. IT WILL OPEN WHEN THE LANTERNS OF EVERY REALM BURN', dur: 7, shut: true });
+  // the way through, once the gate has opened: a door of light that fills the opening between the pillars (6 m wide, under a lintel at 11.5: the pillars hold the sides, so that the only way on is into the light),
+  // a beam that marks it from every corner of Dawnhaven, the hum of it, and the place the hero comes out of it when he comes home from the Court
+  {
+    const b = gp.barrier;
+    gp.portals.push({ id: 'guardian', name: 'THE GUARDIAN\'S COURT', tag: 'THE LAST PLACE', kind: 'door', shape: 'arch', gate: true, x: b.x, y: b.y, z: b.z, yaw: 0, r: 2.95, hs: 8.4, cy: 8.5, color: [0.78, 0.6, 1.0], target: 'guardian', state: 'closed', beam: { height: 190, radius: 2.6 } });
+    const ax = b.x, az = b.z + 11;
+    gp.arrivals.guardian = { x: ax, y: h(ax, az), z: az, yaw: 0 };
+    gp.soundSources.push({ name: 'portal_hum', x: b.x, y: b.y + 5, z: b.z, range: 50, vol: 1.3, when: 'portal:guardian' });
+    gp.hints.push({ x: gx, z: gz + 12, r: 11, text: 'THE GUARDIAN\'S GATE STANDS OPEN. WALK INTO THE LIGHT: THE COURT OF THE LANTERNS LIES BEYOND', dur: 7, open: true });
+  }
   for (const side of [-1, 1]) {
     put('torch_stand', gx + side * 7.5, gz + 11, {}, 1.5);
     put('rock_cluster', gx + side * 13, gz + 6, { rot: side, count: 3 }, 6);

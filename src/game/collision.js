@@ -33,18 +33,34 @@ export class Collision {
     if (c.solid === undefined) c.solid = true;
     if (c.cam === undefined) c.cam = !c.top && (c.type === 'cyl' ? c.r : Math.max(c.hx, c.hz)) >= CAM_BLOCK_SIZE;     // (may it hold the camera back?)
     this.colliders.push(c);
-    // (+ the largest entity radius: near() only looks at the entity's own cell, so a collider must also be listed in the
-    // neighbouring cells an entity touching it can stand in)
-    const ext = (c.type === 'cyl' ? c.r : Math.hypot(c.hx, c.hz)) + 0.75;
-    const i0 = Math.floor((c.x - ext) / this.cell), i1 = Math.floor((c.x + ext) / this.cell);
-    const j0 = Math.floor((c.z - ext) / this.cell), j1 = Math.floor((c.z + ext) / this.cell);
-    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
-      const k = this._key(i, j);
+    for (const k of this._cells(c)) {
       let b = this.buckets.get(k);
       if (!b) { b = []; this.buckets.set(k, b); }
       b.push(c);
     }
     return c;
+  }
+
+  /** Take a collider out of the world (a stone fist that has pulled free: the Guardian's, systems/boss.js). Static props never need it: a thing that is only switched off sets `solid = false`. */
+  remove(c) {
+    const i = this.colliders.indexOf(c);
+    if (i < 0) return false;
+    this.colliders.splice(i, 1);
+    for (const k of this._cells(c)) {
+      const b = this.buckets.get(k), j = b ? b.indexOf(c) : -1;
+      if (j >= 0) { b.splice(j, 1); if (!b.length) this.buckets.delete(k); }
+    }
+    return true;
+  }
+
+  /** The keys of the bucket cells a collider is listed in (+ the largest entity radius: near() only looks at the entity's own cell, so a collider must also be listed in the neighbouring cells an entity touching it can stand in) */
+  _cells(c) {
+    const ext = (c.type === 'cyl' ? c.r : Math.hypot(c.hx, c.hz)) + 0.75;
+    const i0 = Math.floor((c.x - ext) / this.cell), i1 = Math.floor((c.x + ext) / this.cell);
+    const j0 = Math.floor((c.z - ext) / this.cell), j1 = Math.floor((c.z + ext) / this.cell);
+    const out = [];
+    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) out.push(this._key(i, j));
+    return out;
   }
 
   /** colliders whose bucket contains (x,z) (may include far-away members of big colliders; callers test exactly) */

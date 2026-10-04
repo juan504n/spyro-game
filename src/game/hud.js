@@ -107,6 +107,8 @@ export class Hud {
     }
     // ---- the tide (a realm that has one) -----------------------------------------------------------------------------------
     if (g.tide) this._drawTide(pix, W);
+    // ---- the Guardian (the Court's boss) ---------------------------------------------------------------------------------------
+    if (g.boss) { this._drawBoss(pix, W); this._drawThreats(pix, W, H); }
     // ---- banner ------------------------------------------------------------------------------------------------------
     if (this.bannerState) {
       const b = this.bannerState;
@@ -134,6 +136,63 @@ export class Hud {
     }
     // ---- dialogue ------------------------------------------------------------------------------------------------------
     if (this.dlg) this._drawDialogue(pix);
+  }
+
+  /**
+   * The Guardian's bar, top centre, while he is awake: his two fists (a block of stone each: lit while it floats, dark once the ram has broken it), and when he stoops the two things that matter for nine
+   * seconds: how long the crown stays down (gold, red when it is nearly gone) and how far the flame has taken the lantern (white-hot).
+   */
+  _drawBoss(pix, W) {
+    const s = this.game.boss.hudState();
+    if (!s.show) return;
+    const w = 122, x = (W - w) >> 1, y = 4, windowOn = s.windowOn, fight = s.mode === 'fight' || s.mode === 'waking';
+    drawPanel(pix, x, y, w, windowOn ? 40 : fight ? 28 : 17, { style: 'hud' });
+    drawText(pix, 'THE GUARDIAN', x + (w >> 1), y + 4, { style: 'grad', align: 'center', colors: GOLD, outlineColor: INK });
+    if (fight) {
+      const pulse = (Math.floor(this.t * 4) & 1) === 0;
+      s.fists.forEach((alive, i) => {
+        const px = x + (w >> 1) - 15 + i * 18, py = y + 15;
+        pix.rect(px - 1, py - 1, 14, 10, INK);
+        if (alive) { pix.rect(px, py, 12, 8, '#5a4aa8'); pix.rect(px + 1, py + 1, 10, 3, '#8a78d8'); pix.rect(px + 5, py + 3, 2, 3, pulse ? '#e8e0ff' : '#9ae8e0'); } else { pix.rect(px, py, 12, 8, '#241a40'); pix.rect(px + 2, py + 3, 8, 1, '#4a3a78'); }
+      });
+    } else if (windowOn) {
+      const bx = x + 8, bw = w - 16, bar = (by, k, fill, back) => {
+        pix.rect(bx - 1, by - 1, bw + 2, 7, INK); pix.rect(bx, by, bw, 5, back);
+        const f = Math.round(bw * Math.max(0, Math.min(1, k)));
+        if (f > 0) pix.rect(bx, by, f, 5, fill);
+        if (f > 1) pix.rect(bx + f - 1, by, 1, 5, '#ffffff');
+      };
+      bar(y + 15, s.window, s.window < 0.3 ? ((Math.floor(this.t * 6) & 1) ? '#ff5a40' : '#ffa060') : '#ffc03c', '#3a2a60');
+      bar(y + 26, s.flame, s.flame > 0.7 ? '#fff4b0' : '#ff8a30', '#3a2a60');
+    }
+  }
+
+  /**
+   * Arrows at the edge of the screen for the Guardian's dangers that are not on it (hud state `threats`: the circles that will fall, the rings that run, the bolts): in the direction of each from the way the
+   * camera looks, amber while it is coming and red, bigger and blinking, when it is about to land. A danger in front of the hero is on the floor for him to see, and has no arrow.
+   */
+  _drawThreats(pix, W, H) {
+    const g = this.game, s = g.boss.hudState();
+    if (!s.show || !s.threats || !s.threats.length || g.player.dead || g.mode !== 'play') return;
+    const p = g.player, yaw = g.cam.yaw, fx = Math.sin(yaw), fz = Math.cos(yaw), rx = -Math.cos(yaw), rz = Math.sin(yaw);
+    const blink = (Math.floor(this.t * 8) & 1) === 0;
+    let n = 0;
+    for (const t of s.threats) {
+      const dx = t.x - p.x, dz = t.z - p.z, d = Math.hypot(dx, dz);
+      if (d < 1.5) continue;                                                              // (he is standing in it: the floor says so)
+      const th = Math.atan2(dx * rx + dz * rz, dx * fx + dz * fz);                      // 0 straight ahead, positive to the right
+      if (Math.abs(th) < 0.8 && d < 26) continue;                                         // (in front of him, near: he sees it)
+      if (++n > 6) break;
+      const ex = W / 2 + Math.sin(th) * (W / 2 - 20), ey = H / 2 - Math.cos(th) * (H / 2 - 56) + 4;       // (an ellipse inside the screen: the hint panel lives at the bottom edge)
+      const col = t.hot ? (blink ? '#ffffff' : '#ff3a2a') : '#ffb030', size = t.hot ? 9 : 7;
+      const ux = Math.sin(th), uy = -Math.cos(th);                                        // (the way it points: out of the screen's middle)
+      for (let j = -14; j <= 14; j++) for (let i = -14; i <= 14; i++) {
+        const a = (i * ux + j * uy) / size, b = (-i * uy + j * ux) / size;                // (a: along the arrow, b: across it)
+        if (a < -0.9 || a > 1.0 || Math.abs(b) > (1.0 - a) * 0.8 + 0.05) continue;
+        const edge = a < -0.75 || a > 0.85 || Math.abs(b) > (1.0 - a) * 0.8 - 0.1;
+        pix.rect(Math.round(ex + i), Math.round(ey + j), 1, 1, edge ? INK : col);
+      }
+    }
   }
 
   /** The tide's gauge, under the goals: the water's height between its low and its high (a notch at the mean), and an arrow for the way it is going: orange up while it comes in, green down while it goes out. */

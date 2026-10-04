@@ -4,7 +4,7 @@ import { Game } from './game.js';
 import { REALMS } from './realms.js';
 import { Assets } from './assets.js';
 import { Input } from './input.js';
-import { loadProgress, noteRealmDone, noteRealmGems, noteSecret, realmsDone } from './progress.js';
+import { loadProgress, noteRealmDone, noteRealmGems, noteSecret, realmsDone, noteGateOpen, allRestored, noteGuardianFreed } from './progress.js';
 import { DOORS, SECRETS } from './home/level.js';
 import { TRAVEL, heroSpot } from './travel.js';
 import { WARD_RADIUS } from './level.js';
@@ -12,7 +12,8 @@ import { Menu, touchClear } from './menu.js';
 import { CAM_MODES } from './camera.js';
 import { Hud } from './hud.js';
 import { DebugHud } from './debug.js';
-import { titleShot, introShot, finaleShot } from './cinematics.js';
+import { titleShot, introShot, finaleShot, gateShot } from './cinematics.js';
+import { SPEECH, creditsLines, lineHeight, endingShot } from './ending.js';
 import { makeLogo, drawPanel } from '../engine/textures/ui.js';
 import { drawText } from '../engine/textures/font.js';
 import { U } from '../engine/materials.js';
@@ -103,12 +104,27 @@ class App {
     const gfx = this.gfx;
     // a realm the hero has saved is found restored when he comes back to it through the homeworld (Game._restore); started from the title it is played afresh
     const restored = REALMS[id].kind === 'realm' && from === 'home' && !!(this.progress.realms[id] && this.progress.realms[id].done);
-    const game = new Game(gfx, { realm: REALMS[id], assets: this.assets, audio: this.audio, input: this.input, progress: this.progress, from, restored });
+    const gate = REALMS[id].kind === 'homeworld' ? this._gateMode(from) : null;
+    const freed = REALMS[id].kind === 'arena' && !!this.progress.guardian.freed;                  // (the Guardian's Court after the ending: he sits quiet on his dais)
+    const game = new Game(gfx, { realm: REALMS[id], assets: this.assets, audio: this.audio, input: this.input, progress: this.progress, from, restored, gate, freed });
     await game.build((frac, label) => { this.load = { frac, label }; return new Promise((r) => setTimeout(r, 16)); });
     game.externalPoll = true;
     game.resize(gfx.W, gfx.H);
     game.counter.resize(gfx.hud.w, gfx.W / gfx.H);
     return game;
+  }
+
+  /**
+   * What the Guardian's Gate of Dawnhaven is when the hero comes in: shut (a realm still sleeps or burns no more than before), open (he has seen it open, or he comes by the title's visit or the TRAVEL
+   * menu: no ceremony, it stands open), or about to open before his eyes ('ceremony': every realm burns now and he comes home from a realm).
+   */
+  _gateMode(from) {
+    const doors = DOORS.filter((d) => d.target).map((d) => d.target);
+    if (!allRestored(this.progress, doors)) return null;
+    if (this.progress.home.gate) return 'open';
+    if (from && REALMS[from] && REALMS[from].kind === 'realm') return 'ceremony';
+    noteGateOpen(this.progress);
+    return 'open';
   }
 
   /** Make a built world the one on screen: what the renderer draws, the menus, the debug readout and the events the app answers. */
@@ -121,6 +137,7 @@ class App {
     if (this.debug) this.debug.rebind(game);
     else this.debug = new DebugHud(this);              // debug mode's readout / crosshair / wireframes (drawn only when the setting is on)
     game.on('finale', () => this.startFinale());
+    game.on('guardian-freed', () => this.startEnding());
     game.on('portal', (d) => this._onPortal(d));
     game.on('chest', (c) => { if (c.secret) this._secretFound(c.secret); });
     window.__game = game;
@@ -246,6 +263,104 @@ class App {
     return best;
   }
 
+  // ---- the ending: the Guardian is free (systems/boss.js emits 'guardian-freed' when the third lantern of his crown is lit) ----------------------------------------------
+  /**
+   * The last lantern burns: the dawn climbs, three columns of light go up from the crown, the Guardian bows and speaks (a dialogue), then the credits scroll, then the results of the whole game, then
+   * free roam in the Court (state 'ending' -> 'credits' -> 'endresults' -> 'play'). It is remembered at once (progress.guardian): the gate's beam is gold from then on and the Elder says so.
+   */
+  startEnding() {
+    const g = this.game, B = g.boss, p = g.player, W = g.hud;
+    if (!B || this.state === 'ending' || this.state === 'credits' || this.state === 'endresults') return;
+    this.state = 'ending';
+    g.mode = 'ending';
+    g.locked = p.locked = true;
+    p.invulnT = 99; p.chargeT = 0; p.flameT = 0;
+    W.hintState = null;
+    g.dayTarget = 1;
+    noteGuardianFreed(this.progress, { gems: g.stats.gems, gemsTotal: g.stats.gemsTotal, time: B.fightTime, deaths: g.stats.deaths, hits: B.hitsTaken });
+    this.audio?.sfx('guardian_freed', { vol: 1 });
+    this.audio?.stinger?.('sunrise');
+    g.cam.playCinematic(endingShot(g.gameplay.boss), 1e9);
+    g.after(0.9, () => B.bow());
+    g.after(1.8, () => W.banner('THE GUARDIAN IS FREE', 'THE LAST LANTERN BURNS', 4.6));
+    g.after(6.6, () => g.startDialogue('THE GUARDIAN', SPEECH, () => this._startCredits()));
+  }
+
+  _startCredits() {
+    const g = this.game;
+    this.state = 'credits';
+    this.creditsT = 0;
+    g.locked = g.player.locked = true;                       // (the dialogue gave him back to the game for a moment)
+    g.hud.visible = false;
+    this.credits = creditsLines([...DOORS.filter((d) => d.target).map((d) => d.name), 'THE GUARDIAN\'S COURT']);
+    this.creditsH = this.credits.reduce((n, l) => n + lineHeight(l), 0);
+  }
+
+  _drawCredits(dt, snap) {
+    const pix = this.gfx.hud, W = pix.w, H = pix.h, bar = 26, speed = 21;
+    this.creditsT += dt;
+    let y = H - bar - this.creditsT * speed;
+    for (const l of this.credits) {
+      const h = lineHeight(l);
+      if (l.kind !== 'gap' && y > bar - 14 && y < H - bar + 2) {
+        const o = l.kind === 'title' ? { style: 'grad', scale: 1, colors: GOLD } : l.kind === 'head' ? { style: 'grad', colors: GOLD } : { style: 'outline', color: '#f4eeff' };
+        drawText(pix, l.text, W >> 1, Math.round(y), { align: 'center', outlineColor: INK, ...o });
+      }
+      y += h;
+    }
+    pix.rect(0, 0, W, bar, '#000000'); pix.rect(0, H - bar, W, bar, '#000000');                 // (letterbox bars, like the intro's: the lines scroll out of nothing)
+    if (this.creditsT > 2 && Math.floor(this.t * 2) % 2 === 0) drawText(pix, `${confirmName(this.game.input)}: SKIP`, W - 6, H - 17, { style: 'outline', align: 'right', color: '#c8bce8', outlineColor: INK });
+    if (y < bar + 6 || (this.creditsT > 2 && (snap.confirm || snap.jump))) this._startEndResults();
+  }
+
+  _startEndResults() {
+    this.state = 'endresults';
+    this.resultsT = 0;
+    this.game.hud.visible = false;
+    this.audio?.stinger?.('complete');
+  }
+
+  /** the results of the whole game: the places restored, every gem of the six, what the fight cost */
+  _drawEndResults() {
+    const pix = this.gfx.hud, W = pix.w, H = pix.h, g = this.game, st = g.stats, B = g.boss, pr = this.progress;
+    const realms = Object.values(pr.realms).filter((r) => r.done);
+    const gems = realms.reduce((n, r) => n + r.gems, 0) + st.gems, total = realms.reduce((n, r) => n + r.gemsTotal, 0) + st.gemsTotal;
+    const w = 236, h = 150, x = (W - w) >> 1, y = (H - h) >> 1;
+    drawPanel(pix, x, y, w, h, { style: 'menu' });
+    drawText(pix, 'THE DAWN', W >> 1, y + 9, { style: 'grad', scale: 2, align: 'center', colors: GOLD, outlineColor: INK });
+    const rows = [
+      ['REALMS RESTORED', `${realmsDone(pr)} / ${DOORS.filter((d) => d.target).length}`],
+      ['GEMS OF ALL SIX PLACES', `${gems} / ${total}`],
+      ['THE GUARDIAN', 'FREE'],
+      ['TIMES SET BACK', String(st.deaths)],
+      ['HITS TAKEN', String(B ? B.hitsTaken : 0)],
+      ['THE FIGHT', fmtTime(B ? B.fightTime : 0)],
+    ];
+    rows.forEach(([k, v], i) => {
+      drawText(pix, k, x + 20, y + 34 + i * 12, { style: 'outline', color: '#c8bce8', outlineColor: INK });
+      drawText(pix, v, x + w - 20, y + 34 + i * 12, { style: 'outline', color: '#fff4b0', outlineColor: INK, align: 'right' });
+    });
+    const stars = st.deaths === 0 && (B ? B.hitsTaken : 0) <= 3 ? 3 : st.deaths <= 2 ? 2 : 1, icons = g.hud.icons;
+    for (let i = 0; i < 3; i++) {
+      const on = i < stars && this.resultsT > 0.5 + i * 0.4, ic = icons.star;
+      if (ic) { if (!this._dimStar) this._dimStar = dimIcon(ic); pix.blit(on ? ic : this._dimStar, W / 2 - 24 + i * 16, y + h - 28); }
+    }
+    if (this.resultsT > 1.2 && Math.floor(this.t * 2) % 2 === 0) drawText(pix, `${confirmName(g.input)}: KEEP EXPLORING`, W >> 1, y + h - 11, { style: 'outline', align: 'center', color: '#ffe27a', outlineColor: INK });
+  }
+
+  /** the Court is the hero's again: free roam, the Guardian quiet on his dais with his crown alight, the door at the foot of the gorge leads home */
+  resumeFromEnding() {
+    const g = this.game;
+    this.state = 'play';
+    g.mode = 'complete';
+    g.cam.stopCinematic();
+    g.cam.snapBehind(g.player);
+    g.player.locked = false; g.locked = false;
+    g.player.invulnT = 2;
+    g.hud.visible = true;
+    g.hud.banner('FREE ROAM', g.words.freeRoam, 4.6);
+  }
+
   // ---- travelling between worlds ------------------------------------------------------------------------------------------------
   /** A portal was entered (see systems/portals.js): go where it leads. */
   _onPortal(d) {
@@ -338,6 +453,42 @@ class App {
     else if (tr.hop) { /* nothing to add */ }
     else if (g.realm.kind === 'homeworld') g.hud.hint(`${realmsDone(this.progress)} OF ${DOORS.length} REALMS RESTORED  -  TALK TO THE ELDER AND FIND THE SECRETS`, 6.5);
     else if (g.restored) g.hud.hint(g.words.restoredHint, 6.5);
+    if (g.gateMode === 'ceremony' && !tr.hop) this._gateCeremony(g);
+  }
+
+  /**
+   * Dawnhaven, the last realm restored: the Guardian's Gate opens as a moment. The hero stands where the realm's door put him, held; the screen goes dark under a rumble and comes up on the gate, 150 m away,
+   * low on its road: the field between the pillars dissolves, a door of light is lit in its place, a beam climbs out of it into the sky and the camera climbs it. Then he is given back his place (and a line of
+   * words), and the beam is there to see from every corner of Dawnhaven. Progress remembers it (progress.home.gate): it is never played again.
+   */
+  _gateCeremony(g) {
+    const b = g.gameplay.barrier, p = g.player, W = g.hud;
+    noteGateOpen(this.progress);
+    g.gateMode = 'open';
+    g.note('THE GATE CEREMONY');
+    this.state = 'ceremony';
+    g.mode = 'ceremony';
+    g.locked = p.locked = true;
+    p.invulnT = Math.max(p.invulnT, 40);
+    g.after(3.4, () => { g.fadeTo(1, 1.6, [0, 0, 0]); this.audio?.sfx('guardian_stoop', { vol: 0.7, pitch: 0.75 }); });
+    g.after(5.4, () => {
+      W.hintState = null; W.bannerState = null; W.visible = false;                          // (a film: nothing over it)
+      g.cam.playCinematic(gateShot(b), 11.6, null);
+      g.fadeTo(0, 1.3);
+    });
+    g.after(6.8, () => g.openGate());
+    g.after(9.6, () => { W.visible = true; W.banner('THE GUARDIAN\'S GATE OPENS', 'THE LANTERNS OF EVERY REALM BURN', 4.4); this.audio?.stinger?.('lantern'); });
+    g.after(17.2, () => g.fadeTo(1, 1.6));
+    g.after(19.0, () => {
+      g.cam.stopCinematic();
+      g.cam.snapBehind(p);
+      W.visible = true;
+      this.state = 'play'; g.mode = 'play';
+      g.locked = p.locked = false;
+      p.invulnT = 2;
+      g.fadeTo(0, 1.4);
+      W.hint('A BEAM OF LIGHT STANDS OVER THE ASCENT: THE GUARDIAN\'S GATE IS OPEN. TALK TO ELDER WICK', 7);
+    });
   }
 
   /**
@@ -696,6 +847,14 @@ class App {
         break;
       }
       case 'finale': break;
+      case 'ending': case 'ceremony': break;
+      case 'credits': this._drawCredits(dt, snap); break;
+      case 'endresults': {
+        this.resultsT += dt;
+        this._drawEndResults();
+        if (this.resultsT > 1.2 && (snap.confirm || snap.jump)) this.resumeFromEnding();
+        break;
+      }
       case 'results': {
         this.resultsT += dt;
         this._drawResults();

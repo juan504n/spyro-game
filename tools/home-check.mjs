@@ -47,8 +47,10 @@ const f1 = (v) => v.toFixed(1);
 
 // ---- the doors ---------------------------------------------------------------------------------------------------------------------
 {
-  const sealed = gp.portals.filter((p) => p.state === 'sealed'), open = gp.portals.filter((p) => p.state === 'open');
-  check('five doors, every one awake (Gloaming Vale, Frostbloom Hollow, Emberfall Crags, Skyweaver Spires, Tideglass Reach), none that still sleeps', gp.portals.length === 5 && open.length === 5 && open.map((p) => p.target).sort().join() === 'emberfall,frostbloom,gloaming,skyweaver,tideglass' && sealed.length === 0, `(${gp.portals.map((p) => `${p.id}:${p.state}`).join(' ')})`);
+  const doors = gp.portals.filter((p) => !p.gate), gates = gp.portals.filter((p) => p.gate);
+  const sealed = doors.filter((p) => p.state === 'sealed'), open = doors.filter((p) => p.state === 'open');
+  check('five doors, every one awake (Gloaming Vale, Frostbloom Hollow, Emberfall Crags, Skyweaver Spires, Tideglass Reach), none that still sleeps', doors.length === 5 && open.length === 5 && open.map((p) => p.target).sort().join() === 'emberfall,frostbloom,gloaming,skyweaver,tideglass' && sealed.length === 0, `(${gp.portals.map((p) => `${p.id}:${p.state}`).join(' ')})`);
+  check('... and a sixth that is not one of them: the Guardian\'s Gate (a door of light that is not there until the lanterns of every realm burn)', gates.length === 1 && gates[0].id === 'guardian' && gates[0].state === 'closed' && gates[0].target === 'guardian' && gates[0].kind === 'door' && gp.portals.indexOf(gates[0]) === 5, `(${gates.map((p) => `${p.id}:${p.state}`).join(' ')})`);
   for (const d of DOORS) {
     const p = gp.portals.find((q) => q.id === d.id);
     const ys = [[-3, 0], [3, 0], [0, 0], [0, 3], [-3, 3], [3, 3], [0, 5.5]].map(([s, f]) => { const [x, z] = inFront(d, f, s); return collision.support(x, z, p.y + 1.0, 0.9).y; });
@@ -88,6 +90,26 @@ const f1 = (v) => v.toFixed(1);
     nearest = Math.min(nearest, Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z));
   }
   check('no two doors are within 25 m of each other (the summit door stands right over the grotto\'s, 12 m aside and 31 m up)', nearest > 25, `(the nearest pair ${f1(nearest)} m apart)`);
+}
+
+// ---- the Guardian's Gate: the way through, once it has opened ------------------------------------------------------------------------------------------
+{
+  const gate = gp.portals.find((p) => p.gate), b = gp.barrier;
+  check('the gate\'s door fills the opening of the gate: where the barrier is, facing south, no wider than the 6 m between the pillars and under their lintel (11.5 m)', !!gate && Math.hypot(gate.x - b.x, gate.z - b.z) < 0.01 && Math.abs(gate.y - b.y) < 0.01 && gate.yaw === 0 && gate.r <= 3.0 && gate.r >= 2.6 && gate.cy - gate.hs < 0.5 && gate.hs + gate.r < 11.5, gate ? `(r ${gate.r}, ${f1(gate.hs + gate.r)} m tall at ${f1(gate.x)}, ${f1(gate.z)})` : '');
+  check('... the pillars hold its sides (a hero in the opening cannot go round the light): the opening between their colliders is no wider than the door', collision.blocking(b.x - 3.6, b.y + 1.5, b.z, 0.2) !== null && collision.blocking(b.x + 3.6, b.y + 1.5, b.z, 0.2) !== null, '');
+  check('... it has a beam that marks it from every corner of Dawnhaven (190 m of light), and a hum that plays while it is open', !!gate.beam && gate.beam.height >= 150 && gp.soundSources.some((q) => q.when === 'portal:guardian'), gate.beam ? `(${gate.beam.height} m)` : '');
+  const a = gp.arrivals.guardian, sup = a && collision.support(a.x, a.z, a.y + 1.0, 0.9);
+  const along = a ? (a.x - gate.x) * Math.sin(gate.yaw) + (a.z - gate.z) * Math.cos(gate.yaw) : 0;
+  check('the way home from the Court: he comes out 11 m in front of the gate, on the floor (a height of its own), clear, facing out of it', !!a && Math.abs(sup.y - a.y) < 0.15 && !collision.blocking(a.x, a.y + 0.5, a.z, 0.4) && !collision.blocking(a.x, a.y + 1.2, a.z, 0.4) && along > 9 && along < 13 && Math.abs(a.yaw - gate.yaw) < 1e-6 && Math.abs(a.y - gate.y) < 3.5, a ? `(${f1(along)} m in front, floor ${f1(sup.y)} at ${f1(a.y)})` : '(none)');
+  check('two hints at the gate, one for while it is shut and one for while it is open (the game shows the one that is true)', gp.hints.filter((q) => q.shut).length === 1 && gp.hints.filter((q) => q.open).length === 1 && /SEALED/.test(gp.hints.find((q) => q.shut).text) && /OPEN/.test(gp.hints.find((q) => q.open).text));
+  // the Elder follows the gate: shut with four realms and a hero who has not seen it, open (once it has opened), free (once the Guardian is)
+  const all5 = { gloaming: { done: true }, frostbloom: { done: true }, emberfall: { done: true }, skyweaver: { done: true }, tideglass: { done: true } }, four = { gloaming: { done: true }, frostbloom: { done: true }, emberfall: { done: true }, skyweaver: { done: true } };
+  const say = (realms, gateOpen, freed, again = false) => { const npc = again ? { talks: 1 } : {}; return homeLines({ progress: { realms, home: { secrets: [], gate: gateOpen }, guardian: { freed } }, portals: { isOpen: (id) => id === 'guardian' && gateOpen } }, npc).join(' | '); };
+  const shut = say(four, false, false), shut2 = say(four, false, false, true), open = say(all5, true, false), open2 = say(all5, true, false, true), free = say(all5, true, true), free2 = say(all5, true, true, true);
+  check('the Elder\'s words follow the gate: shut ("WILL OPEN WHEN THE LANTERNS OF EVERY REALM BURN", and what has been restored), open (the warden is dark, how to fight him), free (the Court is yours)',
+    /WILL OPEN WHEN THE LANTERNS OF EVERY REALM BURN/.test(shut) && /STAYS SEALED UNTIL ALL 5 BURN/.test(shut2) && !/IS OPEN/.test(shut)
+    && /GUARDIAN'S GATE IS OPEN/.test(open) && /KEEP MOVING, RAM HIS FISTS/.test(open) && /THE GATE IS OPEN\. THE WARDEN IS DARK/.test(open2) && !/SEALED/.test(open + open2)
+    && /THE GUARDIAN IS FREE/.test(free) && /THE GUARDIAN IS FREE/.test(free2) && !/WILL OPEN|SEALED/.test(free + free2), `(${open.slice(0, 40)}...)`);
 }
 
 // ---- the secrets (chests and their walls) -------------------------------------------------------------------------------------------------------------------

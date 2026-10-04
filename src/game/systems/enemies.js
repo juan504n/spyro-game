@@ -22,6 +22,14 @@ export class EnemySystem {
     for (const s of spawns) this.list.push(this._make(s));
   }
 
+  /** A Snuffer comes into the world while it plays (the helpers the Guardian calls out of his floor, systems/boss.js): `s` as in the constructor; `s.wild` makes him chase from the first step and never go home. Returns it. */
+  add(s) {
+    const e = this._make(s);
+    if (s.wild) { e.wild = true; e.state = 'alert'; e.st = 0.42; e.exclaimT = 0.9; }
+    this.list.push(e);
+    return e;
+  }
+
   _make(s) {
     const g = this.game;
     const V = VARIANTS[s.variant] || VARIANTS.basic;
@@ -68,6 +76,14 @@ export class EnemySystem {
     if (kind === 'charge') g.cam.shake(0.25, 0.2);
     if (e.hp <= 0) { this.kill(e); return; }
     e.state = 'hurt'; e.st = e.stun;
+  }
+
+  /** A Snuffer that is simply gone (the Guardian's helpers when the lantern is lit, or the hero is set back): a puff, no gems, no butterfly, not counted as beaten. */
+  dismiss(e) {
+    if (e.state === 'dead') return;
+    e.state = 'dead'; e.dead = 0.45; e.st = 0; e.poofed = true;
+    e.alertIcon.visible = false;
+    this.game.fx.puff(e.x, e.y + 1.0, e.z, 1.1);
   }
 
   kill(e) {
@@ -158,7 +174,7 @@ export class EnemySystem {
         }
         case 'chase': {
           const homeD = Math.hypot(e.x - e.hx, e.z - e.hz);
-          if (dp > 32 || homeD > 40 || p.dead) { e.state = 'return'; break; }
+          if ((!e.wild && (dp > 32 || homeD > 40)) || p.dead) { e.state = 'return'; break; }
           e.yaw += wrap(Math.atan2(dxp, dzp) - e.yaw) * Math.min(1, dt * 7);
           const sp = e.V.speed;
           if (dp > e.V.reach * 0.85) { this._move(e, Math.sin(e.yaw) * sp, Math.cos(e.yaw) * sp, dt); speedNow = sp; }

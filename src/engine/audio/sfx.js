@@ -1,7 +1,7 @@
 // Gloaming Vale audio — sound-effect registry. Pure DSP (Node + browser).
 //
 // SFX maps every sound name to a function that returns a finished mono Float32Array at SR = 22050
-// (see sfx-player.js / sfx-items.js / sfx-world.js for how each one is synthesized).
+// (see sfx-player.js / sfx-items.js / sfx-world.js / sfx-boss.js for how each one is synthesized).
 //
 // Levels: every one-shot is normalised to -2 dBFS peak, so `vol` = 1 means "as rendered" and callers
 // scale from there (the game already passes per-call vol values). Loop beds are baked at lower peaks
@@ -11,8 +11,9 @@
 import { PLAYER_SFX } from './sfx-player.js';
 import { ITEM_SFX } from './sfx-items.js';
 import { WORLD_SFX } from './sfx-world.js';
+import { BOSS_SFX } from './sfx-boss.js';
 
-export const SFX = { ...PLAYER_SFX, ...ITEM_SFX, ...WORLD_SFX };
+export const SFX = { ...PLAYER_SFX, ...ITEM_SFX, ...WORLD_SFX, ...BOSS_SFX };
 
 export { SR } from './synth.js';
 

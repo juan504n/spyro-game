@@ -44,7 +44,7 @@ const run = async (name, fn) => {
 await page.evaluate(() => __bot.god());
 await run('world', () => {
   const G = __game;
-  return { ok: G.realm.id === 'home' && G.realm.kind === 'homeworld' && G.day === 1 && G.gameplay.portals.length === 5 && !!G.portals && G.portals.list.length === 5 && G.level.name === 'Dawnhaven' && G.stats.gemsTotal === G.gameplay.gemsTotal && G.gameplay.gemsTotal % 50 === 0, realm: G.realm.id, day: G.day, portals: G.portals && G.portals.list.length, gems: G.stats.gemsTotal };
+  return { ok: G.realm.id === 'home' && G.realm.kind === 'homeworld' && G.day === 1 && G.gameplay.portals.filter((q) => !q.gate).length === 5 && G.gameplay.portals.length === 6 && !!G.portals && G.portals.list.filter((q) => !q.def.gate).length === 5 && G.level.name === 'Dawnhaven' && G.stats.gemsTotal === G.gameplay.gemsTotal && G.gameplay.gemsTotal % 50 === 0, realm: G.realm.id, day: G.day, portals: G.portals && G.portals.list.length, gems: G.stats.gemsTotal };
 });
 await run('trunk-road', () => {
   // from where the hero comes out of the first door, the cobbled trunk road to the Crag: the whole of it, the gems along it picked up on the way

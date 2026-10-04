@@ -18,6 +18,7 @@ import { createEmberstone } from './objects/emberstone.js';
 import { createWhirlwind } from './objects/whirlwind.js';
 import { createWindbell } from './objects/windbell.js';
 import { createTidelens } from './objects/tidelens.js';
+import { createGuardian, createGuardianFist } from './objects/guardian.js';
 
 export const OBJECTS = {
   beacon: {
@@ -44,6 +45,16 @@ export const OBJECTS = {
     create: createTidelens,
     size: 4.6,
     note: 'Tide Lens (the goal of Tideglass Reach): a lens of sea-glass in a brass ring on a spindle above a plinth of sea-stone with a ring of runes; dull grey-green and slow until it is lit, then the glass clears to aquamarine, the lens spins on its spindle, and a heart of light, a turning hoop of runes and a halo come on; setLit(k) 0 dark .. 1 shining; opts.big = x2.2 Tideglass; anchors flame/base/top',
+  },
+  guardian: {
+    create: createGuardian,
+    size: 20,
+    note: 'The Guardian (the boss of the Guardian\'s Court): a colossus of dark runed stone on a pedestal, 14.6 m with the crown over his head, a visor that blazes when he charges a bolt and a crown of three lantern cages that comes off his head and opens round his body when he stoops; origin = the top of the pedestal, he looks along +Z; update(dt, pose { crown, ring, lit [3], active, visor, awake, freed, roar })',
+  },
+  guardian_fist: {
+    create: createGuardianFist,
+    size: 4,
+    note: 'One of the Guardian\'s two floating fists (3.4 m across, origin at the bottom): a rune on its back that glows cyan when it has landed (the target of a ram); update(dt, pose { glow, crack }) - the halves fall apart when it cracks',
   },
   whirlwind: {
     create: createWhirlwind,

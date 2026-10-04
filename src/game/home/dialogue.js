@@ -13,9 +13,19 @@ const HINTS = {
 /** the names of the doors that still sleep, as a list in words: "A, B, C AND D" */
 const listOf = (names) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} AND ${names[names.length - 1]}`);
 
+/** What the Elder says of the Guardian's Gate: it waits shut, it stands open on the Guardian dark in his Court, or the Guardian is free. */
+function guardianLine(gateOpen, freed, first) {
+  if (freed) return 'THE GUARDIAN IS FREE, SPYRO! HIS CROWN BURNS AND SO DOES EVERY REALM. THE GATE STAYS OPEN: THE COURT IS YOURS TO VISIT.';
+  if (gateOpen) return first
+    ? 'THE GUARDIAN\'S GATE IS OPEN, SPYRO! EVERY REALM BURNS. BEYOND IT, THE WARDEN OF THE LANTERNS STANDS DARK IN HIS COURT. HE WILL STRIKE AT YOU: KEEP MOVING, RAM HIS FISTS WHEN THEY FALL, AND BREATHE FIRE ON THE LANTERNS OF HIS CROWN.'
+    : 'THE GATE IS OPEN. THE WARDEN IS DARK. KEEP MOVING, RAM THE FISTS THAT FALL, BREATHE FIRE ON HIS CROWN.';
+  return first ? 'THE GUARDIAN\'S GATE, FAR TO THE NORTH, WILL OPEN WHEN THE LANTERNS OF EVERY REALM BURN. UNTIL THEN, EXPLORE!' : '';
+}
+
 export function homeLines(game, npc) {
   const pr = game.progress;
   const done = pr ? realmsDone(pr) : 0;
+  const gateOpen = !!(game.portals && game.portals.isOpen('guardian')), freed = !!(pr && pr.guardian && pr.guardian.freed);
   const sleeping = DOORS.filter((d) => !d.target).map((d) => d.name);
   const restored = pr ? DOORS.filter((d) => d.target && pr.realms[d.target] && pr.realms[d.target].done).map((d) => d.name) : [];       // (which realms burn: any of the awake doors' realms, not always the first)
   const found = pr ? pr.home.secrets.filter((s) => SECRETS.some((k) => k.id === s)) : [];
@@ -29,9 +39,9 @@ export function homeLines(game, npc) {
     pages.push('IT IS A WIDE COUNTRY. THE ROAD NORTH CROSSES THE HEARTLANDS TO THE CRAG. WEST, THE TERRACES CLIMB TO THE WINDMILL. EAST LIES MIRROR LAKE, AND BEYOND IT THE EMBER CANYON.');
     const sleepSay = sleeping.length === 0 ? 'ALL OF THEM ARE AWAKE.' : sleeping.length === 1 ? `ONE STILL SLEEPS: ${listOf(sleeping)}.` : `${sleeping.length} STILL SLEEP: ${listOf(sleeping)}.`;
     pages.push(`EVERY DOOR STANDS SOMEWHERE OF ITS OWN: ONE HERE IN THE COVE, ONE UNDER THE CRAG, ONE ON ITS SUMMIT, ONE AT THE END OF THE PIER AND ONE IN THE FORGE. ${sleepSay}`);
-    pages.push('THE GUARDIAN\'S GATE, FAR TO THE NORTH, WILL OPEN WHEN THE LANTERNS OF EVERY REALM BURN. UNTIL THEN, EXPLORE!');
+    pages.push(guardianLine(gateOpen, freed, true));
   } else {
-    pages.push(done > 0 ? `${done} OF ${DOORS.length} REALMS ARE RESTORED. THE GUARDIAN'S GATE STAYS SEALED UNTIL ALL ${DOORS.length} BURN.` : 'LIGHT THE LANTERNS OF A REALM AND ITS DOOR WILL SHINE FOR GOOD.');
+    pages.push(gateOpen || freed ? guardianLine(gateOpen, freed, false) : done > 0 ? `${done} OF ${DOORS.length} REALMS ARE RESTORED. THE GUARDIAN'S GATE STAYS SEALED UNTIL ALL ${DOORS.length} BURN.` : 'LIGHT THE LANTERNS OF A REALM AND ITS DOOR WILL SHINE FOR GOOD.');
   }
   if (left.length) {
     pages.push(HINTS[left[(npc.talks - 1) % left.length].id]);

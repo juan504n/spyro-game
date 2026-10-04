@@ -2,6 +2,8 @@
 //
 //   door  an arched doorway (the 'realm_portal' model, shape 'arch') in a stone frame: walk into the light and the world changes. A door that has
 //         a realm behind it (`target`) is awake; the others are 'sealed': a dim, slow swirl that says what sleeps behind it when you come close.
+//         The Guardian's Gate (`gate: true`) is a door too, but one that is not there until the lanterns of every realm burn (state 'closed'): Game.openGate pops it into the opening between the
+//         gate's pillars, and a beam (`beam: { height, radius }`) rises from it into the sky, the landmark of Dawnhaven; the Guardian's freedom turns the beam from violet to gold.
 //   lift  a ring of light that hangs above the Great Beacon, out of a jump's reach: a ring of light on the floor marks where its beam comes down,
 //         and a JUMP made inside it lets the light carry the hero up the beam into the portal (Player.carry), and out of the world.
 //
@@ -59,9 +61,18 @@ export class PortalSystem {
       ring2 = g.fx.decal({ pool: 'add', sprite: 'glow', x: d.x, z: d.z, r: (d.catchR || 4.4) * 1.1, color, alpha: 0 });
       ring2.y = d.y + 0.09;
     }
+    // the beam over a gate (it burns while the door is open)
+    let beam = null;
+    if (d.beam) {
+      beam = makeModel(g.assets, 'light_beam', { height: d.beam.height, radius: d.beam.radius });
+      beam.root.position.set(d.x, d.y, d.z);
+      g.dyn.add(beam.root);
+      beam.setColor?.(done ? [1.0, 0.82, 0.42] : color);
+      beam.setIntensity?.(0);
+    }
     // (a door the hero arrives beside has no need to announce itself: the name of the world is up on the screen)
     const p = g.player, here = !!p && Math.hypot(p.x - d.x, p.z - d.z) < HERE;
-    return { def: d, color, done, model, halo, pool, ring, ring2, state, popT: 99, near: 0, told: here, greeted: here ? 1 : 0, acc: 0, t: Math.random() * 6 };
+    return { def: d, color, done, model, halo, pool, ring, ring2, beam, beamK: 0, state, popT: 99, near: 0, told: here, greeted: here ? 1 : 0, acc: 0, t: Math.random() * 6 };
   }
 
   /** The hero was put down somewhere (the TRAVEL menu): the doors beside him need not announce themselves either, the name of the place is up on the screen. */
@@ -92,6 +103,28 @@ export class PortalSystem {
     g.emit('portal-open', d);
   }
 
+  /** The Guardian's Gate stands open already, with no ceremony (Dawnhaven after the gate has opened: Game.build): its door is there, at rest, and its beam burns. */
+  openGateAtOnce(id = 'guardian') {
+    const r = this.get(id);
+    if (!r || r.state === 'open') return;
+    r.state = 'open';
+    r.popT = 99;
+    r.model.setSealed?.(false);
+    r.model.setOpen?.(1);
+    for (let i = 0; i < 90; i++) r.model.update?.(1 / 30, { t: this.game.time });       // (its spring settles: it does not pop open on the first frame)
+    r.beamK = 1;
+    r.beam?.setIntensity?.(1);
+  }
+
+  /** The Guardian is free: the beam over the gate turns gold (and so does the door's light). */
+  gildGate(id = 'guardian') {
+    const r = this.get(id);
+    if (!r) return;
+    r.done = true;
+    r.beam?.setColor?.([1.0, 0.82, 0.42]);
+    r.model.setColor?.([1.0, 0.86, 0.5]);
+  }
+
   /** The lift above the Great Beacon is open already, without the pop (a realm the hero has saved, entered again: Game._restore). */
   restore() {
     for (const r of this.list) {
@@ -117,7 +150,7 @@ export class PortalSystem {
       if (d.kind === 'door') {
         // a name when you come near (the first time, and again after you have gone away), and what a sleeping door has to say
         if (dist > 26) { r.told = false; r.greeted = 0; }
-        if (playing && game.hud.visible && dist < 15 && !r.told) {
+        if (playing && game.hud.visible && dist < 15 && !r.told && r.state !== 'closed') {
           r.told = true;
           const status = r.state === 'open' ? (r.done ? 'RESTORED - ITS LANTERNS BURN' : d.tag) : 'THE PORTAL SLEEPS';
           hud.banner(d.name, status, 3.2);
@@ -212,6 +245,11 @@ export class PortalSystem {
         r.ring.r = (d.catchR || 4.4) * 1.12 * (1 + 0.025 * Math.sin(t * 2.4));
         r.ring2.alpha = clamp(k) * live * (0.3 + 0.2 * zone);
       }
+      if (r.beam) {
+        r.beamK += ((r.state === 'open' ? 1 : 0) - r.beamK) * (1 - Math.exp(-dt * (r.state === 'open' && r.popT < 99 ? 0.9 : 3)));
+        r.beam.setIntensity?.(r.beamK * (0.82 + 0.1 * Math.sin(t * 1.7)));
+        r.beam.update?.(dt, { t });
+      }
       if (r.state === 'closed' || far) continue;
       // motes drifting into the light (and sparks of the pop for a second or two)
       r.acc += dt * (r.state === 'open' ? 9 : 2.5) * (r.popT < 1.6 ? 3 : 1);
@@ -230,7 +268,7 @@ export class PortalSystem {
   }
 
   dispose() {
-    for (const r of this.list) r.model.dispose?.();
+    for (const r of this.list) { r.model.dispose?.(); r.beam?.dispose?.(); }
     this.list = [];
   }
 }

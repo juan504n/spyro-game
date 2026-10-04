@@ -29,7 +29,7 @@ const SPEC = {
   shore_pebbles: [32, 32, 1, 0, 'terrain'], cobble: [32, 32, 1, 0, 'terrain'], flagstone: [32, 32, 1, 0, 'terrain'],
   cliff: [32, 32, 1, 0, 'terrain'], cliff_warm: [32, 32, 1, 0, 'terrain'], far_rock: [32, 32, 1, 0, 'terrain'],
   cliff_bare: [32, 32, 1, 0, 'terrain'], cliff_warm_bare: [32, 32, 1, 0, 'terrain'], ice: [32, 32, 1, 0, 'terrain'],
-  rune_ring: [32, 32, 0, 0, 'terrain'],
+  rune_ring: [32, 32, 0, 0, 'terrain'], rune_court: [64, 64, 0, 0, 'terrain'],
   snow: [32, 32, 1, 0, 'terrain'], snow_petals: [32, 32, 1, 0, 'terrain'], cliff_frost: [32, 32, 1, 0, 'terrain'], far_frost: [32, 32, 1, 0, 'terrain'],     // (Frostbloom Hollow)
   cobble_frost: [32, 32, 1, 0, 'terrain'], path_snow: [32, 32, 1, 0, 'terrain'],
   ash: [32, 32, 1, 0, 'terrain'], cinder: [32, 32, 1, 0, 'terrain'], cliff_basalt: [32, 32, 1, 0, 'terrain'], cliff_basalt_bare: [32, 32, 1, 0, 'terrain'], far_ember: [32, 32, 1, 0, 'terrain'],     // (Emberfall Crags)
@@ -75,7 +75,7 @@ const LUMA = {
   sand_tide: [0.6, 0.92], sand_wet: [0.3, 0.75], sea_floor: [0.08, 0.4], tideturf: [0.35, 0.8], cliff_tide: [0.3, 0.8], cobble_tide: [0.45, 0.92], path_tide: [0.5, 0.92], far_tide: [0.4, 0.75], water_tide: [0.35, 0.8], glass: [0.5, 0.92],
   skyturf: [0.4, 0.8], cliff_marble: [0.5, 0.88], far_sky: [0.5, 0.85], cobble_sky: [0.5, 0.92], path_sky: [0.45, 0.9], pine_sky: [0.3, 0.75], cloud_sea: [0.65, 0.98], whirl: [0, 0.4], flower_sky: [0.3, 0.85],
   ash: [0.25, 0.6], cinder: [0.08, 0.4], cliff_basalt: [0.1, 0.6], cliff_basalt_bare: [0.1, 0.6], far_ember: [0.28, 0.5], cobble_ember: [0.2, 0.6], path_ash: [0.35, 0.8], pine_char: [0.1, 0.5], lava: [0.3, 0.95], crystal_ember: [0.25, 0.9], flower_ember: [0.25, 0.9],
-  cliff: [0.4, 0.75], cliff_warm: [0.4, 0.75], cliff_bare: [0.4, 0.75], cliff_warm_bare: [0.4, 0.75], ice: [0.6, 0.95], portal_swirl: [0.2, 0.85], far_rock: [0.4, 0.72], tower_stone: [0.25, 0.6], rune_ring: [0.2, 0.6],
+  cliff: [0.4, 0.75], cliff_warm: [0.4, 0.75], cliff_bare: [0.4, 0.75], cliff_warm_bare: [0.4, 0.75], ice: [0.6, 0.95], portal_swirl: [0.2, 0.85], far_rock: [0.4, 0.72], tower_stone: [0.25, 0.6], rune_ring: [0.2, 0.6], rune_court: [0, 0.4],
   metal_iron: [0.25, 0.6], door: [0.3, 0.7], banner: [0.3, 0.7], window: [0.4, 0.95],
   water: [0.4, 0.75], waterfall: [0.5, 0.9], foam: [0.7, 1], moon: [0.6, 1], sun_disc: [0.7, 1],
   cloud: [0.6, 0.95], beam: [0, 1], sun_glow: [0, 1], portal: [0.25, 0.85], barrier: [0.2, 0.75],

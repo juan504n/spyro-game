@@ -70,8 +70,9 @@ export class NpcSystem {
     this.prompt = prompt;
     // hint zones
     const playing = game.hud.visible && game.mode === 'play';      // (not while the title / intro / finale own the screen)
+    const gateOpen = !!(game.portals && game.portals.isOpen('guardian'));            // (some hints belong to the Guardian's Gate shut or open: `shut` / `open`)
     for (const h of this.hints) {
-      if (h.done || !playing) continue;
+      if (h.done || !playing || (h.shut && gateOpen) || (h.open && !gateOpen)) continue;
       if (Math.hypot(p.x - h.x, p.z - h.z) < h.r && (h.y0 === undefined || (p.y >= h.y0 && p.y <= h.y1)) && !game.hud.talking) {          // (y0..y1: a zone inside a mountain is not the road above it)
         h.done = h.once !== false;
         const dev = game.input.lastDevice;
