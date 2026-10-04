@@ -100,14 +100,17 @@ class App {
   }
 
   /** Build the world of a realm (REALMS id) on the page's shared input, assets and audio, painting the loading bar as it goes. */
-  async _build(id, from) {
+  async _build(id, from, rematch = false) {
     const gfx = this.gfx;
     // a realm the hero has saved is found restored when he comes back to it through the homeworld (Game._restore); started from the title it is played afresh
     const restored = REALMS[id].kind === 'realm' && from === 'home' && !!(this.progress.realms[id] && this.progress.realms[id].done);
     const gate = REALMS[id].kind === 'homeworld' ? this._gateMode(from) : null;
-    const freed = REALMS[id].kind === 'arena' && !!this.progress.guardian.freed;                  // (the Guardian's Court after the ending: he sits quiet on his dais)
+    const freed = REALMS[id].kind === 'arena' && !!this.progress.guardian.freed && !rematch;      // (the Guardian's Court after the ending: he sits quiet on his dais; THE FIGHT AGAIN of the TRAVEL menu builds it as it was, and what is saved stays saved)
+    // (the Guardian's sounds are not made at start-up: the Court makes them first, behind its loading bar)
+    const lazy = REALMS[id].kind === 'arena' && !!this.audio && !!this.audio.load;
+    if (lazy) { this.load = { frac: 0, label: 'TUNING THE COURT' }; await this.audio.load('guardian', (f) => { this.load = { frac: f * 0.3, label: 'TUNING THE COURT' }; }); }
     const game = new Game(gfx, { realm: REALMS[id], assets: this.assets, audio: this.audio, input: this.input, progress: this.progress, from, restored, gate, freed });
-    await game.build((frac, label) => { this.load = { frac, label }; return new Promise((r) => setTimeout(r, 16)); });
+    await game.build((frac, label) => { this.load = { frac: lazy ? 0.3 + frac * 0.7 : frac, label }; return new Promise((r) => setTimeout(r, 16)); });
     game.externalPoll = true;
     game.resize(gfx.W, gfx.H);
     game.counter.resize(gfx.hud.w, gfx.W / gfx.H);
@@ -385,7 +388,7 @@ class App {
     g.paused = false;
     // `at` is a place of the TRAVEL menu (travel.js) to arrive on instead of where the way from the old world comes out; in the world he is already in that is a hop: the screen blinks,
     // nothing is rebuilt and what he did there stays
-    const hop = !!at && id === g.realm.id;
+    const hop = !!at && id === g.realm.id && !at.rematch;
     this.travel = { id, from, phase: 'out', color, t: 0, at, hop };
     this.state = 'traveling';
     g.player.locked = true;
@@ -422,7 +425,7 @@ class App {
     old.dispose();
     this.load = { frac: 0, label: REALMS[tr.id].kind === 'homeworld' ? 'ENTERING DAWNHAVEN' : 'ENTERING THE REALM' };
     let game;
-    try { game = await this._build(tr.id, tr.from); } catch (e) { console.error(e); window.__error = String((e && e.stack) || e); return; }
+    try { game = await this._build(tr.id, tr.from, !!(tr.at && tr.at.rematch)); } catch (e) { console.error(e); window.__error = String((e && e.stack) || e); return; }
     this._adopt(game);
     this._arrive(game, tr);
   }
@@ -499,6 +502,7 @@ class App {
   _placeHero(g, place) {
     const sp = heroSpot(g.grid, place), p = g.player, S = g.level.summit;
     p.place(sp.x, sp.y, sp.z, sp.yaw);
+    g.boss?.hush();                                       // (a place in the Guardian's court does not wake him before its name has been read)
     g.note(`PLACED AT ${String(place.key || '?').toUpperCase()}`);
     p.invulnT = WARP_GRACE;
     g.checkpoint = { ...sp };
@@ -610,7 +614,7 @@ class App {
   /** the worlds, then the groups of places of a world, then its places (a page of a phone's menu holds about six rows), then ARE YOU SURE? */
   travelPage() {
     return {
-      title: 'TRAVEL TO', width: 230, closable: true,
+      title: 'TRAVEL TO', width: 230, closable: true, dense: true,
       items: [
         ...TRAVEL.map((w) => ({ type: 'action', label: w.name, more: true, action: (m) => m.open(this.travelWorldPage(w)) })),
         { type: 'action', label: 'BACK', hidden: this._touchOnly(), action: (m) => m.close() },

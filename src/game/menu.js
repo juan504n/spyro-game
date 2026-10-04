@@ -82,15 +82,16 @@ export class Menu {
     const foot = page.footer ? 12 : 0;
     const f = this.game.gfx.frameCss();
     const top = this.finger ? touchClear(f) : 8;                        // (below the touch MENU button)
-    const room = Math.floor((H - top - 8 - 34 - extraH - foot) / Math.max(1, items.length));      // (long pages tighten up to fit)
+    const chrome = page.dense ? 28 : 34;                                // (a page that is nothing but rows, the worlds of TRAVEL, gives up some of the room round its title so that seven rows stay finger-sized on a phone held upright)
+    const room = Math.floor((H - top - 8 - chrome - extraH - foot) / Math.max(1, items.length));      // (long pages tighten up to fit)
     // a finger needs ~40 CSS px per row: the HUD is a fixed 240 lines high however big the screen is, so that is a different number of lines on
     // a phone (1.6 px per line: 25 lines) than on a desktop window (4.5 px: 9, i.e. the ordinary 13-line rows)
     const want = this.finger ? Math.ceil(TOUCH_ROW_PX / Math.max(0.5, f.unit)) : 13;
     const rowH = Math.max(10, Math.min(Math.max(13, Math.min(want, 30)), room));
     const w = Math.min(W - 24, page.width || 230);
-    const h = 34 + extraH + items.length * rowH + foot;
+    const h = chrome + extraH + items.length * rowH + foot;
     const x = (W - w) >> 1, y = Math.max(top, (H - h) >> 1);
-    return { x, y, w, h, rowH, extraH, rows0: y + 26 + extraH };
+    return { x, y, w, h, rowH, extraH, rows0: y + (page.dense ? 22 : 26) + extraH };
   }
 
   /** client (CSS px) -> internal pixels, the inverse of what Gfx.resize() sets up */

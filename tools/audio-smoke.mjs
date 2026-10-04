@@ -54,6 +54,9 @@ const port = server.address().port;
 async function inPage() {
   const report = { errors: [], notes: [] };
   const fail = (m) => report.errors.push(m);
+  window.__warns = [];                                                   // (what the page warns: a sound that is not made yet must be silent, not a warning)
+  const ow = console.warn.bind(console);
+  console.warn = (...a) => { window.__warns.push(a.join(' ')); ow(...a); };
   const A = window.audio;
   const tryCall = (label, fn) => {
     try { return fn(); } catch (e) { fail(`${label} threw: ${e && e.message}`); return undefined; }
@@ -107,9 +110,13 @@ async function inPage() {
   report.ctxState = A.context && A.context.state;
   report.ctxRate = A.context && A.context.sampleRate;
   report.baseLatency = A.context && A.context.baseLatency;
-  const expectNames = [...A.sfxNames.filter((n) => n !== 'footstep'), ...A.loopNames, 'gloaming', 'daybreak', 'amb_dusk', 'amb_day', ...A.stingerNames.map((n) => 'stinger_' + n)];
+  const lazy = A.lazyNames;                                              // (the Guardian's: made by load(), not by init())
+  const expectNames = [...A.sfxNames.filter((n) => n !== 'footstep' && !lazy.includes(n)), ...A.loopNames, 'gloaming', 'daybreak', 'amb_dusk', 'amb_day', ...A.stingerNames.map((n) => 'stinger_' + n)];
   const missing = expectNames.filter((n) => !dbg.buffers.includes(n));
   if (missing.length) fail('missing buffers: ' + missing.join(','));
+  if (!lazy.length) fail('no lazy sounds');
+  if (lazy.some((n) => dbg.buffers.includes(n))) fail('lazy sounds were made at start-up: ' + lazy.filter((n) => dbg.buffers.includes(n)).join(','));
+  if (!dbg.buffers.includes('guardian_stoop')) fail('the gate\'s rumble (guardian_stoop) must be made at start-up: Dawnhaven plays it');
 
   // 3. tap the final node so we can see whether sound really reaches the output
   const ctx = A.context;
@@ -123,6 +130,26 @@ async function inPage() {
   const watch = async (ms) => { let mx = { pk: 0, rms: 0 }; const end = performance.now() + ms; while (performance.now() < end) { const s = sample(); mx = { pk: Math.max(mx.pk, s.pk), rms: Math.max(mx.rms, s.rms) }; await sleep(8); } maxPeak = Math.max(maxPeak, mx.pk); return mx; };
   await A.resume();
   report.clockAdvances = await (async () => { const a = ctx.currentTime; await sleep(150); return ctx.currentTime > a; })();
+
+  // 3b. the lazy sounds: silence (and no warning) until load() has made them, then they play; load() is idempotent and reports 0..1
+  const warned = () => (window.__warns || []).filter((w) => /guardian_/.test(w));
+  tryCall('sfx of a lazy sound before load', () => A.sfx('guardian_roar'));
+  if (warned().length) fail('a lazy sound that is not made yet warned: ' + warned().join(' | '));
+  const lp = [];
+  const t1 = performance.now();
+  await A.load('guardian', (p) => lp.push(p));
+  report.lazyMs = performance.now() - t1;
+  if (!lp.length || lp[lp.length - 1] !== 1) fail('load() did not report its end (' + lp.slice(-3).join(',') + ')');
+  for (let i = 1; i < lp.length; i++) if (lp[i] < lp[i - 1]) { fail('load() progress not monotonic'); break; }
+  const miss2 = lazy.filter((n) => !A._debug.buffers.includes(n));
+  if (miss2.length) fail('lazy sounds missing after load(): ' + miss2.join(','));
+  const lp2 = [];
+  await A.load('guardian', (p) => lp2.push(p));
+  if (lp2.length) fail('a second load() made the sounds again');
+  const v0 = A._debug.voicesTotal;
+  tryCall('sfx of a lazy sound after load', () => A.sfx('guardian_slam'));
+  if (!(A._debug.voicesTotal > v0)) fail('a lazy sound does not play after load()');
+  tryCall('load of an unknown group', () => A.load('nope'));
 
   // 4. music, day/night crossfade (equal power), controls
   tryCall('startMusic', () => A.startMusic());
@@ -214,6 +241,27 @@ async function inPage() {
   return report;
 }
 
+/** Runs inside a fresh page: a place that asks for its sounds before the audio is up (the title's TRAVEL, a tap after the click that started it) is not left silent: init() makes them once it has the rest. */
+async function inPageWanted(mode) {
+  const A = window.audio, errors = [];
+  const fail = (m) => errors.push(m);
+  if (mode === 'before') {
+    await A.load('guardian', () => fail('a load() before init() reported progress'));
+    if (A.ready) fail('ready before init');
+    await A.init(() => {});
+  } else {
+    const p = A.init(() => {});
+    await new Promise((r) => setTimeout(r, 400));                       // (init() is under way: its jobs are being rendered)
+    if (A.ready) fail('init() was over before the test could ask');
+    await A.load('guardian', () => {});
+    await p;
+  }
+  if (!A.ready) fail('not ready after init');
+  const missing = A.lazyNames.filter((n) => !A._debug.buffers.includes(n));
+  if (missing.length) fail('sounds asked for ' + mode + ' init() were not made: ' + missing.join(','));
+  return errors;
+}
+
 const results = [];
 let failed = false;
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
@@ -228,6 +276,16 @@ for (let run = 0; run < runs; run++) {
   const report = await page.evaluate(inPage);
   const bad = consoleMsgs.filter((m) => /^(error|pageerror)/.test(m));
   const warns = consoleMsgs.filter((m) => /^warning/.test(m));
+  // (the sounds of a place that asks for them before the audio is up, and while it is coming up)
+  for (const mode of ['before', 'during']) {
+    const p2 = await browser.newPage();
+    await p2.goto(`http://127.0.0.1:${port}/`);
+    await p2.waitForFunction(() => window.__ready === true, null, { timeout: 15000 });
+    await p2.mouse.click(10, 10);
+    const errs = await p2.evaluate(inPageWanted, mode);
+    if (errs.length) report.errors.push(...errs);
+    await p2.close();
+  }
   report.consoleErrors = bad;
   report.consoleWarnings = warns;
   if (bad.length) report.errors.push(...bad.map((b) => 'console ' + b));

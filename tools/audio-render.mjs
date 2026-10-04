@@ -174,7 +174,7 @@ const problems = validateComposition();
 console.log(problems.length ? `composition: ${problems.length} PROBLEM(S)\n  ${problems.join('\n  ')}` : 'composition: structure OK (16 bars, every bar sums to 8 eighths, all patterns 16 steps)');
 
 const out = {};
-const jobs = assetJobs(out, { stats: true });
+const jobs = assetJobs(out, { stats: true, all: true });
 const rows = [];
 const hardFails = [];
 const t0 = performance.now();

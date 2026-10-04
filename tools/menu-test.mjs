@@ -119,10 +119,10 @@ if (!only || only === 'title') {
   R = await rows(page);
   check('OPTIONS opens a short page of sub-pages', R.title === 'OPTIONS' && R.labels.length <= 7 && R.rowPx >= 34, `(${R.labels.join(' / ')})`);
   await shot(page, 'options');
-  // the DEBUG page: three rows and a few lines of explanation, all inside the panel, below the button
+  // the DEBUG page: four rows (the debug mode, the colliders, the text size and COPY REPORT, which puts what a bug report needs on the clipboard) and a few lines of explanation, all inside the panel, below the button
   await tap(R.row[R.labels.indexOf('DEBUG')].x, R.row[R.labels.indexOf('DEBUG')].y);
   R = await rows(page);
-  check('the DEBUG page: mode, colliders and text size rows, finger-sized, inside the screen and below the button', R.title === 'DEBUG' && R.labels.join() === 'DEBUG MODE,SHOW COLLIDERS,TEXT SIZE' && R.rowPx >= 34 && R.panel.bottom <= u.vh && clearOfButton(R, u), `(${R.labels.join(' / ')}: ${R.rowPx.toFixed(1)} px, panel ${Math.round(R.panel.top)}..${Math.round(R.panel.bottom)})`);
+  check('the DEBUG page: mode, colliders, text size and copy-report rows, finger-sized, inside the screen and below the button', R.title === 'DEBUG' && R.labels.join() === 'DEBUG MODE,SHOW COLLIDERS,TEXT SIZE,COPY REPORT' && R.rowPx >= 34 && R.panel.bottom <= u.vh && clearOfButton(R, u), `(${R.labels.join(' / ')}: ${R.rowPx.toFixed(1)} px, panel ${Math.round(R.panel.top)}..${Math.round(R.panel.bottom)})`);
   await shot(page, 'debug-page');
   const sc = R.labels.indexOf('SHOW COLLIDERS');
   await tap(R.row[sc].x, R.row[sc].y);

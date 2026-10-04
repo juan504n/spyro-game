@@ -5,7 +5,9 @@
 //   audio.startMusic(); audio.setDay(0.3); audio.sfx('gem_red', { pitch: 1.05, pan: -0.3 });
 //
 // All sound is synthesized at startup by the pure-DSP core (assets.js and friends) at 22050 Hz and
-// handed to WebAudio as AudioBuffers (the browser resamples to the device rate). Rendering is sliced
+// handed to WebAudio as AudioBuffers (the browser resamples to the device rate). The one exception is the Guardian's
+// (a fifth of the cost, and only a hero who has restored every realm hears it): they are made by audio.load('guardian')
+// when the Court is built, behind its loading bar. Rendering is sliced
 // into small jobs with time-boxed yields so the page stays responsive; total main-thread cost is
 // roughly 1-2 s on a desktop machine. Every public method is safe to call at any time: before init,
 // after a failed init, or with unknown names it is a silent no-op (unknown names warn once).
@@ -28,7 +30,7 @@
 // burst of 20 gems cannot stack into a clipped spike.
 
 import { SR, softLimit } from './synth.js';
-import { assetJobs, STINGER_NAMES } from './assets.js';
+import { assetJobs, lazyJobs, LAZY_NAMES, STINGER_NAMES } from './assets.js';
 import { SFX_NAMES, LOOP_NAMES, trimOf } from './sfx.js';
 import { clearInstrumentCache } from './instruments.js';
 
@@ -59,6 +61,9 @@ const S = {
   ready: false,
   failed: false,
   initPromise: null,
+  lazyWanted: new Set(), // groups of sounds asked for before init() (made at the end of it)
+  lazyDone: new Set(),
+  lazyLoading: new Map(),
   buffers: new Map(),
   n: {}, // graph nodes
   pools: { world: [], ui: [] }, // pooled { g, p, pool } gain+pan pairs, one pool per destination bus
@@ -322,6 +327,72 @@ function killMusicNodes(m, at) {
   }
 }
 
+/**
+ * Run render jobs with time-boxed yields (the page stays responsive) and hand each result to WebAudio as soon as it is made. `out` is the object the jobs write their PCM to; `report(0..1)` is called as
+ * jobs complete.
+ */
+async function renderJobs(jobs, out, report) {
+  let total = 0;
+  for (const j of jobs) total += j.weight;
+  let done = 0;
+  let sliceStart = performance.now();
+  report(0);
+  for (const job of jobs) {
+    try {
+      const it = job.run();
+      if (it && typeof it.next === 'function') {
+        // generator job: it yields between steps, so hand control back to the browser mid-job
+        for (let step = it.next(); !step.done; step = it.next()) {
+          if (performance.now() - sliceStart > 10) {
+            await yieldToBrowser();
+            sliceStart = performance.now();
+          }
+        }
+      }
+    } catch (e) {
+      warnOnce('render failed for', job.name + ': ' + (e && e.message));
+    }
+    for (const k of Object.keys(out)) {
+      if (!S.buffers.has(k) && out[k] && (out[k] instanceof Float32Array || out[k].L)) {
+        try {
+          S.buffers.set(k, toAudioBuffer(out[k]));
+        } catch (e) {
+          warnOnce('buffer failed for', k);
+        }
+        delete out[k]; // release the PCM as soon as the AudioBuffer owns a copy
+      }
+    }
+    done += job.weight;
+    report(Math.min(0.999, done / total));
+    if (performance.now() - sliceStart > 10) {
+      await yieldToBrowser();
+      sliceStart = performance.now();
+    }
+  }
+}
+
+/** Make the sounds of a lazy group (assets.js LAZY_GROUPS); resolves when they are there (a failure is a warning and silence, never an exception). */
+function loadGroup(group, onProgress) {
+  if (S.lazyDone.has(group)) return Promise.resolve();
+  if (S.lazyLoading.has(group)) return S.lazyLoading.get(group);
+  const p = (async () => {
+    try {
+      const out = {};
+      const report = (f) => { try { if (onProgress) onProgress(f); } catch (e) { /* the game's callback must not break audio */ } };
+      await renderJobs(lazyJobs(group, out), out, report);
+      clearInstrumentCache();
+      S.lazyDone.add(group);
+      report(1);
+    } catch (e) {
+      warnOnce('load failed', group + ': ' + (e && e.message));
+    } finally {
+      S.lazyLoading.delete(group);
+    }
+  })();
+  S.lazyLoading.set(group, p);
+  return p;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------------------------
@@ -349,44 +420,8 @@ export const audio = {
           for (const ev of ['pointerdown', 'keydown', 'touchend']) document.addEventListener(ev, kick, { passive: true });
         }
         const out = {};
-        const jobs = assetJobs(out);
-        let total = 0;
-        for (const j of jobs) total += j.weight;
-        let done = 0;
-        let sliceStart = performance.now();
-        report(0);
-        for (const job of jobs) {
-          try {
-            const it = job.run();
-            if (it && typeof it.next === 'function') {
-              // generator job: it yields between steps, so hand control back to the browser mid-job
-              for (let step = it.next(); !step.done; step = it.next()) {
-                if (performance.now() - sliceStart > 10) {
-                  await yieldToBrowser();
-                  sliceStart = performance.now();
-                }
-              }
-            }
-          } catch (e) {
-            warnOnce('render failed for', job.name + ': ' + (e && e.message));
-          }
-          for (const k of Object.keys(out)) {
-            if (!S.buffers.has(k) && out[k] && (out[k] instanceof Float32Array || out[k].L)) {
-              try {
-                S.buffers.set(k, toAudioBuffer(out[k]));
-              } catch (e) {
-                warnOnce('buffer failed for', k);
-              }
-              delete out[k]; // release the PCM as soon as the AudioBuffer owns a copy
-            }
-          }
-          done += job.weight;
-          report(Math.min(0.999, done / total));
-          if (performance.now() - sliceStart > 10) {
-            await yieldToBrowser();
-            sliceStart = performance.now();
-          }
-        }
+        await renderJobs(assetJobs(out), out, report);
+        for (const g of S.lazyWanted) await loadGroup(g, null);                                // (a place that asked for its sounds before the audio was up)
         clearInstrumentCache();
         S.ready = S.buffers.has('gloaming') && S.buffers.has('daybreak');
         S.failed = !S.ready;
@@ -402,6 +437,7 @@ export const audio = {
         } catch (e) { /* ignore */ }
         S.ctx = null;
         S.buffers.clear();
+        S.lazyDone.clear();
         S.n = {};
         S.pools.world.length = 0;
         S.pools.ui.length = 0;
@@ -413,6 +449,16 @@ export const audio = {
       if (S.failed && S.initPromise === p) S.initPromise = null; // a later init() may retry
     });
     return p;
+  },
+
+  /**
+   * Make the sounds of a place that is not in the start-up set (assets.js LAZY_GROUPS: 'guardian'), from the loading bar of that place; onProgress(0..1) as they are made. Before init() it only notes that
+   * they are wanted (init() makes them once it has the rest). Idempotent; never rejects. Until they are made, sfx() of their names is a silent no-op.
+   */
+  load(group, onProgress) {
+    if (S.lazyDone.has(group)) return Promise.resolve();
+    if (!S.ready) { S.lazyWanted.add(group); return Promise.resolve(); }
+    return loadGroup(group, onProgress);
   },
 
   /** context.resume() helper — safe anytime; resolves even when there is no context. */
@@ -428,7 +474,7 @@ export const audio = {
       const o = opts || {};
       if (name === 'footstep') name = ['footstep_a', 'footstep_b', 'footstep_c'][Math.floor(rand() * 3)];
       const buf = S.buffers.get(name);
-      if (!buf) return warnOnce('unknown sfx', name);
+      if (!buf) return LAZY_NAMES.has(name) ? undefined : warnOnce('unknown sfx', name);       // (a lazy sound that is not made yet is silence)
       playOneShot(name, buf, { vol: Math.max(0, num(o.vol, 1)), pitch: num(o.pitch, 1), pan: num(o.pan, 0), jitter: Math.max(0, num(o.jitter, 0)) });
     } catch (e) { /* never throw into the game loop */ }
   },
@@ -667,6 +713,10 @@ export const audio = {
   },
   get loopNames() {
     return [...LOOP_NAMES];
+  },
+  /** The sfx names that are made by load(), not by init(). */
+  get lazyNames() {
+    return [...LAZY_NAMES];
   },
   get stingerNames() {
     return [...STINGER_NAMES];

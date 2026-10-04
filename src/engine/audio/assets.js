@@ -17,7 +17,14 @@ export { SR } from './synth.js';
 export const STINGER_NAMES = ['lantern', 'sunrise', 'complete', 'gameover'];
 
 /** Relative cost of heavier sfx (everything else counts as 1). */
-const WEIGHT = { lantern_ignite: 3, ui_start: 2, barrier_open: 2, lantern_beam: 2, portal_hum: 2, portal_open: 2, portal_enter: 2, waterfall: 2, windmill: 2, gem_purple: 2 };
+const WEIGHT = { lantern_ignite: 3, ui_start: 2, barrier_open: 2, lantern_beam: 2, portal_hum: 2, portal_open: 2, portal_enter: 2, waterfall: 2, windmill: 2, gem_purple: 2, guardian_roar: 2, guardian_lit: 2, guardian_freed: 4 };
+
+/**
+ * Sounds that are made when the place that uses them is built, not at every start-up (audio.load(group)): the Guardian's, which only a hero who has restored every realm hears and which cost a fifth
+ * of the whole start-up (`guardian_freed` alone is the heaviest job of all). The gate's rumble in Dawnhaven (`guardian_stoop`) is small and stays in the start-up set.
+ */
+export const LAZY_GROUPS = { guardian: SFX_NAMES.filter((n) => n.startsWith('guardian_') && n !== 'guardian_stoop') };
+export const LAZY_NAMES = new Set(Object.values(LAZY_GROUPS).flat());
 
 /**
  * All render jobs in load order: [{ name, weight, run() }]. Weights sum to the progress total.
@@ -26,9 +33,14 @@ const WEIGHT = { lantern_ignite: 3, ui_start: 2, barrier_open: 2, lantern_beam: 
  */
 export function assetJobs(out, opts = {}) {
   const jobs = [];
-  for (const name of SFX_NAMES) jobs.push({ name, weight: WEIGHT[name] ?? 1, run: () => { out[name] = SFX[name](); } });
+  for (const name of SFX_NAMES) if (opts.all || !LAZY_NAMES.has(name)) jobs.push({ name, weight: WEIGHT[name] ?? 1, run: () => { out[name] = SFX[name](); } });       // (opts.all: the tools that render every sound)
   jobs.push(...ambienceJobs(out), ...stingerJobs(out), ...musicJobs(out, opts));
   return jobs;
+}
+
+/** The render jobs of a lazy group (LAZY_GROUPS): the same kind of job as assetJobs makes. */
+export function lazyJobs(group, out) {
+  return (LAZY_GROUPS[group] || []).map((name) => ({ name, weight: WEIGHT[name] ?? 1, run: () => { out[name] = SFX[name](); } }));
 }
 
 /** Approximate bytes of PCM in a results object (Float32). */

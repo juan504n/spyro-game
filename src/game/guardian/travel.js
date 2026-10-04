@@ -17,6 +17,7 @@ export const TRAVEL_PLACES = {
         { id: 'mouth', name: 'THE COURT\'S MOUTH', x: 0, z: 14, yaw: PI },
         { id: 'floor', name: 'THE FLAGSTONE FLOOR', x: -20, z: -50, yaw: Math.atan2(20, 20) },
         { id: 'dais', name: 'THE DAIS', x: 0, z: -22, yaw: PI },
+        { id: 'rematch', name: 'THE FIGHT AGAIN', x: 0, z: 8, yaw: PI, rematch: true },          // (the Court built as it was before he was freed: once he is free it is quiet, and a fight is a thing a tester wants again)
       ],
     },
   ],

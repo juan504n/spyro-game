@@ -11,6 +11,8 @@ import { GuardianBrain, GUARDIAN } from '../guardian/brain.js';
 import { makeModel } from '../models/fallback.js';
 
 const VIOLET = [0.72, 0.52, 1.0], RED = [1.0, 0.3, 0.24], GOLD = [1.0, 0.82, 0.42], CYAN = [0.55, 1.0, 0.95], AMBER = [1.0, 0.64, 0.14], MAGENTA = [0.98, 0.32, 0.86], STONE = [[0.42, 0.4, 0.55], [0.55, 0.52, 0.7], [0.3, 0.28, 0.42]];
+/** seconds after the Court is built, or the hero is put somewhere in it by the TRAVEL menu, in which he does not notice him (the hero reads the name of the place before the roar takes its banner) */
+const ARRIVAL_QUIET = 2.0;
 const RING_K = 0.875;                                  // the 'ring' sprite's ring lies at 14 of 16 pixels from its centre: a decal's half-size is the radius over this
 const clamp = (v, a = 0, b = 1) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -30,6 +32,7 @@ export class BossSystem {
     this.floorAt = (x, z) => col.heightAt(x, z);
     this.brain = new GuardianBrain({ cx: cfg.x, cz: cfg.z, floorAt: this.floorAt, daisY: cfg.daisY, arenaR: cfg.arenaR, wakeR: cfg.wake, leaveR: cfg.leave, pillars: cfg.pillars });
     this.time = 0;
+    this.quietT = ARRIVAL_QUIET;                        // (seconds in which the Guardian does not see the hero: see hush)
     this.told = {};                                     // the hints that have been given once
     this.helpers = [];                                  // the Snuffers of this phase
     this.hitsTaken = 0;
@@ -99,6 +102,9 @@ export class BossSystem {
   }
 
   // ---- what the hero is, to the brain ---------------------------------------------------------------------------------------------------
+  /** The hero was put somewhere by the TRAVEL menu (App._placeHero): for a moment the Guardian does not see him, so that the name of the place is read before the roar takes the banner. */
+  hush(t = ARRIVAL_QUIET) { this.quietT = Math.max(this.quietT, t); }
+
   /** He bows to the hero (the ending): a slow lean forward and back over three seconds. */
   bow() { this.bowAt = this.time; }
 
@@ -115,7 +121,8 @@ export class BossSystem {
     this.roarT = Math.max(0, this.roarT - dt);
     if (B.mode === 'fight' || B.mode === 'stoop' || B.mode === 'rising' || B.mode === 'waking') this.fightTime += dt;
     for (const F of this.fists) { const f = B.fists[F.id]; F.px = f.x; F.py = f.y; F.pz = f.z; }
-    B.step(dt, this._hero(game), this.q);
+    this.quietT = Math.max(0, this.quietT - dt);
+    B.step(dt, this.quietT > 0 ? null : this._hero(game), this.q);
     // the hero's ram: a stuck fist cracks (as a Snuffer falls to it: Player.chargeHits, the horns' reach), his flame only rings on its stone
     for (const f of B.fists) {
       if (f.state !== 'stuck') continue;

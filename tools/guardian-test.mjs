@@ -215,6 +215,23 @@ await check('the-way-home', async () => {
   return { ok: walk.ok && went && back && r.realm === 'home' && r.arrival < 0.6 && r.open && r.gold && r.beamK > 0.9 && /THE GUARDIAN IS FREE/.test(r.words) && r.lanterns === 5 && r.total === 5 && standOk(s), walked: walk.ok, ...r, words: r.words.slice(0, 60) + '...' };
 });
 
+await check('the-fight-again', async () => {
+  // THE FIGHT AGAIN of the TRAVEL menu builds the Court as it was before he was freed; what is saved stays saved (his freedom, the gold beam, the Elder's words)
+  const inCourt = () => window.__game.realm.id === 'guardian' && window.__app.state === 'play' && !window.__app.travel && !window.__game.disposed;
+  await ev(async () => { const { findPlace } = await import('/src/game/travel.js'); window.__app.warpTo(findPlace('guardian/rematch')); });
+  const got1 = await runUntil(inCourt, 60, 0.5);              // (the app's clock is run by hand: the driver took the page's own loop)
+  await ff(0.6);
+  const early = await ev(() => { const g = window.__game; window.__rematch1 = g; return { freed: g.freed, brain: g.boss.brain.mode, lit: g.boss.brain.lit, lanterns: g.stats.beacons, saved: window.__app.progress.guardian.freed, banner: g.hud.bannerState && g.hud.bannerState.title, at: [+g.player.x.toFixed(1), +g.player.z.toFixed(1)], beams: +g.boss.beamK.toFixed(2) }; });
+  await ff(2.6);
+  const late = await ev(() => ({ brain: window.__game.boss.brain.mode, hud: window.__game.boss.hudState().show }));
+  // (and again, from inside the Court: not a hop that keeps the world, a rebuild)
+  await ev(async () => { const { findPlace } = await import('/src/game/travel.js'); window.__app.warpTo(findPlace('guardian/rematch')); });
+  const got2 = await runUntil(inCourt, 60, 0.5);
+  await ff(0.6);
+  const again = await ev(() => ({ rebuilt: window.__game !== window.__rematch1, brain: window.__game.boss.brain.mode, banner: window.__game.hud.bannerState && window.__game.hud.bannerState.title }));
+  return { ok: got1 && got2 && early.freed === false && early.brain === 'asleep' && early.lit === 0 && early.lanterns === 0 && early.beams === 0 && early.saved === true && early.banner === 'THE FIGHT AGAIN' && Math.abs(early.at[1] - 8) < 1.5 && late.brain !== 'asleep' && late.hud && again.rebuilt && again.brain === 'asleep' && again.banner === 'THE FIGHT AGAIN', early, late, again };
+});
+
 await check('no-errors-in-the-page', async () => ({ ok: errors.length === 0, errors: errors.slice(0, 3) }));
 await browser.close();
 console.log(failed ? `\n${failed} FAILED` : '\nall passed');
