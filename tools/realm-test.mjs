@@ -4,6 +4,7 @@
 //   node tools/realm-test.mjs <realm id>      (needs the dev server on :5173, GV_HMR=0 recommended; GV_URL=http://127.0.0.1:PORT/ tests another server, e.g. a scratch checkout's)
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 import { tideLevel } from '../src/game/realm/tide.js';
+import { homecoming as homecomingAt, homeOk } from './lib/homecoming.mjs';
 
 const id = process.argv[2];
 if (!id) { console.log('usage: node tools/realm-test.mjs <realm id>'); process.exit(1); }
@@ -339,8 +340,9 @@ await check('the ring carries him out', async () => {
 await arrived('home');
 
 await check('Dawnhaven receives him', async () => {
-  const r = await ev(() => { const g = window.__game; return { realm: g.realm.id, mode: g.mode, hud: g.hud.visible }; });
-  return { ok: r.realm === 'home' && r.mode === 'play' && r.hud, ...r };
+  await ff(2);                                   // (two seconds of standing: a place that drowns him sets him back to itself, and he would not be where it said)
+  const r = await homecomingAt(ev, id);
+  return { ok: homeOk(r), ...r };
 });
 
 await check('the realm entered again is restored', async () => {
@@ -372,11 +374,9 @@ if (door) {
   });
   await arrived(door.target);
   await check('... and he comes out where the way from this realm comes out', async () => {
-    const r = await ev((from) => {
-      const g = window.__game, p = g.player, a = g.gameplay.arrivals && g.gameplay.arrivals[from];
-      return { realm: g.realm.id, mode: g.mode, hud: g.hud.visible, arrival: a ? Math.hypot(p.x - a.x, p.z - a.z) : null };
-    }, id);
-    return { ok: r.realm === door.target && r.mode === 'play' && r.hud && (r.arrival === null || r.arrival < 2.5), ...r };
+    await ff(2);
+    const r = await homecomingAt(ev, id);
+    return { ok: r.realm === door.target && homeOk(r), ...r };
   });
 }
 

@@ -71,18 +71,22 @@ const { n2, nB, nC } = COUNTRY;
 const road = (id, surface, width, pts, extra = {}) => ({ id, surface, width, pts, ...extra });
 const ptsOf = (id, from = 0, to = Infinity) => REGIONS.find((r) => r.id === id).pts.slice(from, to).map((p) => [p[0], p[1]]);
 
-/** the doors, each in a place of its own. `deg`-free: positions are placed by hand. `yaw`: the way the door's front (its local +z) looks. */
+/**
+ * the doors, each in a place of its own. `deg`-free: positions are placed by hand. `yaw`: the way the door's front (its local +z) looks. `y`: the height of the dais the door stands on, when it is not the
+ * ground's. `floor`: the height of the floor 11 m in front of it, where the hero comes out of the door's light when he comes home to Dawnhaven (the arrival: `layoutDoors`), when that is not the ground's
+ * either - a pier's deck, a summit's pad. Without it the hero is put on the terrain, which on the lake is the bed, 3.3 m under the water, and on the summit is the floor of the mountain 31 m below.
+ */
 const DOOR_DEFS = [
   // in a niche of the Cove's west wall, the first thing the hero sees
   { id: 'gloaming', name: 'GLOAMING VALE', tag: 'LANTERN KEEPERS REALM', x: -40, z: 144, look: [14, 150], color: [0.66, 0.46, 1.0], target: 'gloaming' },
   // deep in the Crag, at the far end of the Frost Grotto
   { id: 'frostbloom', name: 'FROSTBLOOM HOLLOW', tag: 'A REALM OF ICE AND BLOSSOM', x: 42.5, z: -87.5, look: [28, -82], color: [0.55, 0.85, 1.0], target: 'frostbloom' },
   // at the end of the long pier out on Mirror Lake
-  { id: 'tideglass', name: 'TIDEGLASS REACH', tag: 'A REALM OF TIDES AND GLASS', x: 128, z: 38.4, y: WATER_LEVEL, look: [128, 100], color: [0.38, 0.92, 0.82], target: 'tideglass' },
+  { id: 'tideglass', name: 'TIDEGLASS REACH', tag: 'A REALM OF TIDES AND GLASS', x: 128, z: 38.4, y: WATER_LEVEL, floor: WATER_LEVEL + 0.3, look: [128, 100], color: [0.38, 0.92, 0.82], target: 'tideglass' },
   // in the forge at the head of the canyon
   { id: 'emberfall', name: 'EMBERFALL CRAGS', tag: 'A REALM OF EMBERS AND STONE', x: 152, z: -164, look: [150, -138], color: [1.0, 0.58, 0.28], target: 'emberfall' },
   // on the summit of the Crag
-  { id: 'skyweaver', name: 'SKYWEAVER SPIRES', tag: 'A REALM ABOVE THE CLOUDS', x: SUMMIT.x + 3, z: SUMMIT.z - 5, y: SUMMIT.y, look: [SUMMIT.x - 6, SUMMIT.z + 9], color: [1.0, 0.78, 0.92], target: 'skyweaver' },
+  { id: 'skyweaver', name: 'SKYWEAVER SPIRES', tag: 'A REALM ABOVE THE CLOUDS', x: SUMMIT.x + 3, z: SUMMIT.z - 5, y: SUMMIT.y, floor: SUMMIT.y, look: [SUMMIT.x - 6, SUMMIT.z + 9], color: [1.0, 0.78, 0.92], target: 'skyweaver' },
 ];
 export const DOORS = DOOR_DEFS.map((d) => ({ ...d, yaw: Math.atan2(d.look[0] - d.x, d.look[1] - d.z), h: DOOR_H }));
 /** where the hero comes out of the first door's light: 11 m in front of it */

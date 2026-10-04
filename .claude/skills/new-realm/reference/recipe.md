@@ -107,7 +107,7 @@ round the goal too). A cracked wall (`ctx.addWall(x, z, yaw, 7.0, 5.7, [25])`) a
 
 ## 7. The door and the way home
 
-`--wake-door` sets the Dawnhaven door's `target` (`src/game/home/level.js` DOOR_DEFS; none sleeps now: a new realm needs a door cut first, see SKILL.md); Dawnhaven's `layoutDoors` then makes the door awake and records `gp.arrivals[target]`. The hero arrives at the
+`--wake-door` sets the Dawnhaven door's `target` (`src/game/home/level.js` DOOR_DEFS; none sleeps now: a new realm needs a door cut first, see SKILL.md); Dawnhaven's `layoutDoors` then makes the door awake and records `gp.arrivals[target]` (11 m in front of the door, at the ground's height unless the door names a `floor`: a door on a deck or a pad must, or the hero comes home under it). The hero arrives at the
 realm's `spawn` (or `gp.arrivals[from]` if the realm sets one). The realm's `exit` (the ring of light over the last goal) leads back to `exit.target` ('home'). Update `home-check.mjs`, `home-bot.mjs`
 (`sealed-doors` lists the doors that sleep; each awake door has a `door-opens-<id>` run) and `portal-test.mjs` when a door wakes, re-pin Dawnhaven's `world-hash` (an intended change: its door is awake) and move
 any Dawnhaven TRAVEL place that lies within 6 m of the door (an awake door's light carries him away). A place of the realm that lies **beyond its gate** carries `opens: true` (`realm-travel.mjs` finds out by

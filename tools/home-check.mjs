@@ -57,6 +57,16 @@ const f1 = (v) => v.toFixed(1);
     const opening = collision.blocking(d.x, p.y + 1.0, d.z, 0.4);
     check(`door ${d.id}: ${d.target ? 'the opening is free to walk into' : 'the opening is shut with stone'}`, d.target ? !opening : !!opening);
   }
+  // the way HOME: the place each realm's door brings the hero back to (gp.arrivals: the game puts him there, at that height). It is a floor, not the terrain under it (on the lake that is the bed, on the
+  // summit the floor of the mountain 31 m below), above the water, clear, in front of the door it belongs to and level with it, facing out of it. (Round twenty-five: the pier's arrival had no height - he
+  // came home from Tideglass Reach to the bed of the lake, under the pier, and drowned there again and again - and the summit's put him in the Frost Grotto, far under the Skyweaver door.)
+  for (const d of DOORS.filter((q) => q.target)) {
+    const a = gp.arrivals[d.target], p = gp.portals.find((q) => q.id === d.id);
+    const sup = a && collision.support(a.x, a.z, a.y + 1.0, 0.9);
+    check(`arrival from ${d.target}: a floor of its own height (data, not the terrain under it)`, !!a && Number.isFinite(a.y) && Math.abs(sup.y - a.y) < 0.15, a ? `(arrives at ${f1(a.y)}, the floor there is ${f1(sup.y)}, ${sup.kind}; the terrain ${f1(h(a.x, a.z))})` : '(none)');
+    const along = a ? (a.x - d.x) * Math.sin(d.yaw) + (a.z - d.z) * Math.cos(d.yaw) : 0;
+    check(`arrival from ${d.target}: above the water, clear to stand in, 9-13 m in front of its door (off its light) and level with it, facing out`, !!a && a.y > WATER_LEVEL + 0.25 && !collision.blocking(a.x, a.y + 0.5, a.z, 0.4) && !collision.blocking(a.x, a.y + 1.2, a.z, 0.4) && along > 9 && along < 13 && Math.abs(a.y - p.y) < 1.0 && Math.abs(a.yaw - d.yaw) < 1e-6, a ? `(${f1(a.y - WATER_LEVEL)} m over the water, ${f1(along)} m in front, ${f1(Math.abs(a.y - p.y))} m from the door's floor)` : '');
+  }
   const g = gp.arrivals.gloaming, d0 = DOORS[0], s = Math.sin(d0.yaw), c = Math.cos(d0.yaw);
   const along = (g.x - d0.x) * s + (g.z - d0.z) * c;
   check('the hero arrives in front of the Gloaming door, well clear of its trigger', along > 8 && Math.abs(g.yaw - d0.yaw) < 1e-6, `(${f1(along)} m in front, facing out of the niche)`);
@@ -123,6 +133,9 @@ const f1 = (v) => v.toFixed(1);
   const outside = [...gp.gems, ...gp.vases, ...gp.chests].filter((o) => Math.abs(o.x) > lim || Math.abs(o.z) > lim);
   check('everything to collect is inside the world', outside.length === 0);
   check('hint zones: a good many, each over ground the hero can stand on', gp.hints.length >= 14 && gp.hints.every((hh) => Math.abs(hh.x) < lim && Math.abs(hh.z) < lim), `(${gp.hints.length} zones)`);
+  // the words must not say a door sleeps when it is awake (the summit's said "THE SKYWEAVER DOOR IS SEALED, FOR NOW" for a whole round after the door woke: the first thing he read on coming home to it)
+  const stale = gp.hints.filter((hh) => /DOOR[^.:!]*SEALED|PORTAL SLEEPS|STILL SLEEPS/.test(hh.text));
+  check('no hint says a door is sealed or asleep while every door is awake', stale.length === 0, stale.map((hh) => `"${hh.text}"`).join(' '));
   const caveHints = gp.hints.filter((hh) => hh.y0 !== undefined);
   check('the hint zones in and over the Crag only count at their own height', caveHints.length >= 6 && caveHints.every((hh) => hh.y1 > hh.y0), `(${caveHints.length} zones with a height band)`);
 }
@@ -139,6 +152,8 @@ const near = (f, x, z, r = 2.4, y) => f.distNear(x, z, r, y) < Infinity;
 {
   const doorY = (d) => gp.portals.find((q) => q.id === d.id).y;
   for (const d of DOORS) { const [x, z] = inFront(d, 5); check(`walk: from the arrival to the ${d.id} door's dais`, near(w, x, z, 2.4, doorY(d)), `(${f1(w.distNear(x, z, 2.4, doorY(d)))} m of walking)`); }
+  // ... and every place a realm brings him home to is on that same walk, so he can walk out of it (not a pocket, not a pier with no shore) and the walk can bring him there
+  for (const d of DOORS.filter((q) => q.target)) { const a = gp.arrivals[d.target]; check(`walk: from the first arrival to where ${d.target} brings him home`, near(w, a.x, a.z, 2.4, a.y), `(${f1(w.distNear(a.x, a.z, 2.4, a.y))} m of walking)`); }
   // not five doors on five equal spokes: the walks to them are very different, the nearest in the next cove, the farthest a long journey
   const walks = DOORS.map((d) => ({ id: d.id, m: w.distNear(...inFront(d, 5), 2.4, doorY(d)) })).sort((a, b) => a.m - b.m);
   check('the walks to the doors differ a great deal: the nearest under 120 m, the farthest over 350 m', walks[0].m < 120 && walks[walks.length - 1].m > 350, `(${walks.map((q) => `${q.id} ${Math.round(q.m)} m`).join(', ')})`);

@@ -3,6 +3,7 @@
 // run forward in 1/30 s steps so a trip does not wait in real time (a world is still built the real way, behind the loading bar).
 //   node tools/portal-test.mjs      (needs the dev server on :5173, GV_HMR=0 recommended; GV_URL=file:///.../docs/index.html tests a built file instead)
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { homecoming, homeOk } from './lib/homecoming.mjs';
 
 const BASE = process.env.GV_URL || 'http://127.0.0.1:5173/';
 const KEY = 'gloaming-vale/progress/v1';
@@ -210,6 +211,20 @@ await check('best-gems-kept', async () => {
   const r = s.realms.gloaming;
   return { ok: r.done && r.gems >= 123 && r.gemsTotal === 700, ...r };
 });
+
+// ---- coming home from each of the five realms: he stands on his feet at that realm's door (tools/lib/homecoming.mjs) -------------------------------------------------
+// (the trip is the real one - the app builds Dawnhaven `from` the realm - and he stands a couple of seconds: a place that drowns him would set him back to itself. Tideglass Reach's arrival
+// had no height once: the game put him on the bed of the lake under the pier, and Skyweaver Spires' in the Frost Grotto under its summit door; the check on the map's x and z passed both)
+for (const from of ['gloaming', 'frostbloom', 'tideglass', 'emberfall', 'skyweaver']) {
+  await check(`home-from-${from}`, async () => {
+    await ev((f) => window.__app.travelTo('home', { from: f }), from);
+    await ff(3);
+    await arrived('home');
+    await ff(2);
+    const r = await homecoming(ev, from);
+    return { ok: homeOk(r), ...r };
+  });
+}
 
 // ---- the homeworld on its own: entered by name, and what it has found is kept ----------------------------------------------
 await load('?world=home&skip=1');

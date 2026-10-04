@@ -139,6 +139,19 @@ await run('arrival', () => {
   __bot.tick(120);
   return { ok: Math.hypot(p.x - a.x, p.z - a.z) < 0.5 && !G.player.locked && !G.portals.busy && Math.hypot(p.x - d.x, p.z - d.z) > 9 && Math.hypot(G.gameplay.spawn.x - a.x, G.gameplay.spawn.z - a.z) < 0.5, at: [+p.x.toFixed(1), +p.z.toFixed(1)] };
 });
+await run('arrivals', () => {
+  // the place each realm's door brings the hero back to, at the height the data gives it (not the terrain's, which the pier's is not: the bed of the lake): the real controller holds him there for two
+  // seconds on his feet - not in water, not set back, not falling (Round twenty-five: Tideglass Reach's had no height and he drowned there again and again; Skyweaver Spires' put him under the summit)
+  const G = __game, p = G.player, out = [];
+  for (const [id, a] of Object.entries(G.gameplay.arrivals)) {
+    __bot.place(a.x, a.z, a.yaw, a.y);
+    __bot.tick(120);
+    const ok = p.grounded && !p.inWater && !p.dead && Math.abs(p.y - a.y) < 0.2 && Math.hypot(p.x - a.x, p.z - a.z) < 0.3 && p.y > (G.waterY ?? 0) + 0.25;
+    out.push([id, +p.y.toFixed(2), ok]);
+    if (!ok) return { ok: false, reason: `${id}: not standing on his floor`, at: [+p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2)], want: a, out };
+  }
+  return { ok: out.length === 5, out };
+});
 for (const door of ['gloaming', 'frostbloom', 'tideglass', 'emberfall', 'skyweaver']) { DATA.door = door; await run(`door-opens-${door}`, (D) => {
   // walking into an awake door's light raises the 'portal' event (the app turns it into the trip to the realm behind it); the others only talk
   const G = __game, p = G.player, door = D.door;

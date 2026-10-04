@@ -239,6 +239,6 @@ function summit(ctx) {
   gp.chests.push({ x: cx, y: SUMMIT.y, z: cz, yaw: face(cx, cz, SUMMIT.x + 4, SUMMIT.z + 8), gems: [10, 10, 5], secret: 'summit' });
   gp.purple.push([cx + 2.4, SUMMIT.y + 1.3, cz + 1.4]);
   put('crystal_cluster', cx - 2.8, cz - 1.4, { color: 'violet', count: 6, y: SUMMIT.y }, 2.4);
-  hint(ctx, SUMMIT.x, SUMMIT.z, SUMMIT.y, 14, 'THE SUMMIT! ALL OF DAWNHAVEN LIES BELOW. THE SKYWEAVER DOOR IS SEALED, FOR NOW', 8);
+  hint(ctx, SUMMIT.x, SUMMIT.z, SUMMIT.y, 14, 'THE SUMMIT! ALL OF DAWNHAVEN LIES BELOW. THE SKYWEAVER DOOR SHINES ROSE: WALK INTO ITS LIGHT', 8);
   void TUNNELS;
 }

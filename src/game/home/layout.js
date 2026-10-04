@@ -68,7 +68,10 @@ function layoutDoors(ctx) {
       blurb: `${d.name}: ${d.tag}. THE PORTAL SLEEPS - A REALM FOR ANOTHER DAY.`,
     });
     if (d.target) {
-      gp.arrivals[d.target] = { x: inFront(d, 11)[0], z: inFront(d, 11)[1], yaw: d.yaw };          // (see ARRIVE in level.js: the first door's is the world's spawn)
+      // where he comes out when he comes home through this realm's door: 11 m in front of it, on the floor there (the ground's height, or the `floor` the door names: a pier's deck, a summit's pad - the game
+      // puts him at this height, so without one a door that stands over the ground would put him under it)
+      const [ax, az] = inFront(d, 11);
+      gp.arrivals[d.target] = { x: ax, y: d.floor ?? h(ax, az), z: az, yaw: d.yaw };          // (see ARRIVE in level.js: the first door's is the world's spawn)
       gp.soundSources.push({ name: 'portal_hum', x: d.x, y: gy + 3.4, z: d.z, range: 44, vol: 1.3, when: `portal:${d.id}` });
     }
   }
