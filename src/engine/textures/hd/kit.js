@@ -110,21 +110,21 @@ export function voronoi(n, cols, rows, seed, jitter = 0.8, stagger = 0) {
     }
   }
   const id = new Int16Array(n * n), f1 = new Float32Array(n * n), f2 = new Float32Array(n * n), dx = new Float32Array(n * n), dy = new Float32Array(n * n);
-  // the nearest two points are almost always in the 3 x 3 cells round the pixel's own; the 16 cells of the ring beyond are looked at only when the second nearest found is farther than any of them could be
-  const lim = Math.max(0, Math.min(cw * (1.5 - jitter / 2 - stagger), ch * (1.5 - jitter / 2))), lim2 = lim * lim;
+  // the nearest two points are almost always in the 3 x 3 cells round the pixel's own; the ring beyond (and the ring beyond that, for cells that are narrow) is looked at only while the second nearest found
+  // is farther than any point of that ring could be: the closest a point `m` cells away can be is (m - 1/2 - jitter/2) cells (less the stagger, in x), less half a pixel (the pixel's cell is found by its corner)
+  const ringLimit = (m) => { const l = Math.min(cw * (m - 0.5 - jitter / 2 - stagger), ch * (m - 0.5 - jitter / 2)) - 0.5; return l > 0 ? l * l : 0; };
+  const lims = [0, 0];
   for (let y = 0; y < n; y++) {
     const cj = Math.floor(y / ch);
     for (let x = 0; x < n; x++) {
       const ci = Math.floor(x / cw);
       let b1 = 1e9, b2 = 1e9, bi = 0, bx = 0, by = 0;
-      for (let ring = 0; ring < 2; ring++) {
-        if (ring === 1 && b2 < lim2) break;
-        const R = ring === 0 ? 1 : 2;
-        for (let dj = -R; dj <= R; dj++) {
+      for (let m = 1; ; m++) {
+        if (m >= 2) { if (lims[m] === undefined) lims[m] = ringLimit(m); if (b2 < lims[m]) break; }
+        for (let dj = -m; dj <= m; dj++) {
           const jj = wrapN(cj + dj, rows), oy = Math.floor((cj + dj) / rows) * n;
-          const edgeRow = dj === -2 || dj === 2;
-          for (let di = -R; di <= R; di++) {
-            if (ring === 1 && !edgeRow && di !== -2 && di !== 2) continue;       // (the ring only: the inner 3 x 3 is done)
+          const full = m === 1 || dj === -m || dj === m, step = full ? 1 : 2 * m;     // (the ring only: what is inside it is done)
+          for (let di = -m; di <= m; di += step) {
             const ii = wrapN(ci + di, cols), ox = Math.floor((ci + di) / cols) * n;
             const k = jj * cols + ii;
             const ex = x + 0.5 - (px[k] + ox), ey = y + 0.5 - (py[k] + oy);

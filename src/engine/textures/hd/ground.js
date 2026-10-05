@@ -27,7 +27,7 @@ export function soil(n, { seed = 31, R, mottle = 4, pebbles = 12, pebbleSize = [
   const rut = ruts ? fbm(n, seed + 4, 3, 2, 0.5, 6) : null;
   cv.fillWith((x, y, out) => {
     const k = y * n + x;
-    let t = 0.5 + ((f[k] - 0.5) * 0.62 + (f2[k] - 0.5) * 0.42 + (f3[k] - 0.5) * 0.14) * contrast;
+    let t = 0.5 + ((f[k] - 0.5) * 0.44 + (f2[k] - 0.5) * 0.5 + (f3[k] - 0.5) * 0.16) * contrast;
     if (ruts) {                                                              // two shallow ruts along the tile, wobbling
       const v = y / n + (rut[k] - 0.5) * 0.06;
       const r1 = Math.exp(-Math.pow((v - 0.3) / 0.07, 2)), r2 = Math.exp(-Math.pow((v - 0.72) / 0.07, 2));
@@ -75,7 +75,7 @@ export function dunes(n, { seed = 41, R, ripples = 7, sheen = 0, sheenPow = 6, g
       height[k] = s * 0.075 * body + f[k] * 1.5;
     }
   }
-  cv.fillWith((x, y, out) => { const k = y * n + x; RR(clamp(0.5 + ((f[k] - 0.5) * 0.9 + (f3[k] - 0.5) * 0.15) * contrast), out); });
+  cv.fillWith((x, y, out) => { const k = y * n + x; RR(clamp(0.5 + ((f[k] - 0.5) * 0.58 + (f3[k] - 0.5) * 0.2) * contrast), out); });
   cv.shade(height, 2.4);
   if (sheen) cv.tint(crest.map((v) => Math.pow(v, sheenPow)), [255, 252, 236], sheen);
   const light = [255, 250, 232], dark = [60, 48, 30];
