@@ -13,6 +13,7 @@ import { buildTrial, footprint, rewardOf, trialProblems, lookOf, DEFAULTS, SIEGE
 import { KINDS } from '../src/game/foes/kinds.js';
 import { trialMix } from './lib/realm-rules.mjs';
 import { newBreath, newRam } from '../src/game/trials/core.js';
+import { goalsStage } from '../src/game/realm/populate.js';
 
 let failed = 0;
 const check = (name, ok, detail) => { if (!ok) failed++; console.log(ok ? 'PASS' : 'FAIL', name, detail === undefined ? '' : detail); };
@@ -32,8 +33,8 @@ const outcome = (r) => ({ solved: r.solvedAt !== null, fails: r.events.filter((e
 {
   for (const pl of PLAYS) {
     const seeds = pl.seeds || SEEDS;
-    const outs = seeds.map((seed) => outcome(playTrial({ spec: pl.spec, hero: pl.hero, policy: pl.policy(), T: pl.T, seed })));
-    const fails = outs.map((o) => judge(pl.want, o)).filter(Boolean);
+    const outs = seeds.map((seed) => { try { return outcome(playTrial({ spec: pl.spec, hero: pl.hero, policy: pl.policy(), T: pl.T, seed })); } catch (e) { return { threw: e.message }; } });       // (a machine that stops agreeing with the policy that plays it is a failed play, not a crash)
+    const fails = outs.map((o) => (o.threw ? `the play threw: ${o.threw}` : judge(pl.want, o))).filter(Boolean);
     const times = outs.filter((o) => o.solved).map((o) => o.t);
     check(pl.say, fails.length === 0, `(${outs.length - fails.length}/${outs.length} runs as wanted${times.length ? `, solved in ${f1(Math.min(...times))} to ${f1(Math.max(...times))} s` : ''}${fails.length ? ': ' + fails[0] : ''})`);
   }
@@ -642,6 +643,31 @@ const bellsAt = (cx, cz, r, n) => Array.from({ length: n }, (_, i) => { const a 
   check('whereIs: nothing when the trial is in sight (within 22 m), and beyond it a distance to the nearest 5 m', at(100, 215) === '' && at(100, 221) === '' && at(100, 223) === '25 M TO THE NORTH' && at(100, 241) === '40 M TO THE NORTH' && at(100, 300) === '100 M TO THE NORTH', `(${at(100, 221)} | ${at(100, 223)} | ${at(100, 241)})`);
   const C = { kind: 'circuit', x: 0, z: 0, pylons: [0, 50, 100, 150, 200].map((x) => ({ x, z: 0 })) };
   check('whereIs: a circuit is found by its nearest pylon (not its first)', whereIs(C, { x: 160, z: 60 }) === '60 M TO THE NORTH', `(${whereIs(C, { x: 160, z: 60 })})`);
+}
+
+// ---- the index's own guard: a sleeping trial offers nothing to aim at and says nothing, whatever its machine still holds (the machines let their targets go when they sleep; the index does not rely on it) ----
+{
+  const b = bellsAt(0, 0, 5.8, 5);
+  const [t, c] = make({ kind: 'bells', id: 'b', goal: 'g', x: 0, z: 0, bells: b }, 3);
+  steps(t, c, 6, null);                                                                                                     // (the tune is rung: it is his turn, and every bell is a target)
+  const live = targetsOf(t).length, said = hudOf(t);
+  t.asleep = true;                                                                                                          // (the flag alone, as a trial that has not yet let its parts go)
+  check('index: a sleeping trial has no targets and no line on the HUD, whatever its machine still holds', t.phase === 'play' && live === 5 && said !== null && targetsOf(t).length === 0 && hudOf(t) === null, `(${live} targets awake)`);
+}
+
+// ---- what the layout keeps clear for a goal's trial (realm/populate.js goalsStage: the ground nothing is scattered on) ----------------------------------------
+{
+  const stage = (goal) => {
+    const adds = [], gp = { beacons: [], hints: [], trials: [] };
+    goalsStage({ gp, brief: { theme: {}, goals: [{ id: 'g', x: 10, z: 20, ...goal }] }, h: () => 0, occ: { add: (x, z, r) => adds.push({ x, z, r }) } });
+    return { adds, gp };
+  };
+  const none = stage({}), big = stage({ big: true }), bells = stage({ trial: { kind: 'bells', at: [30, 20] } });
+  const circ = stage({ trial: { kind: 'circuit', pylons: [[30, 20], [50, 20], [50, 40], [30, 40]] } });
+  const ring = footprint(bells.gp.trials[0]);
+  check('layout: nothing grows within 4.5 m of a lantern (7 m of a big one), and a goal with no trial keeps nothing else clear', none.adds.length === 1 && none.adds[0].x === 10 && none.adds[0].z === 20 && none.adds[0].r === 4.5 && big.adds[0].r === 7 && none.gp.trials.length === 0);
+  check('layout: the trial of a goal is made and kept (one record, its lantern named) and the circle of ground it needs is kept clear of scatter', bells.gp.trials.length === 1 && bells.gp.trials[0].goal === 'g' && bells.adds.length === 2 && bells.adds[1].x === ring.x && bells.adds[1].z === ring.z && bells.adds[1].r === ring.r && ring.r > 5);
+  check('layout: a circuit has no circle, and 3 m round each of its pylons is kept clear instead', circ.adds.length === 5 && circ.gp.trials[0].pylons.length === 4 && circ.gp.trials[0].pylons.every((q, i) => circ.adds[i + 1].x === q.x && circ.adds[i + 1].z === q.z && circ.adds[i + 1].r === 3));
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nall trial checks passed');
