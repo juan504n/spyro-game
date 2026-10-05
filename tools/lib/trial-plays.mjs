@@ -308,8 +308,8 @@ export const SPECS = {
   siege: { kind: 'siege', id: 'siege', goal: 'x', x: 0, z: 0, r: 12, waves: [['basic', 'basic'], ['slinger', 'basic', 'bell'], ['thorn', 'basic']] },
 };
 
-/** the ground the rings are flown over in the tests: a ledge 24 m up with its edge 4.5 m out, a stack of ground 9 m under it 40 m out and the bed (the lava) far below; the course from the ledge toward the stack */
-export const RING_WORLD = { x: 0, z: 0, y: 24, yaw: 0, edge: 4.5, from: 40, r: 10, top: 15, bed: -5, half: 20 };
+/** the ground the rings are flown over in the tests: a ledge 24 m up with its edge 4.5 m out, a stack of ground 12 m under it 40 m out and the bed (the lava) far below; the course from the ledge toward the stack */
+export const RING_WORLD = { x: 0, z: 0, y: 24, yaw: 0, edge: 4.5, from: 40, r: 10, top: 12, bed: -5, half: 20 };
 export const ringsGround = () => ledgeWorld(RING_WORLD);
 SPECS.rings = { ...buildTrial({ id: 'x', x: 0, z: 40 }, { kind: 'rings', at: [0, 0], toward: [0, 40] }, { h: ringsGround() }), id: 'rings', goal: 'x' };
 

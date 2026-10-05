@@ -50,6 +50,34 @@ const LEGACY = {
   ],
 };
 
+/**
+ * What is wrong with a course of rings (a list of messages, empty if it is a course that can be flown): a ledge to leap from (the ground falls 3 m or more within 4 m of its lip, which is within 14 m of where he
+ * stands), a run to the lip that is level and dry, hoops that hang clear of the ground (0.5 m) and of the props and rocks, and the course flown over this ground by the model of the hero - leaping, walking off the edge,
+ * a thumb a third of a second late, and leaping from 3 m to either side - each of which must pass the rings it asks for. `h(x, z)` is the ground, `standable(x, z)` dry and clear, `blocking(x, y, z, r)` a solid thing.
+ */
+export function ringsProblems(t, { h, standable, blocking, tag = t.id }) {
+  const problems = [], f1 = (v) => v.toFixed(1);
+  const E = t.edgePt, fx = Math.sin(t.yaw), fz = Math.cos(t.yaw), y0 = h(t.x, t.z);
+  if (!(E.d <= 14 && h(E.x, E.z) - h(E.x + fx * 4, E.z + fz * 4) >= 3)) problems.push(`${tag}: there is no ledge to leap from (the ground must fall 3 m or more within 4 m of its lip, and the lip be within 14 m of where he stands: it is ${f1(E.d)} m)`);
+  for (let u = 0; u <= E.d; u += 1) { const x = t.x + fx * u, z = t.z + fz * u; if (!standable(x, z) || Math.abs(h(x, z) - y0) > 0.9) { problems.push(`${tag}: the run to the lip is wet, blocked or not level at ${f1(x)},${f1(z)}`); break; } }
+  t.rings.forEach((c, i) => {
+    const lx = c.nz, lz = -c.nx;                                                                   // (across the hoop, in its plane)
+    const low = c.y - t.r - h(c.x, c.z);
+    if (low < 0.5) { problems.push(`${tag}: ring ${i + 1} hangs ${f1(low)} m over the ground at its lowest (0.5 m at the least)`); return; }
+    for (let a = 0; a < 12; a++) {
+      const px = c.x + lx * Math.cos((a / 12) * Math.PI * 2) * t.r, pz = c.z + lz * Math.cos((a / 12) * Math.PI * 2) * t.r, py = c.y + Math.sin((a / 12) * Math.PI * 2) * t.r;
+      if (blocking(px, py, pz, 0.3)) { problems.push(`${tag}: ring ${i + 1} has a prop or rock in its hoop at ${f1(px)},${f1(py)},${f1(pz)}`); break; }
+    }
+  });
+  const lx = fz, lz = -fx;
+  const flights = [['leaping', pilots.ringsRight(), 0], ['walking off', pilots.ringsRight({ walk: true }), 0], ['with a thumb late', pilots.ringsRight({ late: 0.3 }), 0], ['leaping from 3 m to one side', pilots.ringsRight(), 3], ['leaping from 3 m to the other', pilots.ringsRight(), -3]];
+  for (const [what, policy, off] of flights) {
+    const r = playTrial({ spec: t, hero: { x: t.x + lx * off, z: t.z + lz * off, yaw: t.yaw }, policy, T: 14, floorAt: h });
+    if (r.solvedAt === null) problems.push(`${tag}: a hero ${what} does not fly it (he passes ${r.trial.passed} of the ${t.want} rings it asks for)`);
+  }
+  return problems;
+}
+
 /** the asks of a realm in the order of its goals (a kind of trial, or null for a plain lantern): are they varied? The first lantern is plain, at least three kinds stand in front of the others (fewer in a realm of fewer goals), none twice running */
 export function trialMix(order) {
   const kinds = new Set(order.filter(Boolean)), want = Math.min(3, order.length - 1);
@@ -366,27 +394,7 @@ export function checkRealm(which, { log = () => {} } = {}) {
         const ok = ringPts(t.spawnX, t.spawnZ, 14).filter(([x, z]) => near(walk, x, z, 2, h(x, z)) < Infinity && Math.abs(h(x, z) - y0) < 6).length;
         if (ok < 30) problems.push(`${tag}: only ${ok} of 37 points of a ring of 14 m round the Pilferling are ground to run on`);
       }
-      if (t.kind === 'rings') {                                                                          // (a course in the air: a ledge to leap from, hoops that hang clear, and a glide that can fly it)
-        const E = t.edgePt, fx = Math.sin(t.yaw), fz = Math.cos(t.yaw), y0 = h(t.x, t.z);
-        if (!(E.d <= 14 && h(E.x, E.z) - h(E.x + fx * 4, E.z + fz * 4) >= 3)) problems.push(`${tag}: there is no ledge to leap from (the ground must fall 3 m or more within 4 m of its lip, and the lip be within 14 m of where he stands: it is ${f1(E.d)} m)`);
-        for (let u = 0; u <= E.d; u += 1) { const x = t.x + fx * u, z = t.z + fz * u; if (!standable(x, z) || Math.abs(h(x, z) - y0) > 0.9) { problems.push(`${tag}: the run to the lip is wet, blocked or not level at ${f1(x)},${f1(z)}`); break; } }
-        t.rings.forEach((c, i) => {
-          const lx = c.nz, lz = -c.nx;                                                                   // (across the hoop, in its plane)
-          const low = c.y - t.r - h(c.x, c.z);
-          if (low < 0.5) { problems.push(`${tag}: ring ${i + 1} hangs ${f1(low)} m over the ground at its lowest (0.5 m at the least)`); return; }
-          for (let a = 0; a < 12; a++) {
-            const px = c.x + lx * Math.cos((a / 12) * Math.PI * 2) * t.r, pz = c.z + lz * Math.cos((a / 12) * Math.PI * 2) * t.r, py = c.y + Math.sin((a / 12) * Math.PI * 2) * t.r;
-            if (collision.blocking(px, py, pz, 0.3)) { problems.push(`${tag}: ring ${i + 1} has a prop or rock in its hoop at ${f1(px)},${f1(py)},${f1(pz)}`); break; }
-          }
-        });
-        // the course flown over this ground by the model of the hero: leaping and gliding, walking off the edge and gliding from the fall, and a thumb a third of a second late
-        const lx = fz, lz = -fx;
-        const flights = [['leaping', pilots.ringsRight(), 0], ['walking off', pilots.ringsRight({ walk: true }), 0], ['a thumb late', pilots.ringsRight({ late: 0.3 }), 0], ['leaping from 3 m to one side', pilots.ringsRight(), 3], ['leaping from 3 m to the other', pilots.ringsRight(), -3]];
-        for (const [what, policy, off] of flights) {
-          const r = playTrial({ spec: t, hero: { x: t.x + lx * off, z: t.z + lz * off, yaw: t.yaw }, policy, T: 14, floorAt: h });
-          if (r.solvedAt === null) problems.push(`${tag}: a hero ${what} does not fly it (he passes ${r.trial.passed} of the ${t.want} rings it asks for)`);
-        }
-      }
+      if (t.kind === 'rings') problems.push(...ringsProblems(t, { h, standable, blocking: (x, y, z, r) => collision.blocking(x, y, z, r) }));          // (a course in the air: a ledge to leap from, hoops that hang clear, and a glide that can fly it)
       const dd = t.kind === 'circuit' ? Math.min(...t.pylons.map((q) => Math.hypot(q.x - g.x, q.z - g.z))) : Math.hypot(t.x - g.x, t.z - g.z);          // (a circuit is found by the nearest of its pylons)
       if (dd > 110) problems.push(`${tag}: ${f0(dd)} m from its lantern (110 at the most: it must be found)`);
     }

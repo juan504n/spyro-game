@@ -6,7 +6,7 @@
 //   the play      the right play solves every kind, from any seed; standing still solves none; the wrong play is told so
 //   the numbers   what a person can do: a tune is rung in under 6 s and is 3 to 6 long, a clock is made for 60% of a run, a scramble can be undone in the presses it was made with...
 import { playTrial } from './lib/trialsim.mjs';
-import { PLAYS, SPECS, judge, plays, shift } from './lib/trial-plays.mjs';
+import { PLAYS, SPECS, judge, plays, shift, startOf } from './lib/trial-plays.mjs';
 import { MACHINES, TRIALS, TRIAL_IDS, BELLS, PLATES, CIRCUIT, WISPS, PUCK, MIRRORS, timeFor, pressed, solveBoard, trace, solveMirrors, reflect, cellWorld, lcg } from '../src/game/trials/index.js';
 import { makeTrial, stepTrial, hudOf, targetsOf, AWAKE, distTo, solidsOf, whereIs } from '../src/game/trials/index.js';
 import { buildTrial, footprint, rewardOf, trialProblems, lookOf, DEFAULTS, SIEGE_KINDS } from '../src/game/trials/place.js';
@@ -14,6 +14,10 @@ import { KINDS } from '../src/game/foes/kinds.js';
 import { trialMix } from './lib/realm-rules.mjs';
 import { newBreath, newRam } from '../src/game/trials/core.js';
 import { goalsStage } from '../src/game/realm/populate.js';
+import { RINGS, ringCourse, glideLine } from '../src/game/trials/index.js';
+import { ringsProblems } from './lib/realm-rules.mjs';
+import { FlyHero, FLY, ledgeWorld } from './lib/flyhero.mjs';
+import { RING_WORLD, ringsGround, ringsPath, ahead } from './lib/trial-plays.mjs';
 
 let failed = 0;
 const check = (name, ok, detail) => { if (!ok) failed++; console.log(ok ? 'PASS' : 'FAIL', name, detail === undefined ? '' : detail); };
@@ -643,6 +647,157 @@ const bellsAt = (cx, cz, r, n) => Array.from({ length: n }, (_, i) => { const a 
   check('whereIs: nothing when the trial is in sight (within 22 m), and beyond it a distance to the nearest 5 m', at(100, 215) === '' && at(100, 221) === '' && at(100, 223) === '25 M TO THE NORTH' && at(100, 241) === '40 M TO THE NORTH' && at(100, 300) === '100 M TO THE NORTH', `(${at(100, 221)} | ${at(100, 223)} | ${at(100, 241)})`);
   const C = { kind: 'circuit', x: 0, z: 0, pylons: [0, 50, 100, 150, 200].map((x) => ({ x, z: 0 })) };
   check('whereIs: a circuit is found by its nearest pylon (not its first)', whereIs(C, { x: 160, z: 60 }) === '60 M TO THE NORTH', `(${whereIs(C, { x: 160, z: 60 })})`);
+}
+
+// ---- the rings (trials/rings.js): the glide the course is made from, the course, what counts, how a run ends, the gust back ------------------------------------------------------------------------
+{
+  const near = (a, b, e = 0.005) => Math.abs(a - b) < e;
+  // the glide line: the jump's arc (15.2 m/s up, 40 m/s^2 down, at a run of 11.5 m/s) to the top at 4.4 m, then 3.1 m of fall for every 13.5 m
+  check('rings: the glide line is the Player\'s (the top of a jump 2.89 m at 4.4 m out, 2.18 m at 2.2 m, then 0.2296 m of fall a metre: 1.60 m at 10 m, -3.91 m at 34 m)', near(glideLine(0), 0) && near(glideLine(2.2), 2.176, 0.01) && near(glideLine(4.4), 2.888, 0.005) && near(glideLine(10), 1.603, 0.01) && near(glideLine(34), -3.909, 0.01), `(${[0, 2.2, 4.4, 10, 34].map((d) => glideLine(d).toFixed(3)).join(' ')})`);
+  check('rings: the numbers a brief says nothing of (six hoops, four of them, 3.2 m, an S of 4 m, 2 m under the glide, 28.5 m of them from 5.5 m past the lip, a pad of 3.6 m, awake at 36 m, a gust after 1.6 s within 14 m of the lantern)', RINGS.n === 6 && RINGS.want === 4 && RINGS.r === 3.2 && RINGS.amp === 4 && RINGS.sag === 2 && RINGS.d0 === 5.5 && RINGS.len === 34 && RINGS.padR === 3.6 && RINGS.wake === 36 && RINGS.settle === 1.6 && RINGS.landR === 14);
+  // the course on a ledge 24 m up with its lip 4.5 m out (the tests' world)
+  const g = ringsGround(), C = ringCourse({ x: 0, z: 0, y: 24, yaw: 0, h: g });
+  check('rings: the lip is where the ground first falls 1.2 m under the pad (4.5 m out here) and the rings hang from 5.5 to 34 m past it, 2 m under the glide line, in an S that is 0, +3.80, +2.35, -2.35, -3.80, 0 across the way', near(C.edge.d, 4.5) && C.edge.y === 24 && C.rings.length === 6 && C.rings.every((r, i) => near(r.d, 5.5 + i * 5.7)) && near(C.rings[0].y, 24.635, 0.01) && near(C.rings[5].y, 24 + glideLine(34) - 2, 0.01) && [0, 3.804, 2.351, -2.351, -3.804, 0].every((l, i) => near(C.rings[i].x, l, 0.01)), `(${C.rings.map((r) => `${r.x.toFixed(2)},${r.y.toFixed(2)},${r.z.toFixed(1)}`).join(' | ')})`);
+  check('rings: each hoop faces along the S (a unit normal; the first 41 degrees off the way: 0.66, 0.75) and the middle two lean the other way', C.rings.every((r) => near(Math.hypot(r.nx, r.nz), 1, 1e-9)) && near(C.rings[0].nx, 0.661, 0.005) && near(C.rings[0].nz, 0.750, 0.005) && C.rings[1].nx < 0.3 && C.rings[2].nx < 0 && C.rings[3].nx < 0 && near(C.rings[5].nx, 0.661, 0.005));
+  // the glide begins at the lip: where the lip is lower than the pad (a slope before the drop) the hoops hang from the lip's height
+  const slope = (x, z) => (z < 3 ? 24 : z < 6 ? 24 - (z - 3) * 0.5 : g(x, z));
+  const C2 = ringCourse({ x: 0, z: 0, y: 24, yaw: 0, h: slope });
+  check('rings: the glide begins at the lip, not the pad (a lip 0.4 m lower hangs every hoop 0.4 m lower)', C2.edge.y < 24 && near(C2.rings[0].y, C2.edge.y + glideLine(5.5) - 2, 1e-9) && C2.rings[0].y < C.rings[0].y - 0.3, `(lip ${C2.edge.y.toFixed(2)})`);
+  // the machine: a hero who is moved by hand through the planes
+  const spec = SPECS.rings, R = spec.rings;
+  const fly = (t, c, pts, { grounded = false } = {}) => {                                              // (the hero is moved through the points of the way in steps of a quarter of a metre at most, as he moves: a jump of metres in a step is a set-back)
+    const p = c.p;
+    let from = t.prev ? [t.prev.x, t.prev.y, t.prev.z] : null;
+    for (const [x, y, z] of pts) {
+      const a = from || [x, y, z], n = Math.max(1, Math.ceil(Math.hypot(x - a[0], y - a[1], z - a[2]) / 0.25));
+      for (let i = 1; i <= n; i++) { p.x = a[0] + (x - a[0]) * (i / n); p.y = a[1] + (y - a[1]) * (i / n) - 0.55; p.z = a[2] + (z - a[2]) * (i / n); p.grounded = grounded; MACHINES.rings.step(t, 1 / 60, c); }
+      from = [x, y, z];
+    }
+  };
+  const through = (i, o = { lat: 0, up: 0 }) => { const r = R[i], lx = r.nz, lz = -r.nx; return [[r.x - r.nx * 0.3 + lx * o.lat, r.y + o.up, r.z - r.nz * 0.3 + lz * o.lat], [r.x + r.nx * 0.3 + lx * o.lat, r.y + o.up, r.z + r.nz * 0.3 + lz * o.lat]]; };
+  const kinds = (c) => c.events.map((e) => e.type + (e.i !== undefined ? e.i : '') + (e.why ? ':' + e.why : '')).join(' ');
+  {
+    const [t, c] = make(spec); c.p.y = 24;
+    fly(t, c, through(0));
+    check('rings: flown through the middle of the first hoop, the way the course runs, he is flying and has one: a start, a ring (the count is his)', t.flying && t.passed === 1 && t.last === 0 && t.got[0] === 1 && kinds(c) === 'start ring0' && c.events[1].n === 1, kinds(c));
+  }
+  {
+    const hit = (lat, up = 0) => { const [t, c] = make(spec); fly(t, c, through(0, { lat, up })); return t.passed; };
+    check('rings: a hoop is 3.2 m: 3.1 m off its middle counts, 3.3 m does not (across it, and over it)', hit(3.1) === 1 && hit(-3.1) === 1 && hit(3.3) === 0 && hit(-3.3) === 0 && hit(0, 3.1) === 1 && hit(0, -3.1) === 1 && hit(0, 3.3) === 0 && hit(0, -3.3) === 0);
+    const [t, c] = make(spec); fly(t, c, through(0).reverse());
+    check('rings: through a hoop the wrong way (from beyond it to before it) counts for nothing', t.passed === 0 && !t.flying && c.events.length === 0);
+    const [t2, c2] = make(spec); fly(t2, c2, through(0), { grounded: true });
+    check('rings: a hero who is on the ground and walks through a hoop does not fly through it (a ring is passed in the air)', t2.passed === 0 && c2.events.length === 0);
+    const feetAt = (up) => { const [t4, c4] = make(spec); const r = R[0]; fly(t4, c4, [[r.x - r.nx * 0.3, r.y + up + 0.55, r.z - r.nz * 0.3], [r.x + r.nx * 0.3, r.y + up + 0.55, r.z + r.nz * 0.3]]); return t4.passed; };
+    check('rings: the middle of his body is what flies through (0.55 m over his feet): feet 3.0 m over the hoop\'s middle are out (the body is 3.55 m over it) and 2.5 m over are in (3.05)', feetAt(2.5) === 1 && feetAt(3.0) === 0 && feetAt(-3.5) === 1 && feetAt(-4.0) === 0);
+  }
+  {
+    const [t, c] = make(spec);
+    fly(t, c, through(2)); fly(t, c, through(1));
+    check('rings: the hoops are passed in order but not every one: flown through the third first, the first two are missed (-1) and cannot be got after it', t.passed === 1 && t.last === 2 && t.got.join() === '-1,-1,1,0,0,0' && c.events.filter((e) => e.type === 'ring').length === 1, `(${t.got.join()})`);
+    fly(t, c, through(3)); fly(t, c, through(4)); fly(t, c, through(5));
+    check('rings: four of the six break the seal, once: `solved`, the state, the hero flies on (a fifth is not asked for)', t.state === 'solved' && c.events.filter((e) => e.type === 'solved').length === 1 && kinds(c) === 'start ring2 ring3 ring4 ring5 solved' && t.passed === 4);
+    const n = c.events.length; fly(t, c, through(5)); fly(t, c, [[R[5].x, R[5].y - 3, R[5].z + 4]], { grounded: true });
+    check('rings: nothing more is said when it is solved', c.events.length === n);
+  }
+  {
+    const [t, c] = make(spec);
+    fly(t, c, through(0)); fly(t, c, through(1));
+    fly(t, c, [[R[1].x + R[1].nx * 3, R[1].y - 4, R[1].z + R[1].nz * 3]], { grounded: true });
+    check('rings: he lands with two: the run is over and the hoops go dark (a fail, why landed, how many) and he begins again', kinds(c) === 'start ring0 ring1 fail:landed' && c.events[3].n === 2 && t.passed === 0 && t.last === -1 && t.got.every((v) => v === 0) && !t.flying && t.runs === 1);
+    fly(t, c, through(0)); fly(t, c, through(1));
+    check('rings: ... and the second run counts as a run of its own', t.runs === 2 && t.passed === 2 && t.flying);
+  }
+  {
+    const [t, c] = make(spec);
+    fly(t, c, through(0)); c.p.x = 0; c.p.y = 24 - 0.55; c.p.z = 0; MACHINES.rings.step(t, 1 / 60, c);        // (a jump of 20 m in a step: he was set back to the ledge by the lava)
+    check('rings: set back to the ledge by the lava (a jump of metres in one step) the run is over (why lost) and no ring is passed on the way', kinds(c) === 'start ring0 fail:lost' && t.passed === 0 && t.prev && t.prev.y > 23);
+    const [t2, c2] = make(spec);
+    fly(t2, c2, through(0)); c2.p.dead = true; MACHINES.rings.step(t2, 1 / 60, c2);
+    check('rings: killed in the air it is over too (why died)', kinds(c2) === 'start ring0 fail:died' && t2.passed === 0);
+  }
+  {
+    // the gust: on the ground where the course ends, with the trial unsolved
+    const [t, c] = make(spec), L = spec.land; c.p.x = L.x + 3; c.p.z = L.z; c.p.y = 15; c.p.grounded = true;
+    steps(t, c, 1.5, null);
+    check('rings: standing 1.5 s where the course ends is not yet a gust (1.6 s: he may be looking about)', !c.events.some((e) => e.type === 'return'));
+    steps(t, c, 0.2, null);
+    const ret = c.events.filter((e) => e.type === 'return');
+    check('rings: ... and after 1.6 s a gust (once), to the ledge: where he stood to begin, facing the way the course runs', ret.length === 1 && ret[0].x === spec.x && ret[0].z === spec.z && ret[0].y === spec.y && ret[0].yaw === spec.yaw, JSON.stringify(ret));
+    steps(t, c, 3.9, null);
+    check('rings: and not again for 4 s', c.events.filter((e) => e.type === 'return').length === 1);
+    steps(t, c, 2.0, null);
+    check('rings: ... then, if he stands there still, again', c.events.filter((e) => e.type === 'return').length === 2);
+    const [t2, c2] = make(spec); c2.p.x = L.x + 15; c2.p.z = L.z; c2.p.y = 15; c2.p.grounded = true; steps(t2, c2, 5, null);
+    check('rings: no gust from 15 m off the lantern (14 m is the stack), nor from the ledge', !c2.events.some((e) => e.type === 'return') && (() => { const [t3, c3] = make(spec); c3.p.x = spec.x; c3.p.z = spec.z; c3.p.grounded = true; steps(t3, c3, 5, null); return !c3.events.some((e) => e.type === 'return'); })());
+    const [t4, c4] = make(spec); c4.p.x = L.x; c4.p.z = L.z; c4.p.y = 15; c4.p.grounded = true; t4.state = 'solved'; steps(t4, c4, 5, null);
+    check('rings: a solved trial sends no gust (the seal is broken: there is nothing to go back for)', !c4.events.some((e) => e.type === 'return'));
+    const [t5, c5] = make(spec); c5.p.x = L.x; c5.p.z = L.z; c5.p.y = 15; c5.p.grounded = true; let k = 0;
+    steps(t5, c5, 6, () => { c5.p.grounded = (k++ % 90) < 80; });                                           // (airborne for a tenth of a second now and then: the settling runs down while he is off the ground)
+    check('rings: a hero who is in the air does not settle (the 1.6 s are on the ground)', c5.events.filter((e) => e.type === 'return').length <= 1);
+  }
+  {
+    const [t, c] = make(spec); c.p.x = spec.x; c.p.z = spec.z;
+    check('rings: the HUD says what to do before the leap (LEAP FROM THE LEDGE: 4 OF 6 RINGS), then how many he has (RINGS 2 OF 4)', (() => { steps(t, c, 0.1, null); const h0 = MACHINES.rings.hud(t); fly(t, c, through(0)); fly(t, c, through(1)); const h1 = MACHINES.rings.hud(t); return h0.text === 'LEAP FROM THE LEDGE: 4 OF 6 RINGS' && h0.of === 4 && h1.text === 'RINGS 2 OF 4' && h1.n === 2; })());
+    const [t2, c2] = make(spec); c2.p.x = 500; steps(t2, c2, 0.1, null);
+    check('rings: out of the way the HUD is silent, and it takes nothing for the aim assist (a hoop is not a target)', MACHINES.rings.hud(t2) === null && MACHINES.rings.targets(t2).length === 0);
+    const [t3, c3] = make(spec); fly(t3, c3, through(0));
+    stepTrial(t3, 1 / 60, { ...c3, p: { ...c3.p, x: 300, z: 300 } });
+    check('rings: gone far off (70 m: awake) the run is let go in silence', t3.asleep === true && t3.passed === 0 && !t3.flying && c3.events.filter((e) => e.type === 'fail').length === 0 && AWAKE.rings === 70);
+  }
+  // the course from a brief (trials/place.js), its ground, its refusals
+  {
+    const bt = (t, o = {}) => buildTrial({ id: 'g', x: 0, z: 40 }, t, { h: g, ...o });
+    const sp = bt({ kind: 'rings', at: [0, 0], toward: [0, 40] }), sp2 = bt({ kind: 'rings', at: [0, 0], toward: [0, 40], n: 7, want: 9, r: 3, len: 40 });
+    check('place: a course of rings (the lantern it seals, where it ends, where he stands, the way it runs, the lip) is six hoops of 3.2 m asking for four with its pad of 3.6 m (1.5 m of a siege\'s, no more of the ground)', sp.id === 'g-rings' && sp.rings.length === 6 && sp.want === 4 && sp.r === 3.2 && sp.padR === 3.6 && sp.yaw === 0 && sp.land.x === 0 && sp.land.z === 40 && sp.land.r === 14 && sp.edgePt.d === 4.5 && footprint(sp).r === 3.6 && footprint(sp).x === 0);
+    check('place: the brief\'s own numbers are believed (seven hoops, a radius of 3, 40 m of them), and it never asks for more hoops than there are', sp2.rings.length === 7 && sp2.r === 3 && sp2.want === 7 && near(sp2.rings[6].d, 40));
+    const east = bt({ kind: 'rings', at: [0, 0], yaw: Math.PI / 2 }), sg = goal0 => buildTrial(goal0, { kind: 'rings', at: [10, 10] }, { h: g });
+    check('place: with a yaw of its own it runs that way (east: its first hoop is east of the lip), and with no `toward` it runs at the lantern', east.yaw === Math.PI / 2 && east.rings[0].x > 5 && Math.abs(sg({ id: 'q', x: 10, z: 60 }).yaw) < 1e-9 && sg({ id: 'q', x: 60, z: 10 }).yaw > 1.5);
+    const bad = (t) => trialProblems({ id: 'g', x: 0, z: 40 }, { kind: 'rings', at: [0, 0], ...t });
+    const refused = { 'three hoops': { n: 3 }, 'nine hoops': { n: 9 }, 'five of four': { n: 4, want: 5 }, 'two to get': { want: 2 }, 'a hoop of 2 m': { r: 2 }, 'a hoop of 5 m': { r: 5 }, 'a course of 15 m': { len: 15 }, 'a course of 70 m': { len: 70 }, 'a first hoop at the lip': { d0: 3 }, 'a first hoop 5 m from the end': { d0: 27 }, 'an S of 7 m': { amp: 7 }, 'a sag of 5 m': { sag: 5 }, 'a toward that is not a place': { toward: [1] }, 'a yaw that is a word': { yaw: 'north' } };
+    const slipped = Object.entries(refused).filter(([, t]) => bad(t).length === 0).map(([k]) => k);
+    check('place: defineBrief refuses a course that cannot be made (three or nine hoops, more asked than there are, a hoop too small or too big, a course too short or too long, no room for the first hoop, an S or a sag that is too much, a place or a yaw that is not one)', slipped.length === 0 && bad({}).length === 0 && bad({ n: 8, want: 8, r: 2.2, len: 60, d0: 4.5, amp: 6, sag: 4, toward: [30, 30], yaw: 1 }).length === 0 && trialProblems({ id: 'g' }, { kind: 'rings' }).length > 0, slipped.join('; '));
+    const sh = shift(spec, 10, 20, 4);
+    check('place: a course is moved with its ground (x and z of the pad, the lip, the lantern it ends at and every hoop, and every height by the ground\'s)', sh.x === 10 && sh.z === 20 && sh.y === spec.y + 4 && sh.rings[2].x === spec.rings[2].x + 10 && sh.rings[2].z === spec.rings[2].z + 20 && sh.rings[2].y === spec.rings[2].y + 4 && sh.edgePt.y === spec.edgePt.y + 4 && sh.land.z === spec.land.z + 20 && startOf(spec).x === 0 && startOf(spec).yaw === 0);
+    check('place: a hero is told where it is from a long way off: 60 M TO THE SOUTH when he stands 60 m north of the ledge, and nothing within 22 m', whereIs({ kind: 'rings', x: 0, z: 0 }, { x: 0, z: -60 }) === '60 M TO THE SOUTH' && whereIs({ kind: 'rings', x: 0, z: 0 }, { x: 0, z: -20 }) === '');
+  }
+  // the checker's rule, each way a course can be refused (tools/lib/realm-rules.mjs ringsProblems), on the ground of the tests
+  {
+    const ok = { standable: () => true, blocking: () => false };
+    const prob = (t, h = g, o = ok) => ringsProblems(t, { h, ...o });
+    const clean = prob(spec);
+    check('rules: the course of the tests passes (a ledge, a level dry run to the lip, hoops that hang clear, five model flights)', clean.length === 0, clean.join(' | '));
+    const flat = prob(spec, () => 24);
+    check('rules: no drop at the lip is no ledge to leap from (the ground must fall 3 m within 4 m of its lip)', flat.length >= 1 && /there is no ledge to leap from/.test(flat[0]), flat[0]);
+    const humpAt = (c, r, up) => (x, z) => g(x, z) + (Math.hypot(x - c.x, z - c.z) < r ? up : 0);
+    const low = prob(spec, humpAt(R[3], 4, 28));
+    check('rules: a hoop that hangs inside the ground (a hill rises to it) is refused for the hoop (ring 4, over the ground by less than 0.5 m)', low.some((m) => /ring 4 hangs .* over the ground at its lowest/.test(m)), low.join(' | '));
+    const hoop = prob(spec, g, { standable: () => true, blocking: (x, y, z) => Math.hypot(x - R[1].x, y - R[1].y, z - R[1].z) < 3.5 });
+    check('rules: a prop or a rock in a hoop is refused for the hoop (ring 2)', hoop.some((m) => /ring 2 has a prop or rock in its hoop/.test(m)), hoop.join(' | '));
+    const run = prob(spec, (x, z) => g(x, z) + (z > 1.5 && z < 3 ? 1.6 : 0));
+    check('rules: a run to the lip that is not level (a step of 1.6 m on the way) or wet is refused', run.some((m) => /the run to the lip is wet, blocked or not level/.test(m)) && prob(spec, g, { standable: (x, z) => z < 2, blocking: () => false }).some((m) => /the run to the lip is wet/.test(m)), run.join(' | '));
+    const high = buildTrial({ id: 'x', x: 0, z: 40 }, { kind: 'rings', at: [0, 0], toward: [0, 40], sag: 4, r: 2.2, amp: 6 }, { h: g });
+    const unflown = prob({ ...high, id: 'rings' });
+    check('rules: a course that the model of the hero cannot fly (hoops of 2.2 m in an S of 6 m) is refused, for the flight that failed (and says how many he passed)', unflown.some((m) => /a hero .* does not fly it \(he passes \d of the 4 rings it asks for\)/.test(m)), unflown.slice(0, 2).join(' | '));
+    const tooLow = { ...spec, rings: spec.rings.map((r) => ({ ...r, y: r.y - 6 })) };
+    const lowOnes = prob(tooLow);
+    check('rules: hoops hung 6 m too low for a glide (his jump passes above them) are refused for leaping, and it is said for each way he tried', lowOnes.filter((m) => /does not fly it/.test(m)).length === 5, lowOnes.slice(0, 3).join(' | '));
+  }
+  // the model of the hero in the air (tools/lib/flyhero.mjs): the Player's numbers
+  {
+    const world = ledgeWorld(RING_WORLD), h = new FlyHero({ x: 0, z: -2, yaw: 0 }, world);
+    let top = 0, glided = false, t = 0, pressedAt = null, landedAt = null;
+    const pol = () => (t < 0.55 ? { dx: 0, dz: 1, mag: 1, jump: false } : t < 0.6 ? { dx: 0, dz: 1, mag: 1, jump: true } : h.vy > 0.5 ? { dx: 0, dz: 1, mag: 1, jump: false } : { dx: 0, dz: 1, mag: 1, jump: (pressedAt ??= t) !== null });
+    for (; t < 3; t += 1 / 60) { h.step(1 / 60, pol()); top = Math.max(top, h.y - 24); glided ||= h.gliding; if (h.grounded && t > 1 && landedAt === null) landedAt = t; }
+    check('flyhero: a jump from a ledge goes 2.89 m up, and a glide that is begun at the top of it falls 3.1 m a second at 13.5 m/s forward', near(top, 2.88, 0.15) && glided && near(h.vy, -3.1, 0.01) && near(Math.hypot(h.vx, h.vz), 13.5, 0.4), `(top ${top.toFixed(2)}, vy ${h.vy.toFixed(2)}, speed ${Math.hypot(h.vx, h.vz).toFixed(2)})`);
+    const w = new FlyHero({ x: 0, z: 4, yaw: 0 }, world); let walkedOff = null, ent = 0;
+    for (let i = 0; i < 90; i++) { w.step(1 / 60, { dx: 0, dz: 1, mag: 1, jump: i === 12 }); if (!w.grounded && walkedOff === null) walkedOff = i; ent = i; }
+    check('flyhero: a hero who walks off a ledge is in the air at once (more than 0.32 m under him) and a press of JUMP within 0.11 s of it is a jump, not a glide', walkedOff !== null && walkedOff < 8 && w.jumpsUsed >= 1 && ent === 89);
+    const fl = new FlyHero({ x: 0, z: -2, yaw: 0 }, world); let ang = 0;
+    for (let i = 0; i < 60; i++) { fl.step(1 / 60, { dx: 1, dz: 0, mag: 1, jump: false }); ang = fl.yaw; }
+    check('flyhero: on the ground he turns at 17 rad/s (a quarter turn in a tenth of a second) and in the glide at 2.7', near(ang, Math.PI / 2, 0.01) && FLY.turnGround === 17 && FLY.turnGlide === 2.7 && FLY.glideSpeed === 13.5 && FLY.glideFall === 3.1 && FLY.jumpV === 15.2 && FLY.coyote === 0.11);
+    check('flyhero: the pilots path is the lip, the hoops in order and 12 m past the last along its way; a point 6 m ahead on it is 6 m along it (lookahead)', (() => { const P = ringsPath(spec); const a = ahead(P, 0, 5.5, 6); return P.length === 8 && P[0].z === spec.edgePt.z && Math.abs(Math.hypot(a.x - 0, a.z - 5.5) - 6) < 3; })());
+  }
 }
 
 // ---- the index's own guard: a sleeping trial offers nothing to aim at and says nothing, whatever its machine still holds (the machines let their targets go when they sleep; the index does not rely on it) ----

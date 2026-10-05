@@ -135,7 +135,7 @@ function layoutRift(ctx) {
   const bx = edge(4) - 4;
   put('bench', bx, 8, { rot: Math.PI / 2 }, 1.6);
   put('signpost', bx - 3, -6, { rot: 1.6, boards: [{ yaw: 0, y: 3.4, len: 2.3, tint: [1.0, 0.7, 0.4] }] }, 1.5);
-  gp.hints.push({ x: bx, z: 4, r: 16, text: 'THE ANVIL STONE BURNS ON THE STACK IN THE LAVA. RUN OFF THE EDGE AND GLIDE: HOLD JUMP IN THE AIR', dur: 8 });
+  gp.hints.push({ x: bx, z: 4, r: 16, text: 'THE ANVIL STONE BURNS ON THE STACK IN THE LAVA, SEALED BY THE RINGS TO THE NORTH. TO GLIDE: RUN OFF THE EDGE AND HOLD JUMP IN THE AIR', dur: 8 });
   gp.hints.push({ x: g.x, z: g.z + 7, r: 10, text: 'FROM THE STACK, GLIDE EAST TO THE ANVIL PLATEAU. THE LAVA BURNS!', dur: 7, y0: g.y - 3, y1: g.y + 6 });
   // gems lead the way across: an arc from the rim to the stack, another from the stack to the plateau (a glide is a way, and the way is shown)
   const e0 = edge(4), top = g.y + 1.8;

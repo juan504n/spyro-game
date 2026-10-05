@@ -11,6 +11,8 @@ import { DOORS } from '../src/game/home/level.js';
 import { WATER_LEVEL } from '../src/game/level.js';
 import { TRAVEL_PLACES } from '../src/game/emberfall/travel.js';
 import { findTravelPlaces } from './realm-travel.mjs';
+import { playTrial } from './lib/trialsim.mjs';
+import { plays as pilots } from './lib/trial-plays.mjs';
 
 const { failed, env, W } = checkRealm('emberfall', { log: (l) => console.log(l) });
 let own = 0;
@@ -47,6 +49,22 @@ const check = (name, ok, detail) => { if (!ok) own++; console.log(ok ? 'PASS' : 
   const g = goal('anvil'); let lo = Infinity, hi = -Infinity;
   for (let a = 0; a < 12; a++) for (const r of [0, 3, 5]) { const q = h(g.x + Math.cos((a / 12) * Math.PI * 2) * r, g.z + Math.sin((a / 12) * Math.PI * 2) * r); lo = Math.min(lo, q); hi = Math.max(hi, q); }
   check('the stack is a level crown of rock (within 5 m of the Anvil Stone the ground varies under 0.6 m) high over the lava', hi - lo < 0.6 && g.y > 10 && walk.distNear(g.x, g.z, 3, g.y) === Infinity, `(${lo.toFixed(2)}..${hi.toFixed(2)} m, ${g.y.toFixed(1)} m up, no way on foot)`);
+
+  // the rings that seal the Anvil Stone: six hoops over the rift along the glide from the rim to the stack; the model of the hero flies them over this ground (the checker's rule holds that five ways of leaping
+  // can; here is what is the Anvil's own: that a glide held straight does not, and that a hero who has broken the seal flies on and lands on the stack with the lantern in front of him)
+  {
+    const R = gp.trials.find((q) => q.goal === 'anvil'), a = goal('anvil');
+    check('the Anvil Stone is sealed by a course of rings from a pad on the rim to the stack: six hoops of 3.2 m, four of them asked for, the pad on the plateau west of the rift, the lip 6 to 10 m out, the stack where it ends', !!R && R.kind === 'rings' && R.rings.length === 6 && R.want === 4 && R.r === 3.2 && R.x < -40 && R.x > -60 && R.edgePt.d >= 6 && R.edgePt.d <= 10 && Math.hypot(R.land.x - a.x, R.land.z - a.z) < 0.01, R ? `(pad ${R.x},${R.z}, lip ${R.edgePt.d} m out, ${R.rings.length} hoops)` : '(no trial)');
+    const fly = (policy, off = 0, T = 16) => playTrial({ spec: R, hero: { x: R.x + Math.cos(R.yaw) * off, z: R.z - Math.sin(R.yaw) * off, yaw: R.yaw }, policy, T, floorAt: h, stopWhenSolved: false });
+    const right = fly(pilots.ringsRight()), walkoff = fly(pilots.ringsRight({ walk: true })), straight = fly(pilots.ringsStraight());
+    const end = (r) => ({ d: Math.hypot(r.hero.x - a.x, r.hero.z - a.z), y: r.hero.y, g: r.hero.grounded });
+    check('flown over the real ground the course is solved by a hero who leaps and one who walks off the edge, in under four seconds, and a glide held straight passes fewer than four of its hoops', right.solvedAt !== null && walkoff.solvedAt !== null && right.solvedAt < 4 && walkoff.solvedAt < 4 && straight.solvedAt === null && straight.trial.passed < 4, `(leaping ${right.solvedAt && right.solvedAt.toFixed(1)} s, walking off ${walkoff.solvedAt && walkoff.solvedAt.toFixed(1)} s, straight: ${straight.trial.passed} rings)`);
+    const e1 = end(right), e2 = end(walkoff);
+    check('... and after the last ring he flies on and lands on the stack beside the lantern (within 12 m of it, on the crown 14 m up or more, not in the lava)', e1.g && e2.g && e1.d < 12 && e2.d < 12 && e1.y > 14 && e2.y > 14, `(leaping ends ${e1.d.toFixed(1)} m from the lantern at ${e1.y.toFixed(1)} m, walking off ${e2.d.toFixed(1)} m at ${e2.y.toFixed(1)})`);
+    // a hero who lands on the stack with the seal unbroken (the glide from the south of the rim that the old hints taught) is carried back to the ledge by the gust
+    const stack = playTrial({ spec: R, hero: { x: a.x + 3, z: a.z, yaw: 0 }, policy: () => ({ dx: 0, dz: 0, mag: 0 }), T: 4, floorAt: h, stopWhenSolved: false });
+    check('a hero who stands on the stack with the seal unbroken (he glided there from anywhere on the rim) is carried back to the ledge after 1.6 s (the gust names the pad where the course begins)', stack.events.some((e) => e.type === 'return' && e.x === R.x && e.z === R.z), stack.events.map((e) => e.type).join(' '));
+  }
 
   // the Maw: a stone dragon's mouth over the mouth of the cave with the ward of fire in it; shut, the mountain (the Furnace, the gorge, the caldera) cannot be walked into, open it can
   const mouth = SMELTER.at('maw', 0), mawProp = gp.placed.find((p) => p.name === 'dragon_maw');
