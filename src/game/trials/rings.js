@@ -71,13 +71,12 @@ export const rings = {
         if (!t.flying) { t.flying = true; t.runs++; ctx.emit('start', { by: t }); }
         ctx.emit('ring', { by: t, i, n: t.passed });
         if (t.passed >= t.want) { t.flying = false; t.state = 'solved'; ctx.emit('solved', { by: t }); return; }
-        break;                                                                           // (one ring a step)
       }
     }
     if (t.flying && p.grounded) end(t, ctx, 'landed');
-    // standing where the course ends with the trial unsolved: the gust that carries him back to the ledge
+    // standing where the course ends with the trial unsolved (a run that was on has just ended: he is on the ground; a dead hero has been dealt with above): the gust that carries him back to the ledge
     const L = t.land;
-    if (!t.flying && L && p.grounded && !p.dead && hyp(p.x - L.x, p.z - L.z) < (L.r ?? RINGS.landR) && t.cool <= 0) {
+    if (L && p.grounded && hyp(p.x - L.x, p.z - L.z) < (L.r ?? RINGS.landR) && t.cool <= 0) {
       t.settle += dt;
       if (t.settle > RINGS.settle) { t.settle = 0; t.cool = 4; ctx.emit('return', { by: t, x: t.x, y: t.y, z: t.z, yaw: t.yaw }); }
     } else t.settle = Math.max(0, t.settle - dt * 2);

@@ -9,7 +9,7 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
 const angDiff = (a, b) => { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; };
 
-const P = {
+export const P = {
   radius: 0.55, height: 1.05, stepUp: 0.62,
   runSpeed: 11.5, accel: 62, brake: 75, airAccel: 34, airDrag: 1.6,
   gravity: 40, jumpV: 15.2, maxFall: 42, coyote: 0.11, jumpBuffer: 0.13,

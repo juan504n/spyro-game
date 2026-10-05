@@ -17,6 +17,7 @@ import { goalsStage } from '../src/game/realm/populate.js';
 import { RINGS, ringCourse, glideLine } from '../src/game/trials/index.js';
 import { ringsProblems } from './lib/realm-rules.mjs';
 import { FlyHero, FLY, ledgeWorld } from './lib/flyhero.mjs';
+import { P } from '../src/game/player.js';
 import { RING_WORLD, ringsGround, ringsPath, ahead } from './lib/trial-plays.mjs';
 
 let failed = 0;
@@ -754,7 +755,8 @@ const bellsAt = (cx, cz, r, n) => Array.from({ length: n }, (_, i) => { const a 
     const east = bt({ kind: 'rings', at: [0, 0], yaw: Math.PI / 2 }), sg = goal0 => buildTrial(goal0, { kind: 'rings', at: [10, 10] }, { h: g });
     check('place: with a yaw of its own it runs that way (east: its first hoop is east of the lip), and with no `toward` it runs at the lantern', east.yaw === Math.PI / 2 && east.rings[0].x > 5 && Math.abs(sg({ id: 'q', x: 10, z: 60 }).yaw) < 1e-9 && sg({ id: 'q', x: 60, z: 10 }).yaw > 1.5);
     const bad = (t) => trialProblems({ id: 'g', x: 0, z: 40 }, { kind: 'rings', at: [0, 0], ...t });
-    const refused = { 'three hoops': { n: 3 }, 'nine hoops': { n: 9 }, 'five of four': { n: 4, want: 5 }, 'two to get': { want: 2 }, 'a hoop of 2 m': { r: 2 }, 'a hoop of 5 m': { r: 5 }, 'a course of 15 m': { len: 15 }, 'a course of 70 m': { len: 70 }, 'a first hoop at the lip': { d0: 3 }, 'a first hoop 5 m from the end': { d0: 27 }, 'an S of 7 m': { amp: 7 }, 'a sag of 5 m': { sag: 5 }, 'a toward that is not a place': { toward: [1] }, 'a yaw that is a word': { yaw: 'north' } };
+    const refused = { 'three hoops': { n: 3 }, 'nine hoops': { n: 9 }, 'five of four': { n: 4, want: 5 }, 'two to get': { want: 2 }, 'a hoop of 2 m': { r: 2 }, 'a hoop of 5 m': { r: 5 }, 'a course of 15 m': { len: 15 }, 'a course of 70 m': { len: 70 }, 'a first hoop at the lip': { d0: 3 }, 'a first hoop 5 m from the end': { d0: 27 }, 'an S of 7 m': { amp: 7 }, 'a sag of 5 m': { sag: 5 }, 'a toward that is not a place': { toward: [1] }, 'a yaw that is a word': { yaw: 'north' },
+      'three of three': { n: 3, want: 3 }, 'five and a half hoops': { n: 5.5 }, 'three and a half asked': { want: 3.5 }, 'an S of -1 m': { amp: -1 }, 'a sag of -1 m': { sag: -1 } };
     const slipped = Object.entries(refused).filter(([, t]) => bad(t).length === 0).map(([k]) => k);
     check('place: defineBrief refuses a course that cannot be made (three or nine hoops, more asked than there are, a hoop too small or too big, a course too short or too long, no room for the first hoop, an S or a sag that is too much, a place or a yaw that is not one)', slipped.length === 0 && bad({}).length === 0 && bad({ n: 8, want: 8, r: 2.2, len: 60, d0: 4.5, amp: 6, sag: 4, toward: [30, 30], yaw: 1 }).length === 0 && trialProblems({ id: 'g' }, { kind: 'rings' }).length > 0, slipped.join('; '));
     const sh = shift(spec, 10, 20, 4);
@@ -797,6 +799,110 @@ const bellsAt = (cx, cz, r, n) => Array.from({ length: n }, (_, i) => { const a 
     for (let i = 0; i < 60; i++) { fl.step(1 / 60, { dx: 1, dz: 0, mag: 1, jump: false }); ang = fl.yaw; }
     check('flyhero: on the ground he turns at 17 rad/s (a quarter turn in a tenth of a second) and in the glide at 2.7', near(ang, Math.PI / 2, 0.01) && FLY.turnGround === 17 && FLY.turnGlide === 2.7 && FLY.glideSpeed === 13.5 && FLY.glideFall === 3.1 && FLY.jumpV === 15.2 && FLY.coyote === 0.11);
     check('flyhero: the pilots path is the lip, the hoops in order and 12 m past the last along its way; a point 6 m ahead on it is 6 m along it (lookahead)', (() => { const P = ringsPath(spec); const a = ahead(P, 0, 5.5, 6); return P.length === 8 && P[0].z === spec.edgePt.z && Math.abs(Math.hypot(a.x - 0, a.z - 5.5) - 6) < 3; })());
+  }
+
+  // ---- what the mutations of round thirty found missing -------------------------------------------------------------------------------------------------------------------------------------------
+  check('rings: the glide line past the top of the jump falls 0.2296 m a metre from 4.4 m on (2.75 m at 5 m, 2.29 m at 7 m: not the arc of the jump)', near(glideLine(5), 2.750, 0.005) && near(glideLine(7), 2.291, 0.005));
+  {
+    const step = (x, z) => (z < 5 ? 24 : 22), flat = () => 24;
+    const S1 = ringCourse({ x: 0, z: 0, y: 24, yaw: 0, h: step }), F0 = ringCourse({ x: 0, z: 0, y: 24, yaw: 0, h: flat }), F3 = ringCourse({ x: 0, z: 0, y: 24, yaw: 0, h: flat, edge: 3 });
+    check('rings: a ledge is where the ground falls 1.2 m under the pad, and a drop of 2 m is one (the lip 4.5 m out where it falls at 5 m); on ground that does not fall the lip is where the layout says (6 m, or the 3 m it is told)', near(S1.edge.d, 4.5) && S1.edge.y === 24 && near(F0.edge.d, 6) && near(F3.edge.d, 3));
+    const bs = (t, h) => buildTrial({ id: 'g', x: 0, z: 40 }, { kind: 'rings', at: [0, 0], toward: [0, 40], ...t }, { h });
+    check('place: the lip is looked for from the height of the ground where he stands (a drop of 2 m after 5 m is a lip at 4.5 m), and a ground without a drop gives the lip the brief says (6 m, or 3 m)', bs({}, step).edgePt.d === 4.5 && bs({}, flat).edgePt.d === 6 && bs({ edge: 3 }, flat).edgePt.d === 3);
+    const own = bs({ padR: 2.5, landR: 9, amp: 2, sag: 0.5, d0: 8 }, ringsGround());
+    check('place: the brief\'s own pad (2.5 m, and the ground it takes), reach for the gust (9 m), S (2 m wide), sag (0.5 m under the glide) and first hoop (8 m past the lip) are believed', own.padR === 2.5 && footprint(own).r === 2.5 && own.land.r === 9 && near(own.rings[1].x, 1.902, 0.01) && near(own.rings[0].d, 8) && near(own.rings[0].y, 24 + glideLine(8) - 0.5, 1e-6), `(${own.rings[1].x.toFixed(3)}, ${own.rings[0].d}, ${own.rings[0].y.toFixed(3)})`);
+  }
+  {
+    const mk = (over) => { const [t, c] = make({ ...spec, ...over }); c.p.y = 24; return [t, c]; };
+    const hitR = (r, lat) => { const [t, c] = mk({ r }); fly(t, c, through(0, { lat, up: 0 })); return t.passed; };
+    check('rings: the hoop is the spec\'s (2 m: 1.9 m off counts, 2.1 m does not; 3.4 m: 3.3 m off counts)', hitR(2, 1.9) === 1 && hitR(2, 2.1) === 0 && hitR(3.4, 3.3) === 1);
+    const solvedWith = (over, n) => { const [t, c] = mk(over); for (let i = 0; i < n; i++) fly(t, c, through(i)); return t.state === 'solved'; };
+    check('rings: the number asked for is the spec\'s (three of six: three hoops break the seal, and with four asked they do not), and where the spec says nothing it is four, or all of them where there are fewer', solvedWith({ want: 3 }, 3) && !solvedWith({ want: 4 }, 3) && solvedWith({ want: undefined }, 4) && !solvedWith({ want: undefined }, 3) && solvedWith({ want: undefined, rings: R.slice(0, 3) }, 3));
+  }
+  {
+    // flown through from beyond the wake (36 m from the pad: the last hoop is further than that), the trial wakes: the HUD says how many he has
+    const [t, c] = make(spec); t.state = 'idle'; c.p.y = R[5].y;
+    fly(t, c, through(5)); MACHINES.rings.step(t, 1 / 60, c);
+    const h = MACHINES.rings.hud(t);
+    check('rings: a hero who flies through a hoop from beyond the wake (38 m from the pad) wakes it: the HUD says RINGS 1 OF 4', t.flying && t.passed === 1 && t.state === 'active' && h && h.text === 'RINGS 1 OF 4', JSON.stringify(h));
+  }
+  {
+    // the fastest he falls (42 m/s: 0.7 m a step) is not a set-back; he lands, and that is the end of the run
+    const [t, c] = make(spec); fly(t, c, through(0));
+    for (let i = 0; i < 12; i++) { c.p.y -= 0.7; MACHINES.rings.step(t, 1 / 60, c); }
+    const goOn = t.flying && c.events.filter((e) => e.type === 'fail').length === 0;
+    c.p.grounded = true; MACHINES.rings.step(t, 1 / 60, c);
+    check('rings: a fall at the fastest he falls (42 m/s, 0.7 m a step) is not a set-back: the run goes on until he lands (why landed)', goOn && kinds(c) === 'start ring0 fail:landed', kinds(c));
+    // a hero who is put 15 m ahead in the air (the TRAVEL menu, a whirlwind) has flown through nothing, wherever the straight line between would have led
+    const [t2, c2] = make(spec); c2.p.x = spec.x; c2.p.z = spec.z; c2.p.y = spec.y - 0.55; c2.p.grounded = true; MACHINES.rings.step(t2, 1 / 60, c2);
+    c2.p.grounded = false; c2.p.x = R[1].x + R[1].nx * 2; c2.p.y = R[1].y - 0.55; c2.p.z = R[1].z + R[1].nz * 2; MACHINES.rings.step(t2, 1 / 60, c2);
+    check('rings: a hero who is put 17 m ahead in the air has flown through nothing (a set-back forgets where he was)', t2.passed === 0 && c2.events.length === 0 && t2.prev && t2.prev.z > R[1].z);
+  }
+  {
+    // big steps (a lag): the crossing is where the line of the step meets the plane, not where the step ends or began; two hoops in one step are both flown through
+    const line = { ...spec, x: 0, z: 0, rings: [10, 13, 16, 19, 22, 25].map((z) => ({ x: 0, y: 24, z, nx: 0, nz: 1, d: z })) };
+    const put = (t, c, x, y, z) => { c.p.x = x; c.p.y = y - 0.55; c.p.z = z; c.p.grounded = false; MACHINES.rings.step(t, 1 / 60, c); };
+    const one = (a, b) => { const [t, c] = make(line); put(t, c, ...a); put(t, c, ...b); return t.passed; };
+    check('rings: a step of 7 m through a hoop counts where the line of the step meets its plane, though the end of it is outside (the crossing is interpolated, across it and over it), and not where that is outside (3.5 m off) or the wrong way', one([-2.4, 24, 7.5], [2.4, 24, 12.5]) === 1 && one([0, 25.2, 9], [0, 20.6, 11]) === 1 && one([1, 24, 7.5], [6, 24, 12.5]) === 0 && one([0, 24, 12.5], [0, 24, 7.5]) === 0);
+    check('rings: a step that crosses two hoops flies through both (a lag does not cost a hoop), and a step of more than 8 m is a set-back that flies through none', one([0, 24, 9], [0, 24, 14.5]) === 2 && one([0, 24, 9], [0, 24, 20]) === 0, `(${one([0, 24, 9], [0, 24, 14.5])})`);
+  }
+  {
+    const L = spec.land, at = (p) => { p.x = L.x + 3; p.z = L.z; p.y = 15; };
+    // a dead hero is sent nothing, nor a hero in the air (the 1.6 s are on the ground)
+    const [t, c] = make(spec); at(c.p); c.p.grounded = true; c.p.dead = true; steps(t, c, 5, null);
+    const [t2, c2] = make(spec); at(c2.p); c2.p.grounded = false; steps(t2, c2, 5, null);
+    check('rings: no gust for a dead hero at the landing place, nor for one who hangs in the air over it for 5 s', !c.events.some((e) => e.type === 'return') && !c2.events.some((e) => e.type === 'return'));
+    // the reach of the gust is the spec\'s (6 m: none from 10 m, one from 5 m)
+    const reach = (d) => { const [t3, c3] = make({ ...spec, land: { ...L, r: 6 } }); c3.p.x = L.x + d; c3.p.z = L.z; c3.p.y = 15; c3.p.grounded = true; steps(t3, c3, 3, null); return c3.events.filter((e) => e.type === 'return').length; };
+    check('rings: the reach of the gust is the spec\'s (6 m here: none from 10 m, one from 5 m)', reach(10) === 0 && reach(5) === 1);
+    // what he has settled runs down at twice the rate while he is off the ground: 1.0 s standing, 0.3 s in the air (-0.6), 0.9 s standing: 1.3 (no gust), another 0.5 s: 1.8 (the gust)
+    const [t4, c4] = make(spec); at(c4.p); c4.p.grounded = true;
+    steps(t4, c4, 1.0, null); c4.p.grounded = false; steps(t4, c4, 0.3, null); c4.p.grounded = true; steps(t4, c4, 0.9, null);
+    const early = c4.events.some((e) => e.type === 'return');
+    steps(t4, c4, 0.5, null);
+    check('rings: what he has settled runs down at twice the rate while he is off the ground (1.0 s, 0.3 s in the air, 0.9 s: not yet; 0.5 s more: the gust)', !early && c4.events.filter((e) => e.type === 'return').length === 1);
+  }
+  {
+    const [t, c] = make(spec); t.state = 'solved';
+    MACHINES.rings.sleep(t);
+    const [t2, c2] = make(spec); fly(t2, c2, through(0)); MACHINES.rings.sleep(t2);
+    check('rings: a trial that is solved is not undone when he goes far off, and says nothing; one that is not goes idle, and is silent', t.state === 'solved' && MACHINES.rings.hud(t) === null && t2.state === 'idle' && MACHINES.rings.hud(t2) === null && t2.passed === 0);
+    const [t3, c3] = make(spec); c3.p.y = 24; fly(t3, c3, through(0)); fly(t3, c3, through(1)); fly(t3, c3, through(2)); fly(t3, c3, through(3));
+    check('rings: when it is solved the flight is over (the state says he is not flying)', t3.state === 'solved' && t3.flying === false);
+  }
+  // the model of the hero in the air, held to the Player's own numbers and to what it does with them
+  {
+    const same = { run: 'runSpeed', accel: 'accel', brake: 'brake', airAccel: 'airAccel', airDrag: 'airDrag', gravity: 'gravity', jumpV: 'jumpV', maxFall: 'maxFall', coyote: 'coyote', jumpBuffer: 'jumpBuffer', glideSpeed: 'glideSpeed', glideFall: 'glideFall', glideAccel: 'glideAccel', turnGround: 'turnGround', turnAir: 'turnAir', turnGlide: 'turnGlide' };
+    const off = Object.entries(same).filter(([k, pk]) => FLY[k] !== P[pk]).map(([k]) => k);
+    const offR = ['run:runSpeed', 'jumpV:jumpV', 'gravity:gravity', 'glideSpeed:glideSpeed', 'glideFall:glideFall'].filter((q) => RINGS[q.split(':')[0]] !== P[q.split(':')[1]]);
+    check('flyhero: every number of the model of the hero in the air is the Player\'s own (player.js P), and so is every number the course is made from (a retuned Player fails here until the model and the course follow)', off.length === 0 && offR.length === 0 && FLY.stepDown === 0.32, `(${off.concat(offR).join(' ')})`);
+    const flat = () => 0, mkf = (o = {}) => { const f = new FlyHero({ x: 0, z: 0, yaw: 0 }, flat); Object.assign(f, o); return f; };
+    const press = { dx: 0, dz: 1, mag: 1, jump: true }, hold = press, free = { dx: 0, dz: 1, mag: 1, jump: false };
+    const near1 = mkf({ y: 0.3, vy: -6, grounded: false, jumpsUsed: 1 }); near1.step(1 / 60, press);
+    const high = mkf({ y: 6, vy: -6, grounded: false, jumpsUsed: 1 }); high.step(1 / 60, press);
+    const ground = mkf({ grounded: true }); ground.step(1 / 60, press);
+    check('flyhero: a press of JUMP just over the ground (the fall of a tenth of a second) is a jump that is waited for and not a glide; high up it is a glide; on the ground it is a jump', !near1.gliding && high.gliding && !ground.gliding && ground.vy > 14 && !ground.grounded);
+    const ledgeF = (x, z) => (z > 1 ? -5 : 0), off1 = new FlyHero({ x: 0, z: 0, yaw: 0 }, ledgeF);
+    let leftAt = null; for (let i = 0; i < 40 && leftAt === null; i++) { off1.step(1 / 60, free.mag === 1 ? { dx: 0, dz: 1, mag: 1, jump: false } : free); if (!off1.grounded) leftAt = i; }
+    const coy = off1.coyoteT; off1.step(1 / 60, press);                                                          // (a press 1/60 s after walking off a ledge is a jump)
+    check('flyhero: walking off a ledge gives 0.11 s in which a press is a jump (not a glide); after it, a press is the glide (he has walked off: the jump is spent)', leftAt !== null && Math.abs(coy - 0.11) < 0.001 && !off1.gliding && off1.vy > 13);
+    const off2 = new FlyHero({ x: 0, z: 0, yaw: 0 }, ledgeF);
+    for (let i = 0; i < 40 && off2.grounded !== false; i++) off2.step(1 / 60, { dx: 0, dz: 1, mag: 1, jump: false });
+    for (let i = 0; i < 18; i++) off2.step(1 / 60, { dx: 0, dz: 1, mag: 1, jump: false });
+    off2.step(1 / 60, press);
+    check('flyhero: 0.3 s after walking off a ledge a press is a glide (the jump was spent in the fall), and the glide ends when the key is let go', off2.gliding && (off2.step(1 / 60, free), !off2.gliding));
+    const unspent = mkf({ y: 6, vy: 0.5, grounded: false, jumpsUsed: 0, coyoteT: 0 }); unspent.step(1 / 60, press);
+    check('flyhero: a press in the air by a hero who has neither jumped nor walked off a ledge is not a glide', !unspent.gliding);
+    const buf = mkf({ y: 0.3, vy: -6, grounded: false, jumpsUsed: 1 }); buf.step(1 / 60, press); let jumped = false; for (let i = 0; i < 8 && !jumped; i++) { buf.step(1 / 60, hold); jumped = buf.vy > 10; }
+    check('flyhero: a press just before he lands is kept (0.13 s) and he jumps on landing', jumped);
+    const dn = (drop) => { const fd = (x, z) => (z > 0.5 ? -drop : 0), f = new FlyHero({ x: 0, z: 0, yaw: 0 }, fd); f.grounded = true; for (let i = 0; i < 12; i++) f.step(1 / 60, { dx: 0, dz: 1, mag: 1, jump: false }); return f.grounded; };
+    check('flyhero: a step down of 0.2 m is walked down (he stays on the ground) and one of 0.5 m is a fall', dn(0.2) === true && dn(0.5) === false);
+    const gl = mkf({ y: 3, vy: 0, grounded: false, jumpsUsed: 1 }); gl.step(1 / 60, press); let glided = gl.gliding; for (let i = 0; i < 90 && !gl.grounded; i++) gl.step(1 / 60, hold);
+    check('flyhero: a glide that lands is over, and he has his jump again', glided && gl.grounded && !gl.gliding && gl.jumpsUsed === 0);
+    const sp = mkf({ y: 30, vy: 0, grounded: false, jumpsUsed: 1 }); sp.step(1 / 60, press); for (let i = 0; i < 11; i++) sp.step(1 / 60, hold);
+    check('flyhero: a glide takes up its speed in a few tenths of a second (0.2 s from rest: 10.2 of 13.5 m/s), not at once', Math.abs(Math.hypot(sp.vx, sp.vz) - 13.5 * (1 - Math.exp(-7 * 12 / 60))) < 0.2 && Math.hypot(sp.vx, sp.vz) < 12, `(${Math.hypot(sp.vx, sp.vz).toFixed(2)})`);
+    const run = mkf({ grounded: true }); for (let i = 0; i < 120; i++) run.step(1 / 60, free.mag === 1 ? { dx: 0, dz: 1, mag: 1, jump: false } : free);
+    check('flyhero: on the ground he runs at 11.5 m/s', Math.abs(Math.hypot(run.vx, run.vz) - 11.5) < 0.05, `(${Math.hypot(run.vx, run.vz).toFixed(2)})`);
   }
 }
 

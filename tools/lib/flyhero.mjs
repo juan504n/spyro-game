@@ -44,7 +44,7 @@ export class FlyHero extends DuelHero {
       if (dl > acc) { this.vx += (dvx / dl) * acc; this.vz += (dvz / dl) * acc; } else { this.vx = tx; this.vz = tz; }
     }
     // the jump
-    if (this.bufferT > 0 && (this.grounded || this.coyoteT > 0)) { this.vy = F.jumpV; this.grounded = false; this.coyoteT = 0; this.bufferT = 0; this.jumpsUsed = 1; this.gliding = false; }
+    if (this.bufferT > 0 && (this.grounded || this.coyoteT > 0)) { this.vy = F.jumpV; this.grounded = false; this.coyoteT = 0; this.bufferT = 0; this.jumpsUsed = 1; }
     // gravity, and the glide's fall
     if (!this.grounded) { this.vy -= F.gravity * dt; this.vy = this.gliding ? Math.max(this.vy, -F.glideFall) : Math.max(this.vy, -F.maxFall); }
     // move

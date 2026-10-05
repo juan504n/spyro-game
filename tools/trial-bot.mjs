@@ -44,11 +44,11 @@ await page.evaluate(async () => {
   G.systems = G.systems.filter((s) => s !== G.boss);                            // (the Guardian sleeps: this is a floor to play on)
   const AT = { circuit: [0, -30], rings: [-12, -58] };                           // (the Court: a flat floor round a dais at (0, -30); a trial stands on its western side, a loop of pylons goes round the dais; the ledge of the rings is up in the air over its north-west, its course running south over the floor)
   const at = (kind) => AT[kind] || [-22, -30];
-  const rec = { events: [], hurts: 0, sounds: new Set(), n: {}, said: [], r: null };
+  const rec = { events: [], hurts: 0, sounds: new Set(), n: {}, opts: {}, said: [], r: null };
   const hud = G.hud, hint = hud.hint.bind(hud);
   hud.hint = (text, dur) => { rec.said.push(text); return hint(text, dur); };
-  if (G.audio && G.audio.sfx) { const sfx = G.audio.sfx.bind(G.audio); G.audio.sfx = (name, o) => { rec.sounds.add(name); rec.n[name] = (rec.n[name] || 0) + 1; return sfx(name, o); }; }
-  else G.audio = { sfx: (name) => { rec.sounds.add(name); rec.n[name] = (rec.n[name] || 0) + 1; } };                    // (a page without audio: the names are still asked for)
+  if (G.audio && G.audio.sfx) { const sfx = G.audio.sfx.bind(G.audio); G.audio.sfx = (name, o) => { rec.sounds.add(name); rec.n[name] = (rec.n[name] || 0) + 1; rec.opts[name] = o; return sfx(name, o); }; }
+  else G.audio = { sfx: (name, o) => { rec.sounds.add(name); rec.n[name] = (rec.n[name] || 0) + 1; rec.opts[name] = o; } };                    // (a page without audio: the names are still asked for)
   const on = S._on.bind(S);
   S._on = (r, type, d) => { if (r === rec.r) rec.events.push({ type, i: d.i, why: d.why, k: d.k, score: d.score }); return on(r, type, d); };
   const hurt = G.playerHurt.bind(G);
@@ -316,11 +316,19 @@ await page.evaluate(async () => {
       rec.r = r; rec.events = []; rec.sounds.clear();
       const said0 = rec.said.length, out = {};
       place(sp.land.x + 2, sp.land.z, 0);                                                                     // (on the floor where the course ends)
-      let t0 = G.time, ret = null, carried = false;
-      while (G.time - t0 < 3.4) { bot.tick(1); if (ret === null && rec.events.some((e) => e.type === 'return')) ret = G.time - t0; if (p.carry) carried = true; }
-      let guard = 0; while (p.carry && guard++ < 400) bot.tick(1);
+      let t0 = G.time, ret = null, carried = false, c0 = null, c1 = null, maxY = -Infinity, invMid = null, yawLate = null, spoiled = false, vAfter = null, invAfter = null, pyawAfter = null;
+      while (G.time - t0 < 8) {
+        bot.tick(1);
+        if (ret === null && rec.events.some((e) => e.type === 'return')) ret = G.time - t0;
+        if (p.carry) {
+          carried = true; if (c0 === null) c0 = G.time - t0;
+          maxY = Math.max(maxY, p.y); yawLate = p.yaw;
+          if (invMid === null && G.time - t0 - c0 > 0.9) { invMid = p.invulnT; p.vx = 9; p.vz = 9; spoiled = true; }                  // (half way: his invulnerability; and he is given a speed that the ride must not keep)
+        } else if (c0 !== null) { c1 = G.time - t0; vAfter = Math.hypot(p.vx, p.vz); invAfter = p.invulnT; pyawAfter = p.pyaw; break; }
+      }
       bot.tick(20);
-      out.first = { returnedAt: ret === null ? null : +ret.toFixed(2), carried, sound: rec.sounds.has('trial_gust'), hint: rec.said.slice(said0).some((t) => /A GUST CARRIES YOU BACK TO THE LEDGE/.test(t)), at: [+p.x.toFixed(1), +p.y.toFixed(1), +p.z.toFixed(1)], pad: [sp.x, sp.y, sp.z], grounded: p.grounded, carryAfter: !!p.carry, locked: !!(p.locked || G.locked), yaw: +p.yaw.toFixed(2), want: sp.yaw };
+      out.first = { returnedAt: ret === null ? null : +ret.toFixed(2), carried, sound: rec.sounds.has('trial_gust'), hint: rec.said.slice(said0).some((t) => /A GUST CARRIES YOU BACK TO THE LEDGE/.test(t)), at: [+p.x.toFixed(1), +p.y.toFixed(1), +p.z.toFixed(1)], pad: [sp.x, sp.y, sp.z], grounded: p.grounded, carryAfter: !!p.carry, locked: !!(p.locked || G.locked), yaw: +p.yaw.toFixed(2), want: sp.yaw,
+        rideT: c0 === null || c1 === null ? null : +(c1 - c0).toFixed(2), maxY: +maxY.toFixed(1), invMid: invMid === null ? null : +invMid.toFixed(1), invAfter: invAfter === null ? null : +invAfter.toFixed(1), yawLate: yawLate === null ? null : +yawLate.toFixed(2), pyawAfter: pyawAfter === null ? null : +pyawAfter.toFixed(2), vAfter: vAfter === null ? null : +vAfter.toFixed(1), spoiled, padY: sp.y };
       // put him somewhere else while the gust has him (the TRAVEL menu does): he is free at once, and runs when he is told to
       S.remove(r);
       const r2 = S.add({ ...sp, id: 'bot-gust2', goal: undefined, seed: 1 });
@@ -334,6 +342,57 @@ await page.evaluate(async () => {
       stop();
       out.second = { carriedWhenPlaced: had, carryAfter: !!p.carry, locked: !!(p.locked || G.locked), ran: +Math.hypot(p.x - x0, p.z - z0).toFixed(1), invuln: +p.invulnT.toFixed(1) };
       S.remove(r2);
+      // the guards of the gust: a hero who is carried already (by a portal's light, say), one who is dead and a trial that is solved are not taken over
+      const r3 = S.add({ ...sp, id: 'bot-gust3', goal: undefined, seed: 1 }), back = { x: sp.x, y: sp.y, z: sp.z, yaw: sp.yaw };
+      rec.r = r3; rec.events = [];
+      place(sp.land.x + 2, sp.land.z, 0); bot.tick(5);
+      const dummy = { t: 0, dur: 99, at: () => [p.x, p.y, p.z, p.yaw], onDone() {} };
+      p.carry = dummy; S._on(r3, 'return', back); const keeps = p.carry === dummy; p.carry = null;
+      p.dead = true; S._on(r3, 'return', back); const deadFree = !p.carry; p.dead = false; p.carry = null;
+      r3.done = true; S._on(r3, 'return', back); const solvedFree = !p.carry; r3.done = false; p.carry = null;
+      out.guards = { keeps, deadFree, solvedFree };
+      S.remove(r3);
+      G.collision.remove(ledge);
+      return out;
+    },
+    /** what the rings show: each hoop's state (off / next / done / missed) from what the machine knows, a flash and a rising note for each that is flown through, the end of a run (its sound and what the hint says), the stones of the lip (dim when he is far, lit on the ledge, dark when it is solved), the way the hoops hang and face, the rune ring on the pad */
+    ringsView() {
+      reset();
+      const [ox, oz] = at('rings');
+      const sp = plays.shift(plays.SPECS.rings, ox, oz, G.collision.heightAt(ox, oz));
+      const ledge = G.collision.add({ type: 'cyl', x: sp.x, z: sp.z, r: 4.5, y0: sp.y - 20, y1: sp.y, top: true, tag: 'botledge' });
+      const r = S.add({ ...sp, id: 'bot-ringsview', goal: undefined, seed: 1 });
+      rec.r = r; rec.events = []; rec.sounds.clear(); rec.n = {}; rec.opts = {};
+      const v = r.view, t = r.t, out = {};
+      const log = v.rings.map(() => []), passes = v.rings.map(() => 0), lit = [];
+      v.rings.forEach((m, i) => { const ss = m.setState.bind(m); m.setState = (st) => { log[i].push(st); return ss(st); }; const pp = m.pass.bind(m); m.pass = () => { passes[i]++; return pp(); }; });
+      v.lip.forEach((m, i) => { const sl = m.setLit.bind(m); m.setLit = (x) => { lit[i] = x; return sl(x); }; });
+      const shown = () => log.map((l) => (l.length ? l[l.length - 1][0] : '?')).join('');                      // (n: next, o: off, d: done, m: missed)
+      place(0, 4, 0); bot.tick(3);                                                                               // (far from the ledge: the Court's far side)
+      out.far = { shown: shown(), lit: lit.slice(), state: t.state };
+      place(sp.x, sp.z, sp.yaw, sp.y); bot.tick(3);                                                              // (on the ledge)
+      out.near = { shown: shown(), lit: lit.slice(), state: t.state };
+      const set = (got, last) => { t.got = got; t.last = last; bot.tick(2); return shown(); };
+      out.states = [set([1, -1, 0, 0, 0, 0], 1), set([1, 1, 1, 0, 0, 0], 2), set([-1, -1, 1, 0, 0, 0], 2), set([1, 1, 1, 1, 1, 1], 5), set([0, 0, 0, 0, 0, 0], -1)];
+      rec.sounds.clear(); rec.opts = {};
+      S._on(r, 'ring', { i: 2, n: 1 }); const p1 = rec.opts.trial_ring && rec.opts.trial_ring.pitch;
+      S._on(r, 'ring', { i: 3, n: 3 }); const p3 = rec.opts.trial_ring && rec.opts.trial_ring.pitch;
+      out.ring = { passes: passes.slice(), heard: rec.sounds.has('trial_ring'), p1, p3 };
+      let said0 = rec.said.length; rec.sounds.clear();
+      S._on(r, 'fail', { n: 2, why: 'landed' });
+      out.fail2 = { sound: rec.sounds.has('trial_fail'), said: rec.said.slice(said0) };
+      said0 = rec.said.length;
+      S._on(r, 'fail', { n: 0, why: 'landed' });
+      out.fail0 = { said: rec.said.slice(said0) };
+      const off = (a, b) => +Math.abs(a - b).toFixed(3);
+      out.geo = {
+        rings: t.rings.map((c, i) => { const m = v.rings[i].root; return [off(m.position.x, c.x), off(m.position.y, c.y), off(m.position.z, c.z), off(m.rotation.y, Math.atan2(c.nx, c.nz))]; }),
+        lip: v.lip.map((m) => [+m.root.position.x.toFixed(2), +m.root.position.y.toFixed(2), +m.root.position.z.toFixed(2)]), edge: [t.edgePt.x, t.edgePt.y, t.edgePt.z], yaw: t.yaw,
+        mark: !!v.mark && off(v.mark.d.x, sp.x) < 0.01 && off(v.mark.d.z, sp.z) < 0.01,
+      };
+      S._on(r, 'solved', { by: t }); bot.tick(2);
+      out.solved = { shown: shown(), lit: lit.slice() };
+      S.remove(r);
       G.collision.remove(ledge);
       return out;
     },
@@ -344,11 +403,15 @@ await page.evaluate(async () => {
 });
 
 let n = 0;
+const gustChecks = (gs) => {
+  const f1 = gs.first, f2 = gs.second, g = gs.guards;
+  check('a hero who stands where the course of rings ends with its seal unbroken is carried back to the ledge after about 1.6 s (a gust, its sound and its hint) and stands there facing the course, free', f1.returnedAt !== null && f1.returnedAt > 1.1 && f1.returnedAt < 2.0 && f1.carried && f1.sound && f1.hint && Math.hypot(f1.at[0] - f1.pad[0], f1.at[2] - f1.pad[2]) < 1 && Math.abs(f1.at[1] - f1.pad[1]) < 0.5 && f1.grounded && !f1.carryAfter && !f1.locked && Math.abs(f1.yaw - f1.want) < 0.05, JSON.stringify(f1));
+  check('... the ride takes a couple of seconds (1.3 s and a metre in 45), over an arc that carries him above the ledge before he is set down on it, facing the course (not the way he came), and he is untouchable on the way and for a moment after, and does not keep a speed he had', f1.rideT > 1.6 && f1.rideT < 3.2 && f1.maxY > f1.padY + 1 && f1.invMid > 1 && f1.invAfter > 1.1 && Math.abs(f1.yawLate - f1.want) < 0.3 && Math.abs(f1.pyawAfter - f1.want) < 0.05 && f1.spoiled && f1.vAfter < 2, JSON.stringify(f1));
+  check('... a gust does not take over a hero who is carried already, nor a dead one, nor come when the seal is broken', g.keeps && g.deadFree && g.solvedFree, JSON.stringify(g));
+  check('... and one who is put somewhere else while the gust has him (the TRAVEL menu) is free at once: nothing is locked, he runs when he is told to (the realm test once found him frozen for good)', f2.carriedWhenPlaced && !f2.carryAfter && !f2.locked && f2.ran > 4 && f2.invuln < 5, JSON.stringify(f2));
+};
 if (flag('gust')) {                                                                  // (only the gust: --gust)
-  const gs = await page.evaluate(() => window.__trialplay.gust());
-  const f1 = gs.first, f2 = gs.second;
-  check('the gust carries him back to the ledge', f1.returnedAt !== null && f1.returnedAt > 1.1 && f1.returnedAt < 2.0 && f1.carried && f1.sound && f1.hint && Math.hypot(f1.at[0] - f1.pad[0], f1.at[2] - f1.pad[2]) < 1 && Math.abs(f1.at[1] - f1.pad[1]) < 0.5 && f1.grounded && !f1.carryAfter && !f1.locked && Math.abs(f1.yaw - f1.want) < 0.05, JSON.stringify(f1));
-  check('... and a hero put somewhere else on the way is free', f2.carriedWhenPlaced && !f2.carryAfter && !f2.locked && f2.ran > 4 && f2.invuln < 5, JSON.stringify(f2));
+  gustChecks(await page.evaluate(() => window.__trialplay.gust()));
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   await browser.close();
   console.log(failed ? `\n${failed} FAILED` : '\nthe gust held');
@@ -373,6 +436,13 @@ for (const pl of picked) {
   }
   n++;
 }
+if (!args.length || args.includes('rings')) {
+  const rv = await page.evaluate(() => window.__trialplay.ringsView());
+  check('the rings show what the machine knows: the next hoop bright and the others dim (a hero far off and on the ledge), the ones he flew through gold, the ones he missed dark, all gold when none is next, all dim again when the run begins anew', rv.far.shown === 'nooooo' && rv.near.shown === 'nooooo' && rv.states.join() === 'dmnooo,dddnoo,mmdnoo,dddddd,nooooo', JSON.stringify([rv.far, rv.near, rv.states]));
+  check('... a hoop flown through flashes and chimes higher with each (1.0, then 1.2 at the third); a run that ends with two says THE RINGS GO DARK  -  2 OF 4 and with none says only that, each with its sound', rv.ring.passes.join() === '0,0,1,1,0,0' && rv.ring.heard && rv.ring.p1 === 1 && Math.abs(rv.ring.p3 - 1.2) < 1e-9 && rv.fail2.sound && rv.fail2.said.length === 1 && rv.fail2.said[0] === 'THE RINGS GO DARK  -  2 OF 4: LEAP FROM THE LEDGE AGAIN' && rv.fail0.said.length === 1 && rv.fail0.said[0] === 'THE RINGS GO DARK  -  LEAP FROM THE LEDGE AGAIN', JSON.stringify([rv.ring, rv.fail2, rv.fail0]));
+  const lipOk = (() => { const [ex, , ez] = rv.geo.edge, fx = Math.sin(rv.geo.yaw), fz = Math.cos(rv.geo.yaw); return [-1, 1].every((sd, i) => Math.abs(rv.geo.lip[i][0] - (ex + fz * 3.6 * sd - fx * 0.4)) < 0.02 && Math.abs(rv.geo.lip[i][2] - (ez - fx * 3.6 * sd - fz * 0.4)) < 0.02); })();
+  check('... the hoops hang where the machine says and face along the course; two stones stand at the lip, either side of the way, 3.6 m from it; a rune ring marks the pad; the stones are dim far off (0.35), lit on the ledge (1) and dark when it is solved, and every hoop is gold', rv.geo.rings.every((q) => q.every((v) => v < 0.01)) && lipOk && rv.geo.mark && rv.far.lit.join() === '0.35,0.35' && rv.near.lit.join() === '1,1' && rv.solved.lit.join() === '0,0' && rv.solved.shown === 'dddddd', JSON.stringify([rv.geo, rv.solved]));
+}
 if (!args.length) {
   const o = await page.evaluate(() => window.__trialplay.seal());
   check('the lantern of a trial is sealed: a breath on it lights nothing, it is turned away with a sound and the HUD says it is sealed, and the aim assist does not swing to it', o.sealedHeld && o.hintSaid && o.turnedAway && !o.aimsAtLantern, JSON.stringify(o));
@@ -393,10 +463,7 @@ if (!args.length) {
   check('what a trial calls pays nothing when it falls (a siege cleared: no gems on the floor)', py.solved && py.after === py.before, JSON.stringify(py));
   const rw = await page.evaluate(() => window.__trialplay.reward());
   check('a trial with gems pays them, once, when it is solved', rw.after - rw.before === 3, JSON.stringify(rw));
-  const gs = await page.evaluate(() => window.__trialplay.gust());
-  const f1 = gs.first, f2 = gs.second;
-  check('a hero who stands where the course of rings ends with its seal unbroken is carried back to the ledge after about 1.6 s (a gust, its sound and its hint) and stands there facing the course, free', f1.returnedAt !== null && f1.returnedAt > 1.1 && f1.returnedAt < 2.0 && f1.carried && f1.sound && f1.hint && Math.hypot(f1.at[0] - f1.pad[0], f1.at[2] - f1.pad[2]) < 1 && Math.abs(f1.at[1] - f1.pad[1]) < 0.5 && f1.grounded && !f1.carryAfter && !f1.locked && Math.abs(f1.yaw - f1.want) < 0.05, JSON.stringify(gs.first));
-  check('... and one who is put somewhere else while the gust has him (the TRAVEL menu) is free at once: nothing is locked, he runs when he is told to (the realm test once found him frozen for good)', f2.carriedWhenPlaced && !f2.carryAfter && !f2.locked && f2.ran > 4 && f2.invuln < 5, JSON.stringify(f2));
+  gustChecks(await page.evaluate(() => window.__trialplay.gust()));
   const said = await page.evaluate(() => window.__trialplay.said());
   const kinds = [...new Set(picked.map((p) => p.kind))];
   const wrong = kinds.filter((k) => said.filter((t) => t === TRIALS[k].hint).length !== 1).map((k) => `${k} said ${said.filter((t) => t === TRIALS[k].hint).length} times`);
