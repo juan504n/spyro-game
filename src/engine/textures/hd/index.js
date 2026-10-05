@@ -1,8 +1,8 @@
-// The HD textures: the same materials as the pixel textures (../world/*.js), painted at 256 x 256 in floating point (no palette, no dither), for the "smooth" look. The PS1 look keeps the pixel originals.
+// The HD textures: the same materials as the pixel textures (../world/*.js), painted in floating point (no palette, no dither) at 256 x 256 (tiles and cards of the world) or at the size of a sprite, for the "smooth" look. The PS1 look keeps the pixel originals.
 //
-// A texture that has an HD painter gets `pix.hd`, a function that paints it (once: the result is kept) and returns an opaque Pix; `texFromPix` (engine/materials.js) asks for it when the smooth look is on. A texture that has none is
-// enlarged and filtered as before. The painters are written from the palette ramps of the originals (or, where the original has no ramp of its own, from the colours the original uses, by `rampFrom`), and each is held to its
-// twin's mean colour, so a realm keeps its colours.
+// A texture that has an HD painter gets `pix.hd`, a function that paints it (once: the result is kept) and returns a Pix, opaque or, for a sprite cut out of a card, with a plane of coverage; `texFromPix` (engine/materials.js) asks for it when the smooth
+// look is on and HD is not turned off. A texture that has none (a realm's own) is enlarged and filtered as before. The painters are written from the palette ramps of the originals (or, where the original has no ramp of its own, from the colours
+// the original uses, by `rampFrom`), and each tile is held to its twin's mean colour, so a realm keeps its colours. See kit.js for the tools they are made with, and tools/hd-test.mjs, tools/hd-sheet.mjs for what holds them and shows them.
 import { RAMPS } from '../palette.js';
 import * as T from './terrain.js';
 import * as G from './ground.js';
@@ -20,13 +20,19 @@ import * as M from './magic.js';
 export const HD = { on: true, size: 256 };
 export const HD_SIZE = 256;
 
-/** the settings the page asks for: ?hd=0 (the pixel textures enlarged), ?hd=128 or ?hd=256 (the size); with no answer, a device with few cores or little memory paints at 128 */
-export function configureHD(params, nav = typeof navigator !== 'undefined' ? navigator : null) {
+/**
+ * the settings the page asks for: ?hd=0 (the pixel textures enlarged), ?hd=128 or ?hd=256 (the size); with no answer, what the player saved (`saved`, false = off), and a device with few cores or little memory paints at 128.
+ * (Off does not take the painters away: the engine asks `HD.on` whenever it chooses an image, so the setting can be changed while the game is played: see setTextureHD in engine/materials.js.)
+ */
+export function configureHD(params, nav = typeof navigator !== 'undefined' ? navigator : null, saved = true) {
   const q = params && typeof params.get === 'function' ? params.get('hd') : null;
   HD.on = true; HD.size = 256;
   if (q === '0' || q === 'off') HD.on = false;
   else if (q === '128' || q === '256') HD.size = +q;
-  else if (nav && ((nav.hardwareConcurrency && nav.hardwareConcurrency <= 4) || (nav.deviceMemory && nav.deviceMemory <= 2))) HD.size = 128;
+  else {
+    if (saved === false) HD.on = false;
+    if (nav && ((nav.hardwareConcurrency && nav.hardwareConcurrency <= 4) || (nav.deviceMemory && nav.deviceMemory <= 2))) HD.size = 128;
+  }
   return HD;
 }
 
@@ -65,7 +71,7 @@ const BASALT = ['#161214', '#241c1c', '#362a28', '#4e3e36', '#6a5848', '#8a7660'
 const MARBLE = ['#9a94a8', '#b8b0c4', '#d4cce0', '#e8e0ec', '#f4eef4', '#fffafc'];
 const TIDE = ['#22384a', '#34545e', '#4c747c', '#6a9498', '#8eb4b0', '#b4d0c8'];
 
-/** name -> (the pixel twin) => Canvas */
+/** name -> (the pixel twin, { w, h, n }) => Canvas: `n` is the side of a square painting (HD.size), `w` x `h` the shape of the finished texture (the twin's, at the longer side asked for: see SIZE) */
 export const PAINT = {
   // ---- meadows
   grass_a: (o, d) => T.turf(d.n, { seed: 1101, R: T.HD_RAMPS.grassSun, mean: meanOf(o) }),
@@ -193,7 +199,6 @@ export const SPRITES = new Set(['tuft', 'flower_pink', 'flower_yellow', 'flower_
 
 /** give the textures that have a painter their `hd` (see above); `all` is what generateWorldTextures() builds */
 export function attachHD(all) {
-  if (!HD.on) return all;
   for (const name of Object.keys(PAINT)) {
     const e = all[name];
     if (!e || !e.pix) continue;
@@ -210,4 +215,9 @@ export function attachHD(all) {
     Object.defineProperty(e.pix, 'hd', { value: hd, enumerable: false, configurable: true });
   }
   return all;
+}
+
+/** which of the textures named in `used` exist in `world` (what generateWorldTextures() builds) but have no HD painting: the smooth look enlarges their pixels, and they look pixelated beside the rest (the foundry's `textures.hd` rule) */
+export function withoutHD(used, world) {
+  return [...used].filter((t) => t && t !== '_' && world[t] && world[t].pix && typeof world[t].pix.hd !== 'function');
 }

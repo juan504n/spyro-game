@@ -6,7 +6,6 @@ import { HD, HD_STATS, configureHD } from './engine/textures/hd/index.js';
 installErrorLog();      // (debug mode shows the last errors: catch them from the very start, including the ones while the world builds)
 
 const params = new URLSearchParams(location.search);
-configureHD(params);        // (?hd=0: the pixel textures enlarged, ?hd=128: smaller HD textures; a slow device is given 128 without being asked: see engine/textures/hd/index.js)
 const canvas = document.getElementById('screen');
 
 /** A visible message instead of a silent black page (no WebGL2, a crash while building the world, ...). */
@@ -32,6 +31,8 @@ try {
   window.__error = String((e && e.stack) || e);
   fatal('GLOAMING VALE COULD NOT START', `It needs a browser with WebGL2 enabled.\n\n${explain(e)}`);
 }
+
+if (gfx) configureHD(params, navigator, gfx.settings.hd);        // (the HD textures: ?hd=0 is off, ?hd=128 the smaller size; with no answer the player's choice, and a slow device is given 128: see engine/textures/hd/index.js)
 
 let scene = null; // { scene, camera, update(dt, t), frameStart?() }
 const clock = { t: 0 };

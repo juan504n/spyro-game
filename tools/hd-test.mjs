@@ -10,9 +10,10 @@ import { performance } from 'node:perf_hooks';
 import crypto from 'node:crypto';
 import { ramp, noise, fbm, fbmWH, voronoi, blur, Canvas, grain, smoothstep, wrapN, clamp } from '../src/engine/textures/hd/kit.js';
 import { generateWorldTextures } from '../src/engine/textures/world.js';
-import { PAINT, HD, HD_STATS, SIZE, configureHD, rampFrom } from '../src/engine/textures/hd/index.js';
+import { PAINT, HD, HD_STATS, SIZE, configureHD, rampFrom, withoutHD } from '../src/engine/textures/hd/index.js';
 import { Pix, RNG } from '../src/engine/textures/pix.js';
-import { setTextureSmoothing, texFromPix } from '../src/engine/materials.js';
+import { setTextureSmoothing, setTextureHD, texFromPix } from '../src/engine/materials.js';
+import { loadSettings, DEFAULT_SETTINGS } from '../src/engine/gfx.js';
 import * as THREE from 'three';
 
 const QUICK = process.argv.includes('--quick');
@@ -147,9 +148,16 @@ const sha = (data) => crypto.createHash('sha1').update(data).digest('hex').slice
   check('configureHD: ?hd=128 and ?hd=256 choose the size', configureHD(qs('hd=128'), null).size === 128 && configureHD(qs('hd=256'), { hardwareConcurrency: 2 }).size === 256);
   check('configureHD: a device with four cores or fewer, or 2 GB or less, is given 128 unasked; a strong one 256', configureHD(qs(''), { hardwareConcurrency: 4 }).size === 128 && configureHD(qs(''), { hardwareConcurrency: 8, deviceMemory: 2 }).size === 128 && configureHD(qs(''), { hardwareConcurrency: 8, deviceMemory: 8 }).size === 256 && configureHD(qs(''), { hardwareConcurrency: 12 }).size === 256);
   check('configureHD: nonsense is ignored (the default)', (() => { const h = configureHD(qs('hd=banana'), null); return h.on && h.size === 256; })() && configureHD(null, null).size === 256);
-  configureHD(qs('hd=0'), null);
-  const off = generateWorldTextures();
-  check('HD off: no texture has an HD painting (the pixel textures are enlarged and filtered, as before)', Object.values(off).every((e) => typeof e.pix.hd !== 'function'));
+  check('configureHD: a player who has turned HD off gets it off (unless the page asks for it), a slow device is still given 128', !configureHD(qs(''), null, false).on && configureHD(qs('hd=256'), null, false).on && configureHD(qs(''), { hardwareConcurrency: 2 }, true).size === 128);
+  // the player's setting, as the settings file keeps it
+  const keep = globalThis.localStorage;
+  const store = (v) => { globalThis.localStorage = { getItem: () => v, setItem: () => {} }; return loadSettings(); };
+  check('settings: HD textures are on by default, off when the player saved them off, and a bad value is on', DEFAULT_SETTINGS.hd === true && store(null).hd === true && store('{"hd":false}').hd === false && store('{"hd":"banana"}').hd === true && store('{"hd":0}').hd === true && store('{"hd":true}').hd === true);
+  if (keep === undefined) delete globalThis.localStorage; else globalThis.localStorage = keep;
+  check('withoutHD: the textures that exist but have no HD painting (the foundry\'s textures.hd rule): a name the game does not have, the placeholder and nothing are not among them', (() => {
+    const fake = { a: { pix: { hd() {} } }, b: { pix: {} }, c: { pix: { hd: 3 } } };
+    return withoutHD(new Set(['a', 'b', 'c', '_', 'zzz', '', null]), fake).join() === 'b,c';
+  })() && withoutHD(new Set(Object.keys(generateWorldTextures())), generateWorldTextures()).length === 0);
   HD.on = was.on; HD.size = was.size;
 }
 
@@ -271,6 +279,24 @@ if (!QUICK) {
   const lazy = texFromPix(all.moss.pix, { tile: true });
   check('engine: in the PS1 look nothing is painted (the cost is only paid by the smooth look)', HD_STATS.made - stats0 === 3 && lazy.image.width === 32);
   setTextureSmoothing(true);
+  // switching HD off and on while the game is played
+  const made1 = HD_STATS.made;
+  setTextureHD(false);
+  check('engine: HD off (the smooth look still on): the pixels enlarged by the old filter, a card not mipmapped, nothing painted', cob.image.width === 256 && sha(Buffer.from(cob.image.data)) !== sha(Buffer.from(hdCob.data)) && tuft.image.width === 128 && tuft.generateMipmaps === false && tuft.minFilter === THREE.LinearFilter && bark.image.width === 128 && HD_STATS.made === made1 + 0);
+  const classic = sha(Buffer.from(cob.image.data));
+  setTextureHD(true);
+  check('engine: HD on again: the very same painting (no repainting), a card mipmapped again', sha(Buffer.from(cob.image.data)) === sha(Buffer.from(hdCob.data)) && all.cobble.pix.hd() === hdCob && tuft.generateMipmaps === true && HD_STATS.made === made1);
+  setTextureHD(false); setTextureHD(false);
+  check('engine: HD off twice is off (and the enlarged pixels are the same ones each time)', sha(Buffer.from(cob.image.data)) === classic);
+  setTextureSmoothing(false); setTextureHD(true); setTextureSmoothing(true);
+  check('engine: whatever order the look and HD are switched in, the PS1 look had the pixels and the smooth look has the HD', cob.image.width === 256 && sha(Buffer.from(cob.image.data)) === sha(Buffer.from(hdCob.data)));
+  // a texture made while HD is off, then HD turned on
+  setTextureHD(false);
+  const late = texFromPix(all.dirt.pix, { tile: true });
+  const before = HD_STATS.made;
+  check('engine: a texture made while HD is off is not painted', before === HD_STATS.made && late.image.width === 256);
+  setTextureHD(true);
+  check('engine: ... and is painted when HD comes on', HD_STATS.made === before + 1 && sha(Buffer.from(late.image.data)) === sha(Buffer.from(all.dirt.pix.hd().data)));
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nall passed');

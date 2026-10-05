@@ -16,7 +16,8 @@ import { titleShot, introShot, finaleShot, gateShot } from './cinematics.js';
 import { SPEECH, creditsLines, lineHeight, endingShot } from './ending.js';
 import { makeLogo, drawPanel } from '../engine/textures/ui.js';
 import { drawText } from '../engine/textures/font.js';
-import { U } from '../engine/materials.js';
+import { U, setTextureHD } from '../engine/materials.js';
+import { HD } from '../engine/textures/hd/index.js';
 
 const GOLD = ['#fff4b0', '#ffc03c', '#e07818'];
 const LILAC = ['#f4eeff', '#b8a8e8'];
@@ -748,6 +749,7 @@ class App {
       items: [
         { type: 'choice', label: 'SCALING', options: ['auto', 'integer', 'fill'], labels: ['AUTO', 'INTEGER', 'FILL'], get: () => gfx.settings.scaling, set: set('scaling') },
         { type: 'toggle', label: 'SMOOTH TEXTURES', get: () => gfx.settings.filter === 'smooth', set: (v) => gfx.set('filter', v ? 'smooth' : 'pixel') },
+        { type: 'toggle', label: 'HD TEXTURES', get: () => HD.on, set: (v) => { gfx.set('hd', v); setTextureHD(v); } },        // (the smooth look only: the PS1 look takes the pixels)
         { type: 'choice', label: 'CRT FILTER', options: pctOpts, labels: ['OFF', 'LIGHT', 'FULL'], get: () => gfx.settings.crt, set: set('crt') },
         { type: 'toggle', label: '15-BIT DITHER', get: () => !!gfx.settings.dither, set: (v) => gfx.set('dither', v ? 1 : 0) },
         { type: 'toggle', label: 'VERTEX WOBBLE', get: () => !!gfx.settings.snap, set: (v) => gfx.set('snap', v ? 1 : 0) },

@@ -79,7 +79,13 @@ addChest / addWall / addBunnies / addGem / gemArc / roadGems`; from the kit: `fa
   and every prop built through `kit.b(texture)` wears the remapped texture (rocks snow-capped where they wore moss, pines under snow, one colour of meadow flower), with the tints in `palettes` where the
   prop reads them (rocks, stepping stones, arches, pines). `rune` is the tint of the standing stones' runes (Emberfall's burn orange, the Lantern Keepers' are violet). It is `null` for Gloaming Vale and Dawnhaven, whose props stay byte-identical. Props that name a texture in their own parameters (a tree's
   `canopy: 'leaves_blossom'`) are not remapped: say it in the layout.
-* **Textures** (`src/engine/textures/world/*.js`, 16-colour-ish pixel art generated in code with `pix.js`): register a new one where its siblings are; the picker and materials use it by name.
+* **Textures** (`src/engine/textures/world/*.js`, 16-colour-ish pixel art generated in code with `pix.js`): register a new one where its siblings are; the picker and materials use it by name. **Give it an HD painting too**
+  (`src/engine/textures/hd/`): the smooth look, the default, does not enlarge the pixels, it paints each texture again at 256 px (a sprite at 128-256) and a texture with no painter is enlarged by the old filter and looks pixelated
+  next to its neighbours. Add an entry to `PAINT` in `hd/index.js`: `name: (twin, d) => T.cobbles(d.n, { seed, R: [...ramp of the realm], gap, moss, mean: meanOf(twin) })` for a tile (the kit's painters are `terrain.js`
+  turf / cobbles / strata / masonry, `ground.js` soil / dunes / drifts / haze, `buildings.js`, `plants.js`, `water.js`, `sprites.js`, `props.js`, `magic.js`; a ramp is a list of colours, dark to light, or `rampFrom(twin, 6)` for the colours the
+  pixel twin uses), `d.n` is the side to paint (`HD.size`: 256, or 128 on a slow device: write every pixel size as `* K` with `K = n / 256` and every count with `cnt(count, n)`, and `tools/hd-test.mjs` will tell you if the two sizes disagree),
+  `mean` holds the tile to its twin's colour. A sprite takes `(twin, d)` and paints a `Canvas(d.w, ..., { h: d.h, alpha: true })` at the size it will have (`SIZE` says how big; list it in `SPRITES` so that it is mipmapped).
+  Look at it with `node tools/hd-sheet.mjs --only=name` (`--tile` for the seams), then run `node tools/hd-test.mjs`: it holds every painter to its twin's size and colour, to being seamless where it tiles, and to not being blank.
 * **Models** (`src/game/models/objects/*.js`, registry `models/index.js`): `makeModel(assets, name, opts)` -> `{ root, setLit?, update?, anchors? ... }`; `beacon.js` (Rig, `litBuilder`, recolouring) is the pattern for
   a goal object.
 

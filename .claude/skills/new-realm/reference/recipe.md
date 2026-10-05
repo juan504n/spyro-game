@@ -93,7 +93,7 @@ round the goal too). A cracked wall (`ctx.addWall(x, z, yaw, 7.0, 5.7, [25])`) a
   blossom dawn), keep each to two or three base hues, make the glow colour the accent.
 * **Ground** (`extras.groundRule`): a method `groundRule(x, z, h, slope, { r, surface, pd })` returning `[texture, why]` or nothing. It runs after roads, lake shores, steep rock (-> cliff) and
   `h > 42` (-> far rock) and before the default grass, so returning a texture for all the flat ground (snow, sand) re-skins the realm; `cliffs: { cool, warm }` names the tall faces.
-  New textures live in `src/engine/textures/world/*.js` (`tools/texture-sheet.mjs` shows them); a realm uses few.
+  New textures live in `src/engine/textures/world/*.js` (`tools/texture-sheet.mjs` shows them) and each gets an HD painting in `src/engine/textures/hd/` (`PAINT` in `index.js`; `tools/hd-sheet.mjs` shows them, `contract.md` says how); a realm uses few.
 * **Skin and own textures** (`brief.theme.skin`, `brief.lakeTextures`, `brief.roadTextures`, `brief.farRock`): a realm can wear its own textures without touching the engine's: the roads (`cobble_frost`,
   `path_snow`), the lake, the far mountains, and every prop that is built from the kit (see `contract.md`). Keep to two or three base colours (the checker's `design.palette` counts the ground's textures)
   and make the flowers one colour (`flower_patch` takes `kinds: ['flower_pink'], tufts: false`). A gate can be recoloured (`gp.barrier.opts.tint`), a skylight's beam too (`light_shaft`: `color`, `glow`).

@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { collect, format, toText, trailText, BUILD } from './debuginfo.js';
 import { errorLines, errorCount } from '../engine/errlog.js';
 import { isTouchDevice } from '../engine/device.js';
+import { HD, HD_STATS } from '../engine/textures/hd/index.js';
 
 const tapCount = (app) => (app.game.input.lastTap ? app.game.input.lastTap.n : 0);
 const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -174,7 +175,7 @@ export class DebugHud {
     ex.input = `${inp.lastDevice} move ${f2(inp.move.x)},${f2(inp.move.y)} held ${held || '-'}  touch ui ${inp.touch ? (inp.menuBtn ? 'yes' : 'lazy') : 'no'}  vy ${f1(p.vy)}`;
     const info = gfx.renderer.info;
     ex.perf = `${Math.round(this.fps)} fps ${f1(this.ms)} ms  tris ${Math.round(info.render.triangles / 100) / 10}k  calls ${info.render.calls}${gfx.settings.fps30 ? '  (30 fps lock)' : ''}`;
-    ex.gpu = `${gfx.W}x${gfx.H} x${f2(gfx.scale)}  ${gfx.settings.display} ${gfx.settings.height}p ${gfx.look}  geo ${info.memory.geometries} tex ${info.memory.textures}`;
+    ex.gpu = `${gfx.W}x${gfx.H} x${f2(gfx.scale)}  ${gfx.settings.display} ${gfx.settings.height}p ${gfx.look}  geo ${info.memory.geometries} tex ${info.memory.textures}  hd ${HD.on ? HD.size : 'off'} (${HD_STATS.made} painted, ${Math.round(HD_STATS.ms)} ms)`;
     const plat = /iPhone|iPad|Android|Windows|Macintosh|Linux/.exec(navigator.userAgent);
     const safe = gfx.insets();
     ex.view = `${window.innerWidth}x${window.innerHeight} dpr ${f2(window.devicePixelRatio || 1)}  ${plat ? plat[0] : 'browser'}  ${isTouchDevice() ? 'touch' : 'no touch'} (${navigator.maxTouchPoints | 0} pts)${safe.top > 0 ? `  safe top ${f1(safe.top)}` : ''}`;

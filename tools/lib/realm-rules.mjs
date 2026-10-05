@@ -13,6 +13,7 @@ import { tideLow, tideHigh, tideAbove, drownDepth, refugeReach } from '../../src
 import { REALMS, DEFAULT_WORDS } from '../../src/game/realms.js';
 import { measureText } from '../../src/engine/textures/font.js';
 import { generateWorldTextures } from '../../src/engine/textures/world.js';
+import { withoutHD } from '../../src/engine/textures/hd/index.js';
 import { generateUI } from '../../src/engine/textures/ui.js';
 import { terrainPicker } from '../../src/game/terrain-mesh.js';
 import { ROAD_MAX_SLOPE } from '../../src/game/roads.js';
@@ -434,6 +435,9 @@ export function checkRealm(which, { log = () => {} } = {}) {
     if (gp.trials && gp.trials.length) { const look = lookOf(brief); for (const t of [look.stone, look.crystal, look.metal]) used.add(t); }                  // (the stone and the crystal of its trials: built when the realm is played, not in this headless world)
     const missing = [...used].filter((t) => t && t !== '_' && !have.has(t));
     rule('textures.exist', 'every texture the realm uses is one the game has (a misspelt name draws flat magenta)', missing.length === 0, missing.length ? `(missing: ${missing.join(' ')})` : `(${used.size} textures)`, { hard: true });
+    // ... and each has an HD painting (src/engine/textures/hd/): the smooth look, the default, paints every texture again at high resolution; one without is the pixel art enlarged by a filter, and looks pixelated beside the rest
+    const plain = withoutHD(used, generateWorldTextures());
+    rule('textures.hd', 'every texture the realm uses has an HD painting (a texture without one is enlarged pixel art in the smooth look: add it to PAINT in src/engine/textures/hd/index.js)', plain.length === 0, plain.length ? `(without: ${plain.join(' ')})` : `(${used.size} textures)`);
   }
 
   // ---- THE TIDE: a realm whose water rises and falls (level.tide, realm/tide.js) --------------------------------------------------------------

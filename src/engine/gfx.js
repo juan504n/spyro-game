@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS = {
   scaling: 'auto',    // 'auto' | 'integer' | 'fill'
   height: 480,        // internal vertical resolution (240 = PS1)
   filter: 'smooth',   // 'smooth' (filtered textures, MSAA, smooth upscale) | 'pixel' (PS1 point sampling)
+  hd: true,           // the smooth look paints its textures again at high resolution (engine/textures/hd); off: the pixel textures enlarged by a filter, as before
   crt: 0,             // 0..1 scanlines/mask/vignette
   dither: 0,          // 15-bit colour + ordered dither
   snap: 0,            // vertex snapping
@@ -38,6 +39,7 @@ function sanitize(s) {
   s.height = [240, 360, 480, 720].includes(s.height) ? s.height : 480;
   if (s.filter !== 'pixel') s.filter = 'smooth';
   if (s.display !== 'wide') s.display = '4:3';
+  s.hd = s.hd !== false;
   if (!['auto', 'integer', 'fill'].includes(s.scaling)) s.scaling = 'auto';
   s.crt = num(s.crt, 0);
   s.affine = num(s.affine, 0);

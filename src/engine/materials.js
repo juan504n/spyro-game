@@ -1,6 +1,7 @@
 // PS1 material factory + the single shared uniform block every material points at.
 import * as THREE from 'three';
 import { PS1_VERT, PS1_FRAG } from './shaders.js';
+import { HD } from './textures/hd/index.js';
 
 // All colours in this game are raw 8-bit-ish sRGB values, exactly like PS1 VRAM. No colour management.
 THREE.ColorManagement.enabled = false;
@@ -94,11 +95,12 @@ function smoothUpscale(pix, k, wrap) {
 
 function applyTexMode(e) {
   const tex = e.tex, { pix, tile } = e;
-  let img;
+  let img, mip = tile;
   if (_smooth) {
-    if (e.hd) {                                                        // (a texture with an HD painting: painted at 256 px, once)
-      if (!e.smooth) { const h = e.hd(); e.smooth = { data: new Uint8Array(h.data.buffer, h.data.byteOffset, h.data.byteLength), w: h.w, h: h.h }; }
-      img = e.smooth;
+    if (e.hd && HD.on) {                                               // (a texture with an HD painting, and the HD textures on: painted once, when first wanted; kept apart from the enlarged pixels below, so that switching back and forth costs nothing)
+      if (!e.hdImg) { const h = e.hd(); e.hdImg = { data: new Uint8Array(h.data.buffer, h.data.byteOffset, h.data.byteLength), w: h.w, h: h.h }; }
+      img = e.hdImg;
+      mip = tile || !!e.hd.mip;                                        // (a sprite with an HD painting is mipmapped like a tile: it would shimmer at a distance)
     } else {
       const k = Math.max(1, Math.min(8, Math.floor((pix.w * pix.h > 65536 ? 512 : 256) / Math.max(pix.w, pix.h))));
       if (k > 1) {
@@ -106,7 +108,6 @@ function applyTexMode(e) {
         img = e.smooth;
       }
     }
-    const mip = tile || !!(e.hd && e.hd.mip);                           // (a sprite with an HD painting is mipmapped like a tile: it would shimmer at a distance)
     tex.magFilter = THREE.LinearFilter;
     tex.generateMipmaps = mip;                                         // (atlases are sampled by sub-rect: no mip bleeding)
     tex.minFilter = mip ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter;
@@ -120,6 +121,19 @@ function applyTexMode(e) {
   tex.image = { data: fresh.data, width: fresh.w, height: fresh.h };
   tex.dispose();                                                       // (the size may change: let three re-create the GPU texture)
   tex.needsUpdate = true;
+}
+
+/** Turn the HD textures of the smooth look on or off for every texture (existing and future): off, the pixel textures are enlarged by a filter, as they were before the HD ones were made. The PS1 look takes the pixels either way. */
+export function setTextureHD(on) {
+  on = !!on;
+  if (on === HD.on) return;
+  HD.on = on;
+  if (!_smooth) return;
+  for (const ref of _texs) {
+    const e = ref.deref();
+    if (!e) { _texs.delete(ref); continue; }
+    if (e.hd) applyTexMode(e);
+  }
 }
 
 /** Switch every texture (existing and future) between PS1 point sampling and the smooth filtered look. */
@@ -141,7 +155,7 @@ export function texFromPix(pix, { tile = true } = {}) {
   tex.flipY = true;
   tex.wrapS = tex.wrapT = tile ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
   tex.colorSpace = THREE.NoColorSpace;
-  const e = { tex, pix: { data: raw, w: pix.w, h: pix.h }, raw, tile, smooth: null, hd: typeof pix.hd === 'function' ? pix.hd : null };
+  const e = { tex, pix: { data: raw, w: pix.w, h: pix.h }, raw, tile, smooth: null, hdImg: null, hd: typeof pix.hd === 'function' ? pix.hd : null };
   applyTexMode(e);
   _texs.add(new WeakRef(e));
   tex.userData.texEntry = e;                                           // (keeps the entry alive exactly as long as the texture)
