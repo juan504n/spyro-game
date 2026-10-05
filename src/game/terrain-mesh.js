@@ -75,7 +75,7 @@ export function terrainPicker(grid) {
     // over `land.fade` metres (cell by cell, so there is no ring).
     const dLand = land ? Math.hypot(x - land.x, z - land.z) : 1e9;
     const tidy = land !== undefined && dLand < land.r + land.fade && (dLand < land.r || r > (dLand - land.r) / land.fade);
-    // (a level can name the textures of its lake: Frostbloom Hollow's is frozen at the edges, ice and snow where Mirrormere has sand and pebbles)
+    // (a level can name the textures of its lake: Frostbloom Hollow's is frozen at the edges, ice and snow where Mirrormere has sand)
     const LT = L.lakeTextures || {};
     if (h < WATER_LEVEL + 0.05 && dL < 1.6) return [LT.floor || 'sand', 'lake floor'];
     // The shore is ONE ground. It used to scatter a second texture over the sand cell by cell (a fifth of the cells were pebbles), and in the smooth look, where the pebbles are drawn sharp and
