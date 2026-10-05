@@ -1,7 +1,8 @@
 // SNUFFER: a small hooded shadow-imp that snuffs out lanterns. Tattered indigo robe, pale expressionless mask with two
 // glowing yellow eyes (unlit material), stubby arms, and a long brass-belled candle-snuffer pole.
 //
-// variants (opts.variant): 'basic' | 'bell' (metal dome helmet + big brass bell shield, fire-proof) | 'thorn' (crystal thorns, charge-proof)
+// variants (opts.variant): 'basic' | 'bell' (metal dome helmet + big brass bell shield, fire-proof) | 'thorn' (crystal thorns, charge-proof) | the foes that are Snuffers with something
+// (snuffer-foes.js): 'rime' (a shell of ice) | 'slinger' (a forked stick and soot) | 'warden' (a tower shield) | 'pup' (a keg) | 'caller' (a staff of violet fire) | 'thief' (a sack of light)
 //
 // Pose contract (all optional): { speed 0..8, attack 0..1 (windup 0..0.4, strike 0.4..0.6, recover), alert 0..1,
 //   hurt 0..1, stun 0..1, dead 0..1 (poof: shrink + spin, hidden at 1), t }
@@ -11,6 +12,7 @@ import {
   Rig, loft, ellipsoid, spike, bar, triC, triF, setBias,
   clamp, heal, lerp, sstep, damp, mix3, TAU, nextSeed, seeded,
 } from './rig.js';
+import { foeParts, FOE_SCALE, NO_POLE } from './snuffer-foes.js';
 
 // ---- palette -----------------------------------------------------------------------------------------------------------
 const ROBE_LO = [0.12, 0.10, 0.27];
@@ -166,7 +168,7 @@ function thornsGeo(b) {
 // ---- model ------------------------------------------------------------------------------------------------------------
 export function createSnuffer(assets, opts) {
   opts = opts || {};
-  const variant = opts.variant === 'bell' || opts.variant === 'thorn' ? opts.variant : 'basic';
+  const variant = opts.variant === 'bell' || opts.variant === 'thorn' || FOE_SCALE[opts.variant] ? opts.variant : 'basic';
   const R = new Rig(assets, 'snuffer:' + variant);
   const M = R.litMat(null);
   const G = R.glowMat(null);
@@ -188,7 +190,7 @@ export function createSnuffer(assets, opts) {
   R.part(armL, M, (b) => armGeo(b, 1), 'armL');
   R.part(armR, M, (b) => armGeo(b, -1), 'armR');
   const grip = R.pivot(armR, 0, -0.37, 0.02, 'grip');
-  R.part(grip, M, poleGeo, 'pole');
+  if (!NO_POLE.has(variant)) R.part(grip, M, poleGeo, 'pole');                                      // (the foes that carry something else do not carry the snuffing pole)
   const tipAnchor = R.pivot(grip, 0, POLE_TOP + 0.02, 0, 'poleTip');
   const bellAnchor = R.pivot(grip, 0, POLE_TOP + 0.02, 0, 'bell');
 
@@ -199,6 +201,8 @@ export function createSnuffer(assets, opts) {
   }
   if (variant === 'thorn') R.part(body, M, thornsGeo, 'thorns');
 
+  const extra = foeParts(variant, { R, M, G, body, head, armL, armR, grip });
+  if (FOE_SCALE[variant]) R.root.scale.setScalar(FOE_SCALE[variant]);
   const eyeAnchor = R.pivot(head, 0, 0.245, 0.4, 'eyesAnchor');
   const top = R.pivot(R.rig, 0, 2.0, 0, 'top');
 
@@ -311,6 +315,8 @@ export function createSnuffer(assets, opts) {
       shield.position.set(0, 0.1 + 0.02 * Math.sin(S.time * 2) * calm, 0.6 + 0.08 * pulse(0.0, 1.0));
     }
 
+    if (extra) extra.update(dt, pose, { S, move, chase, alert, hurtK, stunK, atk, wind, strike, rec, armL, armR, body, head });
+
     if (pose.flash !== undefined) R.flash(clamp(pose.flash, 0, 1));
   }
 
@@ -323,6 +329,8 @@ export function createSnuffer(assets, opts) {
     hurt: (t) => { const k = (t % 1.6) / 0.6; const h = k < 1 ? 1 - k : 0; return { hurt: h, flash: h > 0.4 ? 1 : 0, t }; },
     stun: { stun: 1 },
     dead: (t) => ({ dead: Math.min(1, (t % 2.4) / 0.9), t }),
+    // (the foes of snuffer-foes.js)
+    melted: { shell: 0 }, open: { shield: 0 }, bash: { attack: 0.5 }, lit: { lit: 1, fuse: 0.5, alert: 1 }, cast: { cast: 1, attack: 0.3 }, jeer: { jeer: 1, alert: 1 }, cower: { cower: 1 }, throw: { attack: 0.3 },
   };
 
   return {

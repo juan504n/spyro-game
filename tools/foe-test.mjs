@@ -8,6 +8,7 @@
 //   the play      the right play wins and is never hurt; standing still is hurt by every foe that attacks; the wrong verb never wins
 //   the rest      the same seed plays the same fight, a Smokecaller never has more than three and takes its Snuffers with it, a keg's blast, a hog that hits a wall is stunned, a thief that is cornered gives up
 import { simulate, HERO, FUSE } from './lib/foesim.mjs';
+import { PLAYS, judge, dirTo, dist, still, rush } from './lib/foe-plays.mjs';
 import { KINDS, FOE_IDS, KIND_IDS, DANGER, BRAINS, makeFoe, struckBy, explode, SLING, CHARGE, BURROW, WARD, SWOOP, CALL, FLEE, hitsOn } from '../src/game/foes/index.js';
 import { ENEMY_DROPS } from '../src/game/economy.js';
 
@@ -65,7 +66,6 @@ const sum = (a) => a.reduce((x, y) => x + y, 0);
 }
 
 // ---- the tells -------------------------------------------------------------------------------------------------------------------------------------
-const still = () => ({ dx: 0, dz: 0, mag: 0 });
 const gapOf = (r, a, b) => { const ea = r.events.find((e) => e.type === a); if (!ea) return null; const eb = r.events.find((e) => e.type === b && e.t >= ea.t); return eb ? eb.t - ea.t : null; };
 {
   const rows = [
@@ -93,50 +93,19 @@ const gapOf = (r, a, b) => { const ea = r.events.find((e) => e.type === a); if (
 }
 
 // ---- the play --------------------------------------------------------------------------------------------------------------------------------------
-const dirTo = (a, b) => { const d = hyp(b.x - a.x, b.z - a.z) || 1; return [(b.x - a.x) / d, (b.z - a.z) / d]; };
-const dist = (a, b) => hyp(b.x - a.x, b.z - a.z);
-/** run at the foe, and ram when `ram` m from it (or flame when `flame` m): what a hero does to a foe that keeps away or comes */
-const rush = ({ ram = 0, flame = 0 } = {}) => (s) => {
-  const [dx, dz] = dirTo(s.hero, s.foe), d = dist(s.hero, s.foe);
-  return { dx, dz, mag: 1, charge: ram > 0 && d < ram, flame: flame > 0 && d < flame && d > 1 };
-};
+// (the plays are tools/lib/foe-plays.mjs: the same ones tools/foe-bot.mjs plays in the running game with the real controller)
+const outcome = (r) => ({ killed: r.killedAt !== null, hurts: r.hurts, blows: r.events.filter((e) => e.type === 'struck'), boomed: r.events.some((e) => e.type === 'boom') });
 const win = (kind, policy, extra = {}, tries = SEEDS, T = 25) => {
   const rs = tries.map((seed) => simulate({ kind, policy, T, seed, ...extra }));
   return { n: rs.length, killed: rs.filter((r) => r.killedAt !== null).length, hurts: rs.map((r) => r.hurts), worst: Math.max(...rs.map((r) => r.hurts)), time: Math.max(...rs.map((r) => r.killedAt ?? Infinity)), rs };
 };
-const show = (w) => `(killed ${w.killed}/${w.n}, hurts ${w.hurts.join(',')}, the longest ${w.time === Infinity ? 'never' : f1(w.time) + ' s'})`;
-const clear = (w, maxHurts = 0) => w.killed === w.n && w.worst <= maxHurts;
-/** the kills a foe took from the hero's attacks from the front, with its guard up */
-const frontKills = (rs) => rs.flatMap((r) => r.events.filter((e) => e.type === 'struck' && e.out === 'kill' && e.side === 'front' && e.state !== 'stunned' && e.state !== 'open'));
 {
-  // the Slinger: close in (it backs off, slower than he runs) and flame or ram it; a hero who stands still is hit
-  let w = win('slinger', rush({ ram: 7 }));
-  check('Slinger: a hero who runs at it and rams it is never hit and wins', clear(w), show(w));
-  w = win('slinger', rush({ flame: 5.5 }));
-  check('Slinger: so does one who flames it from 5.5 m', clear(w), show(w));
-  w = win('slinger', still, {}, SEEDS, 12);
-  check('Slinger: a hero who stands still is hit (by the ball that comes down where he stands)', w.rs.every((r) => r.hurts >= 1), `(hurts ${w.hurts.join(',')})`);
-  w = win('slinger', (s) => ({ dx: Math.cos(s.t * 1.2), dz: Math.sin(s.t * 1.2), mag: 1 }), { hero: { x: 0, z: 9, yaw: Math.PI } }, SEEDS, 14);
-  check('Slinger: a hero who keeps moving is not hit by what it throws (the ring stops following him)', w.worst === 0, `(hurts ${w.hurts.join(',')})`);
-
-  // the Ramhog: step off the line it runs, and go after it: from behind its brow is nothing
-  const hogPolicy = (s) => {
-    const e = s.foe, h = s.hero, fx = Math.sin(e.yaw), fz = Math.cos(e.yaw);
-    const lat = (h.x - e.x) * fz - (h.z - e.z) * fx, lon = (h.x - e.x) * fx + (h.z - e.z) * fz;       // where the hero is in the hog's own frame: lon > 0 is in front of it
-    if ((e.state === 'paw' && e.locked) || (e.state === 'rush' && lon > 0.5)) {
-      if (Math.abs(lat) < 2.6) { const sd = lat >= 0 ? 1 : -1; return { dx: fz * sd, dz: -fx * sd, mag: 1 }; }               // (step off its line)
-      return { dx: 0, dz: 0, mag: 0 };
-    }
-    if (['rush', 'skid', 'turn', 'stunned'].includes(e.state) && lon <= 0.5) { const [dx, dz] = dirTo(h, e); return { dx, dz, mag: 1, charge: true }; }   // (it has gone by: after it)
-    return { dx: 0, dz: 0, mag: 0 };
-  };
-  w = win('hog', hogPolicy, { hero: { x: 0, z: 14, yaw: Math.PI } }, SEEDS, 30);
-  check('Ramhog: a hero who steps off its line and goes after it wins, and is not hurt', clear(w), show(w));
-  const headOn = (s) => { const [dx, dz] = dirTo(s.hero, s.foe); return { dx, dz, mag: 1, charge: dist(s.hero, s.foe) < 8 }; };
-  w = win('hog', headOn, {}, SEEDS, 20);
-  check('Ramhog: a hero who rams at it head on gets nothing from its brow (no kill from the front, but the ones from the side and the back when he is knocked round)', frontKills(w.rs).length === 0 && w.rs.some((r) => r.events.some((e) => e.type === 'struck' && e.out === 'ring')), `(${w.rs.flatMap((r) => r.events.filter((e) => e.type === 'struck')).length} blows)`);
-  w = win('hog', still, {}, SEEDS, 12);
-  check('Ramhog: a hero who stands still is run down', w.rs.every((r) => r.hurts >= 1), `(hurts ${w.hurts.join(',')})`);
+  for (const pl of PLAYS) {
+    const seeds = pl.seeds || SEEDS;
+    const outs = seeds.map((seed) => outcome(simulate({ kind: pl.kind, policy: pl.policy, T: pl.T, seed, hero: { x: 0, z: pl.at, yaw: Math.PI } })));
+    const fails = outs.map((o) => judge(pl.want, o)).filter(Boolean);
+    check(pl.say, fails.length <= (pl.tol || 0), `(${outs.length - fails.length}/${outs.length} runs as wanted${fails.length ? ': ' + fails[0] : ''})`);
+  }
   {
     // led into a post: the charge ends against it, and a stunned hog falls to anything
     const setup = { kind: 'hog', foe: { x: 0, z: 0, yaw: 0 }, hero: { x: 0, z: 10, yaw: Math.PI }, solids: [{ x: 0, z: 16, r: 1.5 }], seed: 2, policy: (s) => (s.foe.state === 'rush' || (s.foe.state === 'paw' && s.foe.locked) ? { dx: 1, dz: 0, mag: 1 } : { dx: 0, dz: 0, mag: 0 }) };
@@ -145,115 +114,21 @@ const frontKills = (rs) => rs.flatMap((r) => r.events.filter((e) => e.type === '
     const after = bonk ? simulate({ ...setup, T: bonk.t + 0.3 }) : null;
     check('Ramhog: a hog that runs into a post is stunned where the post is, and the hero who stepped aside is not hurt', !!bonk && after.foe.state === 'stunned' && r.hurts === 0 && bonk.z < 16, bonk ? `(bonk at ${f1(bonk.t)} s, ${f1(bonk.z)} m, then ${after.foe.state})` : '(no bonk)');
   }
-
-  // the Dustmole: let it come, leave the ring when the ground cracks, strike it dazed. Keep moving and it is left behind; stand still and it is up under him
-  const molePolicy = (s) => {
-    const e = s.foe, h = s.hero;
-    if (e.state === 'dazed') { const [dx, dz] = dirTo(h, e); return { dx, dz, mag: 1, charge: dist(h, e) < 6 }; }
-    if (e.state === 'crack') { const [dx, dz] = dirTo(e, h); return { dx, dz, mag: 1 }; }                    // (out of the ring)
-    return { dx: 0, dz: 0, mag: 0 };
-  };
-  w = win('mole', molePolicy, {}, SEEDS, 30);
-  check('Dustmole: a hero who waits for it, leaves the ring when the ground cracks and strikes it dazed wins, and is not hurt', clear(w), show(w));
-  w = win('mole', still, {}, SEEDS, 12);
-  check('Dustmole: a hero who stands still in the ring is caught by the burst', w.rs.every((r) => r.hurts >= 1), `(hurts ${w.hurts.join(',')})`);
-  w = win('mole', (s) => ({ dx: Math.cos(s.t * 1.1), dz: Math.sin(s.t * 1.1), mag: 1 }), { hero: { x: 0, z: 9, yaw: Math.PI } }, SEEDS, 20);
-  check('Dustmole: a hero who only keeps moving is never hurt (it cannot catch a run) and never wins either', w.worst === 0 && w.killed === 0, `(hurts ${w.hurts.join(',')}, killed ${w.killed})`);
-  w = win('mole', (s) => { const [dx, dz] = dirTo(s.hero, s.foe); return { dx, dz, mag: 0.3, charge: true, flame: true }; }, {}, SEEDS, 6);
-  check('Dustmole: ramming and breathing fire at the mound does nothing while it is underground', w.killed === 0 || w.rs.every((r) => r.killedAt === null || r.events.some((e) => e.type === 'burst' && e.t < r.killedAt)), show(w));
-
-  // the Lidwarden: go round it (it turns at 1.3 rad/s; he circles at three times that) and strike its side
-  const wardPolicy = (s) => {
-    const e = s.foe, h = s.hero, d = dist(h, e);
-    const off = Math.abs(((Math.atan2(h.x - e.x, h.z - e.z) - e.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI);          // how far round from its front he is (0 front .. PI behind)
-    const rel = Math.atan2(h.x - e.x, h.z - e.z);
-    if (d > 7) { const [dx, dz] = dirTo(h, e); return { dx, dz, mag: 1 }; }
-    if (off < 1.5) { const a = rel + 1.5; return { dx: Math.sin(a) * 1 - Math.sin(rel) * (d - 3.2) * 0.3, dz: Math.cos(a) * 1 - Math.cos(rel) * (d - 3.2) * 0.3, mag: 1 }; }        // (round it, at about 3 m)
-    const [dx, dz] = dirTo(h, e);
-    return { dx, dz, mag: 1, charge: d < 5.5 };
-  };
-  w = win('warden', wardPolicy, {}, SEEDS, 30);
-  check('Lidwarden: a hero who goes round it and strikes its side or its back wins', w.killed >= w.n - 1, show(w));
-  w = win('warden', headOn, {}, SEEDS, 20);
-  check('Lidwarden: a hero who rams it head on gets nothing from the front while its shield is up', frontKills(w.rs).length === 0 && w.rs.some((r) => r.events.some((e) => e.type === 'struck' && e.out === 'ring')), `(${w.rs.flatMap((r) => r.events.filter((e) => e.type === 'struck')).length} blows)`);
-  w = win('warden', still, {}, SEEDS, 12);
-  check('Lidwarden: a hero who stands still is bashed', w.rs.every((r) => r.hurts >= 1), `(hurts ${w.hurts.join(',')})`);
   {
-    // taken on the bash and struck while the shield is down: the other way to win
-    const r = simulate({ kind: 'warden', hero: { x: 0, z: 9, yaw: Math.PI }, T: 12, seed: 3, policy: (s) => {
-      const e = s.foe;
-      if (e.state === 'open') { const [dx, dz] = dirTo(s.hero, e); return { dx, dz, mag: 1, charge: true }; }
-      if (e.state === 'raise') { const [dx, dz] = dirTo(e, s.hero); return { dx: dz, dz: -dx, mag: 1 }; }                       // (a step to the side of the bash)
-      return { dx: 0, dz: 0, mag: 0 };
-    } });
-    check('Lidwarden: a hero who steps aside from the bash and strikes it while the shield is down wins too', r.killedAt !== null, `(${r.killedAt === null ? 'not killed' : 'killed at ' + f1(r.killedAt) + ' s'}, hurts ${r.hurts})`);
-  }
-
-  // the Fusepup: flame it from afar (out of the blast), or be hurt; a ram puts him in it
-  const pupFlame = (s) => {
-    const d = dist(s.hero, s.foe), [dx, dz] = dirTo(s.hero, s.foe);
-    if (s.foe.state === 'idle') return { dx: 0, dz: 0, mag: 0 };
-    if (d > 6.0) return { dx, dz, mag: 0 };
-    if (d >= 4.4) return { dx, dz, mag: 0, flame: true };
-    return { dx: -dx, dz: -dz, mag: 1 };                                                                      // (too near: back away)
-  };
-  w = win('pup', pupFlame, { hero: { x: 0, z: 13, yaw: Math.PI } }, SEEDS, 14);
-  check('Fusepup: a hero who flames it from more than 4 m is not in the blast, and wins', clear(w), show(w));
-  w = win('pup', rush({ ram: 4 }), {}, SEEDS, 14);
-  check('Fusepup: a hero who rams it is in the blast of the keg it sets off', w.rs.every((r) => r.hurts >= 1), show(w));
-  w = win('pup', (s) => { const [dx, dz] = dirTo(s.foe, s.hero); return { dx, dz, mag: 1 }; }, { hero: { x: 0, z: 9, yaw: Math.PI } }, SEEDS, 8);
-  check('Fusepup: a hero who runs from it is not hurt (a run is quicker, and the fuse burns out behind him)', w.worst === 0 && w.rs.every((r) => r.events.some((e) => e.type === 'boom')), `(hurts ${w.hurts.join(',')})`);
-
-  // the Dusk Moth: jump and breathe fire; ram it when it has landed; step away from its shadow
-  const mothPolicy = (s) => {
-    const e = s.foe, h = s.hero, [dx, dz] = dirTo(h, e), d = dist(h, e);
-    if (e.state === 'idle' || e.state === 'alert') return { dx: 0, dz: 0, mag: 0 };
-    if (e.state === 'land') return { dx, dz, mag: 1, charge: d < 6 };
-    if (d < 8.5 && h.grounded && e.state === 'circle') return { dx, dz, mag: 0.01, jump: true };
-    if (!h.grounded && h.y > 0.7) return { dx, dz, mag: 0.01, flame: d < 7.4 };
-    return { dx: 0, dz: 0, mag: 0 };
-  };
-  w = win('moth', mothPolicy, { hero: { x: 0, z: 9, yaw: Math.PI } }, SEEDS, 30);
-  check('Dusk Moth: a hero who jumps and breathes fire, and rams it when it lands, wins', w.killed >= w.n - 1 && w.worst <= 1, show(w));
-  w = win('moth', still, {}, SEEDS, 12);
-  check('Dusk Moth: a hero who stands still is dived on', w.rs.every((r) => r.hurts >= 1), `(hurts ${w.hurts.join(',')})`);
-  w = win('moth', (s) => { const [dx, dz] = dirTo(s.hero, s.foe); return { dx, dz, mag: 0.01, flame: dist(s.hero, s.foe) < 7 }; }, { hero: { x: 0, z: 9, yaw: Math.PI } }, SEEDS, 2.4);
-  check('Dusk Moth: fire breathed from the ground does not reach it while it hangs (nothing is killed in the 2.4 s before its first dive)', w.killed === 0, show(w));
-  {
-    const r = simulate({ kind: 'moth', hero: { x: 0, z: 9, yaw: Math.PI }, T: 14, seed: 2, policy: (s) => { const e = s.foe; if (e.state === 'rear' || e.state === 'dive') { const a = Math.atan2(s.hero.x - e.aimX, s.hero.z - e.aimZ); return { dx: Math.sin(a), dz: Math.cos(a), mag: 1 }; } return { dx: 0, dz: 0, mag: 0 }; } });
-    check('Dusk Moth: a hero who steps away from where its shadow falls is not hurt by its dives', r.hurts === 0 && r.events.filter((e) => e.type === 'dive').length >= 2, `(dives ${r.events.filter((e) => e.type === 'dive').length}, hurts ${r.hurts})`);
-  }
-
-  // the Smokecaller: rush through what it calls, to it; never more than three; they go when it goes
-  w = win('caller', rush({ ram: 6 }), { hero: { x: 0, z: 12, yaw: Math.PI } }, SEEDS, 30);
-  check('Smokecaller: a hero who rushes it wins (it is slower than a run), hurt at most twice by what it called', w.killed === w.n && w.worst <= 2, show(w));
-  {
-    // a hero who fights what it calls: it calls again every 7 s, and never has more than three
+    // a hero who fights what a Smokecaller calls: it calls again every 7 s, and never has more than three
     const r = simulate({ kind: 'caller', hero: { x: 0, z: 14, yaw: Math.PI }, T: 40, seed: 4, policy: (s) => {
       const live = s.foes.filter((m) => m.minion && m.state !== 'dead').sort((a, b) => dist(s.hero, a) - dist(s.hero, b))[0];
       if (live && dist(s.hero, live) < 6) { const [dx, dz] = dirTo(s.hero, live); return { dx, dz, mag: 1, charge: dist(s.hero, live) < 4 }; }
       return { dx: 0, dz: 0, mag: 0 };
     } });
-    const minions = r.foes.filter((x) => x.minion);
-    let most = 0;
-    for (let t = 0; t < 40; t += 0.1) most = Math.max(most, minions.filter((x) => x.born <= t && (x.diedAt === undefined || x.diedAt > t)).length);
-    check('Smokecaller: it calls again every 7 s whatever he does to what it called, and never has more than three alive', r.events.filter((e) => e.type === 'summon').length >= 4 && most <= CALL.cap && most >= 1, `(${r.events.filter((e) => e.type === 'summon').length} calls, at most ${most} alive)`);
-    w = win('caller', still, { hero: { x: 0, z: 25, yaw: Math.PI } }, [1], 60);
-    let most2 = 0; const m2 = w.rs[0].foes.filter((x) => x.minion);
-    for (let t = 0; t < 60; t += 0.1) most2 = Math.max(most2, m2.filter((x) => x.born <= t && (x.diedAt === undefined || x.diedAt > t)).length);
-    check('Smokecaller: left alone with a hero who does nothing it still never has more than three of them at once', most2 <= CALL.cap, `(${m2.length} called, at most ${most2} alive)`);
+    const most = (rr, T) => { const ms = rr.foes.filter((x) => x.minion); let m = 0; for (let t = 0; t < T; t += 0.1) m = Math.max(m, ms.filter((x) => x.born <= t && (x.diedAt === undefined || x.diedAt > t)).length); return m; };
+    check('Smokecaller: it calls again every 7 s whatever he does to what it called, and never has more than three alive', r.events.filter((e) => e.type === 'summon').length >= 4 && most(r, 40) <= CALL.cap && most(r, 40) >= 1, `(${r.events.filter((e) => e.type === 'summon').length} calls, at most ${most(r, 40)} alive)`);
+    const q = simulate({ kind: 'caller', hero: { x: 0, z: 25, yaw: Math.PI }, T: 60, seed: 1, policy: still });
+    check('Smokecaller: left alone with a hero who does nothing it still never has more than three of them at once', most(q, 60) <= CALL.cap, `(${q.foes.filter((x) => x.minion).length} called, at most ${most(q, 60)} alive)`);
+    const d = simulate({ kind: 'caller', hero: { x: 0, z: 14, yaw: Math.PI }, T: 40, seed: 5, policy: (s) => (s.foes.filter((m) => m.minion).length >= 2 ? { ...(() => { const [dx, dz] = dirTo(s.hero, s.foe); return { dx, dz }; })(), mag: 1, charge: dist(s.hero, s.foe) < 6 } : { dx: 0, dz: 0, mag: 0 }) });
+    const mins = d.foes.filter((m) => m.minion);
+    check('Smokecaller: when it falls, the Snuffers it called go up in smoke with it (dismissed: no gems, not counted as beaten)', d.killedAt !== null && mins.length >= 2 && mins.some((m) => m.how === 'dismissed') && mins.every((m) => m.state === 'dead' || m.diedAt === undefined), `(${mins.length} called, ${mins.filter((m) => m.how === 'dismissed').length} gone with it)`);
   }
-  {
-    const r = simulate({ kind: 'caller', hero: { x: 0, z: 14, yaw: Math.PI }, T: 40, seed: 5, policy: (s) => (s.foes.filter((m) => m.minion).length >= 2 ? { ...(() => { const [dx, dz] = dirTo(s.hero, s.foe); return { dx, dz }; })(), mag: 1, charge: dist(s.hero, s.foe) < 6 } : { dx: 0, dz: 0, mag: 0 }) });
-    const mins = r.foes.filter((m) => m.minion);
-    check('Smokecaller: when it falls, the Snuffers it called go up in smoke with it (dismissed: no gems, not counted as beaten)', r.killedAt !== null && mins.length >= 2 && mins.some((m) => m.how === 'dismissed') && mins.every((m) => m.state === 'dead' || m.diedAt === undefined), `(${mins.length} called, ${mins.filter((m) => m.how === 'dismissed').length} gone with it)`);
-  }
-
-  // the Pilferling: never hurts; a ram catches it; cornered it gives up
-  w = win('thief', rush({ ram: 9 }), { hero: { x: 0, z: 10, yaw: Math.PI } }, SEEDS, 25);
-  check('Pilferling: a hero who rams after it catches it, and it never hurts him', w.killed === w.n && w.worst === 0, show(w));
-  w = win('thief', still, {}, SEEDS, 12);
-  check('Pilferling: it does not fight: a hero who stands still is never touched', w.worst === 0 && w.killed === 0, `(hurts ${w.hurts.join(',')})`);
   {
     // an alley closed at one end: a thief driven into it has nowhere to go
     const alley = [];
@@ -264,6 +139,8 @@ const frontKills = (rs) => rs.flatMap((r) => r.events.filter((e) => e.type === '
     check('Pilferling: driven into a blind alley it puts its hands up (a cower) at the end of it rather than run through the wall', !!cow && Math.abs(cow.x) < 3.5 && cow.z < -9 && cow.z > -13, cow ? `(at ${f1(cow.x)}, ${f1(cow.z)}, ${f1(cow.t)} s)` : '(never)');
     const q = simulate({ kind: 'thief', hero: { x: 0, z: 10, yaw: Math.PI }, T: 20, seed: 3, policy: (s) => { const [dx, dz] = dirTo(s.hero, s.foe); return { dx, dz, mag: 0.7 }; } });
     check('Pilferling: it jeers when it has a lead (a chase has its moments)', q.events.some((e) => e.type === 'tell' && e.what === 'jeer'));
+    const j = simulate({ kind: 'thief', hero: { x: 0, z: 10, yaw: Math.PI }, T: 20, seed: 2, policy: rush({ ram: 9 }) });
+    check('Pilferling: a ram that comes straight at it is sidestepped (it is not there at the last moment: the ram cannot turn)', j.events.filter((e) => e.type === 'tell' && e.what === 'juke').length >= 1, `(${j.events.filter((e) => e.what === 'juke').length} sidesteps)`);
   }
 }
 

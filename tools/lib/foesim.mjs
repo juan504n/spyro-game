@@ -34,8 +34,8 @@ export function simulate({ kind, foe = { x: 0, z: 0, yaw: 0 }, hero: spot = { x:
   const foes = [main];
   for (const o of others) foes.push(makeFoe(o.kind, { ...o, y: floorAt(o.x, o.z) }));
   let now = 0, hurts = 0, killedAt = null;
-  const heroView = { x: 0, y: 0, z: 0, r: HERO.r, dead: false };
-  const syncHero = () => { heroView.x = hero.x; heroView.y = hero.y; heroView.z = hero.z; heroView.dead = hero.dead; };
+  const heroView = { x: 0, y: 0, z: 0, r: HERO.r, dead: false, ram: false, vx: 0, vz: 0 };
+  const syncHero = () => { heroView.x = hero.x; heroView.y = hero.y; heroView.z = hero.z; heroView.dead = hero.dead; heroView.ram = hero.chargeT > 0; heroView.vx = hero.vx; heroView.vz = hero.vz; };
   const kill = (e, how) => { if (e.state === 'dead') return; e.state = 'dead'; e.diedAt = now; e.how = how; if (e === main) killedAt = now; if (e.minions) for (const m of e.minions) ctx.dismiss(m); };
   const ctx = {
     hero: heroView, rng, floorAt,

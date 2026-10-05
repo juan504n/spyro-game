@@ -4,7 +4,7 @@
 // The shape of a foe `e` (a record the EnemySystem makes; the brains add what they need in `init`):
 //   x y z (feet) yaw (forward is (sin yaw, cos yaw)) hx hz (home) hp r h cy (the height of its middle over its feet) state st (seconds in the state) t wild patrolR tx tz K (its row of KINDS)
 // The `ctx` a brain is stepped with:
-//   hero { x, y, z, r, dead }   rng()   floorAt(x, z)   emit(type, data)   dismiss(e)   alive(e)
+//   hero { x, y, z, r, dead, ram (he is charging), vx, vz }   rng()   floorAt(x, z)   emit(type, data)   dismiss(e)   alive(e)
 //   move(e, vx, vz, dt) -> 0..1: how much of the step it got along its direction; the step is made only if it got at least half of it, and e.bump says whether it ran into something
 // What a brain says goes through `ctx.emit`; the system plays the sounds, spawns the dust and hurts the hero on 'hurt'. The kinds of event are listed in foes/index.js.
 

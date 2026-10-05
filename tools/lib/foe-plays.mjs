@@ -1,0 +1,143 @@
+// How a person plays each foe, as data (tools/foe-test.mjs plays these against the brains and a model of the hero; tools/foe-bot.mjs plays the same ones in the running game with the real
+// controller): a policy is a function of what the hero can see and says what he does, { dx, dz, mag, jump, flame, charge }; a play is a foe, a policy, how long, where the hero stands (a metre
+// count from the foe, on the line through them) and what must come of it.
+//   s = { t, hero: { x, y, z, yaw, grounded, up (metres over the floor) }, foe: the foe's record (state, x, z, yaw, locked, aimX, aimZ, ...), foes: [every foe] }
+const hyp = Math.hypot;
+export const dirTo = (a, b) => { const d = hyp(b.x - a.x, b.z - a.z) || 1; return [(b.x - a.x) / d, (b.z - a.z) / d]; };
+export const dist = (a, b) => hyp(b.x - a.x, b.z - a.z);
+
+export const still = () => ({ dx: 0, dz: 0, mag: 0 });
+/** run at the foe, and ram when `ram` m from it (or flame when `flame` m): what a hero does to a foe that keeps away or comes */
+export const rush = ({ ram = 0, flame = 0 } = {}) => (s) => {
+  const [dx, dz] = dirTo(s.hero, s.foe), d = dist(s.hero, s.foe);
+  return { dx, dz, mag: 1, charge: ram > 0 && d < ram, flame: flame > 0 && d < flame && d > 1 };
+};
+/** run in circles (a hero who keeps moving) */
+export const lap = (s) => ({ dx: Math.cos(s.t * 1.2), dz: Math.sin(s.t * 1.2), mag: 1 });
+export const lapSlow = (s) => ({ dx: Math.cos(s.t * 1.1), dz: Math.sin(s.t * 1.1), mag: 1 });
+/** run at the foe and ram it head on from 8 m, whatever it is doing */
+export const headOn = (s) => { const [dx, dz] = dirTo(s.hero, s.foe); return { dx, dz, mag: 1, charge: dist(s.hero, s.foe) < 8 }; };
+
+/** the Ramhog: step off the line it runs, and go after it: from behind its brow is nothing */
+export const hogPlay = (s) => {
+  const e = s.foe, h = s.hero, fx = Math.sin(e.yaw), fz = Math.cos(e.yaw);
+  const lat = (h.x - e.x) * fz - (h.z - e.z) * fx, lon = (h.x - e.x) * fx + (h.z - e.z) * fz;       // where the hero is in the hog's own frame: lon > 0 is in front of it
+  if ((e.state === 'paw' && e.locked) || (e.state === 'rush' && lon > 0.5)) {
+    if (Math.abs(lat) < 2.6) { const sd = lat >= 0 ? 1 : -1; return { dx: fz * sd, dz: -fx * sd, mag: 1 }; }               // (step off its line)
+    return { dx: 0, dz: 0, mag: 0 };
+  }
+  if (['rush', 'skid', 'turn', 'stunned'].includes(e.state) && lon <= 0.5) { const [dx, dz] = dirTo(h, e); return { dx, dz, mag: 1, charge: true }; }   // (it has gone by: after it)
+  return { dx: 0, dz: 0, mag: 0 };
+};
+
+/** the Dustmole: let it come, leave the ring when the ground cracks, strike it dazed */
+export const molePlay = (s) => {
+  const e = s.foe, h = s.hero;
+  if (e.state === 'dazed') { const [dx, dz] = dirTo(h, e); return { dx, dz, mag: 1, charge: dist(h, e) < 6 }; }
+  if (e.state === 'crack') { const [dx, dz] = dirTo(e, h); return { dx, dz, mag: 1 }; }                    // (out of the ring)
+  return { dx: 0, dz: 0, mag: 0 };
+};
+
+/** the Lidwarden: go round it (it turns at 1.3 rad/s; he circles at three times that) and strike its side */
+export const wardPlay = (s) => {
+  const e = s.foe, h = s.hero, d = dist(h, e);
+  const rel = Math.atan2(h.x - e.x, h.z - e.z);
+  const off = Math.abs(((rel - e.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI);                              // how far round from its front he is: 0 dead ahead of it, PI behind it
+  if (d > 7) { const [dx, dz] = dirTo(h, e); return { dx, dz, mag: 1 }; }
+  if (off < 1.5) { const a = rel + 1.5; return { dx: Math.sin(a) - Math.sin(rel) * (d - 3.2) * 0.3, dz: Math.cos(a) - Math.cos(rel) * (d - 3.2) * 0.3, mag: 1 }; }       // (round it, at about 3 m)
+  const [dx, dz] = dirTo(h, e);
+  return { dx, dz, mag: 1, charge: d < 5.5 };
+};
+/** ... or step aside from the bash and strike while the shield is down */
+export const wardOpen = (s) => {
+  const e = s.foe;
+  if (e.state === 'open') { const [dx, dz] = dirTo(s.hero, e); return { dx, dz, mag: 1, charge: true }; }
+  if (e.state === 'raise') { const [dx, dz] = dirTo(e, s.hero); return { dx: dz, dz: -dx, mag: 1 }; }       // (a step to the side of the bash)
+  return { dx: 0, dz: 0, mag: 0 };
+};
+
+/** the Fusepup: flame it from afar (out of the blast) ... */
+export const pupFlame = (s) => {
+  const d = dist(s.hero, s.foe), [dx, dz] = dirTo(s.hero, s.foe);
+  if (s.foe.state === 'idle') return { dx: 0, dz: 0, mag: 0 };
+  if (d > 6.0) return { dx, dz, mag: 0 };
+  if (d >= 4.4) return { dx, dz, mag: 0, flame: true };
+  return { dx: -dx, dz: -dz, mag: 1 };                                                                      // (too near: back away)
+};
+/** ... or run from it */
+export const pupRun = (s) => { const [dx, dz] = dirTo(s.foe, s.hero); return { dx, dz, mag: 1 }; };
+
+/** the Dusk Moth: jump and breathe fire; ram it when it has landed */
+export const mothPlay = (s) => {
+  const e = s.foe, h = s.hero, [dx, dz] = dirTo(h, e), d = dist(h, e);
+  if (e.state === 'idle' || e.state === 'alert') return { dx: 0, dz: 0, mag: 0 };
+  if (e.state === 'land') return { dx, dz, mag: 1, charge: d < 6 };
+  if (d < 8.5 && h.grounded && e.state === 'circle') return { dx, dz, mag: 0.01, jump: true };
+  if (!h.grounded && h.up > 0.7) return { dx, dz, mag: 0.01, flame: d < 7.4 };                              // (h.up: how high over the floor)
+  return { dx: 0, dz: 0, mag: 0 };
+};
+/** fire breathed from the ground, at a moth that hangs */
+export const mothGround = (s) => { const [dx, dz] = dirTo(s.hero, s.foe); return { dx, dz, mag: 0.01, flame: dist(s.hero, s.foe) < 7 }; };
+/** step away from where its shadow falls */
+export const mothDodge = (s) => {
+  const e = s.foe;
+  if (e.state === 'rear' || e.state === 'dive') { const a = Math.atan2(s.hero.x - e.aimX, s.hero.z - e.aimZ); return { dx: Math.sin(a), dz: Math.cos(a), mag: 1 }; }
+  return { dx: 0, dz: 0, mag: 0 };
+};
+
+/**
+ * Each play: id, what it says, the foe, the policy, T (seconds), `at` (how far from the foe the hero begins, on the line through them), and what must come of it (`want`, judged by `judge`; `tol`: how many
+ * of the runs may fail it, a policy is not a person; `seeds`: which runs):
+ *   clear       the foe falls and the hero is never hurt           win      the foe falls (the hero may be hurt once)         hurt   the hero is hurt at least once
+ *   unhurt      the hero is never hurt                              nokill   the foe does not fall                            nofront  nothing kills it from the front (and something rang off it)
+ *   quiet       never hurt and never killed                        boomed   it went off and the hero was not hurt            blast    the hero is hurt and the keg went off
+ */
+export const PLAYS = [
+  { id: 'slinger-ram', say: 'Slinger: a hero who runs at it and rams it is never hit and wins', kind: 'slinger', policy: rush({ ram: 7 }), T: 25, at: 14, want: 'clear' },
+  { id: 'slinger-flame', say: 'Slinger: so does one who flames it from 5.5 m', kind: 'slinger', policy: rush({ flame: 5.5 }), T: 25, at: 14, want: 'clear' },
+  { id: 'slinger-still', say: 'Slinger: a hero who stands still is hit (by the ball that comes down where he stands)', kind: 'slinger', policy: still, T: 12, at: 14, want: 'hurt' },
+  { id: 'slinger-move', say: 'Slinger: a hero who keeps moving is not hit by what it throws (the ring stops following him)', kind: 'slinger', policy: lap, T: 14, at: 9, want: 'unhurt' },
+  { id: 'hog-flank', say: 'Ramhog: a hero who steps off its line and goes after it wins, and is not hurt', kind: 'hog', policy: hogPlay, T: 30, at: 14, want: 'clear' },
+  { id: 'hog-headon', say: 'Ramhog: a hero who rams at it head on gets nothing from its brow', kind: 'hog', policy: headOn, T: 20, at: 14, want: 'nofront' },
+  { id: 'hog-still', say: 'Ramhog: a hero who stands still is run down', kind: 'hog', policy: still, T: 12, at: 14, want: 'hurt' },
+  { id: 'mole-bait', say: 'Dustmole: a hero who waits for it, leaves the ring when the ground cracks and strikes it dazed wins, and is not hurt', kind: 'mole', policy: molePlay, T: 30, at: 14, want: 'clear' },
+  { id: 'mole-still', say: 'Dustmole: a hero who stands still in the ring is caught by the burst', kind: 'mole', policy: still, T: 12, at: 14, want: 'hurt' },
+  { id: 'mole-move', say: 'Dustmole: a hero who only keeps moving is never hurt (it cannot catch a run) and never wins either', kind: 'mole', policy: lapSlow, T: 20, at: 9, want: 'quiet' },
+  { id: 'warden-circle', say: 'Lidwarden: a hero who goes round it and strikes its side or its back wins', kind: 'warden', policy: wardPlay, T: 30, at: 14, want: 'win', tol: 1 },
+  { id: 'warden-headon', say: 'Lidwarden: a hero who rams it head on gets nothing from the front while its shield is up', kind: 'warden', policy: headOn, T: 20, at: 14, want: 'nofront' },
+  { id: 'warden-still', say: 'Lidwarden: a hero who stands still is bashed', kind: 'warden', policy: still, T: 12, at: 14, want: 'hurt' },
+  { id: 'warden-open', say: 'Lidwarden: a hero who steps aside from the bash and strikes it while the shield is down wins too', kind: 'warden', policy: wardOpen, T: 12, at: 9, want: 'win1', seeds: [3] },
+  { id: 'pup-flame', say: 'Fusepup: a hero who flames it from more than 4 m is not in the blast, and wins', kind: 'pup', policy: pupFlame, T: 14, at: 13, want: 'clear' },
+  { id: 'pup-ram', say: 'Fusepup: a hero who rams it is in the blast of the keg it sets off', kind: 'pup', policy: rush({ ram: 4 }), T: 14, at: 14, want: 'blast' },
+  { id: 'pup-run', say: 'Fusepup: a hero who runs from it is not hurt (a run is quicker, and the fuse burns out behind him)', kind: 'pup', policy: pupRun, T: 8, at: 9, want: 'boomed' },
+  { id: 'moth-jump', say: 'Dusk Moth: a hero who jumps and breathes fire, and rams it when it lands, wins', kind: 'moth', policy: mothPlay, T: 30, at: 9, want: 'win', tol: 1 },
+  { id: 'moth-still', say: 'Dusk Moth: a hero who stands still is dived on', kind: 'moth', policy: still, T: 12, at: 14, want: 'hurt' },
+  { id: 'moth-ground', say: 'Dusk Moth: fire breathed from the ground does not reach it while it hangs (nothing is killed in the 2.4 s before its first dive)', kind: 'moth', policy: mothGround, T: 2.4, at: 9, want: 'nokill' },
+  { id: 'moth-dodge', say: 'Dusk Moth: a hero who steps away from where its shadow falls is not hurt by its dives', kind: 'moth', policy: mothDodge, T: 14, at: 9, want: 'unhurt' },
+  { id: 'caller-rush', say: 'Smokecaller: a hero who rushes it wins (it is slower than a run), hurt at most twice by what it called', kind: 'caller', policy: rush({ ram: 6 }), T: 30, at: 12, want: 'win2' },
+  { id: 'thief-flame', say: 'Pilferling: a hero who runs it down and flames it from 6 m catches it, and it never hurts him', kind: 'thief', policy: rush({ flame: 6 }), T: 25, at: 10, want: 'clear' },
+  { id: 'thief-ram', say: 'Pilferling: a hero who rams after it catches it in the end (it sidesteps a ram that comes straight at it), and it never hurts him', kind: 'thief', policy: rush({ ram: 9 }), T: 30, at: 10, want: 'clear', tol: 1 },
+  { id: 'thief-still', say: 'Pilferling: it does not fight: a hero who stands still is never touched', kind: 'thief', policy: still, T: 12, at: 14, want: 'quiet' },
+];
+
+/**
+ * Judge a play's outcome: { killed (the foe fell), hurts (times the hero was hurt), blows ([{ attack, out, side, state }]: what the hero's attacks did to it), boomed } -> null if it is what the play wants, else why not.
+ */
+export function judge(want, r) {
+  const frontKills = r.blows.filter((b) => b.out === 'kill' && b.side === 'front' && b.state !== 'stunned' && b.state !== 'open');
+  const rang = r.blows.some((b) => b.out === 'ring');
+  switch (want) {
+    case 'clear': return r.killed && r.hurts === 0 ? null : `killed ${r.killed}, hurts ${r.hurts}`;
+    case 'win': return r.killed && r.hurts <= 1 ? null : `killed ${r.killed}, hurts ${r.hurts}`;
+    case 'win1': return r.killed ? null : `killed ${r.killed}, hurts ${r.hurts}`;
+    case 'win2': return r.killed && r.hurts <= 2 ? null : `killed ${r.killed}, hurts ${r.hurts}`;
+    case 'hurt': return r.hurts >= 1 ? null : 'never hurt';
+    case 'unhurt': return r.hurts === 0 ? null : `hurts ${r.hurts}`;
+    case 'nokill': return !r.killed ? null : 'it was killed';
+    case 'quiet': return !r.killed && r.hurts === 0 ? null : `killed ${r.killed}, hurts ${r.hurts}`;
+    case 'nofront': return frontKills.length === 0 && rang ? null : `${frontKills.length} kills from the front, rang off: ${rang}`;
+    case 'boomed': return r.boomed && r.hurts === 0 ? null : `boomed ${r.boomed}, hurts ${r.hurts}`;
+    case 'blast': return r.boomed && r.hurts >= 1 ? null : `boomed ${r.boomed}, hurts ${r.hurts}`;
+    default: return 'unknown want ' + want;
+  }
+}

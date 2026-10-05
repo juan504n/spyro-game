@@ -19,7 +19,7 @@ export class EnemySystem {
     this.foefx = new FoeFx(game);
     this._cur = null;
     this.ctx = {                                              // (what a foe's brain is stepped with: foes/core.js)
-      hero: { x: 0, y: 0, z: 0, r: 0.55, dead: false },
+      hero: { x: 0, y: 0, z: 0, r: 0.55, dead: false, ram: false, vx: 0, vz: 0 },
       rng: Math.random,
       floorAt: (x, z) => this.game.collision.heightAt(x, z),
       move: (e, vx, vz, dt) => this._step(e, vx, vz, dt),
@@ -140,7 +140,7 @@ export class EnemySystem {
   update(dt, game) {
     const p = game.player;
     const hero = this.ctx.hero;
-    hero.x = p.x; hero.y = p.y; hero.z = p.z; hero.dead = p.dead;
+    hero.x = p.x; hero.y = p.y; hero.z = p.z; hero.dead = p.dead; hero.ram = p.chargeT > 0; hero.vx = p.vx; hero.vz = p.vz;
     this.foefx.frameFlashes();
     for (let i = this.list.length - 1; i >= 0; i--) {
       const e = this.list[i];
