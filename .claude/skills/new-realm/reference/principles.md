@@ -29,6 +29,7 @@ web-search summaries reported them; where a claim matters, treat it as a design 
 | Loops, shortcuts | the road list | `design.loops` (the roads make a cycle) |
 | No dead ends | each road ends at a junction, the start, or a reward | `design.deadends` |
 | No enemies where you begin; hazards grow | `danger.safeRadius` (30 m), the Snuffers' places | `enemies.safe`, `design.danger` (the first third of the walk is the quietest, the busiest at least twice it, two kinds of Snuffer) |
+| A world has its own creatures, and each asks something different of the hero (flame, ram, jump, a flank, a corner, patience) | the Snuffers' kinds (`foes/kinds.js`) in the layout's marks | `enemies.cast` (at least five kinds of Snuffer, three of them the new foes), `enemies.room` (a Ramhog has ground to step off its line) |
 | A gentle road | the roads' heights | `design.grade` (< 0.5 over 10 m; the game cannot draw a road above 0.74: `roads.grade`) |
 | Caves with their own light, hidden rooms | `massifs` (rock masses, see recipe), cracked walls | the `cave` situation (a roof over the goal), `design.secrets.sealed` |
 
