@@ -4,7 +4,7 @@
 // machine call foes out of the EnemySystem, keeps the HUD's line and the lesson (what a kind asks, said once), and hands what the machine says to the views (systems/trialview.js: what it looks and sounds like).
 //
 //   gp.trials [{ id, kind, goal (the id of the lantern it seals), x, z, y?, ...the kind's own parts (trials/*.js), gems? (what a solved trial pays), look? }]
-import { makeTrial, stepTrial, hudOf, targetsOf, TRIALS } from '../trials/index.js';
+import { makeTrial, stepTrial, hudOf, targetsOf, whereIs, TRIALS } from '../trials/index.js';
 import { lcg } from '../trials/core.js';
 import { makeView, SealView } from './trialview.js';
 
@@ -137,7 +137,8 @@ export class TrialSystem {
         const fp = game.beacons.flamePos(b);
         game.fx.hitSpark(fp.x, fp.y, fp.z, 1.0);
         game.audio?.sfx('trial_seal', { vol: 0.9 });
-        game.hud.hint(`THE LANTERN IS SEALED  -  ${TRIALS[r.t.kind].hint}`, 5);
+        const where = whereIs(r.t, p);                                                       // (and where to find it, when it is not in sight: 98 m of country is a long way to hunt)
+        game.hud.hint(`THE LANTERN IS SEALED  -  ${TRIALS[r.t.kind].hint}${where ? `  (${where})` : ''}`, where ? 6.5 : 5);
       }
       if (!seen.has(r.t.kind) && Math.hypot(p.x - r.t.x, p.z - r.t.z) < LESSON_R && !this.queue.some((q) => q.id === r.t.kind)) this.queue.push({ id: r.t.kind, text: TRIALS[r.t.kind].hint });
     }

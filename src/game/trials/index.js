@@ -58,5 +58,17 @@ export function stepTrial(t, dt, ctx) {
   t.asleep = false;
   M.step(t, dt, ctx);
 }
+const COMPASS = ['NORTH', 'NORTH-EAST', 'EAST', 'SOUTH-EAST', 'SOUTH', 'SOUTH-WEST', 'WEST', 'NORTH-WEST'];
+/**
+ * Where a trial is, from where the hero stands, in words: '60 M TO THE SOUTH-WEST' (north is -z and east +x, as everywhere in the game; a circuit is its nearest pylon; to the nearest 5 m).
+ * Nothing when it is within 22 m: it is in sight, and a lantern that is sealed has the trial it asks for there.
+ */
+export function whereIs(t, p) {
+  const o = t.kind === 'circuit' ? t.pylons.reduce((a, q) => (hyp(p.x - q.x, p.z - q.z) < hyp(p.x - a.x, p.z - a.z) ? q : a)) : t;
+  const dx = o.x - p.x, dz = o.z - p.z, d = hyp(dx, dz);
+  if (d < 22) return '';
+  const k = ((Math.round(Math.atan2(dx, -dz) / (Math.PI / 4)) % 8) + 8) % 8;
+  return `${Math.round(d / 5) * 5} M TO THE ${COMPASS[k]}`;
+}
 export const hudOf = (t) => (t.asleep ? null : MACHINES[t.kind].hud(t));
 export const targetsOf = (t) => (t.asleep ? [] : MACHINES[t.kind].targets(t));

@@ -136,7 +136,7 @@ await page.evaluate(async () => {
       // a breath on the sealed lantern
       for (let i = 0; i < 30; i++) { apply({ dx: 1, dz: 0, mag: 0, flame: true }); bot.tick(1); }
       stop(); bot.tick(20);
-      const sealedHeld = !b.litFlag && b.sealed === true, hintSaid = rec.said.slice(said0).some((t) => /SEALED/.test(t)), turnedAway = rec.sounds.has('trial_seal');
+      const sealedHeld = !b.litFlag && b.sealed === true, hintText = rec.said.slice(said0).find((t) => /SEALED/.test(t)) || null, hintSaid = !!hintText, turnedAway = rec.sounds.has('trial_seal');
       const aimsAtLantern = G.player._aimTargets().some((q) => Math.hypot(q.x - b.x, q.z - b.z) < 0.01);
       // solve it with the right play
       place(ox, oz + 0.5, 0);
@@ -151,7 +151,7 @@ await page.evaluate(async () => {
         if (litAt !== null) break;
       }
       stop();
-      const out = { sealedHeld, hintSaid, turnedAway, aimsAtLantern, solved: r.done, solvedAt, litAt, banner, unsealed: b.sealed === false, beacons: G.stats.beacons - lit0, trials: G.stats.trials - trials0, sounds: [...rec.sounds] };
+      const out = { sealedHeld, hintSaid, hintText, turnedAway, aimsAtLantern, solved: r.done, solvedAt, litAt, banner, unsealed: b.sealed === false, beacons: G.stats.beacons - lit0, trials: G.stats.trials - trials0, sounds: [...rec.sounds] };
       S.remove(r);
       clearLanterns();
       G.stats.beacons = lit0; G.stats.trials = trials0; G.day = G.dayTarget = 0;
@@ -183,6 +183,21 @@ await page.evaluate(async () => {
       clearLanterns();
       G.stats.beacons = lit0; G.stats.trials = trials0; G.day = G.dayTarget = 0;
       return out;
+    },
+    /** a breath on a sealed lantern whose trial is out of sight: the hint says where the trial is */
+    rebuff() {
+      reset();
+      const [ox, oz] = at('plates'), p = G.player;
+      const b = lantern('botlantern6', ox + 42, oz);
+      const r = S.add({ ...plays.shift(plays.SPECS.plates, ox, oz), id: 'bot-where', goal: 'botlantern6', seed: 3 });
+      place(b.x - 4.5, oz, Math.PI / 2);
+      const said0 = rec.said.length;
+      for (let i = 0; i < 30; i++) { apply({ dx: 1, dz: 0, mag: 0, flame: true }); bot.tick(1); }
+      stop(); bot.tick(10);
+      const hint = rec.said.slice(said0).find((t) => /SEALED/.test(t)) || null;
+      S.remove(r);
+      clearLanterns();
+      return { hint };
     },
     /** a sealed lantern lit by some other means: the trial has nothing left to ask, and it ends in silence (no seal breaking, no gems) */
     other() {
@@ -300,6 +315,8 @@ if (!args.length) {
   check('a solved trial breaks the seal and the lantern is lit a moment later (0.9 s), once: the lanterns lit go up by one and the trials solved by one', o.solved && o.unsealed && o.litAt !== null && o.litAt - o.solvedAt > 0.6 && o.litAt - o.solvedAt < 1.6 && o.beacons === 1 && o.trials === 1 && o.sounds.includes('trial_break'), `(solved at ${o.solvedAt && o.solvedAt.toFixed(1)}, lit at ${o.litAt && o.litAt.toFixed(1)}; banner ${o.banner})`);
   const fr = await page.evaluate(() => window.__trialplay.far());
   check('a lantern more than 26 m from its trial is not lit when the seal breaks: it is freed (ready), the HUD says its seal is broken and it waits for his fire, and a breath lights it', fr.solved && !fr.lit && fr.ready && !fr.sealed && fr.said && fr.beacons === 0 && fr.trials === 1 && fr.litByFire && fr.beaconsAfter === 1, JSON.stringify(fr));
+  const wh = await page.evaluate(() => window.__trialplay.rebuff());
+  check('a breath on a sealed lantern whose trial is out of sight says where the trial is (40 M TO THE WEST), and in sight it does not', !!wh.hint && /\(40 M TO THE WEST\)$/.test(wh.hint) && !/\(\d+ M TO/.test(o.hintText || ''), JSON.stringify(wh));
   const ot = await page.evaluate(() => window.__trialplay.other());
   check('a sealed lantern that is lit by some other means ends its trial at once and in silence (no seal breaking, no gems)', ot.before.sealed === true && !ot.before.done && ot.after.done && ot.after.state === 'solved' && !ot.after.sealed && !ot.trialBreak && ot.gems === 0 && ot.lit && ot.beacons === 1, JSON.stringify(ot));
   const a = await page.evaluate(() => window.__trialplay.aim());

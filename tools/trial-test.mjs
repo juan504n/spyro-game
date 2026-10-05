@@ -8,7 +8,7 @@
 import { playTrial } from './lib/trialsim.mjs';
 import { PLAYS, SPECS, judge, plays, shift } from './lib/trial-plays.mjs';
 import { MACHINES, TRIALS, TRIAL_IDS, BELLS, PLATES, CIRCUIT, WISPS, PUCK, MIRRORS, timeFor, pressed, solveBoard, trace, solveMirrors, reflect, cellWorld, lcg } from '../src/game/trials/index.js';
-import { makeTrial, stepTrial, hudOf, targetsOf, AWAKE, distTo, solidsOf } from '../src/game/trials/index.js';
+import { makeTrial, stepTrial, hudOf, targetsOf, AWAKE, distTo, solidsOf, whereIs } from '../src/game/trials/index.js';
 import { buildTrial, footprint, rewardOf, trialProblems, lookOf, DEFAULTS, SIEGE_KINDS } from '../src/game/trials/place.js';
 import { KINDS } from '../src/game/foes/kinds.js';
 import { trialMix } from './lib/realm-rules.mjs';
@@ -595,13 +595,14 @@ const bellsAt = (cx, cz, r, n) => Array.from({ length: n }, (_, i) => { const a 
     check('Siege: the first wave comes 0.6 s after he steps inside and each next 1.2 s after the one before (not at once), and the last that falls solves it', !!st && waves.length === 3 && Math.abs(waves[0] - st.at - 0.6) < 0.05 && Math.abs(waves[1] - waves[0] - 1.2) < 0.05 && Math.abs(waves[2] - waves[1] - 1.2) < 0.05 && s.state === 'solved', `(${waves.map((q) => (q - (st ? st.at : 0)).toFixed(2)).join(', ')})`);
     check('Siege: the Snuffers of a wave come at once to him (wild), from inside the ring, and are the trial\'s', made.length > 0 && made.every((h) => h.o.wild === true && h.o.trial === 'siege' && hyp(h.x, h.z) <= 12 * 0.8 && hyp(h.x, h.z) >= 12 * 0.7), `(${made.map((h) => hyp(h.x, h.z).toFixed(1)).join(' ')} m)`);
     const [s2, d2] = mkS();
-    steps(s2, d2, 1.0, null);
-    const hud = hudOf(s2);
+    steps(s2, d2, 0.3, null);
+    const hud = hudOf(s2);                                                           // (in the 0.6 s before the first wave: no wave 0)
+    steps(s2, d2, 0.7, null);
     d2.p.x = 36.5; d2.p.z = 0; steps(s2, d2, 0.1, null);
     const stays = s2.state === 'active';
     d2.p.x = 40; steps(s2, d2, 0.1, null);
     check('Siege: he may go 36 m from the middle of a ring of 12 and the waves wait, and at 40 m he has left: they are put away', stays && s2.state === 'idle' && d2.events.some((e) => e.type === 'fail' && e.why === 'left'));
-    check('Siege: the HUD counts the wave from 1 (WAVE 1 OF 3  2 LEFT), not from 0', !!hud && /^WAVE 1 OF 3 /.test(hud.text), `(${hud && hud.text})`);
+    check('Siege: the HUD counts the wave from 1 (WAVE 1 OF 3  0 LEFT before it comes), not from 0', !!hud && /^WAVE 1 OF 3 /.test(hud.text), `(${hud && hud.text})`);
     const [s3, d3] = mkS();
     d3.p.x = 8; d3.p.z = 0; steps(s3, d3, 0.3, null);
     check('Siege: it begins when he is within 70% of the ring and not at 80%', s3.state === 'active' && (() => { const [q, e] = mkS(); e.p.x = 9.6; e.p.z = 0; steps(q, e, 0.3, null); return q.state === 'idle'; })());
@@ -627,6 +628,20 @@ const bellsAt = (cx, cz, r, n) => Array.from({ length: n }, (_, i) => { const a 
     const seq2 = [0, 0.1, 0.2, 0.3, 0, 0.1].map((v) => { q.chargeT = v; return newRam(r, q); });
     check('a ram is counted once however long the button is held, and the next when it is pressed again', seq2.join() === 'false,true,false,false,false,true' && r.ramId === 2, `(${seq2.join()})`);
   }
+}
+
+
+{
+  // where a trial is, in words, for the hero who has found its lantern sealed
+  const T = { kind: 'bells', x: 100, z: 200 };
+  const at = (x, z) => whereIs(T, { x, z });
+  // (the hero stands 100 m from the trial, so that it is in each direction from him in turn: north is -z, so a hero south of it, at z 300, has it to the north)
+  const dirs = [[100, 300, 'NORTH'], [29.29, 270.71, 'NORTH-EAST'], [0, 200, 'EAST'], [29.29, 129.29, 'SOUTH-EAST'], [100, 100, 'SOUTH'], [170.71, 129.29, 'SOUTH-WEST'], [200, 200, 'WEST'], [170.71, 270.71, 'NORTH-WEST']];
+  const said = dirs.map(([x, z]) => at(x, z));
+  check('whereIs: north is -z and east +x (a hero south of it has it to the north), in eight directions, at 100 m', said.every((w, i) => w === `100 M TO THE ${dirs[i][2]}`), `(${said.join(' | ')})`);
+  check('whereIs: nothing when the trial is in sight (within 22 m), and beyond it a distance to the nearest 5 m', at(100, 215) === '' && at(100, 221) === '' && at(100, 223) === '25 M TO THE NORTH' && at(100, 241) === '40 M TO THE NORTH' && at(100, 300) === '100 M TO THE NORTH', `(${at(100, 221)} | ${at(100, 223)} | ${at(100, 241)})`);
+  const C = { kind: 'circuit', x: 0, z: 0, pylons: [0, 50, 100, 150, 200].map((x) => ({ x, z: 0 })) };
+  check('whereIs: a circuit is found by its nearest pylon (not its first)', whereIs(C, { x: 160, z: 60 }) === '60 M TO THE NORTH', `(${whereIs(C, { x: 160, z: 60 })})`);
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nall trial checks passed');
