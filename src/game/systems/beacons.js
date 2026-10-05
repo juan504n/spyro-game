@@ -82,8 +82,8 @@ export class BeaconSystem {
     for (const b of this.list) {
       b.t += dt;
       if (!b.litFlag) {
-        // ignition by fire breath (or a friendly nudge of a charge hit)
-        if (p.flameT > 0 && p.flameHits(b.x, b.y + 2.4 * b.scale, b.z, b.radius, 3.2 * b.scale)) this.ignite(b);
+        // ignition by fire breath (or a friendly nudge of a charge hit); a lantern that a trial seals (systems/trials.js) takes none until the trial is solved
+        if (p.flameT > 0 && !b.sealed && p.flameHits(b.x, b.y + 2.4 * b.scale, b.z, b.radius, 3.2 * b.scale)) this.ignite(b);
       } else {
         b.lit = Math.min(1, b.lit + dt * 0.85);
       }
@@ -121,7 +121,7 @@ export class BeaconSystem {
       // beam: pale violet call -> golden shaft
       const c0 = b.colors.off, c1 = b.colors.on;
       b.beam.setColor?.([c0[0] + (c1[0] - c0[0]) * L, c0[1] + (c1[1] - c0[1]) * L, c0[2] + (c1[2] - c0[2]) * L]);
-      b.beam.setIntensity?.((0.3 + 0.62 * L) * (1 - 0.35 * day * L));
+      b.beam.setIntensity?.((0.3 + 0.62 * L) * (1 - 0.35 * day * L) * (b.sealed ? 0.55 : 1));          // (a sealed lantern's column is dimmer)
       b.beam.update?.(dt, { t });
       const flick = 0.9 + Math.sin(t * 9 + b.index) * 0.06 + Math.sin(t * 23) * 0.04;
       b.pool.alpha = 0.85 * L * flick * (1 - 0.55 * day);

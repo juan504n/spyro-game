@@ -112,6 +112,7 @@ class App {
     const steps = [];
     if (REALMS[id].kind === 'arena' && audio && audio.load) steps.push({ label: 'TUNING THE COURT', w: 0.25, run: (cb) => audio.load('guardian', cb) });
     if (REALMS[id].kind === 'realm' && audio && audio.load) steps.push({ label: 'WAKING THE FOES', w: 0.1, run: (cb) => audio.load('foes', cb) });
+    if (REALMS[id].kind === 'realm' && audio && audio.load) steps.push({ label: 'LAYING THE TRIALS', w: 0.1, run: (cb) => audio.load('trials', cb) });
     if (audio && audio.loadSong) {
       if (audio.ready && audio.songIds && audio.songIds.includes(song) && !audio.hasSong(song)) steps.push({ label: 'TUNING THE BAND', w: 0.2, run: (cb) => audio.loadSong(song, cb) });
       else if (!audio.ready) audio.setSong?.(song);                       // (the audio is not up yet: init() makes the song of the world the hero is in, behind its own bar)

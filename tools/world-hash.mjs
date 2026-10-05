@@ -16,7 +16,8 @@ export function hashWorld(id) {
   const w = buildHeadless(id);
   let h = fnv(2166136261, w.grid.heights);
   for (const p of w.grid.paths) h = fnv(h, new Float32Array(p.pts.flat()));
-  const g = fnv(2166136261, new TextEncoder().encode(JSON.stringify(w.gp, (k, v) => (typeof v === 'number' ? +v.toFixed(5) : v))));
+  // (the list of the trials a world has, when it has none, is not part of the fingerprint: a world that was pinned before there were trials is the same world now)
+  const g = fnv(2166136261, new TextEncoder().encode(JSON.stringify(w.gp, (k, v) => (typeof v === 'number' ? +v.toFixed(5) : k === 'trials' && Array.isArray(v) && !v.length ? undefined : v))));
   return { heights: h.toString(16), gameplay: g.toString(16), placed: w.gp.placed.length, gems: w.gp.gemsTotal };
 }
 

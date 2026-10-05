@@ -39,7 +39,7 @@ export const circuit = {
   hud(t) {
     if (t.state !== 'active' && !t.running) return null;
     const left = Math.max(0, t.time - t.clock);
-    return { text: t.running ? `PYLONS ${t.next} OF ${t.pylons.length}  ${left.toFixed(1)}` : `RUN THE PYLONS IN ${t.time} SECONDS`, n: t.next, of: t.pylons.length, clock: t.running ? left : null };
+    return { text: t.running ? `PYLONS ${t.next} OF ${t.pylons.length}  ${left.toFixed(1)}` : `RUN THE PYLONS IN ${t.time} SECONDS`, n: t.next, of: t.pylons.length, clock: t.running ? left : null, total: t.time };
   },
   targets() { return []; },
 };

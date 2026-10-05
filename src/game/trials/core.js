@@ -53,6 +53,17 @@ export function newBreath(t, p) {
   return fresh;
 }
 
+/**
+ * Has the hero just begun a ram? (A charge lasts as long as the button is held, so a thing that a ram turns is turned once a RAM and not once a frame: `t.ramId` counts the rams he has made.
+ * Call once a step, before anything else reads it.)
+ */
+export function newRam(t, p) {
+  const fresh = p.chargeT > 0 && !(t.prevCharge > 0);
+  t.prevCharge = p.chargeT || 0;
+  if (fresh) t.ramId = (t.ramId || 0) + 1;
+  return fresh;
+}
+
 /** which of `things` ({ x, y, z, r }) is the one the hero's flame is on: the nearest to where he faces among those it reaches (one thing a breath), or -1 */
 export function flamedOne(p, things, { dy = 2.6, y = 1.0, skip = null } = {}) {
   let best = -1, bestA = Infinity;

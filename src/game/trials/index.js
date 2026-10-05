@@ -5,7 +5,7 @@ import { plates } from './plates.js';
 import { circuit } from './circuit.js';
 import { wisps } from './wisps.js';
 import { puck } from './puck.js';
-import { mirrors } from './mirrors.js';
+import { mirrors, solidsOf as mirrorSolids } from './mirrors.js';
 import { thief } from './thief.js';
 import { siege } from './siege.js';
 
@@ -30,6 +30,16 @@ export function makeTrial(spec, ctx) {
   const t = { y: 0, yaw: 0, state: 'idle', t: 0, ...spec };
   M.init(t, ctx);
   return t;
+}
+
+/** The kinds of foe a trial brings (a thief; the waves of a siege): the checker holds the place to what they need, and the gems a solved trial pays are counted from what they would have dropped. */
+export const foesOf = (spec) => (spec.kind === 'thief' ? ['thief'] : spec.kind === 'siege' ? (spec.waves || []).flat() : []);
+
+/** What a trial puts on the floor that the hero and the foes cannot walk through: [{ x, z, r, h }] (the view makes them solid in the game; the simulator in the tools does the same). */
+export function solidsOf(t) {
+  if (t.kind === 'mirrors') return mirrorSolids(t);
+  if (t.kind === 'bells') return t.bells.map((b) => ({ x: b.x, z: b.z, r: 0.7, h: 2.7 }));
+  return [];
 }
 
 /** One step of a trial. */

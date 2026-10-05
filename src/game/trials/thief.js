@@ -14,7 +14,7 @@ export const thief = {
     t.t += dt;
     if (t.state === 'solved') return;
     if (t.state === 'idle') {
-      if (hyp(p.x - t.x, p.z - t.z) < THIEF.wake) {
+      if (hyp(p.x - t.x, p.z - t.z) < THIEF.wake && !p.dead) {                       // (not while he is down: it would be made and put away again every step)
         t.foe = ctx.spawn('thief', t.spawnX ?? t.x, t.spawnZ ?? t.z, { trial: t.id });
         t.state = 'active'; t.tries++;
         ctx.emit('start', { by: t });
@@ -24,6 +24,10 @@ export const thief = {
     const fate = ctx.fate(t.foe);
     if (fate === 'killed') { t.state = 'solved'; ctx.emit('solved', { by: t }); }
     else if (fate === 'gone') { t.foe = null; t.state = 'idle'; ctx.emit('fail', { by: t, why: 'gone' }); }
+    else if (p.dead || hyp(p.x - t.x, p.z - t.z) > THIEF.leave) {                    // (set back, or gone for good: the thief is put away and is at home again when he comes back)
+      ctx.dismiss(t.foe); t.foe = null; t.state = 'idle';
+      ctx.emit('fail', { by: t, why: p.dead ? 'down' : 'left' });
+    }
   },
 
   hud(t) { return t.state === 'active' ? { text: 'CATCH THE PILFERLING', n: 0, of: 1 } : null; },

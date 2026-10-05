@@ -21,9 +21,9 @@ const WEIGHT = { lantern_ignite: 3, ui_start: 2, barrier_open: 2, lantern_beam: 
 
 /**
  * Sounds that are made when the place that uses them is built, not at every start-up (audio.load(group)): the Guardian's, which only a hero who has restored every realm hears and which cost a fifth
- * of the whole start-up (`guardian_freed` alone is the heaviest job of all), and the foes' (foe_*: only the realms have them). The gate's rumble in Dawnhaven (`guardian_stoop`) is small and stays in the start-up set.
+ * of the whole start-up (`guardian_freed` alone is the heaviest job of all), the foes' (foe_*: only the realms have them) and the trials' (trial_*: the same). The gate's rumble in Dawnhaven (`guardian_stoop`) is small and stays in the start-up set.
  */
-export const LAZY_GROUPS = { guardian: SFX_NAMES.filter((n) => n.startsWith('guardian_') && n !== 'guardian_stoop'), foes: SFX_NAMES.filter((n) => n.startsWith('foe_')) };
+export const LAZY_GROUPS = { guardian: SFX_NAMES.filter((n) => n.startsWith('guardian_') && n !== 'guardian_stoop'), foes: SFX_NAMES.filter((n) => n.startsWith('foe_')), trials: SFX_NAMES.filter((n) => n.startsWith('trial_')) };
 export const LAZY_NAMES = new Set(Object.values(LAZY_GROUPS).flat());
 
 /**

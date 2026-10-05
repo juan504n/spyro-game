@@ -338,7 +338,8 @@ export class Player {
     for (const b of g.objects?.braziers || []) if (!b.lit) out.push({ x: b.x, z: b.z, r: 0.9 });
     for (const v of g.objects?.vases || []) if (!v.broken) out.push({ x: v.x, z: v.z, r: 0.6 });
     for (const c of g.objects?.chests || []) if (!c.opened) out.push({ x: c.x, z: c.z, r: 1.1 });
-    for (const b of g.beacons?.list || []) if (!b.litFlag) out.push({ x: b.x, z: b.z, r: b.radius || 1.5 });
+    for (const b of g.beacons?.list || []) if (!b.litFlag && !b.sealed) out.push({ x: b.x, z: b.z, r: b.radius || 1.5 });          // (a lantern a trial seals is not aimed at: the trial's own things are)
+    if (g.trials) for (const q of g.trials.targets()) out.push(q);
     for (const e of g.enemies?.list || []) if (e.state !== 'dead' && !e.untargetable) out.push({ x: e.x, z: e.z, r: 0.8 });          // (a mole underground cannot be aimed at)
     return out;
   }

@@ -112,13 +112,13 @@ async function inPage() {
   report.ctxState = A.context && A.context.state;
   report.ctxRate = A.context && A.context.sampleRate;
   report.baseLatency = A.context && A.context.baseLatency;
-  const lazy = A.lazyNames;                                              // (the Guardian's and the foes': made by load(), not by init())
+  const lazy = A.lazyNames;                                              // (the Guardian's, the foes' and the trials': made by load(), not by init())
   const groups = A.lazyGroups;
   const expectNames = [...A.sfxNames.filter((n) => n !== 'footstep' && !lazy.includes(n)), ...A.loopNames, 'gloaming', 'daybreak', 'amb_dusk', 'amb_day', ...A.stingerNames.map((n) => 'stinger_' + n)];
   const missing = expectNames.filter((n) => !dbg.buffers.includes(n));
   if (missing.length) fail('missing buffers: ' + missing.join(','));
   if (!lazy.length) fail('no lazy sounds');
-  if (!groups.guardian || !groups.foes || !groups.guardian.length || !groups.foes.length || lazy.length !== groups.guardian.length + groups.foes.length) fail('the lazy groups are the Guardian\'s and the foes\' and between them make every lazy sound: ' + Object.entries(groups).map(([k, v]) => k + ' ' + v.length).join(', '));
+  if (!groups.guardian || !groups.foes || !groups.trials || !groups.guardian.length || !groups.foes.length || !groups.trials.length || lazy.length !== groups.guardian.length + groups.foes.length + groups.trials.length) fail('the lazy groups are the Guardian\'s, the foes\' and the trials\' and between them make every lazy sound: ' + Object.entries(groups).map(([k, v]) => k + ' ' + v.length).join(', '));
   if (lazy.some((n) => dbg.buffers.includes(n))) fail('lazy sounds were made at start-up: ' + lazy.filter((n) => dbg.buffers.includes(n)).join(','));
   if (!dbg.buffers.includes('guardian_stoop')) fail('the gate\'s rumble (guardian_stoop) must be made at start-up: Dawnhaven plays it');
 
@@ -136,9 +136,10 @@ async function inPage() {
   report.clockAdvances = await (async () => { const a = ctx.currentTime; await sleep(150); return ctx.currentTime > a; })();
 
   // 3b. the lazy sounds: silence (and no warning) until load() has made them, then they play; load() is idempotent and reports 0..1
-  const warned = () => (window.__warns || []).filter((w) => /guardian_|foe_/.test(w));
+  const warned = () => (window.__warns || []).filter((w) => /guardian_|foe_|trial_/.test(w));
   tryCall('sfx of a lazy sound before load', () => A.sfx('guardian_roar'));
   tryCall('sfx of a foe\'s sound before load', () => A.sfx('foe_wind'));
+  tryCall('sfx of a trial\'s sound before load', () => A.sfx('trial_bell'));
   if (warned().length) fail('a lazy sound that is not made yet warned: ' + warned().join(' | '));
   const lp = [];
   const t1 = performance.now();
@@ -146,9 +147,9 @@ async function inPage() {
   report.lazyMs = performance.now() - t1;
   if (!lp.length || lp[lp.length - 1] !== 1) fail('load() did not report its end (' + lp.slice(-3).join(',') + ')');
   for (let i = 1; i < lp.length; i++) if (lp[i] < lp[i - 1]) { fail('load() progress not monotonic'); break; }
-  const miss1 = groups.guardian.filter((n) => !A._debug.buffers.includes(n)), early = groups.foes.filter((n) => A._debug.buffers.includes(n));
+  const miss1 = groups.guardian.filter((n) => !A._debug.buffers.includes(n)), early = [...groups.foes, ...groups.trials].filter((n) => A._debug.buffers.includes(n));
   if (miss1.length) fail('the Guardian\'s sounds missing after load(\'guardian\'): ' + miss1.join(','));
-  if (early.length) fail('the foes\' sounds were made by load(\'guardian\'): ' + early.join(','));
+  if (early.length) fail('the foes\' or the trials\' sounds were made by load(\'guardian\'): ' + early.join(','));
   const lp2 = [];
   await A.load('guardian', (p) => lp2.push(p));
   if (lp2.length) fail('a second load() made the sounds again');
@@ -160,11 +161,21 @@ async function inPage() {
   await A.load('foes', (p) => lf.push(p));
   report.foesMs = performance.now() - t2;
   if (!lf.length || lf[lf.length - 1] !== 1) fail('load(\'foes\') did not report its end (' + lf.slice(-3).join(',') + ')');
-  const miss2 = lazy.filter((n) => !A._debug.buffers.includes(n));
-  if (miss2.length) fail('lazy sounds missing after load() of both groups: ' + miss2.join(','));
+  const earlyT = groups.trials.filter((n) => A._debug.buffers.includes(n));
+  if (earlyT.length) fail('the trials\' sounds were made by load(\'foes\'): ' + earlyT.join(','));
   const v1 = A._debug.voicesTotal;
   tryCall('sfx of a foe\'s sound after load', () => A.sfx('foe_boom'));
   if (!(A._debug.voicesTotal > v1)) fail('a foe\'s sound does not play after load(\'foes\')');
+  const lt = [];
+  const t3 = performance.now();
+  await A.load('trials', (p) => lt.push(p));
+  report.trialsMs = performance.now() - t3;
+  if (!lt.length || lt[lt.length - 1] !== 1) fail('load(\'trials\') did not report its end (' + lt.slice(-3).join(',') + ')');
+  const miss2 = lazy.filter((n) => !A._debug.buffers.includes(n));
+  if (miss2.length) fail('lazy sounds missing after load() of the three groups: ' + miss2.join(','));
+  const v2 = A._debug.voicesTotal;
+  tryCall('sfx of a trial\'s sound after load', () => A.sfx('trial_bell'));
+  if (!(A._debug.voicesTotal > v2)) fail('a trial\'s sound does not play after load(\'trials\')');
   tryCall('load of an unknown group', () => A.load('nope'));
 
   // 4. music, day/night crossfade (equal power), controls
@@ -419,6 +430,7 @@ async function inPageWanted(mode) {
   if (mode === 'before') {
     await A.load('guardian', () => fail('a load() before init() reported progress'));
     await A.load('foes', () => fail('a load() of the foes\' sounds before init() reported progress'));
+    await A.load('trials', () => fail('a load() of the trials\' sounds before init() reported progress'));
     if (A.ready) fail('ready before init');
     await A.init(() => {});
   } else {
@@ -427,6 +439,7 @@ async function inPageWanted(mode) {
     if (A.ready) fail('init() was over before the test could ask');
     await A.load('guardian', () => {});
     await A.load('foes', () => {});
+    await A.load('trials', () => {});
     await p;
   }
   if (!A.ready) fail('not ready after init');

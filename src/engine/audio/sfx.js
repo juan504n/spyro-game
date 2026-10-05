@@ -13,8 +13,9 @@ import { ITEM_SFX } from './sfx-items.js';
 import { WORLD_SFX } from './sfx-world.js';
 import { BOSS_SFX } from './sfx-boss.js';
 import { FOE_SFX } from './sfx-foes.js';
+import { TRIAL_SFX } from './sfx-trials.js';
 
-export const SFX = { ...PLAYER_SFX, ...ITEM_SFX, ...WORLD_SFX, ...BOSS_SFX, ...FOE_SFX };
+export const SFX = { ...PLAYER_SFX, ...ITEM_SFX, ...WORLD_SFX, ...BOSS_SFX, ...FOE_SFX, ...TRIAL_SFX };
 
 export { SR } from './synth.js';
 

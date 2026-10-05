@@ -107,6 +107,8 @@ export class Hud {
     }
     // ---- the tide (a realm that has one) -----------------------------------------------------------------------------------
     if (g.tide) this._drawTide(pix, W);
+    // ---- the trial he is in (systems/trials.js): what it asks of him now, and how far he has got ----------------------------------------
+    if (g.trials && g.mode === 'play') this._drawTrial(pix, W);
     // ---- the Guardian (the Court's boss) ---------------------------------------------------------------------------------------
     if (g.boss) { this._drawBoss(pix, W); this._drawThreats(pix, W, H); }
     // ---- banner ------------------------------------------------------------------------------------------------------
@@ -210,6 +212,24 @@ export class Hud {
     const up = tideDir(g.tide, g.time) > 0, ax = x0 + w - 9, ay = y0 + 4, col = up ? '#ffb060' : '#70f0c0';
     pix.rect(ax - 1, ay - 1, 7, 7, INK);
     for (let r = 0; r < 3; r++) pix.rect(ax + (up ? 2 - r : r), ay + r, up ? 1 + 2 * r : 5 - 2 * r, 1, col);
+  }
+
+  /** The trial he is in, top centre: one line of what it asks now (BELLS 2 OF 4, PYLONS 3 OF 6 and the seconds left...), a pip for each part done, or the clock as a bar that runs down (red in its last quarter). */
+  _drawTrial(pix, W) {
+    const s = this.game.trials.hudState();
+    if (!s) return;
+    const tw = measureText(s.text, { style: 'grad' }).w, w = Math.max(96, tw + 16), x = (W - w) >> 1, y = 4;
+    const bar = s.clock !== null && s.clock !== undefined, pips = !bar && s.of >= 2 && s.of <= 12 && s.kind !== 'mirrors';
+    drawPanel(pix, x, y, w, bar || pips ? 25 : 17, { style: 'hud' });
+    drawText(pix, s.text, x + (w >> 1), y + 4, { style: 'grad', align: 'center', colors: GOLD, outlineColor: INK });
+    if (bar) {
+      const bx = x + 8, bw = w - 16, k = Math.max(0, Math.min(1, s.clock / (s.total || 1))), f = Math.round(bw * k), hot = k < 0.25 && (Math.floor(this.t * 6) & 1) === 0;
+      pix.rect(bx - 1, y + 15, bw + 2, 7, INK); pix.rect(bx, y + 16, bw, 5, '#3a2a60');
+      if (f > 0) pix.rect(bx, y + 16, f, 5, k < 0.25 ? (hot ? '#ffffff' : '#ff5a40') : '#ffc03c');
+    } else if (pips) {
+      const step = Math.min(10, Math.floor((w - 12) / s.of)), x0 = x + ((w - step * s.of + 2) >> 1);
+      for (let i = 0; i < s.of; i++) { pix.rect(x0 + i * step, y + 16, step - 2, 5, INK); pix.rect(x0 + i * step + 1, y + 17, step - 4, 3, i < s.n ? '#ffc03c' : '#3a2a60'); }
+    }
   }
 
   _drawDialogue(pix) {

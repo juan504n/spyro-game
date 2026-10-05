@@ -19,6 +19,7 @@ import { createWhirlwind } from './objects/whirlwind.js';
 import { createWindbell } from './objects/windbell.js';
 import { createTidelens } from './objects/tidelens.js';
 import { createGuardian, createGuardianFist } from './objects/guardian.js';
+import { createTrialBell, createTrialPlate, createTrialPylon, createTrialVent, createTrialMirror, createTrialLens, createTrialPuck, createTrialGoalie, createTrialGoal, createTrialCourt, createTrialStone } from './objects/trial.js';
 
 export const OBJECTS = {
   beacon: {
@@ -111,6 +112,18 @@ export const OBJECTS = {
     size: 6,
     note: 'breakable stone wall panel opts.w x opts.h (6x5) x 1, jagged top, painted cracks, wobble(k), shardColors',
   },
+  // ---- the trials (systems/trialview.js): opts.look = { stone, crystal, metal } textures and { glow } a colour: the realm's own
+  trial_bell: { create: createTrialBell, size: 2.6, note: 'a bronze bell hung in two posts on a drum of stone; setLit(k) the heart of light, kick() it swings' },
+  trial_plate: { create: createTrialPlate, size: 2.8, note: 'a round inlay with a rune in the floor; setLit(k), press() it sinks and comes back' },
+  trial_pylon: { create: createTrialPylon, size: 5, note: 'a slim obelisk with a crystal floating over it; setState(off | next | done), touch() a flash' },
+  trial_vent: { create: createTrialVent, size: 2.2, note: 'seven little stones round a hole that glows; setActive(k)' },
+  trial_mirror: { create: createTrialMirror, size: 2.9, note: 'a crystal slab on a drum that turns a quarter; setSlope(0 "/" | 1 "\\"), setLit(k) the beam is in it; opts.slope' },
+  trial_lens: { create: createTrialLens, size: 3, note: 'the lamp a beam leaves (opts.role "lamp", a funnel along +z) or the receiver it must reach ("receiver", a ring of blocks); setLit(k)' },
+  trial_puck: { create: createTrialPuck, size: 0.6, note: 'a disc of crystal; setLit(k), spinBy(a)' },
+  trial_goalie: { create: createTrialGoalie, size: 2, note: 'a slab of stone with an eye on its face (-z) that slides across the goal' },
+  trial_goal: { create: createTrialGoal, size: 6, note: 'two posts and a crossbar with a net of light, opts.hw the half-width of the mouth; flash(k)' },
+  trial_court: { create: createTrialCourt, size: 24, note: 'the lines of a court on the floor: opts.hw, opts.hl, opts.goalHW; setLit(k)' },
+  trial_stone: { create: createTrialStone, size: 3.3, note: 'a standing stone with a rune that wakes; opts.big x1.5; setLit(k)' },
   realm_portal: {
     create: createPortal,
     size: 6,

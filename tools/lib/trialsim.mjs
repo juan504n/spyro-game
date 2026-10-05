@@ -8,7 +8,7 @@
 import { DuelHero, HERO } from './duel.mjs';
 import { minionStep } from './foesim.mjs';
 import { makeFoe, stepFoe, hitsOn, sideOf, BRAINS } from '../../src/game/foes/index.js';
-import { makeTrial, stepTrial, lcg } from '../../src/game/trials/index.js';
+import { makeTrial, stepTrial, lcg, solidsOf } from '../../src/game/trials/index.js';
 
 const hyp = Math.hypot;
 
@@ -59,6 +59,7 @@ export function playTrial({ spec, hero: spot = { x: 0, z: 12, yaw: Math.PI }, po
     dismiss: (h) => { if (h && h.e.state !== 'dead') { h.e.state = 'dead'; h.how = 'dismissed'; } },
   };
   const trial = makeTrial(spec, ctx);
+  solids = [...solids, ...solidsOf(trial)];                                      // (what the trial puts on the floor: the bells, the mirrors, the lamp: the hero and the foes walk round them as they do in the game)
   const kill = (rec) => { if (rec.e.state === 'dead') return; rec.e.state = 'dead'; rec.how = 'killed'; };
   for (; now < T; now += DT) {
     sync();
@@ -72,7 +73,8 @@ export function playTrial({ spec, hero: spot = { x: 0, z: 12, yaw: Math.PI }, po
       e.flameCd = Math.max(0, (e.flameCd || 0) - DT); e.chargeCd = Math.max(0, (e.chargeCd || 0) - DT);
       if (e.minion) {
         minionStep(e, DT, fctx);
-        if (hero.flameHits(e.x, e.y + 1, e.z, e.r) || hero.chargeHits(e.x, e.y + 1, e.z, e.r)) kill(rec);
+        const fl = hero.flameHits(e.x, e.y + 1, e.z, e.r), ch = hero.chargeHits(e.x, e.y + 1, e.z, e.r);
+        if (e.kind === 'bell' ? ch : e.kind === 'thorn' ? fl : fl || ch) kill(rec);               // (a Bell Snuffer falls to a ram and not to fire; a Thorn Snuffer to fire and not to a ram)
       } else {
         stepFoe(e, DT, fctx);
         for (const h of hitsOn(e, hero)) { if (h.out === 'kill' || h.out === 'boom') kill(rec); }

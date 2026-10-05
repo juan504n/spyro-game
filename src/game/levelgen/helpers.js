@@ -38,7 +38,7 @@ export function makeCtx(kit, world, seed = 9127) {
   const s = grid.n + 1;
   const ctx = {
     kit, world, grid, rng, occ, L: grid.level,
-    gp: { gems: [], vases: [], chests: [], walls: [], braziers: [], mushrooms: [], enemies: [], bunnies: [], npcs: [], hints: [], beacons: [], islands: [], extraGems: [], soundSources: [], placed: [], portals: [] },
+    gp: { gems: [], vases: [], chests: [], walls: [], braziers: [], mushrooms: [], enemies: [], bunnies: [], npcs: [], hints: [], beacons: [], trials: [], islands: [], extraGems: [], soundSources: [], placed: [], portals: [] },
     counts: {},
     stage: 'populate',       // which part of the level script is running (populate() sets it per layout function): recorded on everything placed, for the debug readout
     h: (x, z) => grid.heightAt(x, z),

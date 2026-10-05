@@ -12,7 +12,7 @@ import { ENEMY_DROPS } from '../economy.js';
 import { sum } from './helpers.js';
 
 /** Gameplay lists whose records get a `src` (the step that made them) for the debug readout. */
-const STAGED = ['gems', 'vases', 'chests', 'walls', 'braziers', 'mushrooms', 'enemies', 'bunnies', 'npcs', 'hints', 'beacons', 'portals'];
+const STAGED = ['gems', 'vases', 'chests', 'walls', 'braziers', 'mushrooms', 'enemies', 'bunnies', 'npcs', 'hints', 'beacons', 'trials', 'portals'];
 
 /**
  * @param brief  the realm's brief (brief.js)

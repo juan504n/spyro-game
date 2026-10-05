@@ -7,7 +7,7 @@
 //   the numbers   what a person can do: a tune is rung in under 6 s and is 3 to 6 long, a clock is made for 60% of a run, a scramble can be undone in the presses it was made with...
 import { playTrial } from './lib/trialsim.mjs';
 import { PLAYS, SPECS, judge, plays, shift } from './lib/trial-plays.mjs';
-import { MACHINES, TRIALS, TRIAL_IDS, BELLS, PLATES, CIRCUIT, WISPS, PUCK, MIRRORS, timeFor, pressed, solveBoard, trace, solveMirrors, reflect, lcg } from '../src/game/trials/index.js';
+import { MACHINES, TRIALS, TRIAL_IDS, BELLS, PLATES, CIRCUIT, WISPS, PUCK, MIRRORS, timeFor, pressed, solveBoard, trace, solveMirrors, reflect, cellWorld, lcg } from '../src/game/trials/index.js';
 import { makeTrial } from '../src/game/trials/index.js';
 
 let failed = 0;
@@ -220,8 +220,21 @@ const bellsAt = (cx, cz, r, n) => Array.from({ length: n }, (_, i) => { const a 
   const p = c.p; p.chargeT = 0.2; let at = 0;
   const q0 = t.mirrors[0], s0 = q0.s;
   p.chargeHits = (x, y, z) => { const [cx, cz] = [(q0.i - 2) * MIRRORS.cell, (q0.j - 2) * MIRRORS.cell]; return hyp(x - cx, z - cz) < 0.5 && at >= 0; };
-  steps(t, c, 0.3, null);
-  check('Mirrors: a ram turns a mirror once however long the ram lasts (0.8 s between turns), and the beam is traced again', q0.s === 1 - s0 && c.events.filter((e) => e.type === 'turn_mirror').length === 1 && t.turns === 1);
+  steps(t, c, 2.5, null);
+  const held = c.events.filter((e) => e.type === 'turn_mirror').length;
+  check('Mirrors: a ram turns a mirror once however long the ram lasts (the button held for 2.5 s does not spin it), and the beam is traced again', q0.s === 1 - s0 && held === 1 && t.turns === 1, `(${held} turn)`);
+  p.chargeT = 0; steps(t, c, 1.0, null); p.chargeT = 0.2; steps(t, c, 0.2, null);
+  check('Mirrors: ... and the next ram turns it back (once a ram, however soon after)', q0.s === s0 && c.events.filter((e) => e.type === 'turn_mirror').length === 2, `(${c.events.filter((e) => e.type === 'turn_mirror').length} turns)`);
+  // a ram is spent by the mirror it turns: with two in reach it turns the nearest and not the other, however long it goes on
+  const [u, d] = make({ kind: 'mirrors', id: 'm', goal: 'g', x: 0, z: 0, yaw: 0, k: 3 }, 5);
+  const wp = (k) => { const [x, z] = cellWorld(u, u.mirrors[k].i, u.mirrors[k].j); return { x, z }; };
+  const a = wp(0), b = wp(1);
+  d.p.x = (a.x * 0.3 + b.x * 0.7); d.p.z = (a.z * 0.3 + b.z * 0.7); d.p.chargeT = 0.2;
+  d.p.chargeHits = (x, y, z) => hyp(x - d.p.x, z - d.p.z) < 3.6;
+  const s0s = u.mirrors.map((q) => q.s);
+  steps(u, d, 2.0, null);
+  const turned = d.events.filter((e) => e.type === 'turn_mirror').map((e) => e.i);
+  check('Mirrors: a ram turns the nearest of the mirrors in its reach and is spent: it does not go on to turn the next', turned.length === 1 && turned[0] === (hyp(a.x - d.p.x, a.z - d.p.z) < hyp(b.x - d.p.x, b.z - d.p.z) ? 0 : 1) && u.mirrors.filter((q, k) => q.s !== s0s[k]).length === 1, `(turned ${turned.join(',')})`);
 }
 
 {
@@ -236,8 +249,16 @@ const bellsAt = (cx, cz, r, n) => Array.from({ length: n }, (_, i) => { const a 
   c.p.z = -40; c.fate = (h) => (h.id === 1 ? 'gone' : 'alive'); steps(t, c, 0.1, null);
   const back = t.state === 'idle' && c.events.some((e) => e.type === 'fail' && e.why === 'gone');
   c.p.z = -8; steps(t, c, 0.5, null);
-  c.fate = (h) => (h.id === 2 ? 'killed' : 'alive'); steps(t, c, 0.1, null);
-  check('Thief: if it is put away (the hero was set back) the trial is waiting for him again; when it is killed it is solved', back && t.state === 'solved' && spawned.length === 2);
+  // (the hero is set back, or goes for good: the Pilferling is put away by the trial and the trial waits for him again)
+  const put = []; c.dismiss = (h) => put.push(h.id);
+  c.p.dead = true; steps(t, c, 0.1, null);
+  const down = t.state === 'idle' && put.join() === '2' && c.events.some((e) => e.type === 'fail' && e.why === 'down');
+  c.p.dead = false; c.p.z = -8; steps(t, c, 0.5, null);
+  c.p.z = -120; steps(t, c, 0.1, null);
+  const left = t.state === 'idle' && put.join() === '2,3' && c.events.some((e) => e.type === 'fail' && e.why === 'left');
+  c.p.z = -8; steps(t, c, 0.5, null);
+  c.fate = (h) => (h.id === 4 ? 'killed' : 'alive'); steps(t, c, 0.1, null);
+  check('Thief: if it is put away (the hero was set back, or went more than 70 m away) the trial is waiting for him again; when it is killed it is solved', back && down && left && t.state === 'solved' && spawned.length === 4, `(${spawned.length} Pilferlings made; ${t.state})`);
   const [s, d] = make(SPECS.siege, 1);
   const made = [], alive = new Set();
   d.spawn = (kind, x, z, o) => { const h = { id: made.length, kind }; made.push(h); alive.add(h); return h; };

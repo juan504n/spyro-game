@@ -34,6 +34,8 @@ export class EnemySystem {
   add(s) {
     const e = this._make(s);
     if (s.wild) { e.wild = true; if (!e.B) { e.state = 'alert'; e.st = 0.42; e.exclaimT = 0.9; } }
+    if (s.noGems) e.noGems = true;                                      // (a trial's foes pay nothing when they fall: the trial pays, once, when it is solved)
+    if (s.trial) e.trial = s.trial;
     this.list.push(e);
     return e;
   }
@@ -113,7 +115,7 @@ export class EnemySystem {
   /** A Snuffer that is simply gone (the Guardian's helpers when the lantern is lit, or the hero is set back; what a Smokecaller called, when it falls): a puff, no gems, no butterfly, not counted as beaten. */
   dismiss(e) {
     if (e.state === 'dead') return;
-    e.state = 'dead'; e.dead = 0.45; e.st = 0; e.poofed = true;
+    e.state = 'dead'; e.dead = 0.45; e.st = 0; e.poofed = true; e.gone = true;
     e.alertIcon.visible = false;
     this._gone(e);
     this.game.fx.puff(e.x, e.y + 1.0, e.z, 1.1);
@@ -121,7 +123,7 @@ export class EnemySystem {
 
   kill(e) {
     const g = this.game;
-    e.state = 'dead'; e.dead = 0; e.st = 0;
+    e.state = 'dead'; e.dead = 0; e.st = 0; e.slain = true;
     e.alertIcon.visible = false;
     this._gone(e);
     g.audio?.sfx('snuffer_die', { vol: 1 });
@@ -366,7 +368,7 @@ export class EnemySystem {
 
   _drops(e) {
     const g = this.game;
-    g.gems.burst(e.x, e.y + 1.0, e.z, e.V.drops, 1);
+    if (!e.noGems) g.gems.burst(e.x, e.y + 1.0, e.z, e.V.drops, 1);
     if (Math.random() < 0.6 || g.sparx.hp < 2) g.critters?.releaseButterfly(e.x, e.y + 1.5, e.z);
   }
 

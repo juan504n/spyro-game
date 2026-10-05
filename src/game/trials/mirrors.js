@@ -1,9 +1,9 @@
 // MIRRORS (a mechanism): a lamp on one side of a floor of squares, a receiver on another, and mirrors of crystal between them. A beam leaves the lamp and runs square by square; a mirror turns it
 // a quarter (a '/' one and a '\' one), the receiver lights the lantern. A ram turns a mirror over ('/' to '\' and back). The puzzle is made from a way that works (2 or 3 mirrors on it) and
 // then some of the mirrors are turned the wrong way, so that it can always be solved, in as many rams as it was spoilt by (or fewer).
-import { hyp, pick } from './core.js';
+import { hyp, pick, newRam } from './core.js';
 
-export const MIRRORS = { cell: 4.4, wake: 24, r: 1.0, cd: 0.8, maxSteps: 60, w: 5, h: 5 };
+export const MIRRORS = { cell: 4.4, wake: 24, r: 0.2, solidR: 1.0, cd: 0.8, maxSteps: 60, w: 5, h: 5 };
 
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];                                    // east, north, west, south (i grows eastwards and j northwards, in the floor's own frame)
 /** which way a beam going `d` goes after a mirror `s` (0: '/', 1: '\') */
@@ -83,12 +83,18 @@ function generate(t, rng, k) {
   return false;
 }
 
+/** what stands solid on the floor: the lamp, the receiver and every mirror (the hero and the foes walk round them; a ram that meets one turns it) */
+export function solidsOf(t) {
+  const at = (i, j, h) => { const [x, z] = cellWorld(t, i, j); return { x, z, r: MIRRORS.solidR, h }; };
+  return [at(t.source.i, t.source.j, 3), at(t.receiver.i, t.receiver.j, 3), ...t.mirrors.map((q) => at(q.i, q.j, 2.6))];
+}
+
 export const mirrors = {
   init(t, ctx) {
     t.w = t.w ?? MIRRORS.w; t.h = t.h ?? MIRRORS.h;
     const k = t.k ?? 3;
     if (!t.source) { if (!generate(t, ctx.rng, k)) throw new Error('mirrors: no puzzle found'); }
-    t.cd = t.mirrors.map(() => 0); t.turns = 0; t.state = 'idle'; t.beam = trace(t); t.par = solveMirrors(t).n;
+    t.cd = t.mirrors.map(() => 0); t.spent = 0; t.turns = 0; t.state = 'idle'; t.beam = trace(t); t.par = solveMirrors(t).n;
   },
 
   step(t, dt, ctx) {
@@ -97,18 +103,25 @@ export const mirrors = {
     if (t.state === 'solved') return;
     if (t.state === 'idle') { if (hyp(p.x - t.x, p.z - t.z) < M.wake) t.state = 'active'; else return; }
     for (let k = 0; k < t.mirrors.length; k++) t.cd[k] = Math.max(0, t.cd[k] - dt);
+    newRam(t, p);
     if (p.chargeT <= 0) return;
+    // a ram turns the one mirror it meets, once: of the ones in its reach, the nearest to him. (The button held down does not spin it, and a ram that has turned one is spent: it does not turn the next.)
+    if (t.spent === t.ramId) return;
+    let best = -1, bestD = Infinity, bx = 0, bz = 0;
     for (let k = 0; k < t.mirrors.length; k++) {
       const q = t.mirrors[k];
       if (t.cd[k] > 0) continue;
       const [wx, wz] = cellWorld(t, q.i, q.j);
-      if (p.chargeHits(wx, (t.y || 0) + 0.9, wz, M.r)) {
-        q.s = 1 - q.s; t.cd[k] = M.cd; t.turns++;
-        t.beam = trace(t);
-        ctx.emit('turn_mirror', { by: t, i: k, s: q.s, hit: t.beam.hit });
-        if (t.beam.hit) { t.state = 'solved'; ctx.emit('solved', { by: t }); }
-        break;
-      }
+      if (!p.chargeHits(wx, (t.y || 0) + 0.9, wz, M.r)) continue;
+      const d = hyp(wx - p.x, wz - p.z);
+      if (d < bestD) { bestD = d; best = k; bx = wx; bz = wz; }
+    }
+    if (best >= 0) {
+      const k = best, q = t.mirrors[k];
+      q.s = 1 - q.s; t.cd[k] = M.cd; t.spent = t.ramId; t.turns++;
+      t.beam = trace(t);
+      ctx.emit('turn_mirror', { by: t, i: k, s: q.s, hit: t.beam.hit, x: bx, z: bz });
+      if (t.beam.hit) { t.state = 'solved'; ctx.emit('solved', { by: t }); }
     }
   },
 

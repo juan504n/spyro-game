@@ -4,6 +4,7 @@
 //   s = { t, hero: { x, y, z, yaw, grounded, chargeT, flameT }, trial: the trial's record (its parts and state), foes: [the foes it has made], events }
 import { solveBoard } from '../../src/game/trials/plates.js';
 import { solveMirrors, cellWorld } from '../../src/game/trials/mirrors.js';
+import { solidsOf } from '../../src/game/trials/index.js';
 import { goalieX, toLocal, toWorld } from '../../src/game/trials/puck.js';
 
 const hyp = Math.hypot;
@@ -110,28 +111,62 @@ export const puckRight = (s) => {
 };
 
 // ---- mirrors -----------------------------------------------------------------------------------------------------------------------------------------
-/** the right play: ram the mirrors that the shortest solution turns, one after another, each from a few metres off */
+/** how far from the middle of a solid a hero keeps going past it (its radius, his, and a margin) */
+const PASS = 1.0 + 0.55 + 0.35;
+/** the way to (tx, tz) that does not run into a solid: straight, or by a point beside the one that is in the way */
+export const around = (s, tx, tz, solids, clear = PASS) => {
+  const hx = s.hero.x, hz = s.hero.z, dx = tx - hx, dz = tz - hz, d = hyp(dx, dz) || 1;
+  for (const o of solids) {
+    const u = ((o.x - hx) * dx + (o.z - hz) * dz) / (d * d);
+    if (u <= 0 || u >= 1) continue;
+    const px = hx + dx * u, pz = hz + dz * u, off = hyp(o.x - px, o.z - pz);
+    if (off < clear && hyp(o.x - tx, o.z - tz) > 0.5) {
+      const side = (o.x - px) * -dz + (o.z - pz) * dx >= 0 ? -1 : 1;
+      return [o.x + (-dz / d) * side * (clear + 0.5), o.z + (dx / d) * side * (clear + 0.5)];
+    }
+  }
+  return [tx, tz];
+};
+/** the right play: ram the mirrors that the shortest solution turns, one after another, each from 4.5 m off on a side that no other solid is on, lined up with it first (a ram cannot turn) */
 export const mirrorsRight = () => {
-  let queue = null, mark = 0;
+  let queue = null, mark = 0, approach = null;
   return (s) => {
     const t = s.trial;
-    if (!queue || mark !== t.turns) { queue = solveMirrors(t) ? solveMirrors(t).turns.slice() : []; mark = t.turns; }
+    if (!queue || mark !== t.turns) { queue = solveMirrors(t) ? solveMirrors(t).turns.slice() : []; mark = t.turns; approach = null; }
     if (!queue.length) return STILL;
-    const q = t.mirrors[queue[0]], [wx, wz] = cellWorld(t, q.i, q.j);
-    const d = hyp(wx - s.hero.x, wz - s.hero.z);
-    if (d > 6.5) return goTo(s, wx + (s.hero.x - wx) / d * 4.5, wz + (s.hero.z - wz) / d * 4.5, { stop: 0.5 });      // (to 4.5 m from it on the side he is on)
-    const [dx, dz] = dirTo(s.hero, { x: wx, z: wz });
+    const q = t.mirrors[queue[0]], [wx, wz] = cellWorld(t, q.i, q.j), others = solidsOf(t).filter((o) => hyp(o.x - wx, o.z - wz) > 0.5);
+    if (!approach) {
+      let best = null;
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2, px = wx + Math.sin(a) * 4.5, pz = wz + Math.cos(a) * 4.5;
+        const free = others.every((o) => {
+          const u = Math.max(0, Math.min(1, ((o.x - px) * (wx - px) + (o.z - pz) * (wz - pz)) / (4.5 * 4.5))), cx = px + (wx - px) * u, cz = pz + (wz - pz) * u;
+          return hyp(o.x - cx, o.z - cz) > PASS + 0.3 && hyp(o.x - px, o.z - pz) > 2.2;
+        });
+        const d = hyp(px - s.hero.x, pz - s.hero.z);
+        if (free && (!best || d < best.d)) best = { px, pz, d };
+      }
+      approach = best || { px: wx, pz: wz - 4.5, d: 0 };
+    }
+    const dP = hyp(approach.px - s.hero.x, approach.pz - s.hero.z);
+    const [dx, dz] = dirTo(s.hero, { x: wx, z: wz }), err = Math.abs(wrap(Math.atan2(wx - s.hero.x, wz - s.hero.z) - s.hero.yaw)), d = hyp(wx - s.hero.x, wz - s.hero.z);
+    const ramming = s.hero.chargeT > 0;
+    if (!ramming && d < 3.0) return goTo(s, ...around(s, approach.px, approach.pz, others), { stop: 0.5 });     // (against it after a ram: back off to run at it again: the button is let go and pressed anew)
+    if (!ramming && dP > 1.0 && d > 5.3) return goTo(s, ...around(s, approach.px, approach.pz, others), { stop: 0.5 });
+    if (!ramming && err > 0.12) return { dx, dz, mag: 0.3 };                                    // (lined up first: a nudge of the stick turns him on the spot)
     return { dx, dz, mag: 1, charge: true };
   };
 };
 
 // ---- thief and siege: the foes' own plays -------------------------------------------------------------------------------------------------------------
-/** run at the nearest foe and flame it from 5 m, ram it from 3 */
-export const hunt = (flameRange = 5, ramRange = 0) => (s) => {
+/** run at the nearest foe and flame it from 5 m, ram it from 2 (a Bell Snuffer only to a ram, a Thorn Snuffer only to the flame: he knows which) */
+export const hunt = (flameRange = 5, ramRange = 2) => (s) => {
   const live = s.foes.filter((e) => e.state !== 'dead');
   if (!live.length) return goTo(s, s.trial.x, s.trial.z, { stop: 1.0 });
   const e = live.sort((a, b) => dist(s.hero, a) - dist(s.hero, b))[0], [dx, dz] = dirTo(s.hero, e), d = dist(s.hero, e);
-  return { dx, dz, mag: 1, flame: flameRange > 0 && d < flameRange && d > 1, charge: ramRange > 0 && d < ramRange };
+  const armoured = e.kind === 'bell', spiked = e.kind === 'thorn';
+  const ram = !spiked && ramRange > 0 && d < (armoured ? 3 : ramRange), flame = !armoured && flameRange > 0 && d < flameRange && d > 1 && !ram;
+  return { dx, dz, mag: 1, flame, charge: ram };
 };
 
 // a hero whose trial is solved does nothing more
@@ -158,7 +193,7 @@ export const SPECS = {
   mirrors: { kind: 'mirrors', id: 'mirrors', goal: 'x', x: 0, z: 0, yaw: 0 },
   mirrors2: { kind: 'mirrors', id: 'mirrors', goal: 'x', x: 0, z: 0, yaw: 0, k: 2 },
   thief: { kind: 'thief', id: 'thief', goal: 'x', x: 0, z: 0, spawnX: 0, spawnZ: 12 },
-  siege: { kind: 'siege', id: 'siege', goal: 'x', x: 0, z: 0, r: 12, waves: [['basic', 'basic'], ['slinger', 'basic', 'bell'], ['hog', 'basic']] },
+  siege: { kind: 'siege', id: 'siege', goal: 'x', x: 0, z: 0, r: 12, waves: [['basic', 'basic'], ['slinger', 'basic', 'bell'], ['thorn', 'basic']] },
 };
 
 /** a spec moved to (ox, oz): the same trial in another place (the bot puts it on the floor of the Court) */
@@ -196,7 +231,7 @@ export const PLAYS = [
   { id: 'mirrors-still', say: 'Mirrors: a hero who does not ram anything leaves the beam where it is', kind: 'mirrors', spec: SPECS.mirrors, policy: () => still, T: 20, hero: { x: 0, z: -14, yaw: 0 }, want: 'quiet' },
   { id: 'thief-flame', say: 'Thief: a hero who runs the Pilferling down and flames it from 6 m solves it', kind: 'thief', spec: SPECS.thief, policy: () => plays.hunt(6, 0), T: 60, hero: { x: 0, z: -8, yaw: 0 }, want: 'solved' },
   { id: 'thief-still', say: 'Thief: a hero who stands still is not hurt by it and does not solve it', kind: 'thief', spec: SPECS.thief, policy: () => still, T: 30, hero: { x: 0, z: -8, yaw: 0 }, want: 'quiet' },
-  { id: 'siege-right', say: 'Siege: a hero who fights what comes in three waves clears it', kind: 'siege', spec: SPECS.siege, policy: () => plays.hunt(5, 3), T: 120, hero: { x: 0, z: -8, yaw: 0 }, want: 'solved' },
+  { id: 'siege-right', say: 'Siege: a hero who fights what comes in three waves clears it', kind: 'siege', spec: SPECS.siege, policy: () => plays.hunt(5, 2), T: 120, hero: { x: 0, z: -8, yaw: 0 }, want: 'solved' },
   { id: 'siege-still', say: 'Siege: a hero who does not fight does not clear it (and it does not clear itself)', kind: 'siege', spec: SPECS.siege, policy: () => still, T: 40, hero: { x: 0, z: -8, yaw: 0 }, want: 'unsolved' },
 ];
 

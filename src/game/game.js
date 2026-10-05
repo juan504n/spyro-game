@@ -16,6 +16,7 @@ import { GemCounter } from './gemcounter.js';
 import { GemField } from './systems/gems.js';
 import { Sparx } from './systems/sparx.js';
 import { BeaconSystem } from './systems/beacons.js';
+import { TrialSystem } from './systems/trials.js';
 import { EnemySystem } from './systems/enemies.js';
 import { CritterSystem } from './systems/critters.js';
 import { ObjectSystem } from './systems/objects.js';
@@ -76,7 +77,7 @@ export class Game {
     this.dyn.name = 'dynamic';
     this.events = {};
     this.timers = [];
-    this.stats = { gems: 0, gemsTotal: 400, beacons: 0, beaconsTotal: 5, enemies: 0, bunnies: 0, vases: 0, chests: 0, walls: 0, deaths: 0, time: 0 };
+    this.stats = { gems: 0, gemsTotal: 400, beacons: 0, beaconsTotal: 5, trials: 0, enemies: 0, bunnies: 0, vases: 0, chests: 0, walls: 0, deaths: 0, time: 0 };
     this.checkpoint = null;
     this.trail = [];             // what happened lately, newest last (note(): the debug readout's TRAIL)
     this.loops = {};
@@ -135,6 +136,7 @@ export class Game {
       this.gems = new GemField(this, gp.gems || []);
       this.beacons = new BeaconSystem(this, gp.beacons || []);
       this.enemies = new EnemySystem(this, gp.enemies || []);
+      this.trials = new TrialSystem(this, gp.trials || []);                                         // (the asks that stand in front of a realm's lanterns: systems/trials.js; they need the beacons and the foes)
       this.critters = new CritterSystem(this, gp.bunnies || []);
       this.objects = new ObjectSystem(this, { vases: gp.vases, chests: gp.chests, walls: gp.walls, braziers: gp.braziers, portcullis: gp.portcullis, barrier: gp.barrier, mushrooms: gp.mushrooms, sails: gp.sails, islands: gp.islands, whirlwinds: gp.whirlwinds });
       this.ambient = new Ambient(this, this.world.lights || [], this.world.emitters || []);
@@ -142,7 +144,7 @@ export class Game {
       this.portals = new PortalSystem(this, gp.portals || []);
       this.boss = gp.boss ? new BossSystem(this, gp.boss, { freed: !!this.freed }) : null;               // (the Guardian's Court: systems/boss.js)
       // step order: abilities/AI first, then pickups
-      this.systems = [this.sparx, this.beacons, this.enemies, this.critters, this.objects, this.gems, this.ambient, this.npcs, this.portals, ...(this.boss ? [this.boss] : [])];
+      this.systems = [this.sparx, this.beacons, this.trials, this.enemies, this.critters, this.objects, this.gems, this.ambient, this.npcs, this.portals, ...(this.boss ? [this.boss] : [])];
       this.on('beacon', (b, n) => this.onBeacon(b, n));
       if (this.restored) this._restore();
       if (this.realm.kind === 'homeworld') this._gateAtBuild();
@@ -159,6 +161,7 @@ export class Game {
    */
   _restore() {
     this.day = this.dayTarget = 1;
+    this.trials?.restore();                                // (before the lanterns: they are unsealed, then they burn)
     this.beacons?.restore();
     this.objects?.restore();
     this.portals?.restore();
