@@ -49,7 +49,7 @@ export const bells = {
         t.idle += dt;
         if (t.idle > B.replay || !near) { t.phase = near ? 'listen' : 'wait'; t.ct = 0; t.k = -1; t.lit = -1; t.pos = 0; ctx.emit('fail', { by: t, why: near ? 'idle' : 'left' }); break; }
         if (fresh || (p.flameT > 0 && !t.breathHit)) {
-          const i = flamedOne(p, t.bells, { skip: () => t.breathHit });
+          const i = flamedOne(p, t.bells);
           if (i >= 0) {
             t.breathHit = true; t.idle = 0;
             if (i === t.tune[t.pos]) {
@@ -57,7 +57,7 @@ export const bells = {
               ctx.emit('note', { by: t, i, ok: true, step: t.pos - 1 });
               if (t.pos >= t.len) { t.state = 'solved'; ctx.emit('solved', { by: t }); }
             } else {
-              t.misses++; t.lit = i; t.litT = B.litT; t.phase = 'rest'; t.rest = B.rest; t.pos = 0;
+              t.misses++; t.lit = i; t.litT = B.litT; t.phase = 'rest'; t.rest = B.rest;
               ctx.emit('miss', { by: t, i });
             }
           }

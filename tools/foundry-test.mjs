@@ -97,11 +97,16 @@ try {
     bites('... on a slope', isle("{ kind: 'plates', at: [35, 20], r: 4.4 }"), /^FAIL trials\.fair.*of its ground are over 0\.9 m off level/m);
     bites('... where the hero cannot walk to it', isle("{ kind: 'plates', at: [-45, 50], r: 4.4 }"), /^FAIL trials\.fair.*the hero cannot walk to it/m);
     bites('... too far from its lantern to be found (110 m)', isle("{ kind: 'plates', at: [2, 160], r: 4.4 }"), /^FAIL trials\.fair.*114 m from its lantern/m);
-    const PYL = '[[0,150],[-4,130],[2,110],[2,92],[-14,80],[-28,66],[-34,52]]';
-    bites('... a circuit whose clock is too little for the way (14 s for 114 m)', isle(`{ kind: 'circuit', pylons: ${PYL}, time: 14 }`), /^FAIL trials\.fair.*14 s is too little for 114 m/m);
+    const PYL = '[[0,162],[-4,130],[2,110],[2,92],[-14,80],[-28,66],[-34,52]]';                   // (the first pylon is 116 m from the lantern and the last 33: a circuit is found by the nearest)
+    bites('... a circuit whose clock is too little for the way (14 s for a way of 126 m)', isle(`{ kind: 'circuit', pylons: ${PYL}, time: 14 }`), /^FAIL trials\.fair.*14 s is too little for \d+ m/m);
+    bites('... where a fixed prop stands on its ground (a torch stand of the village)', isle("{ kind: 'plates', at: [0.4, 149], r: 4.4 }"), /^FAIL trials\.fair.*1 of 37 points of its ground are wet or under a prop \(7\.0,149\.0\)/m);
+    bites('... a circuit whose way is dry and clear and too steep', isle("{ kind: 'circuit', pylons: [[-76,114],[-60,114],[-44,114],[-28,114],[-12,114]] }"), /^FAIL trials\.fair.*the way from pylon 1 to 2 is wet, blocked or too steep at -68\.5,114\.0/m);
     bites('... a circuit whose way crosses water', isle("{ kind: 'circuit', pylons: [[0,100],[0,80],[0,60],[0,40],[0,20]] }"), /^FAIL trials\.fair.*the way from pylon 2 to 3 is wet, blocked or too steep/m);
     bites('... a circuit with a pylon where he cannot walk', isle("{ kind: 'circuit', pylons: [[0,150],[-4,130],[2,110],[-45,50],[2,92]] }"), /^FAIL trials\.fair.*pylon 4 is not on ground he can walk to/m);
     bites('... a Pilferling with no country to run in', isle("{ kind: 'thief', at: [0, 52], spawn: [-4, 52] }"), /^FAIL trials\.fair.*of a ring of 14 m round the Pilferling are ground to run on/m);
+    // (the ground of a trial is made level where the country is not: a ring of plates on a hillside the ruins stand on is level, and is refused where it says it wants the ground as it is)
+    const hill = (extra) => isle(`{ kind: 'plates', at: [-69, 75], r: 4.4${extra} }`);
+    check('the ground of a trial is made level (a ring of plates on a hillside passes) unless the brief says it wants the ground as it is (pad: false: refused, the hillside is not level)', !/^FAIL/m.test(said(hill(''))) && /^FAIL trials\.fair.*of its ground are over 0\.9 m off level/m.test(said(hill(', pad: false'))));
     const out = said(isle(`{ kind: 'circuit', pylons: ${PYL} }`));
     check('... and takes the same circuit with the clock the machine gives it (a rule that refuses everything is not a rule either)', /^PASS trials\.fair/m.test(out) && /^PASS trials\.mix/m.test(out) && !/^FAIL/m.test(out), (out.match(/^FAIL.*/gm) || []).join(' | ').slice(0, 200));
   }

@@ -20,6 +20,7 @@ import { SITUATIONS } from '../../src/game/realm/situations.js';
 import { RULES } from '../../src/game/realm/brief.js';
 import { DANGER as KIND_DANGER, KIND_IDS } from '../../src/game/foes/kinds.js';
 import { footprint } from '../../src/game/trials/place.js';
+import { ENEMY_DROPS } from '../../src/game/economy.js';
 import { timeFor, CIRCUIT } from '../../src/game/trials/index.js';
 
 const f1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : String(v));
@@ -145,7 +146,10 @@ export function checkRealm(which, { log = () => {} } = {}) {
 
   // the treasure
   {
-    rule('gems.total', 'the gems add up to a tidy round number', gp.gemsTotal % 50 === 0 && gp.gemsTotal >= (brief ? brief.gems.min : 300), `(${gp.gemsTotal})`, { hard: true });
+    // (and to everything there is to collect: the gems laid out, what each Snuffer, vase, chest, cracked wall and trial gives: the total the game shows is what a person can reach, no more, no less)
+    const add = (a) => a.reduce((n, v) => n + v, 0);
+    const collectible = add(gp.gems.map((g) => g.value)) + add(gp.enemies.map((e) => add(ENEMY_DROPS[e.variant] || ENEMY_DROPS.basic))) + add([...gp.vases, ...gp.chests, ...gp.walls].map((o) => add(o.gems))) + add((gp.trials || []).map((t) => add(t.gems || [])));
+    rule('gems.total', 'the gems add up to a tidy round number, and to everything there is to collect (the gems laid out and what the Snuffers, vases, chests, cracked walls and trials give)', gp.gemsTotal % 50 === 0 && gp.gemsTotal >= (brief ? brief.gems.min : 300) && collectible === gp.gemsTotal, `(${gp.gemsTotal}${collectible === gp.gemsTotal ? '' : `, but ${collectible} to collect`})`, { hard: true });
     const stuck = stuckGems;
     const wet = gp.gems.filter((g) => h(g.x, g.z) < sea0 - 0.9 && g.y < sea0 + 1);
     const out = [...gp.gems, ...gp.vases, ...gp.chests].filter((o) => Math.abs(o.x) > lim || Math.abs(o.z) > lim);

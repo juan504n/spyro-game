@@ -27,7 +27,7 @@ export const wisps = {
         let v;
         do { v = pick(ctx.rng, t.vents.length); } while (t.vents.length > 1 && v === t.lastVent);
         t.lastVent = v; t.spawned++;
-        t.live.push({ vent: v, age: 0, x: t.vents[v].x, y: (t.vents[v].y || 0) + 0.6, z: t.vents[v].z, dead: null });
+        t.live.push({ vent: v, n: t.spawned, age: 0, x: t.vents[v].x, y: (t.vents[v].y || 0) + 0.6, z: t.vents[v].z, dead: null });
         ctx.emit('spawn', { by: t, vent: v });
         t.nextIn = W.gap * (1 - W.jitter / 2 + W.jitter * ctx.rng());
       }

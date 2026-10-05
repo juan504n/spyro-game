@@ -89,6 +89,15 @@ export const wispsRight = (s) => {
   return flameAt(s, w.x, w.z, { within: 0.3, range: 6.2 });
 };
 
+/** a hero who lets the first `n` wisps that rise go (the wisp's own number says which) and burns the rest */
+export const wispsLetGo = (n) => (s) => {
+  const t = s.trial;
+  if (t.state !== 'active') return goTo(s, t.x, t.z, { stop: 1.0 });
+  const live = t.live.filter((w) => !w.dead && w.n > n).sort((a, b) => b.age - a.age);
+  if (!live.length) return goTo(s, t.x, t.z, { stop: 1.0 });
+  return flameAt(s, live[0].x, live[0].z, { within: 0.3, range: 6.2 });
+};
+
 // ---- puck --------------------------------------------------------------------------------------------------------------------------------------------
 /**
  * the right play: get behind the puck on the line to the goal and ram it along that line. He aims at the side of the goal the goalie is not on (a bank off the side wall is not needed).
@@ -198,7 +207,7 @@ const guard = (f) => (s) => (s.trial.state === 'solved' ? STILL : f(s));
 const guardMaker = (mk) => (...a) => guard(mk(...a));
 export const plays = {
   bellsRight: guard(bellsRight), bellsWrong: guard(bellsWrong), platesRight: guardMaker(platesRight), platesLap: guard(platesLap), circuitRun: guardMaker(circuitRun),
-  wispsRight: guard(wispsRight), puckRight: guard(puckRight), mirrorsRight: guardMaker(mirrorsRight), hunt: guardMaker(hunt), siegeRight: guardMaker(siegeRight),
+  wispsRight: guard(wispsRight), wispsLetGo: guardMaker(wispsLetGo), puckRight: guard(puckRight), mirrorsRight: guardMaker(mirrorsRight), hunt: guardMaker(hunt), siegeRight: guardMaker(siegeRight),
 };
 
 
@@ -271,6 +280,7 @@ export const PLAYS = [
   { id: 'circuit-pace', say: 'Circuit: ... at 60% of a run too (the clock is made for that)', kind: 'circuit', spec: SPECS.circuit, policy: () => plays.circuitRun(0.6), T: 60, hero: { x: 16, z: -6, yaw: 0 }, want: 'solved' },
   { id: 'circuit-slow', say: 'Circuit: a hero who walks it at 40% runs out of time and has to begin again', kind: 'circuit', spec: SPECS.circuit, policy: () => plays.circuitRun(0.4), T: 40, hero: { x: 16, z: -6, yaw: 0 }, want: 'failed' },
   { id: 'wisps-right', say: 'Wisps: a hero who breathes on the wisps that are nearest to getting away solves it', kind: 'wisps', spec: SPECS.wisps, policy: () => plays.wispsRight, T: 60, hero: { x: 0, z: 0, yaw: 0 }, want: 'solved' },
+  { id: 'wisps-four', say: 'Wisps: ... and one who lets the first four get away and burns the other eight (four may get away)', kind: 'wisps', spec: SPECS.wisps, policy: () => plays.wispsLetGo(4), T: 60, hero: { x: 0, z: 0, yaw: 0 }, want: 'solved' },
   { id: 'wisps-still', say: 'Wisps: a hero who only watches sees them all get away, and the vents begin again', kind: 'wisps', spec: SPECS.wisps, policy: () => still, T: 40, hero: { x: 0, z: 0, yaw: 0 }, want: 'failed' },
   { id: 'puck-right', say: 'Puck: a hero who rams the puck at the side of the goal the goalie is not on scores three', kind: 'puck', spec: SPECS.puck, policy: () => plays.puckRight, T: 90, hero: { x: 0, z: -8, yaw: 0 }, want: 'solved' },
   { id: 'puck-still', say: 'Puck: a hero who does not ram it scores nothing', kind: 'puck', spec: SPECS.puck, policy: () => still, T: 30, hero: { x: 0, z: -8, yaw: 0 }, want: 'quiet' },

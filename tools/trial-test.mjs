@@ -12,6 +12,7 @@ import { makeTrial, stepTrial, hudOf, targetsOf, AWAKE, distTo, solidsOf } from 
 import { buildTrial, footprint, rewardOf, trialProblems, lookOf, DEFAULTS, SIEGE_KINDS } from '../src/game/trials/place.js';
 import { KINDS } from '../src/game/foes/kinds.js';
 import { trialMix } from './lib/realm-rules.mjs';
+import { newBreath, newRam } from '../src/game/trials/core.js';
 
 let failed = 0;
 const check = (name, ok, detail) => { if (!ok) failed++; console.log(ok ? 'PASS' : 'FAIL', name, detail === undefined ? '' : detail); };
@@ -83,12 +84,13 @@ const bellsAt = (cx, cz, r, n) => Array.from({ length: n }, (_, i) => { const a 
     const wrongBell = (t.tune[0] + 1) % 5; aim = wrongBell; p.yaw = Math.atan2(b[aim].x, b[aim].z);
     steps(t, c, 0.5, (tt) => { p.flameT = Math.max(0, 0.42 - tt); });
     const missed = c.events.some((e) => e.type === 'miss' && e.i === wrongBell) && t.phase === 'rest';
-    steps(t, c, BELLS.rest + 0.2, null);
-    check('Bells: a wrong bell is a miss, and after a rest of 1.1 s the tune is rung again from the first note', missed && t.phase === 'listen' && t.pos === 0);
-    steps(t, c, 6.0, null);
-    const before = c.events.filter((e) => e.type === 'turn').length;
-    steps(t, c, BELLS.replay + 1, null);
-    check('Bells: a hero who waits 18 s hears the tune again', c.events.filter((e) => e.type === 'turn').length > before && c.events.some((e) => e.type === 'fail' && e.why === 'idle'));
+    steps(t, c, 1.3, null);
+    check('Bells: a wrong bell is a miss, and after a rest the tune is rung again from the first note', missed && t.phase === 'listen' && t.pos === 0);
+    let guard = 0; while (t.phase !== 'play' && guard++ < 3000) steps(t, c, 1 / 60, null);
+    steps(t, c, 17.0, null);
+    const early = t.phase === 'play' && !c.events.some((e) => e.type === 'fail' && e.why === 'idle');
+    steps(t, c, 2.0, null);
+    check('Bells: a hero who waits 18 s (not 17) hears the tune again', early && t.phase === 'listen' && c.events.some((e) => e.type === 'fail' && e.why === 'idle'), `(still waiting at 17 s: ${early}; at 19 s: ${t.phase})`);
     // walking away: it is waiting for him again
     const [t2, c2] = make({ kind: 'bells', id: 'b', goal: 'g', x: 0, z: 0, bells: b }, 5);
     steps(t2, c2, 6.5, null); c2.p.x = 60;
@@ -194,8 +196,10 @@ const bellsAt = (cx, cz, r, n) => Array.from({ length: n }, (_, i) => { const a 
   const [t4, c4] = make({ kind: 'puck', id: 'pk', goal: 'g', x: 0, z: 0, yaw: 0 }, 1);
   c4.p.z = -15; steps(t4, c4, 0.1, null);
   t4.px = 5.5; t4.pz = 9; t4.vx = 0; t4.vz = 0; t4.stillT = 0;
-  steps(t4, c4, PUCK.still + 0.5, null);
-  check('Puck: a puck left in a corner for 5 s is served again from the middle', Math.abs(t4.px) < 0.01 && Math.abs(t4.pz + t4.hl * 0.2) < 0.01 && c4.events.some((e) => e.type === 'serve'));
+  steps(t4, c4, 4.5, null);
+  const notYet = Math.abs(t4.px - 5.5) < 0.01 && !c4.events.some((e) => e.type === 'serve');
+  steps(t4, c4, 1.0, null);
+  check('Puck: a puck left in a corner for 5 s (not 4) is served again from the middle', notYet && Math.abs(t4.px) < 0.01 && Math.abs(t4.pz + t4.hl * 0.2) < 0.01 && c4.events.some((e) => e.type === 'serve'));
 }
 
 {
@@ -441,6 +445,188 @@ const bellsAt = (cx, cz, r, n) => Array.from({ length: n }, (_, i) => { const a 
   const [bt] = make({ kind: 'bells', id: 'b', goal: 'g', x: 0, z: 0, bells: bellsAt(0, 0, 5.8, 5) }, 1), [mt] = make(SPECS.mirrors, 1);
   const bs = solidsOf(bt), ms = solidsOf(mt);
   check('solids: each bell stands solid where it is (the hero and the foes walk round it), the lamp and the receiver and each mirror of a floor of squares too, and the others have none', bs.length === 5 && bs.every((q, i) => q.x === bt.bells[i].x && q.z === bt.bells[i].z && q.r > 0.4 && q.h > 2) && ms.length === 2 + mt.mirrors.length && ms.every((q) => q.r > 0.5 && q.h > 2) && TRIAL_IDS.filter((k) => !['bells', 'mirrors'].includes(k)).every((k) => solidsOf({ kind: k }).length === 0));
+}
+
+
+// ---- the numbers pinned, and the lines played: each of these is a number or a line that a mutation of round twenty-nine replaced and nothing failed on ----------------------------------------
+{
+  // (a clock for what a machine says: when it said it)
+  const timed = (spec, seed = 1, o = {}) => {
+    const c = ctxOf(hero(o), seed); let T = null;
+    c.emit = (type, d) => c.events.push({ type, ...d, by: undefined, at: T ? +T.t.toFixed(3) : 0 });
+    T = makeTrial(spec, c);
+    return [T, c];
+  };
+  const first = (c, type, after = -1) => c.events.find((e) => e.type === type && e.at > after);
+  const B5 = bellsAt(0, 0, 5.8, 5);
+  const bs = (o = {}) => ({ kind: 'bells', id: 'b', goal: 'g', x: 0, z: 0, bells: B5, ...o });
+
+  // ---- bells
+  check('Bells: a tune is never shorter than 3 nor longer than 6 whatever the layout says', make(bs({ len: 9 }))[0].len === 6 && make(bs({ len: 1 }))[0].len === 3 && make(bs({ len: 5 }))[0].len === 5);
+  {
+    const [a, ac] = make(bs(), 1); ac.p.z = -17; steps(a, ac, 0.2, null);
+    const [b, bc] = make(bs(), 1); bc.p.z = -15; steps(b, bc, 0.2, null);
+    check('Bells: the shrine rings when he is within 16 m and not at 17', a.phase === 'wait' && b.phase === 'listen');
+  }
+  {
+    const [t, c] = make(bs(), 3); const p = c.p;
+    steps(t, c, 6.5, null);
+    const want = t.tune[0];
+    p.flameHits = (x, y, z) => Math.abs(B5[want].x - x) < 1e-6 && Math.abs(B5[want].z - z) < 1e-6;
+    p.yaw = Math.atan2(B5[want].x, B5[want].z);
+    steps(t, c, 0.2, (tt) => { p.flameT = Math.max(0, 0.42 - tt); });
+    const lit = t.lit === want;
+    p.flameT = 0; steps(t, c, 0.5, null);
+    check('Bells: the bell a right breath lights goes dark again after 0.45 s', lit && t.lit === -1 && t.pos === 1, `(lit ${lit}, then ${t.lit})`);
+  }
+  {
+    const [t, c] = timed(bs(), 5); const p = c.p;
+    steps(t, c, 6.5, null);
+    const wrong = (t.tune[0] + 1) % 5;
+    p.flameHits = (x, y, z) => Math.abs(B5[wrong].x - x) < 1e-6 && Math.abs(B5[wrong].z - z) < 1e-6; p.yaw = Math.atan2(B5[wrong].x, B5[wrong].z);
+    steps(t, c, 0.3, (tt) => { p.flameT = Math.max(0, 0.42 - tt); }); p.flameT = 0;
+    steps(t, c, 3, null);
+    const miss = first(c, 'miss'), again = miss && first(c, 'turn', miss.at);
+    check('Bells: the tune is rung again 1.1 s after a wrong bell (not 1.0)', !!miss && !!again && again.listen === true && Math.abs(again.at - miss.at - 1.1) < 0.03, `(${miss && again ? (again.at - miss.at).toFixed(2) : '?'} s)`);
+  }
+  {
+    const [t, c] = make(bs(), 4); steps(t, c, 6.5, null);
+    const before = c.events.length; c.p.z = -200; stepTrial(t, 1 / 60, c);
+    check('Bells: far off in the middle of a tune it is forgotten in silence and the shrine waits', t.phase === 'wait' && t.state === 'idle' && t.pos === 0 && t.lit === -1 && c.events.length === before);
+  }
+
+  // ---- plates
+  {
+    const pl = bellsAt(0, 0, 5.5, 5);
+    const press = (y, grounded) => { const [t, c] = make({ kind: 'plates', id: 'p', goal: 'g', x: 0, z: 0, plates: pl, scramble: 2 }, 7); c.p.x = pl[1].x; c.p.z = pl[1].z; c.p.y = y; c.p.grounded = grounded; steps(t, c, 0.2, null); return c.events.filter((e) => e.type === 'press').length; };
+    const r = [press(3.0, true), press(1.0, true), press(0.4, false)];
+    check('Plates: a hero on a ledge 3 m over a plate presses nothing, one 1 m over it does, and one in the air a hand over it does not', r.join() === '0,1,0', `(${r.join(', ')})`);
+    const pars = [];
+    for (let seed = 1; seed <= 300; seed++) pars.push(make({ kind: 'plates', id: 'p', goal: 'g', x: 0, z: 0, plates: pl }, seed)[0].par);
+    const threes = pars.filter((v) => v === 3).length;
+    check('Plates: a ring that says nothing of its scramble is spoilt by three presses (a puzzle: a good part of the boards need three, none more)', Math.max(...pars) === 3 && Math.min(...pars) >= 1 && threes > 60, `(${threes} of 300 need three)`);
+  }
+
+  // ---- wisps
+  {
+    const [t, c] = timed(SPECS.wisps, 1); c.p.x = 0; c.p.z = 0;
+    steps(t, c, 6.0, null);
+    const sp = first(c, 'spawn'), es = first(c, 'miss');
+    check('Wisps: a wisp that is not burnt gets away 3.4 s after it rises (not 30)', !!sp && !!es && Math.abs(es.at - sp.at - 3.4) < 0.08, `(${sp && es ? (es.at - sp.at).toFixed(2) : '?'} s)`);
+    const [u, d] = timed(SPECS.wisps, 2); steps(u, d, 0.1, null);
+    u.escaped = 4; u.spawned = 5; steps(u, d, 1 / 60, null);
+    const four = d.events.filter((e) => e.type === 'fail').length;
+    u.escaped = 5; steps(u, d, 1 / 60, null);
+    check('Wisps: four may get away and the fifth is too many (the round fails)', four === 0 && d.events.filter((e) => e.type === 'fail').length === 1);
+    const [v, e] = timed(SPECS.wisps, 3); e.p.x = 0; e.p.z = 0;
+    steps(v, e, 0.1, null); v.escaped = 5; steps(v, e, 1 / 60, null);
+    const fail = first(e, 'fail'); steps(v, e, 7, null);
+    const sp2 = fail && first(e, 'spawn', fail.at);
+    check('Wisps: after a failed round the vents rest 3 s, and the first wisp rises 1.2 s after that', !!sp2 && Math.abs(sp2.at - fail.at - 4.2) < 0.12, `(${sp2 ? (sp2.at - fail.at).toFixed(2) : '?'} s)`);
+    let repeats = 0, n = 0;
+    for (let seed = 1; seed <= 100; seed++) { const [w, wc] = timed(SPECS.wisps, seed); wc.p.x = 0; wc.p.z = 0; steps(w, wc, 20, null); let last = -1; for (const q of wc.events) { if (q.type === 'fail') last = -1; if (q.type !== 'spawn') continue; n++; if (q.vent === last) repeats++; last = q.vent; } }
+    check('Wisps: no vent lets go twice running in a round (100 seeds)', n > 600 && repeats === 0, `(${n} wisps, ${repeats} repeats)`);
+    const [x, xc] = make(SPECS.wisps, 1); xc.p.x = 0; xc.p.z = 0; xc.p.flameHits = () => true; xc.p.flameT = 0;
+    steps(x, xc, 4, null);
+    check('Wisps: a flame that is not lit burns nothing', x.hits === 0);
+    const [y, yc] = make(SPECS.wisps, 1); yc.p.x = 0; yc.p.z = 0;
+    steps(y, yc, 3, null);
+    const air = y.live.filter((q) => !q.dead).length;
+    y.live[0].dead = 'hit';
+    const tg = targetsOf(y);
+    check('Wisps: the aim assist is shown the wisps in the air and not the ones that are burnt', air >= 2 && tg.length === air - 1 && !tg.some((q) => Math.hypot(q.x - y.live[0].x, q.z - y.live[0].z) < 1e-6));
+  }
+
+  // ---- puck
+  {
+    const PK = { kind: 'puck', id: 'pk', goal: 'g', x: 0, z: 0, yaw: 0 };
+    const mk = (seed = 1) => { const [t, c] = timed(PK, seed); c.p.z = -15; steps(t, c, 0.1, null); return [t, c]; };
+    const [a, ac] = mk(); a.px = 4.5; a.pz = 9; a.vx = 0; a.vz = 15; steps(a, ac, 1.0, null);
+    check('Puck: a shot at the end wall beside the goal mouth is turned back: it is not a goal', a.score === 0 && !ac.events.some((e) => e.type === 'goal') && ac.events.some((e) => e.type === 'bounce'));
+    const [b, bc] = mk();
+    const shoot = (t, c) => { t.px = 2.1; t.pz = 6; t.vx = 0; t.vz = 15; t.hold = 0; t.phase = -Math.PI / 2 - t.t * 1.9; steps(t, c, 0.9, null); };
+    shoot(b, bc); const one = b.score, held = b.hold;
+    steps(b, bc, 3.0, null);
+    const g = first(bc, 'goal'), sv = g && first(bc, 'serve', g.at);
+    check('Puck: a goal is held for 1.1 s and then the puck is served again from the middle', one === 1 && held > 0 && !!g && !!sv && Math.abs(sv.at - g.at - 1.1) < 0.06, `(${g && sv ? (sv.at - g.at).toFixed(2) : '?'} s)`);
+    shoot(b, bc); const two = [b.score, b.state];
+    shoot(b, bc);
+    check('Puck: three goals solve it and two do not', two.join() === '2,active' && b.score === 3 && b.state === 'solved', `(${two.join(' ')}, then ${b.score} ${b.state})`);
+    const [w, wc] = mk(); w.px = 0; w.pz = -9; w.vx = 0; w.vz = -14; let low = 0;
+    steps(w, wc, 1.0, () => { low = Math.min(low, w.pz); });
+    check('Puck: the wall behind turns it back too (it is never outside the court)', low >= -w.hl && w.pz > -w.hl, `(it went as far as ${low.toFixed(1)} m of the ${-w.hl} m of the court)`);
+    const [s, sc] = mk(); s.score = 2; s.px = 3; s.vx = 2; const ev0 = sc.events.length; sc.p.z = -200; stepTrial(s, 1 / 60, sc);
+    check('Puck: far off the game waits (the puck is still, the trial idle: no sound) and the score is kept', s.state === 'idle' && s.vx === 0 && s.vz === 0 && s.score === 2 && sc.events.length === ev0);
+  }
+
+  // ---- mirrors: a handmade floor (the lamp west, a mirror at (2,2) that sends the beam north, a mirror at (2,4) that does not send it east, one at (3,2) that is no part of the way)
+  {
+    const H = { kind: 'mirrors', id: 'm', goal: 'g', x: 0, z: 0, yaw: 0, w: 5, h: 5, source: { i: 0, j: 2, d: 0 }, receiver: { i: 4, j: 4 }, mirrors: [{ i: 2, j: 2, s: 0 }, { i: 2, j: 4, s: 1 }, { i: 3, j: 2, s: 0 }] };
+    const [t, c] = make(H, 1);
+    const A = cellWorld(t, 2, 2), Bm = cellWorld(t, 3, 2);
+    c.p.x = Bm[0] - 1.0; c.p.z = Bm[1]; c.p.chargeT = 0.2; c.p.chargeHits = (x, y, z) => hyp(x - c.p.x, z - c.p.z) < 3.6;
+    steps(t, c, 0.3, null);
+    const turned = c.events.filter((e) => e.type === 'turn_mirror').map((e) => e.i);
+    check('Mirrors: of two mirrors in reach a ram turns the nearer, though it comes last in the list', turned.join() === '2' && hyp(A[0] - c.p.x, A[1] - c.p.z) < 3.6, `(turned ${turned.join(',')})`);
+    const [u, d] = make(H, 1);
+    d.p.x = Bm[0] + 1.0; d.p.z = Bm[1]; d.p.chargeT = 0.2; d.p.chargeHits = (x, y, z) => hyp(x - d.p.x, z - d.p.z) < 3.6;
+    steps(u, d, 0.2, null); d.p.chargeT = 0; steps(u, d, 0.1, null); d.p.chargeT = 0.2; steps(u, d, 0.2, null);
+    const quick = d.events.filter((e) => e.type === 'turn_mirror').length;
+    d.p.chargeT = 0; steps(u, d, 1.0, null); d.p.chargeT = 0.2; steps(u, d, 0.2, null);
+    check('Mirrors: a mirror that has just been turned is not turned back by a ram begun within 0.8 s, and is by one after it', quick === 1 && d.events.filter((e) => e.type === 'turn_mirror').length === 2, `(${quick}, then ${d.events.filter((e) => e.type === 'turn_mirror').length})`);
+    let hit0 = 0;
+    for (const k of [2, 3]) for (let seed = 1; seed <= 1500; seed++) if (make({ kind: 'mirrors', id: 'm', goal: 'g', x: 0, z: 0, yaw: 0, k }, seed)[0].beam.hit) hit0++;
+    check('Mirrors: a puzzle is never solved at the start (3000 puzzles)', hit0 === 0, `(${hit0} of 3000)`);
+  }
+
+  // ---- siege
+  {
+    const mkS = () => {
+      const [s, d] = timed(SPECS.siege, 1);
+      const made = [], alive = new Set();
+      d.spawn = (kind, x, z, o) => { const h = { id: made.length, kind, x, z, o }; made.push(h); alive.add(h); return h; };
+      d.fate = (h) => (alive.has(h) ? 'alive' : 'killed'); d.dismiss = (h) => alive.delete(h);
+      d.p.x = 0; d.p.z = -8;
+      return [s, d, made, alive];
+    };
+    const [s, d, made, alive] = mkS();
+    steps(s, d, 6, () => { for (const h of [...alive]) alive.delete(h); });
+    const st = first(d, 'start'), waves = d.events.filter((e) => e.type === 'wave').map((e) => e.at);
+    check('Siege: the first wave comes 0.6 s after he steps inside and each next 1.2 s after the one before (not at once), and the last that falls solves it', !!st && waves.length === 3 && Math.abs(waves[0] - st.at - 0.6) < 0.05 && Math.abs(waves[1] - waves[0] - 1.2) < 0.05 && Math.abs(waves[2] - waves[1] - 1.2) < 0.05 && s.state === 'solved', `(${waves.map((q) => (q - (st ? st.at : 0)).toFixed(2)).join(', ')})`);
+    check('Siege: the Snuffers of a wave come at once to him (wild), from inside the ring, and are the trial\'s', made.length > 0 && made.every((h) => h.o.wild === true && h.o.trial === 'siege' && hyp(h.x, h.z) <= 12 * 0.8 && hyp(h.x, h.z) >= 12 * 0.7), `(${made.map((h) => hyp(h.x, h.z).toFixed(1)).join(' ')} m)`);
+    const [s2, d2] = mkS();
+    steps(s2, d2, 1.0, null);
+    const hud = hudOf(s2);
+    d2.p.x = 36.5; d2.p.z = 0; steps(s2, d2, 0.1, null);
+    const stays = s2.state === 'active';
+    d2.p.x = 40; steps(s2, d2, 0.1, null);
+    check('Siege: he may go 36 m from the middle of a ring of 12 and the waves wait, and at 40 m he has left: they are put away', stays && s2.state === 'idle' && d2.events.some((e) => e.type === 'fail' && e.why === 'left'));
+    check('Siege: the HUD counts the wave from 1 (WAVE 1 OF 3  2 LEFT), not from 0', !!hud && /^WAVE 1 OF 3 /.test(hud.text), `(${hud && hud.text})`);
+    const [s3, d3] = mkS();
+    d3.p.x = 8; d3.p.z = 0; steps(s3, d3, 0.3, null);
+    check('Siege: it begins when he is within 70% of the ring and not at 80%', s3.state === 'active' && (() => { const [q, e] = mkS(); e.p.x = 9.6; e.p.z = 0; steps(q, e, 0.3, null); return q.state === 'idle'; })());
+  }
+
+  // ---- the index and the core
+  check('every kind sleeps at 100 m off at the most (nothing is heard from further) and not nearer than 40', TRIAL_IDS.every((k) => AWAKE[k] >= 40 && AWAKE[k] <= 100), `(${TRIAL_IDS.map((k) => `${k} ${AWAKE[k]}`).join(', ')})`);
+  {
+    const said = TRIAL_IDS.filter((k) => ['plates', 'mirrors', 'puck'].includes(k)).map((k) => {
+      const spec = Object.values(SPECS).find((q) => q.kind === k);
+      const [t, c] = make(spec, 1); c.p.x = t.x; c.p.z = t.z - 3; steps(t, c, 0.4, null);
+      const near = hudOf(t) !== null;
+      c.p.x = t.x; c.p.z = t.z - 400; stepTrial(t, 1 / 60, c);
+      return [k, near, hudOf(t)];
+    });
+    check('a trial that was in play and is left far behind says nothing on the HUD, even those with no sleep of their own (the plates, the mirrors, the puck)', said.every(([, near, far]) => near && far === null), `(${said.map(([k, n, f]) => `${k} ${n} ${f === null ? 'quiet' : 'SPEAKS'}`).join(', ')})`);
+  }
+  {
+    const t = {}, p = { flameT: 0, chargeT: 0 };
+    const seq = [0.42, 0.3, 0.2, 0.1, 0, 0.42, 0.3].map((v) => { p.flameT = v; return newBreath(t, p); });
+    check('a breath is counted once, from the moment the flame rises to the end of it, and the next when it rises again', seq.join() === 'true,false,false,false,false,true,false', `(${seq.join()})`);
+    const r = {}, q = { chargeT: 0 };
+    const seq2 = [0, 0.1, 0.2, 0.3, 0, 0.1].map((v) => { q.chargeT = v; return newRam(r, q); });
+    check('a ram is counted once however long the button is held, and the next when it is pressed again', seq2.join() === 'false,true,false,false,false,true' && r.ramId === 2, `(${seq2.join()})`);
+  }
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nall trial checks passed');

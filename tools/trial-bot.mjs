@@ -44,11 +44,11 @@ await page.evaluate(async () => {
   G.systems = G.systems.filter((s) => s !== G.boss);                            // (the Guardian sleeps: this is a floor to play on)
   const AT = { circuit: [0, -30] };                                              // (the Court: a flat floor round a dais at (0, -30); a trial stands on its western side, a loop of pylons goes round the dais)
   const at = (kind) => AT[kind] || [-22, -30];
-  const rec = { events: [], hurts: 0, sounds: new Set(), said: [], r: null };
+  const rec = { events: [], hurts: 0, sounds: new Set(), n: {}, said: [], r: null };
   const hud = G.hud, hint = hud.hint.bind(hud);
   hud.hint = (text, dur) => { rec.said.push(text); return hint(text, dur); };
-  if (G.audio && G.audio.sfx) { const sfx = G.audio.sfx.bind(G.audio); G.audio.sfx = (name, o) => { rec.sounds.add(name); return sfx(name, o); }; }
-  else G.audio = { sfx: (name) => { rec.sounds.add(name); } };                    // (a page without audio: the names are still asked for)
+  if (G.audio && G.audio.sfx) { const sfx = G.audio.sfx.bind(G.audio); G.audio.sfx = (name, o) => { rec.sounds.add(name); rec.n[name] = (rec.n[name] || 0) + 1; return sfx(name, o); }; }
+  else G.audio = { sfx: (name) => { rec.sounds.add(name); rec.n[name] = (rec.n[name] || 0) + 1; } };                    // (a page without audio: the names are still asked for)
   const on = S._on.bind(S);
   S._on = (r, type, d) => { if (r === rec.r) rec.events.push({ type, i: d.i, why: d.why, k: d.k, score: d.score }); return on(r, type, d); };
   const hurt = G.playerHurt.bind(G);
@@ -60,7 +60,7 @@ await page.evaluate(async () => {
     for (const e of G.enemies.list.slice()) G.enemies.dismiss(e);
     bot.tick(60);
     G.beacons.lit = 0; G.stats.beacons = 0; G.stats.trials = 0; G.day = G.dayTarget = 0;                   // (the Court has no lanterns of its own: what a check lit is forgotten, in the system's count and in the stats)
-    rec.events = []; rec.hurts = 0; rec.sounds.clear(); rec.r = null;
+    rec.events = []; rec.hurts = 0; rec.sounds.clear(); rec.n = {}; rec.r = null;
     prev.jump = prev.flame = prev.charge = false; bot.ctl.mx = bot.ctl.my = 0;
     if (base === null) { base = liveList().length; baseSet = new Set(liveList().map((x) => x[1])); }
   };
@@ -96,7 +96,7 @@ await page.evaluate(async () => {
     const [ox, oz] = at(spec.kind);
     place(ox + hero.x, oz + hero.z, hero.yaw);
     const r = S.add({ ...plays.shift(spec, ox, oz), id: 'bot-' + spec.kind, seed, goal: undefined, ...extra });                 // (the plays' specs name a goal that is not in the Court: these seal nothing)
-    rec.r = r; rec.events = []; rec.sounds.clear(); rec.hurts = 0;
+    rec.r = r; rec.events = []; rec.sounds.clear(); rec.n = {}; rec.hurts = 0;
     const p = G.player, t0 = G.time;
     let act = null, frames = 0, solvedAt = null, hudSeen = 0, hudText = null;
     while (G.time - t0 < T) {
@@ -113,7 +113,7 @@ await page.evaluate(async () => {
     const detail = t.kind === 'siege' ? { wave: t.wave, left: t.left, foes: r.foes.map((e) => `${e.kind}:${e.state}`), hero: [q(p.x), q(p.z)] }
       : t.kind === 'mirrors' ? { turns: t.turns, par: t.par, hit: t.beam.hit, hero: [q(p.x), q(p.z)], mirrors: t.mirrors.map((m) => [m.i, m.j, m.s]), source: t.source, receiver: t.receiver, turned: rec.events.filter((e) => e.type === 'turn_mirror').map((e) => e.i) }
       : t.kind === 'puck' ? { score: t.score, puck: [q(t.px), q(t.pz)] } : t.kind === 'thief' ? { foe: t.foe && t.foe.state } : {};
-    const res = { detail, solved: r.done, t: solvedAt === null ? null : +solvedAt.toFixed(1), fails: rec.events.filter((e) => e.type === 'fail').length, misses: rec.events.filter((e) => e.type === 'miss').length, hurts: rec.hurts, events: rec.events.map((e) => e.type), sounds: [...rec.sounds], hudSeen, hudText, foes: r.foes.length, state: r.t.state };
+    const res = { detail, solved: r.done, t: solvedAt === null ? null : +solvedAt.toFixed(1), fails: rec.events.filter((e) => e.type === 'fail').length, misses: rec.events.filter((e) => e.type === 'miss').length, hurts: rec.hurts, events: rec.events.map((e) => e.type), sounds: [...rec.sounds], counts: { ...rec.n }, hudSeen, hudText, foes: r.foes.length, state: r.t.state };
     return { r, res };
   };
   window.__trialplay = {
@@ -289,7 +289,8 @@ for (const pl of picked) {
   if (flag('sounds')) console.log('     sounds:', last.sounds.join(' '), '| events:', [...new Set(last.events)].join(' '));
   if (pl.want === 'solved' && last.solved) {
     const miss = (wanted[pl.kind] || []).filter((s) => !last.sounds.includes(s));
-    check(`   ... and it is heard (${(wanted[pl.kind] || []).join(' ')}) and the HUD said what it asked (${last.hudText})`, miss.length === 0 && last.hudSeen > 0 && pl.kind !== 'thief' ? true : miss.length === 0 && last.hudSeen > 0, miss.length ? `(not asked for: ${miss.join(' ')}; asked for: ${last.sounds.join(' ')})` : `(${last.hudSeen} frames)`);
+    const horns = pl.kind === 'siege' ? (last.counts.trial_horn || 0) : null;                    // (a siege blows its horn when it begins and at each of its three waves)
+    check(`   ... and it is heard (${(wanted[pl.kind] || []).join(' ')}) and the HUD said what it asked (${last.hudText})`, miss.length === 0 && last.hudSeen > 0 && (horns === null || horns >= 4), miss.length ? `(not asked for: ${miss.join(' ')}; asked for: ${last.sounds.join(' ')})` : `(${last.hudSeen} frames${horns === null ? '' : `, ${horns} horns`})`);
   }
   n++;
 }
