@@ -117,7 +117,7 @@ export const mothDodge = (s) => {
  *   quiet       never hurt and never killed                        boomed   it went off and the hero was not hurt            blast    the hero is hurt and the keg went off
  *   ringed      it is not killed and something rang off it         chain    it fell and so did every Snuffer that stood by it
  *   stunkill    it hit a post and fell to a blow from the front    melted   its shell took three ticks of fire, it fell, and he was never hurt
- *   regrown     its shell fell, grew back, and he was never hurt    smoked   it fell, what it had called was dismissed, he was hurt at most twice
+ *   regrown     its shell fell, grew back, and he was never hurt    smoked   it fell, what it had called (and it comes for him from its first step) was dismissed, he was hurt at most twice
  *   dodged:E    he was never hurt and the foe said E (splat, burst) at least twice: it attacked, and what it did was avoided
  * (and a ram that rings off throws the hero back and ends his charge, wherever a play says something rang off)
  */
@@ -188,7 +188,7 @@ export function judge(want, r) {
     case 'stunkill': return r.killed && r.hurts === 0 && r.blows.some((b) => b.out === 'kill' && b.state === 'stunned' && b.side === 'front') ? null : `killed ${r.killed}, hurts ${r.hurts}, no kill of a stunned hog from the front`;
     case 'melted': return r.killed && r.hurts === 0 && melts >= 3 ? null : `killed ${r.killed}, hurts ${r.hurts}, ${melts} ticks of fire on the shell`;
     case 'regrown': return !r.killed && r.hurts === 0 && r.shell === 1 && melts >= 3 ? null : `killed ${r.killed}, hurts ${r.hurts}, shell ${r.shell} after ${melts} ticks of fire`;
-    case 'smoked': return r.killed && r.hurts <= 2 && !r.left && r.dismissed >= 1 ? null : `killed ${r.killed}, hurts ${r.hurts}, ${r.left} left standing, ${r.dismissed} dismissed`;
+    case 'smoked': return r.killed && r.hurts <= 2 && !r.left && r.dismissed >= 1 && r.called.length >= 1 && r.called.every(Boolean) ? null : `killed ${r.killed}, hurts ${r.hurts}, ${r.left} left standing, ${r.dismissed} dismissed, ${r.called.length} called (all of them coming for him from the first step: ${r.called.every(Boolean)})`;
     case 'blast': return r.boomed && r.hurts >= 1 ? null : `boomed ${r.boomed}, hurts ${r.hurts}`;
     default: return 'unknown want ' + want;
   }

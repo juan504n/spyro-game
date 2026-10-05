@@ -10,7 +10,7 @@
 //   the rest      the same seed plays the same fight, a Smokecaller never has more than three and takes its Snuffers with it, a keg's blast, a hog that hits a wall is stunned, a thief that is cornered gives up
 import { simulate, HERO, FUSE } from './lib/foesim.mjs';
 import { PLAYS, judge, dirTo, dist, still, rush, lap } from './lib/foe-plays.mjs';
-import { KINDS, FOE_IDS, KIND_IDS, DANGER, BRAINS, makeFoe, struckBy, explode, SLING, CHARGE, BURROW, WARD, SWOOP, CALL, FLEE, hitsOn } from '../src/game/foes/index.js';
+import { KINDS, FOE_IDS, KIND_IDS, DANGER, BRAINS, makeFoe, stepFoe, struckBy, explode, SLING, CHARGE, BURROW, WARD, SWOOP, CALL, FLEE, hitsOn } from '../src/game/foes/index.js';
 import { ENEMY_DROPS } from '../src/game/economy.js';
 
 let failed = 0;
@@ -88,8 +88,8 @@ const gapOf = (r, a, b) => { const ea = r.events.find((e) => e.type === a); if (
   // the numbers of the tells, held to what a person can use
   check('the warnings are long enough to act on: a ball 2 s, a paw 0.9 s, a crack 0.8 s, a raised shield 1.1 s, a rear 0.7 s, a fuse 1.2 s before it may go off at the hero', SLING.windup + SLING.flight >= 2 && CHARGE.paw >= 0.9 && BURROW.crack >= 0.8 && WARD.raise >= 1.1 && SWOOP.tell >= 0.7 && FUSE.armed >= 1.2);
   check('what is thrown or driven can be avoided: the ring stops following the hero 0.5 s before the ball lands, a hog\'s line is fixed 0.25 s before it sets off, a dive is aimed 0.25 s before it', SLING.lock >= 0.5 && CHARGE.lock >= 0.25 && SWOOP.lock >= 0.25);
-  check('what keeps away and what flees is slower than a run, so that it can always be caught: a Slinger and a Smokecaller back off at under 6 m/s, a Pilferling runs at under 10 m/s (a run is 11.5, a ram 24), a mound follows at 6',
-    SLING.panic < HERO.run / 2 && CALL.panic < HERO.run / 2 && FLEE.speed < HERO.run && FLEE.speed * FLEE.boost < HERO.run * 1.05 && BURROW.under < HERO.run);
+  check('what keeps away and what flees is slower than a run, so that it can always be caught or outrun: a Slinger and a Smokecaller back off at under 6 m/s, a Pilferling runs at under 10 m/s (a run is 11.5, a ram 24), a mound follows at 6, a Fusepup runs at under 8, a Lidwarden walks at under 4 and turns at under 1.5 rad/s (a hero circles it at 3 m at 3.6)',
+    SLING.panic < HERO.run / 2 && CALL.panic < HERO.run / 2 && FLEE.speed < HERO.run && FLEE.speed * FLEE.boost < HERO.run * 1.05 && BURROW.under < HERO.run && FUSE.speed < HERO.run * 0.7 && WARD.walk < HERO.run / 3 && CHARGE.walk < HERO.run / 3 && WARD.turn * 2.5 < HERO.run / 3.2);
   check('a hog runs faster than a hero (15 against 11.5) for under 1.1 s: it is a line to step off, not a race', CHARGE.speed > HERO.run && CHARGE.maxT <= 1.1 && CHARGE.speed * CHARGE.maxT <= 17);
 }
 
@@ -109,7 +109,7 @@ const gapOf = (r, a, b) => { const ea = r.events.find((e) => e.type === a); if (
     ['slinger', 'lob', [still, lap], 3.5, 'a Slinger throws a ball every 3.5 s at the most'],
     ['hog', 'rush', [still, lap], 3.2, 'a Ramhog does not run twice within 3.2 s (the skid, the turn, the next paw)'],
     ['mole', 'burst', [still], 3.5, 'a Dustmole bursts every 3.5 s at the most (dazed, digging in, a second under the ground)'],
-    ['warden', 'bash', [still], WARD.raise + WARD.open - 0.05, 'a Lidwarden bashes every 2 s at the most (the shield rises for 1.1 s and is down for 0.9)'],
+    ['warden', 'bash', [still], 1.95, 'a Lidwarden bashes every 2 s at the most (the shield rises for 1.1 s and is down for 0.9)'],
     ['moth', 'dive', [still, lap], 6.5, 'a Dusk Moth dives every 6.5 s at the most (rear, dive, land, rise, and 4 s of circling)'],
     ['caller', 'summon', [still], 7.0, 'a Smokecaller calls every 7 s at the most'],
   ];
@@ -126,6 +126,110 @@ const gapOf = (r, a, b) => { const ea = r.events.find((e) => e.type === a); if (
     const err = lock ? hyp(lock.x - lock.hero.x, lock.z - lock.hero.z) : Infinity, moved = splat && lock ? hyp(splat.x - lock.x, splat.z - lock.z) : Infinity;
     check('Slinger: the ring follows a walking hero until 0.5 s before the ball lands (it is where he is at the lock) and then stays where it is (the ball lands there)', !!lock && !!splat && !!lob && err < 0.2 && moved < 1e-6 && Math.abs(splat.t - lock.t - SLING.lock) < 0.03 && lock.t > lob.t + 0.4,
       lock ? `(at the lock the ring is ${f2(err)} m from him; it lands ${f2(moved)} m from the lock, ${f2(splat.t - lock.t)} s later)` : '(no lock)');
+  }
+  // the burst of a ball hurts a hero within its 1.7 m (and his own 0.55) and not one beyond: seen over many balls, a hero who walks aside from the ring at different speeds once it is fixed
+  {
+    const pairs = [];
+    for (const seed of SEEDS) for (const mag of [0, 0.15, 0.25, 0.35, 0.5, 0.8]) {
+      let last = null;
+      const r = simulate({ kind: 'slinger', hero: { x: 0, z: 9, yaw: Math.PI }, T: 14, seed, immortal: true,
+        policy: (s) => { last = { x: s.hero.x, z: s.hero.z }; return s.foe.balls.some((b) => b.locked) ? { dx: 1, dz: 0, mag } : still(s); },
+        onEvent: (ev) => { if (ev.type === 'splat') ev.hero = { ...last }; } });
+      for (const sp of r.events.filter((e) => e.type === 'splat')) pairs.push({ d: hyp(sp.hero.x - sp.x, sp.hero.z - sp.z), hurt: r.events.some((e) => e.type === 'hurt' && Math.abs(e.t - sp.t) < 1e-6) });
+    }
+    const wrong = pairs.filter((p) => (p.d < 2.1 && !p.hurt) || (p.d > 2.4 && p.hurt));
+    check('Slinger: a ball hurts a hero within 1.7 m of where it lands (and his own 0.55 m) and none beyond that', pairs.filter((p) => p.d < 2.1).length >= 10 && pairs.filter((p) => p.d > 2.4 && p.d < 6).length >= 10 && wrong.length === 0,
+      `(${pairs.length} balls; ${wrong.length} wrong: ${wrong.slice(0, 3).map((p) => `${f2(p.d)} m ${p.hurt ? 'hurt' : 'not'}`).join(', ')})`);
+  }
+  // the hog's line is fixed 0.25 s before it sets off, and it runs along the line it had then, whatever the hero does with that quarter second
+  {
+    const bad = [];
+    let runs = 0;
+    for (const seed of SEEDS) {
+      const r = simulate({ kind: 'hog', hero: { x: 0, z: 14, yaw: Math.PI }, T: 25, seed, immortal: true,
+        policy: (s) => (s.foe.state === 'paw' && s.foe.st > 0.6 ? { dx: Math.cos(s.foe.yaw), dz: -Math.sin(s.foe.yaw), mag: 1 } : still(s)),
+        onEvent: (ev, data) => { if (ev.type === 'rush') ev.dir = Math.atan2(data.by.dx, data.by.dz); } });
+      const locks = r.events.filter((e) => e.type === 'lock'), rushes = r.events.filter((e) => e.type === 'rush');
+      runs += rushes.length;
+      if (locks.length !== rushes.length) bad.push(`seed ${seed}: ${locks.length} locks, ${rushes.length} runs`);
+      rushes.forEach((rs, i) => { const lk = locks[i]; if (lk && (Math.abs(Math.atan2(Math.sin(rs.dir - lk.yaw), Math.cos(rs.dir - lk.yaw))) > 0.01 || Math.abs(rs.t - lk.t - CHARGE.lock) > 0.03)) bad.push(`seed ${seed}: run ${i} off its locked line by ${f2(rs.dir - lk.yaw)} rad, ${f2(rs.t - lk.t)} s after the lock`); });
+    }
+    check('Ramhog: its line is fixed 0.25 s before it sets off and it runs along it (a hero who steps aside in that quarter second is not followed)', runs >= 6 && bad.length === 0, `(${runs} runs; ${bad.slice(0, 2).join(' | ')})`);
+  }
+  // ... and it rests a little (0.55 s) once it has turned back before it paws again
+  {
+    const gaps = [];
+    for (const seed of SEEDS) {
+      let prev = null, turned = null;
+      simulate({ kind: 'hog', hero: { x: 0, z: 10, yaw: Math.PI }, T: 40, seed, immortal: true, policy: (s) => {
+        const st = s.foe.state;
+        if (prev === 'turn' && st === 'stalk') turned = s.t;
+        if (st === 'paw' && prev !== 'paw' && turned !== null) { gaps.push(s.t - turned); turned = null; }
+        prev = st; return still(s);
+      } });
+    }
+    check('Ramhog: it rests at least 0.55 s after it has turned back before it paws again', gaps.length >= 6 && Math.min(...gaps) >= 0.55, `(${gaps.length} times; the least: ${gaps.length ? f2(Math.min(...gaps)) : 'none'} s)`);
+  }
+  // what a brain's blow reaches, seen one step at a time: the foe where the test puts it, in the state it names, and the hero where the test puts him
+  {
+    const probe = (kind, set, hero) => {
+      const e = makeFoe(kind, { x: 0, z: 0, yaw: set.yaw ?? 0 });
+      Object.assign(e, set);
+      const ev = [];
+      const ctx = { hero: { x: hero.x, y: hero.y ?? 0, z: hero.z, r: 0.55, dead: false, ram: false, vx: 0, vz: 0 }, rng: () => 0.5, floorAt: () => 0, move: (m, vx, vz, d) => { m.x += vx * d; m.z += vz * d; return 1; }, emit: (type, data) => ev.push({ type, ...data }), dismiss() {}, alive: () => true };
+      stepFoe(e, 1 / 60, ctx);
+      return ev.some((x) => x.type === 'hurt');
+    };
+    const at = (deg, r) => ({ x: Math.sin((deg * Math.PI) / 180) * r, z: Math.cos((deg * Math.PI) / 180) * r });
+    const bash = (deg, r) => probe('warden', { state: 'raise', st: WARD.raise - 0.001, yaw: 0 }, at(deg, r));
+    check('Lidwarden: a bash hurts a hero within 3.2 m and 60 degrees of where it faces, and not one beyond either', bash(0, 2.5) && bash(40, 2.8) && bash(-40, 2.8) && bash(0, 3.0) && !bash(0, 3.6) && !bash(80, 2.5) && !bash(-80, 2.5) && !bash(180, 2.5) && !bash(120, 3.0),
+      `(ahead 2.5 m ${bash(0, 2.5)}, 40 degrees ${bash(40, 2.8)}, 3.6 m ${bash(0, 3.6)}, 80 degrees ${bash(80, 2.5)}, behind ${bash(180, 2.5)})`);
+    const burst = (r) => probe('mole', { state: 'crack', st: BURROW.crack - 0.001 }, at(30, r));
+    check('Dustmole: its burst hurts a hero within 2.3 m of it (1.8 m and his own 0.55) and not one beyond that', burst(0.5) && burst(1.5) && burst(2.1) && !burst(2.6) && !burst(3.5), `(1.5 m ${burst(1.5)}, 2.1 m ${burst(2.1)}, 2.6 m ${burst(2.6)})`);
+    const run = (side) => probe('hog', { state: 'rush', rushT: 0.5, v: 15, dx: 0, dz: 1, yaw: 0, hit: false }, { x: side, z: 0.4 });
+    check('Ramhog: a hog that runs hurts a hero within 1.7 m of it (its own 0.95 m, his 0.55 and a quarter metre) and not one who has stepped 2.3 m aside', run(0.4) && run(1.2) && run(1.5) && !run(2.3) && !run(3), `(0.4 m ${run(0.4)}, 1.5 m ${run(1.5)}, 2.3 m ${run(2.3)})`);
+    const dive = (x, y) => probe('moth', { state: 'dive', st: 0, aimX: 0, aimZ: 5, y: 3, hit: false }, { x, y, z: 0.3 });
+    check('Dusk Moth: a diving moth hurts a hero within 1.3 m of its middle and not one who has stepped 2 m aside', dive(0.5, 2.4) && dive(0.9, 2.8) && !dive(2.0, 2.4) && !dive(0.5, 0), `(0.5 m ${dive(0.5, 2.4)}, 2 m aside ${dive(2.0, 2.4)}, on the ground ${dive(0.5, 0)})`);
+  }
+  // a Lidwarden's shield is down for 0.9 s after a bash (and the Snuffer is open to anything: the matrix says so)
+  {
+    const lens = [];
+    for (const seed of SEEDS) {
+      let prev = null, from = null;
+      simulate({ kind: 'warden', hero: { x: 0, z: 6, yaw: Math.PI }, T: 30, seed, immortal: true, policy: (s) => {
+        const st = s.foe.state;
+        if (st === 'open' && prev !== 'open') from = s.t;
+        if (prev === 'open' && st !== 'open' && from !== null) { lens.push(s.t - from); from = null; }
+        prev = st; return still(s);
+      } });
+    }
+    check('Lidwarden: its shield stays down for 0.9 s after a bash', lens.length >= 20 && Math.min(...lens) >= 0.85, `(${lens.length} times; the least: ${lens.length ? f2(Math.min(...lens)) : 'none'} s)`);
+  }
+  // a Fusepup is slower than a run: a hero who runs from it gains on it
+  {
+    let gap0 = null, gap = null;
+    simulate({ kind: 'pup', hero: { x: 0, z: 9, yaw: Math.PI }, T: 2.4, seed: 3, immortal: true, policy: (s) => {
+      const d = dist(s.hero, s.foe), [dx, dz] = dirTo(s.foe, s.hero);
+      if (s.foe.state === 'run' && gap0 === null) gap0 = [d, s.t];
+      gap = [d, s.t];
+      return { dx, dz, mag: 1 };
+    } });
+    const grew = gap0 ? (gap[0] - gap0[0]) / (gap[1] - gap0[1]) : -Infinity;
+    check('Fusepup: a hero who runs from it gains on it (it runs at 7.2 m/s, he at 11.5: the gap grows by 3 m/s at the least)', grew > 3, `(the gap grows ${f1(grew)} m/s)`);
+  }
+  // a Dusk Moth fixes its aim 0.25 s before the dive and lands where it said (a hero who steps aside in that quarter second is not followed)
+  {
+    const bad = [];
+    let dives = 0;
+    for (const seed of SEEDS) {
+      const r = simulate({ kind: 'moth', hero: { x: 0, z: 9, yaw: Math.PI }, T: 30, seed, immortal: true,
+        policy: (s) => (s.foe.state === 'rear' && s.foe.st > 0.5 ? { dx: 1, dz: 0, mag: 1 } : still(s)) });
+      const locks = r.events.filter((e) => e.type === 'lock'), landings = r.events.filter((e) => e.type === 'land'), dv = r.events.filter((e) => e.type === 'dive');
+      dives += dv.length;
+      if (locks.length !== dv.length) bad.push(`seed ${seed}: ${locks.length} locks, ${dv.length} dives`);
+      landings.forEach((l, i) => { const k = locks[i]; if (k && hyp(l.x - k.x, l.z - k.z) > 0.6) bad.push(`seed ${seed}: dive ${i} landed ${f2(hyp(l.x - k.x, l.z - k.z))} m from its lock`); });
+    }
+    check('Dusk Moth: its aim is fixed 0.25 s before the dive and it lands where it said (a lock comes before every dive)', dives >= 6 && bad.length === 0, `(${dives} dives; ${bad.slice(0, 2).join(' | ')})`);
   }
   // a Slinger and a Smokecaller stand off: when they throw or call they are 6 to 14 m (it throws from as far as 14) and 8 to 12 m from the hero, whether he began nearer (it backs off) or further (it comes on)
   for (const [kind, what, lo, hi] of [['slinger', 'wind', 6, 14], ['caller', 'call', 8, 12]]) {
@@ -161,7 +265,7 @@ const gapOf = (r, a, b) => { const ea = r.events.find((e) => e.type === a); if (
 // ---- the play --------------------------------------------------------------------------------------------------------------------------------------
 // (the plays are tools/lib/foe-plays.mjs: the same ones tools/foe-bot.mjs plays in the running game with the real controller)
 const outcome = (r) => ({ killed: r.killedAt !== null, hurts: r.hurts, blows: r.events.filter((e) => e.type === 'struck'), boomed: r.events.some((e) => e.type === 'boom'), left: r.foes.filter((f) => f !== r.foe && f.state !== 'dead').length,
-  dismissed: r.foes.filter((f) => f.how === 'dismissed').length, said: r.events.reduce((m, e) => { if (e.by === r.foe.kind) m[e.type] = (m[e.type] || 0) + 1; return m; }, {}) });
+  dismissed: r.foes.filter((f) => f.how === 'dismissed').length, called: r.foes.filter((f) => f.minion).map((f) => !!f.wild), said: r.events.reduce((m, e) => { if (e.by === r.foe.kind) m[e.type] = (m[e.type] || 0) + 1; return m; }, {}) });
 const win = (kind, policy, extra = {}, tries = SEEDS, T = 25) => {
   const rs = tries.map((seed) => simulate({ kind, policy, T, seed, ...extra }));
   return { n: rs.length, killed: rs.filter((r) => r.killedAt !== null).length, hurts: rs.map((r) => r.hurts), worst: Math.max(...rs.map((r) => r.hurts)), time: Math.max(...rs.map((r) => r.killedAt ?? Infinity)), rs };

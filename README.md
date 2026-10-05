@@ -141,8 +141,8 @@ the whole valley is lit twice (dusk and daybreak) and the world cross-fades betw
 | IV | Sky | Floating isles | Bounce off the mesa mushroom, then glide island to island. |
 | V | Dawn | Observatory at the top of the spiral mountain | The Dawn Gate only opens once four beacons burn; until then a shimmering violet ward wall seals the whole mountain. |
 
-* **Snuffers** come in three kinds: plain ones (fire or charge), *bell* Snuffers (armoured — fire bounces off, charge them)
-  and *thorn* Snuffers (spiked — don't ram them, burn them). Every one goes down in a single hit of the attack that works on it, as in the original.
+* **Snuffers** come in twelve kinds (see **The foes**): three that fight as they always did, plain ones (fire or charge), *bell* Snuffers (armoured — fire bounces off, charge them)
+  and *thorn* Snuffers (spiked — don't ram them, burn them), and nine that ask something else of the hero. Every one goes down in a single hit of the attack that works on it, as in the original.
 * **Sparx** the dragonfly is your health bar, as in the original: he starts at full health, **gold**, and every hit that lands turns him down a colour, **gold → blue → green →
   gone**; with him gone the next hit is lights out. Bunnies you scorch or ram (and often a Snuffer you defeat) release a healing butterfly: a white 3D butterfly with a soft glow that
   flutters up and flies to Sparx, who eats it and gets one colour back (with him gone it flies to Spyro instead, and he pops back). **Every tenth bunny** (the 10th, 20th and 30th of the level's 37) leaves a

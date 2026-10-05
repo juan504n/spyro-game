@@ -56,6 +56,22 @@ try {
   check('... with a noise seed of its own', !/seed: 9001/.test(brief));
   check('... and the realm passes the checker (its to-dos waived)', /all rules hold/.test(g.stdout), (g.stdout.match(/^(FAIL|WAIVE).*/gm) || []).join(' | ').slice(0, 300));
 
+  // the rules bite: the same realm with a poorer cast is refused (a rule that nothing can fail is not a rule)
+  {
+    const lay = path.join(tmp, 'src/game/scratchvale/layout.js'), orig = fs.readFileSync(lay, 'utf8');
+    const NEW = /'(slinger|hog|mole|warden|pup|moth|caller|thief|rime)'(?=[,\]])/g;
+    const kinds = [...new Set([...orig.matchAll(NEW)].map((m) => m[1]))];
+    const refused = (keep) => {
+      fs.writeFileSync(lay, orig.replace(NEW, (m, k) => (keep.includes(k) ? m : "'basic'")));
+      const r = run(['tools/realm-check.mjs', 'scratchvale']);
+      fs.writeFileSync(lay, orig);
+      return /^FAIL enemies\.cast/m.test(r.stdout);
+    };
+    check('the checker refuses a realm whose Snuffers are of the three kinds of old (enemies.cast)', kinds.length >= 3 && refused([]), `(the realm has ${kinds.join(', ')})`);
+    check('... and one that has two of the new foes (a cast is three)', refused(kinds.slice(0, 2)));
+    check('... and takes the realm back with its cast', !refused(kinds));
+  }
+
   const again = run(['tools/new-realm.mjs', 'scratchvale', '--name', 'SCRATCH VALE']);
   check('the generator refuses an id that is taken', again.status !== 0 && /exists already|registered/.test(again.stdout));
   check('... a bad id', run(['tools/new-realm.mjs', 'Bad_Id']).status !== 0);

@@ -83,8 +83,8 @@ function layoutDanger(ctx) {
   const { gp } = ctx;
   const side = (p, k) => [p.x + p.dz * k, p.z - p.dx * k];
   // [road, how far along it (0..1), kind]
-  // (a realm has a cast: five kinds of Snuffer at least, two of them of the foes of foes/kinds.js, in the order of their danger: a realm that is its own begins by choosing which)
-  const marks = [['main', 0.7, 'basic'], ['shore', 0.25, 'basic'], ['shore', 0.7, 'slinger'],
+  // (a realm has a cast: five kinds of Snuffer at least, three of them of the foes of foes/kinds.js, in the order of their danger: a realm that is its own begins by choosing which)
+  const marks = [['main', 0.7, 'thief'], ['shore', 0.25, 'basic'], ['shore', 0.7, 'slinger'],
     ['ridge', 0.12, 'basic'], ['ridge', 0.22, 'bell'], ['ridge', 0.34, 'basic'], ['ridge', 0.46, 'thorn'], ['ridge', 0.58, 'pup'], ['ridge', 0.7, 'thorn'], ['ridge', 0.8, 'bell'], ['ridge', 0.9, 'thorn']];
   marks.forEach(([road, t, kind], i) => { const p = ctx.pathPoint(road, t), [x, z] = side(p, i % 2 ? 3.6 : -3.6); ctx.addEnemy(x, z, kind, 4); });
   for (const t of [0.2, 0.45, 0.7]) { const p = ctx.pathPoint('ridge', t), [x, z] = side(p, 4.4); ctx.addVase(x, z, [2, 5]); }

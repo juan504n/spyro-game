@@ -298,7 +298,7 @@ export function checkRealm(which, { log = () => {} } = {}) {
     for (const e of en) thirds[Math.min(2, Math.floor((e.d / max) * 3))] += e.w;
     const kinds = new Set(en.map((e) => e.v));
     const cast = [...kinds].filter((k) => NEW_KINDS.has(k));
-    rule('enemies.cast', 'a realm has a cast: at least five kinds of Snuffer, at least two of them the foes the game added to the three it began with (the Rimeling, the Slinger, the Ramhog, the Dustmole, the Lidwarden, the Fusepup, the Dusk Moth, the Smokecaller, the Pilferling)', kinds.size >= 5 && cast.length >= 2, `(${kinds.size} kinds: ${[...kinds].join(', ')})`);
+    rule('enemies.cast', 'a realm has a cast: at least five kinds of Snuffer, at least three of them the foes the game added to the three it began with (the Rimeling, the Slinger, the Ramhog, the Dustmole, the Lidwarden, the Fusepup, the Dusk Moth, the Smokecaller, the Pilferling)', kinds.size >= 5 && cast.length >= 3, `(${kinds.size} kinds: ${[...kinds].join(', ')}; ${cast.length} of the new foes: ${cast.join(', ') || 'none'})`);
     // a Ramhog is a line to step off: it stands where the hero has room on both sides of its line (most of a ring of 6 m round it is ground he can stand on)
     const hogs = gp.enemies.filter((e) => e.variant === 'hog');
     const cramped = hogs.filter((e) => {

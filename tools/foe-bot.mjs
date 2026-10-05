@@ -43,7 +43,7 @@ await page.evaluate(async () => {
   const G = window.__game, bot = window.__bot;
   bot.install();
   G.systems = G.systems.filter((s) => s !== G.boss);                            // (the Guardian sleeps: this is a floor to play on)
-  const rec = { hurts: 0, blows: [], boomed: false, killed: false, foe: null, others: [], sounds: new Set(), dismissed: 0, said: {} };
+  const rec = { hurts: 0, blows: [], boomed: false, killed: false, foe: null, others: [], sounds: new Set(), dismissed: 0, said: {}, called: [], playing: false };
   const said = [];                                                                // (what the HUD was told: the lessons)
   const hud = G.hud, hint = hud.hint.bind(hud);
   hud.hint = (text, dur) => { said.push(text); return hint(text, dur); };
@@ -58,7 +58,8 @@ await page.evaluate(async () => {
   G.on('enemy', (e) => { if (e === rec.foe) rec.killed = true; });
   const E = G.enemies, outcome = E._outcome.bind(E), on = E._on.bind(E);
   E._outcome = (e, attack, out, p) => { if (e === rec.foe) rec.blows.push({ attack, out, state: e.state, side: foes.sideOf(e, p.x, p.z, (foes.BRAINS[e.K.brain] || {}).front ?? 0.96) }); return outcome(e, attack, out, p); };
-  const ring = E._ring.bind(E), melt = E._melt.bind(E), dismiss = E.dismiss.bind(E);
+  const ring = E._ring.bind(E), melt = E._melt.bind(E), dismiss = E.dismiss.bind(E), add = E.add.bind(E);
+  E.add = (sp) => { const e = add(sp); if (rec.playing) rec.called.push(e); return e; };                 // (what comes into the world while a play is on: what a Smokecaller called)
   E._ring = (e, p, attack) => {                                                   // (the Rimeling's shell turns a ram away; a brow and a shield do the same through _outcome)
     const r = ring(e, p, attack);
     if (e === rec.foe) rec.blows.push({ attack, out: 'ring', state: e.state, side: 'front', after: { charging: p.chargeT > 0, back: p.vx * Math.sin(p.yaw) + p.vz * Math.cos(p.yaw) < 0 } });
@@ -80,7 +81,7 @@ await page.evaluate(async () => {
   const reset = () => {
     for (const e of E.list.slice()) E.dismiss(e);
     bot.tick(60);
-    rec.hurts = 0; rec.blows = []; rec.boomed = false; rec.killed = false; rec.sounds.clear(); rec.dismissed = 0; rec.said = {};
+    rec.hurts = 0; rec.blows = []; rec.boomed = false; rec.killed = false; rec.sounds.clear(); rec.dismissed = 0; rec.said = {}; rec.called = []; rec.playing = false;
     prev.jump = prev.flame = prev.charge = false; bot.ctl.mx = bot.ctl.my = 0;
     if (base === null) { base = live(); baseSet = new Set(liveList().map((x) => x[1])); }
   };
@@ -107,6 +108,7 @@ await page.evaluate(async () => {
       foe.yaw = Math.PI / 2; rec.foe = foe;
       rec.others = (pl.others || []).map((o) => E.add({ x: stage.fx + o.dx, z: stage.fz + o.dz, variant: o.kind }));
       const t0 = G.time;
+      rec.playing = true;
       let act = null, frames = 0, tail = 0, peak = 0;
       while (G.time - t0 < pl.T) {
         const snap = { t: G.time - t0, hero: { x: p.x, y: p.y, z: p.z, yaw: p.yaw, grounded: p.grounded, up: Math.max(0, p.y - G.collision.heightAt(p.x, p.z)) }, foe, foes: E.list };
@@ -118,9 +120,10 @@ await page.evaluate(async () => {
       }
       bot.ctl.mx = bot.ctl.my = 0; bot.ctl.jump = bot.ctl.flame = bot.ctl.charge = false;
       bot.tick(60);                                                               // (a second for what is going up in smoke to have gone)
+      rec.playing = false;
       for (const c of posts) G.collision.remove(c);
       const standing = (e) => e.state !== 'dead';
-      return { killed: rec.killed, hurts: rec.hurts, blows: rec.blows.slice(), boomed: rec.boomed || !!foe.exploded, t: +(G.time - t0).toFixed(1), end: foe.state, shell: foe.shell, dismissed: rec.dismissed, said: { ...rec.said }, peak: +peak.toFixed(2),
+      return { killed: rec.killed, hurts: rec.hurts, blows: rec.blows.slice(), boomed: rec.boomed || !!foe.exploded, t: +(G.time - t0).toFixed(1), end: foe.state, shell: foe.shell, dismissed: rec.dismissed, called: rec.called.map((m) => !!m.wild), said: { ...rec.said }, peak: +peak.toFixed(2),
         left: E.list.filter((e) => e !== foe && standing(e)).length, others: rec.others.filter(standing).length, sounds: [...rec.sounds] };
     },
     /** what a keg's blast takes and spares, and who the aim assist sees (the hero stands far off: nothing wakes) */
