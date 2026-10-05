@@ -202,9 +202,12 @@ const win = (kind, policy, extra = {}, tries = SEEDS, T = 25) => {
     const alley = [];
     for (let z = -13; z <= 1; z += 1.5) { alley.push({ x: -3.5, z, r: 1 }, { x: 3.5, z, r: 1 }); }
     for (let x = -3.5; x <= 3.5; x += 1.5) alley.push({ x, z: -13, r: 1 });
-    const r = simulate({ kind: 'thief', foe: { x: 0, z: -6 }, hero: { x: 0, z: 3, yaw: Math.PI }, solids: alley, T: 12, seed: 3, policy: (s) => { const [dx, dz] = dirTo(s.hero, s.foe); return { dx, dz, mag: dist(s.hero, s.foe) > 4.5 ? 1 : 0 }; } });
+    const setup = { kind: 'thief', foe: { x: 0, z: -6 }, hero: { x: 0, z: 3, yaw: Math.PI }, solids: alley, seed: 3, policy: (s) => { const [dx, dz] = dirTo(s.hero, s.foe); return { dx, dz, mag: dist(s.hero, s.foe) > 4.5 ? 1 : 0 }; } };
+    const r = simulate({ ...setup, T: 12 });
     const cow = r.events.find((e) => e.type === 'tell' && e.what === 'cower');
     check('Pilferling: driven into a blind alley it puts its hands up (a cower) at the end of it rather than run through the wall', !!cow && Math.abs(cow.x) < 3.5 && cow.z < -9 && cow.z > -13, cow ? `(at ${f1(cow.x)}, ${f1(cow.z)}, ${f1(cow.t)} s)` : '(never)');
+    const later = cow ? simulate({ ...setup, T: cow.t + 1.6 }) : null;
+    check('Pilferling: with its hands up it stays where it is for the 2 s (a hero has time to reach it)', !!later && hyp(later.foe.x - cow.x, later.foe.z - cow.z) < 0.3 && later.foe.state === 'cower', later ? `(it has moved ${f2(hyp(later.foe.x - cow.x, later.foe.z - cow.z))} m in 1.6 s, and is ${later.foe.state})` : '');
     // a wall of posts across its way, a long way from the hero: it runs along the wall (it steers round what is in its way) and does not stand at it with its hands up
     const wall = [];
     for (let x = -14; x <= 14; x += 0.8) wall.push({ x, z: -8, r: 1 });

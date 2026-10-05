@@ -31,7 +31,7 @@
 // burst of 20 gems cannot stack into a clipped spike.
 
 import { SR, softLimit } from './synth.js';
-import { assetJobs, lazyJobs, LAZY_NAMES, STINGER_NAMES } from './assets.js';
+import { assetJobs, lazyJobs, LAZY_GROUPS, LAZY_NAMES, STINGER_NAMES } from './assets.js';
 import { songBuffers, songJobsOf, songAmbience, stingerRate, hasSong, DEFAULT_SONG, SONG_IDS } from './songs.js';
 import { SFX_NAMES, LOOP_NAMES, trimOf } from './sfx.js';
 import { clearInstrumentCache } from './instruments.js';
@@ -656,7 +656,7 @@ export const audio = {
   },
 
   /**
-   * Make the sounds of a place that is not in the start-up set (assets.js LAZY_GROUPS: 'guardian'), from the loading bar of that place; onProgress(0..1) as they are made. Before init() it only notes that
+   * Make the sounds of a place that is not in the start-up set (assets.js LAZY_GROUPS: 'guardian', 'foes'), from the loading bar of that place; onProgress(0..1) as they are made. Before init() it only notes that
    * they are wanted (init() makes them once it has the rest). Idempotent; never rejects. Until they are made, sfx() of their names is a silent no-op.
    */
   load(group, onProgress) {
@@ -971,6 +971,10 @@ export const audio = {
   /** The sfx names that are made by load(), not by init(). */
   get lazyNames() {
     return [...LAZY_NAMES];
+  },
+  /** The groups load() knows ('guardian', 'foes') and the sfx names each makes. */
+  get lazyGroups() {
+    return Object.fromEntries(Object.entries(LAZY_GROUPS).map(([k, v]) => [k, [...v]]));
   },
   get stingerNames() {
     return [...STINGER_NAMES];
