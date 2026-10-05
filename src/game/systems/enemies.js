@@ -354,7 +354,7 @@ export class EnemySystem {
       case 'boom': {
         // the keg takes every Snuffer within its blast (another keg goes off with it)
         for (const o of this.list.slice()) {
-          if (o === e || o.state === 'dead' || Math.hypot(o.x - d.x, o.z - d.z) >= d.r + o.r) continue;
+          if (o === e || o.state === 'dead' || o.untargetable || Math.hypot(o.x - d.x, o.z - d.z) >= d.r + o.r) continue;           // (a mole under the ground is not in the blast)
           if (o.B && o.K.brain === 'fuse') { if (!o.exploded) { const keep = this._cur; this._cur = o; explode(o, this.ctx, false); this._cur = keep; } } else this.damage(o, 1, d.x, d.z, 'blast');
         }
         if (!d.byHero && e) this.dismiss(e);                              // (a keg that goes off by itself is gone: no gems, not beaten)

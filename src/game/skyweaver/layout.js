@@ -290,8 +290,8 @@ function layoutDanger(ctx) {
   // [road, how far along it (0..1), kind]
   const marks = [
     ['field', 0.45, 'basic'], ['field', 0.8, 'basic'],
-    ['orchard', 0.25, 'basic'], ['terrace', 0.35, 'bell'], ['orchard', 0.55, 'bell'], ['terrace', 0.7, 'thorn'], ['orchard', 0.82, 'thorn'],
-    ['loomway', 0.2, 'bell'], ['loomway', 0.5, 'thorn'], ['loomway', 0.75, 'bell'], ['loomway', 0.9, 'thorn'],
+    ['orchard', 0.25, 'basic'], ['terrace', 0.35, 'bell'], ['orchard', 0.55, 'moth'], ['terrace', 0.7, 'thorn'], ['orchard', 0.82, 'slinger'],
+    ['loomway', 0.2, 'slinger'], ['loomway', 0.5, 'moth'], ['loomway', 0.75, 'caller'], ['loomway', 0.9, 'moth'],
   ];
   // (a Snuffer stands where nothing else does: the first of the offsets from the road that is clear)
   marks.forEach(([road, t, kind], i) => {
@@ -304,7 +304,7 @@ function layoutDanger(ctx) {
   // the spires: one on each needle, standing guard (the tops are small: they patrol little)
   const at = (id, dx, dz) => [pts(id)[0][0] + dx, pts(id)[0][1] + dz];
   ctx.addEnemy(...at('spire1', 0.4, 2.4), 'basic', 2);
-  ctx.addEnemy(...at('spire2', 0.8, 1.0), 'bell', 2);
+  ctx.addEnemy(...at('spire2', 0.8, 1.0), 'slinger', 2);
   ctx.addEnemy(...at('spire4', 0.6, 1.4), 'thorn', 2);
   ctx.addEnemy(121, -92, 'bell', 3);
   ctx.gp.hints.push({ x: 28, z: 52, r: 9, text: 'ARMOURED SNUFFERS: FIRE BOUNCES OFF BELLS, SPIKES HURT WHEN RAMMED', dur: 7 });

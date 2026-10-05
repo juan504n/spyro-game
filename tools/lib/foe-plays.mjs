@@ -56,6 +56,13 @@ export const wardOpen = (s) => {
   return { dx: 0, dz: 0, mag: 0 };
 };
 
+/** the Rimeling: hold the ground and breathe on it as it comes (its shell takes about 0.9 s of fire: it has not swung by then); a hero who walks into it while he breathes is struck: that is `rush({ flame })` */
+export const holdFlame = (s) => {
+  const [dx, dz] = dirTo(s.hero, s.foe), d = dist(s.hero, s.foe);
+  if (d > 6.2) return { dx, dz, mag: 1 };
+  return { dx, dz, mag: 0.01, flame: d > 1 };
+};
+
 /** the Fusepup: flame it from afar (out of the blast) ... */
 export const pupFlame = (s) => {
   const d = dist(s.hero, s.foe), [dx, dz] = dirTo(s.hero, s.foe);
@@ -87,10 +94,12 @@ export const mothDodge = (s) => {
 
 /**
  * Each play: id, what it says, the foe, the policy, T (seconds), `at` (how far from the foe the hero begins, on the line through them), and what must come of it (`want`, judged by `judge`; `tol`: how many
- * of the runs may fail it, a policy is not a person; `seeds`: which runs):
+ * of the runs may fail it, a policy is not a person; `seeds`: which runs; `others`: Snuffers of the old kinds that stand by it, [{ kind, dx, dz }] from the foe; `sim: false`: only the running game has what it
+ * needs: the old Snuffers are not a brain's to play):
  *   clear       the foe falls and the hero is never hurt           win      the foe falls (the hero may be hurt once)         hurt   the hero is hurt at least once
  *   unhurt      the hero is never hurt                              nokill   the foe does not fall                            nofront  nothing kills it from the front (and something rang off it)
  *   quiet       never hurt and never killed                        boomed   it went off and the hero was not hurt            blast    the hero is hurt and the keg went off
+ *   ringed      it is not killed and something rang off it         chain    it fell and so did every Snuffer that stood by it
  */
 export const PLAYS = [
   { id: 'slinger-ram', say: 'Slinger: a hero who runs at it and rams it is never hit and wins', kind: 'slinger', policy: rush({ ram: 7 }), T: 25, at: 14, want: 'clear' },
@@ -115,13 +124,18 @@ export const PLAYS = [
   { id: 'moth-ground', say: 'Dusk Moth: fire breathed from the ground does not reach it while it hangs (nothing is killed in the 2.4 s before its first dive)', kind: 'moth', policy: mothGround, T: 2.4, at: 9, want: 'nokill' },
   { id: 'moth-dodge', say: 'Dusk Moth: a hero who steps away from where its shadow falls is not hurt by its dives', kind: 'moth', policy: mothDodge, T: 14, at: 9, want: 'unhurt' },
   { id: 'caller-rush', say: 'Smokecaller: a hero who rushes it wins (it is slower than a run), hurt at most twice by what it called', kind: 'caller', policy: rush({ ram: 6 }), T: 30, at: 12, want: 'win2' },
+  { id: 'pup-chain', say: 'Fusepup: the keg takes the Snuffers that stand by it (a Snuffer 2 m from it falls with it)', kind: 'pup', policy: pupFlame, T: 14, at: 13, others: [{ kind: 'basic', dx: 1.8, dz: 1.2 }], want: 'chain', sim: false },
+  { id: 'rime-flame', say: 'Rimeling: a hero who holds his ground and breathes on it (its shell takes more than one breath to melt) wins before it has swung, and is not hurt', kind: 'rime', policy: holdFlame, T: 15, at: 12, want: 'clear', sim: false },
+  { id: 'rime-rush', say: 'Rimeling: a hero who runs into it breathing is struck (its shell keeps it on its feet for the 0.9 s of fire it takes, and it swings in 0.66 s)', kind: 'rime', policy: rush({ flame: 5 }), T: 15, at: 12, want: 'hurt', sim: false },
+  { id: 'rime-ram', say: 'Rimeling: a hero who rams it only slides it on its ice: it is never killed and its shell holds', kind: 'rime', policy: headOn, T: 10, at: 12, want: 'ringed', sim: false },
   { id: 'thief-flame', say: 'Pilferling: a hero who runs it down and flames it from 6 m catches it, and it never hurts him', kind: 'thief', policy: rush({ flame: 6 }), T: 25, at: 10, want: 'clear' },
   { id: 'thief-ram', say: 'Pilferling: a hero who rams after it catches it in the end (it sidesteps a ram that comes straight at it), and it never hurts him', kind: 'thief', policy: rush({ ram: 9 }), T: 30, at: 10, want: 'clear', tol: 1 },
   { id: 'thief-still', say: 'Pilferling: it does not fight: a hero who stands still is never touched', kind: 'thief', policy: still, T: 12, at: 14, want: 'quiet' },
 ];
 
 /**
- * Judge a play's outcome: { killed (the foe fell), hurts (times the hero was hurt), blows ([{ attack, out, side, state }]: what the hero's attacks did to it), boomed } -> null if it is what the play wants, else why not.
+ * Judge a play's outcome: { killed (the foe fell), hurts (times the hero was hurt), blows ([{ attack, out, side, state }]: what the hero's attacks did to it), boomed, left (foes still standing but it, at
+ * the end), others (the `others` still standing) } -> null if it is what the play wants, else why not.
  */
 export function judge(want, r) {
   const frontKills = r.blows.filter((b) => b.out === 'kill' && b.side === 'front' && b.state !== 'stunned' && b.state !== 'open');
@@ -130,12 +144,14 @@ export function judge(want, r) {
     case 'clear': return r.killed && r.hurts === 0 ? null : `killed ${r.killed}, hurts ${r.hurts}`;
     case 'win': return r.killed && r.hurts <= 1 ? null : `killed ${r.killed}, hurts ${r.hurts}`;
     case 'win1': return r.killed ? null : `killed ${r.killed}, hurts ${r.hurts}`;
-    case 'win2': return r.killed && r.hurts <= 2 ? null : `killed ${r.killed}, hurts ${r.hurts}`;
+    case 'win2': return r.killed && r.hurts <= 2 && !r.left ? null : `killed ${r.killed}, hurts ${r.hurts}, ${r.left} left standing`;      // (what it called goes up in smoke with it)
     case 'hurt': return r.hurts >= 1 ? null : 'never hurt';
     case 'unhurt': return r.hurts === 0 ? null : `hurts ${r.hurts}`;
     case 'nokill': return !r.killed ? null : 'it was killed';
     case 'quiet': return !r.killed && r.hurts === 0 ? null : `killed ${r.killed}, hurts ${r.hurts}`;
     case 'nofront': return frontKills.length === 0 && rang ? null : `${frontKills.length} kills from the front, rang off: ${rang}`;
+    case 'ringed': return !r.killed && rang ? null : `killed ${r.killed}, rang off: ${rang}`;
+    case 'chain': return r.killed && r.others === 0 ? null : `killed ${r.killed}, ${r.others} of the Snuffers by it left standing`;
     case 'boomed': return r.boomed && r.hurts === 0 ? null : `boomed ${r.boomed}, hurts ${r.hurts}`;
     case 'blast': return r.boomed && r.hurts >= 1 ? null : `boomed ${r.boomed}, hurts ${r.hurts}`;
     default: return 'unknown want ' + want;

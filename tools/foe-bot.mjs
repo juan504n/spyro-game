@@ -38,12 +38,15 @@ await page.evaluate(async () => {
   const G = window.__game, bot = window.__bot;
   bot.install();
   G.systems = G.systems.filter((s) => s !== G.boss);                            // (the Guardian sleeps: this is a floor to play on)
-  const rec = { hurts: 0, blows: [], boomed: false, killed: false, foe: null };
+  const rec = { hurts: 0, blows: [], boomed: false, killed: false, foe: null, others: [] };
   const hurt = G.playerHurt.bind(G);
   G.playerHurt = (x, z) => { const ok = hurt(x, z); if (ok) { rec.hurts++; G.sparx.hp = 3; G.player.dead = false; } return ok; };       // (he is hurt, and he does not die: a play counts the hurts)
   G.on('enemy', (e) => { if (e === rec.foe) rec.killed = true; });
   const E = G.enemies, outcome = E._outcome.bind(E), on = E._on.bind(E);
   E._outcome = (e, attack, out, p) => { if (e === rec.foe) rec.blows.push({ attack, out, state: e.state, side: foes.sideOf(e, p.x, p.z, (foes.BRAINS[e.K.brain] || {}).front ?? 0.96) }); return outcome(e, attack, out, p); };
+  const ring = E._ring.bind(E), melt = E._melt.bind(E);
+  E._ring = (e, p, attack) => { if (e === rec.foe) rec.blows.push({ attack, out: 'ring', state: e.state, side: 'front' }); return ring(e, p, attack); };       // (the Rimeling's shell turns a ram away)
+  E._melt = (e) => { if (e === rec.foe) rec.blows.push({ attack: 'flame', out: 'melt', state: e.state, side: 'front' }); return melt(e); };
   E._on = (type, d) => { if (type === 'boom' && d && d.by === rec.foe) rec.boomed = true; return on(type, d); };
   const prev = { jump: false, flame: false, charge: false };
   const apply = (a) => {
@@ -72,6 +75,7 @@ await page.evaluate(async () => {
       p.invulnT = 0;
       const foe = E.add({ x: stage.fx, z: stage.fz, variant: pl.kind });
       foe.yaw = Math.PI / 2; rec.foe = foe;
+      rec.others = (pl.others || []).map((o) => E.add({ x: stage.fx + o.dx, z: stage.fz + o.dz, variant: o.kind }));
       const t0 = G.time;
       let act = null, frames = 0, tail = 0;
       while (G.time - t0 < pl.T) {
@@ -82,7 +86,10 @@ await page.evaluate(async () => {
         if (rec.killed || foe.state === 'dead') { if (++tail > 30) break; }
       }
       bot.ctl.mx = bot.ctl.my = 0; bot.ctl.jump = bot.ctl.flame = bot.ctl.charge = false;
-      return { killed: rec.killed || foe.state === 'dead' && !foe.poofedAway, hurts: rec.hurts, blows: rec.blows.slice(), boomed: rec.boomed || !!foe.exploded, t: +(G.time - t0).toFixed(1), end: foe.state };
+      bot.tick(60);                                                               // (a second for what is going up in smoke to have gone)
+      const standing = (e) => e.state !== 'dead';
+      return { killed: rec.killed || foe.state === 'dead', hurts: rec.hurts, blows: rec.blows.slice(), boomed: rec.boomed || !!foe.exploded, t: +(G.time - t0).toFixed(1), end: foe.state,
+        left: E.list.filter((e) => e !== foe && standing(e)).length, others: rec.others.filter(standing).length };
     },
   };
 });

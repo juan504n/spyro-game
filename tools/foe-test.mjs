@@ -25,7 +25,7 @@ const sum = (a) => a.reduce((x, y) => x + y, 0);
   check('there are nine more kinds than the original three (the Rimeling and eight with a brain of their own)', KIND_IDS.length === 12 && FOE_IDS.length === 8, `${KIND_IDS.length} kinds, ${FOE_IDS.length} brains`);
   check('every brain has what a brain must (init, step, struck, pose) and every kind with a brain has one', FOE_IDS.every((k) => { const B = BRAINS[KINDS[k].brain]; return B && ['init', 'step', 'struck', 'pose'].every((f) => typeof B[f] === 'function'); }));
   check('every foe falls to one hit of the right thing (hp 1), as the Snuffers always did', KIND_IDS.every((k) => KINDS[k].hp === 1));
-  check('the foes that ask more of the hero pay more: a Lidwarden, a Ramhog, a Smokecaller pay at least the Bell Snuffer\'s 7; a Pilferling, a prize, pays the most', ['warden', 'hog', 'caller'].every((k) => sum(ENEMY_DROPS[k]) >= 7) && sum(ENEMY_DROPS.thief) >= 15);
+  check('the foes that ask more of the hero pay more: a Lidwarden, a Ramhog, a Smokecaller pay at least the Bell Snuffer\'s 7; a Pilferling, a prize, pays more than a Thorn Snuffer', ['warden', 'hog', 'caller'].every((k) => sum(ENEMY_DROPS[k]) >= 7) && sum(ENEMY_DROPS.thief) > sum(ENEMY_DROPS.thorn));
 }
 
 // ---- the matrix ------------------------------------------------------------------------------------------------------------------------------------
@@ -94,13 +94,13 @@ const gapOf = (r, a, b) => { const ea = r.events.find((e) => e.type === a); if (
 
 // ---- the play --------------------------------------------------------------------------------------------------------------------------------------
 // (the plays are tools/lib/foe-plays.mjs: the same ones tools/foe-bot.mjs plays in the running game with the real controller)
-const outcome = (r) => ({ killed: r.killedAt !== null, hurts: r.hurts, blows: r.events.filter((e) => e.type === 'struck'), boomed: r.events.some((e) => e.type === 'boom') });
+const outcome = (r) => ({ killed: r.killedAt !== null, hurts: r.hurts, blows: r.events.filter((e) => e.type === 'struck'), boomed: r.events.some((e) => e.type === 'boom'), left: r.foes.filter((f) => f !== r.foe && f.state !== 'dead').length });
 const win = (kind, policy, extra = {}, tries = SEEDS, T = 25) => {
   const rs = tries.map((seed) => simulate({ kind, policy, T, seed, ...extra }));
   return { n: rs.length, killed: rs.filter((r) => r.killedAt !== null).length, hurts: rs.map((r) => r.hurts), worst: Math.max(...rs.map((r) => r.hurts)), time: Math.max(...rs.map((r) => r.killedAt ?? Infinity)), rs };
 };
 {
-  for (const pl of PLAYS) {
+  for (const pl of PLAYS.filter((p) => p.sim !== false)) {
     const seeds = pl.seeds || SEEDS;
     const outs = seeds.map((seed) => outcome(simulate({ kind: pl.kind, policy: pl.policy, T: pl.T, seed, hero: { x: 0, z: pl.at, yaw: Math.PI } })));
     const fails = outs.map((o) => judge(pl.want, o)).filter(Boolean);

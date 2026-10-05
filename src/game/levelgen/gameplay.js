@@ -1,6 +1,7 @@
 // Gameplay placement helpers (enemies, vases, chests, gems…) and the final gem-budget pass.
 import { WATER_LEVEL } from '../level.js';
 import { ENEMY_DROPS as DROPS } from '../economy.js';
+import { Collision } from '../collision.js';
 
 const sum = (a) => a.reduce((s, v) => s + v, 0);
 
@@ -92,6 +93,7 @@ export function finalizeGems(ctx) {
   const target = Math.max(400, Math.ceil(fixed / 50) * 50);
   let need = target - fixed;
   const roads = ctx.grid.paths;
+  const col = new Collision(ctx.grid, ctx.kit.colliders, ctx.world.massifs || []);          // (a scattered gem is never put inside a solid thing: it could not be picked up)
   let guard = 0;
   while (need > 0 && guard++ < 2000) {
     const p = roads[rng.int(0, roads.length)];
@@ -99,7 +101,9 @@ export function finalizeGems(ctx) {
     const x = q[0] + rng.float(-4, 4), z = q[2] + rng.float(-4, 4);
     if (h(x, z) < WATER_LEVEL + 0.6) continue;
     const v = need >= 2 && rng.chance(0.3) ? 2 : 1;
-    gp.gems.push({ x, y: h(x, z) + 0.95, z, value: v });
+    const g = { x, y: h(x, z) + 0.95, z, value: v };
+    if (col.blocking(g.x, g.y, g.z, 0.1)) continue;
+    gp.gems.push(g);
     need -= v;
   }
   gp.gemsTotal = sum(gp.gems.map((g) => g.value)) + dyn;

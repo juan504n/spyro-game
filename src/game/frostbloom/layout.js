@@ -220,13 +220,13 @@ function layoutDanger(ctx) {
   // [road, how far along it (0..1), kind]
   const marks = [
     ['trunk', 0.78, 'basic'], ['ring', 0.08, 'basic'],
-    ['ring', 0.22, 'basic'], ['rimeroad', 0.55, 'basic'], ['ring', 0.4, 'bell'], ['iceroad', 0.35, 'basic'], ['iceroad', 0.72, 'bell'],
-    ['ring', 0.62, 'basic'], ['ring', 0.8, 'bell'],
-    ['ridge', 0.1, 'basic'], ['ridge', 0.22, 'thorn'], ['ridge', 0.34, 'bell'], ['ridge', 0.48, 'thorn'], ['ridge', 0.6, 'bell'], ['ridge', 0.72, 'thorn'], ['ridge', 0.86, 'bell'],
+    ['ring', 0.22, 'mole'], ['rimeroad', 0.55, 'rime'], ['ring', 0.4, 'bell'], ['iceroad', 0.35, 'rime'], ['iceroad', 0.72, 'bell'],
+    ['ring', 0.62, 'rime'], ['ring', 0.8, 'mole'],
+    ['ridge', 0.1, 'basic'], ['ridge', 0.22, 'thorn'], ['ridge', 0.34, 'rime'], ['ridge', 0.48, 'thorn'], ['ridge', 0.6, 'warden'], ['ridge', 0.72, 'thorn'], ['ridge', 0.86, 'rime'],
   ];
   marks.forEach(([road, t, kind], i) => { const p = ctx.pathPoint(road, t), [x, z] = side(p, i % 2 ? 3.6 : -3.6); ctx.addEnemy(x, z, kind, 4); });
   // the Hollow's guardians: a ring round the Heartbloom (the crater situation wants at least two within 30 m)
-  for (let k = 0; k < 5; k++) { const a = (k / 5) * TAU + 0.6; ctx.addEnemy(HOLLOW.x + Math.cos(a) * 15, HOLLOW.z + Math.sin(a) * 15, k % 2 ? 'bell' : 'thorn', 3); }
+  for (let k = 0; k < 5; k++) { const a = (k / 5) * TAU + 0.6; ctx.addEnemy(HOLLOW.x + Math.cos(a) * 15, HOLLOW.z + Math.sin(a) * 15, ['thorn', 'rime', 'warden', 'rime', 'thorn'][k], 3); }
   ctx.gp.hints.push({ x: 16, z: 110, r: 10, text: 'ARMOURED SNUFFERS: FIRE BOUNCES OFF BELLS, SPIKES HURT WHEN RAMMED', dur: 7 });
 }
 

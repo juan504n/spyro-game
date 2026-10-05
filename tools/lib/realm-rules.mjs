@@ -18,11 +18,14 @@ import { terrainPicker } from '../../src/game/terrain-mesh.js';
 import { ROAD_MAX_SLOPE } from '../../src/game/roads.js';
 import { SITUATIONS } from '../../src/game/realm/situations.js';
 import { RULES } from '../../src/game/realm/brief.js';
+import { DANGER as KIND_DANGER, KIND_IDS } from '../../src/game/foes/kinds.js';
 
 const f1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : String(v));
 const f0 = (v) => (Number.isFinite(v) ? String(Math.round(v)) : String(v));
-/** how much a Snuffer of each kind weighs when the danger of a stretch of the journey is added up */
-export const DANGER = { basic: 1, bell: 2, thorn: 2 };
+/** how much a Snuffer of each kind weighs when the danger of a stretch of the journey is added up (foes/kinds.js) */
+export const DANGER = KIND_DANGER;
+/** the kinds the game has added to the three Snuffers it began with (the foes of round twenty-eight) */
+const NEW_KINDS = new Set(KIND_IDS.filter((k) => !['basic', 'bell', 'thorn'].includes(k)));
 /** props that may stand on a road (at its sides, the doors, the signposts: what is meant to be there) */
 const OK_ON_ROAD = new Set(['arch_gate', 'bridge_stone', 'bridge', 'lamp_post', 'realm_door', 'bunting', 'torch_stand', 'banner_pole', 'fence', 'wall_stone', 'flower_patch', 'tuft_patch', 'fern_patch', 'reeds', 'lilypads', 'stepping_stone', 'pier', 'crystal_cluster', 'crystal_spire', 'light_shaft', 'standing_stones', 'rock_arch', 'bench', 'gate_pillars', 'signpost', 'snow_drift', 'ice_floe', 'ice_fall']);
 
@@ -290,10 +293,21 @@ export function checkRealm(which, { log = () => {} } = {}) {
 
   // danger grows with the journey (the first third of the walk is quiet, the last is not)
   if (isRealm) {
-    const en = gp.enemies.map((e) => ({ d: near(walk, e.x, e.z, 3, e.y ?? h(e.x, e.z)), w: DANGER[e.variant] || 1, v: e.variant })).filter((e) => Number.isFinite(e.d));
+    const en = gp.enemies.map((e) => ({ d: near(walk, e.x, e.z, 3, e.y ?? h(e.x, e.z)), w: DANGER[e.variant] ?? 1, v: e.variant })).filter((e) => Number.isFinite(e.d));
     const max = Math.max(1, ...walks.filter(Number.isFinite), ...en.map((e) => e.d)), thirds = [0, 0, 0];
     for (const e of en) thirds[Math.min(2, Math.floor((e.d / max) * 3))] += e.w;
     const kinds = new Set(en.map((e) => e.v));
+    const cast = [...kinds].filter((k) => NEW_KINDS.has(k));
+    rule('enemies.cast', 'a realm has a cast: at least five kinds of Snuffer, at least two of them the foes the game added to the three it began with (the Rimeling, the Slinger, the Ramhog, the Dustmole, the Lidwarden, the Fusepup, the Dusk Moth, the Smokecaller, the Pilferling)', kinds.size >= 5 && cast.length >= 2, `(${kinds.size} kinds: ${[...kinds].join(', ')})`);
+    // a Ramhog is a line to step off: it stands where the hero has room on both sides of its line (most of a ring of 6 m round it is ground he can stand on)
+    const hogs = gp.enemies.filter((e) => e.variant === 'hog');
+    const cramped = hogs.filter((e) => {
+      const y0 = e.y ?? h(e.x, e.z);
+      let ok = 0;
+      for (let a = 0; a < 16; a++) { const x = e.x + Math.cos((a / 16) * Math.PI * 2) * 6, z = e.z + Math.sin((a / 16) * Math.PI * 2) * 6; if (near(walk, x, z, 1.2, h(x, z)) < Infinity && Math.abs(h(x, z) - y0) < 1.5) ok++; }
+      return ok < 11;
+    });
+    rule('enemies.room', 'a Ramhog stands where the hero has room to step off its line (11 of 16 points of a ring of 6 m round it are ground he can stand on, within 1.5 m of its height)', cramped.length === 0, cramped.length ? `(cramped: ${cramped.map((e) => `${f1(e.x)},${f1(e.z)}`).join(' ')})` : `(${hogs.length} Ramhogs)`);
     rule('design.danger', 'danger grows with the journey: the first third of the walk is the quietest, the busiest holds at least twice its danger, and more than one kind of Snuffer appears', en.length >= 8 && thirds[0] <= Math.min(thirds[1], thirds[2]) && Math.max(...thirds) >= thirds[0] * 2 && kinds.size >= 2, `(danger by thirds of the way: ${thirds.join(' / ')}; ${en.length} Snuffers, kinds ${[...kinds].join(', ')})`);
   }
 

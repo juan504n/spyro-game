@@ -173,7 +173,7 @@ export function layoutRuins(ctx) {
   put('crystal_cluster', R.x + 3, R.z + 2, { color: 'violet', count: 6 }, 2.5);
   for (let i = 0; i < 6; i++) put('tree_birch', R.x + rng.float(-22, 22), R.z + rng.float(-6, 22), { rot: rng.float(0, TAU) }, 3);
   ctx.addChest(R.x - 1, R.z + 9, 0.3, [10, 5]);
-  ctx.addEnemy(R.x - 8, R.z + 12, 'basic', 5); ctx.addEnemy(R.x + 9, R.z + 10, 'basic', 5);
+  ctx.addEnemy(R.x - 8, R.z + 12, 'basic', 5); ctx.addEnemy(R.x + 9, R.z + 10, 'thief', 7);          // (a Pilferling in the ruins: the first thing that runs from him)
   ctx.addVase(R.x - 5, R.z - 4, [1, 2]); ctx.addVase(R.x + 6, R.z - 5, [1, 2]);
   ctx.addBunnies(R.x - 14, R.z + 18, 4, 6);
   // the ram-me-open secret: a cracked wall sealing a garden nook behind the arch
@@ -211,7 +211,7 @@ export function layoutWindmill(ctx) {
   });
   // guards
   const g1 = ctx.pathPoint('mill', 0.18), g2 = ctx.pathPoint('mill', 0.45), g3 = ctx.pathPoint('mill', 0.7), g4 = ctx.pathPoint('mill', 0.9);
-  ctx.addEnemy(g1.x, g1.z, 'basic', 4); ctx.addEnemy(g2.x + 4, g2.z, 'basic', 4); ctx.addEnemy(g3.x, g3.z, 'bell', 4); ctx.addEnemy(g4.x, g4.z, 'thorn', 3);
+  ctx.addEnemy(g1.x, g1.z, 'basic', 4); ctx.addEnemy(g2.x + 4, g2.z, 'slinger', 4); ctx.addEnemy(g3.x, g3.z, 'bell', 4); ctx.addEnemy(g4.x, g4.z, 'thorn', 3);
   ctx.addEnemy(W.x - 12, W.z + 16, 'bell', 5);
   // dressing
   for (let i = 0; i < 9; i++) { const a = (i / 9) * TAU, d = W.r * 0.85; put('tree_pine', W.x + Math.cos(a) * d + ctx.rng.float(-4, 4), W.z + Math.sin(a) * d + ctx.rng.float(-4, 4), { size: ctx.rng.pick(['m', 'l']) }, 3.5); }
@@ -321,7 +321,7 @@ export function layoutNorth(ctx) {
     put('lamp_post', x, z, { rot: 0 }, 1);
     side = -side;
   }
-  const marks = [[0.12, 'basic'], [0.24, 'basic'], [0.36, 'bell'], [0.47, 'thorn'], [0.58, 'basic'], [0.68, 'bell'], [0.78, 'thorn'], [0.9, 'bell']];
+  const marks = [[0.12, 'basic'], [0.24, 'basic'], [0.36, 'bell'], [0.47, 'thorn'], [0.58, 'pup'], [0.68, 'bell'], [0.78, 'thorn'], [0.9, 'bell']];
   for (const [t, v] of marks) { const p = ctx.pathPoint('summit', t); ctx.addEnemy(p.x, p.z, v, 4); }
   for (const t of [0.2, 0.42, 0.65, 0.86]) { const p = ctx.pathPoint('summit', t); ctx.addVase(p.x + p.dz * 3.4, p.z - p.dx * 3.4, [2, 5]); }
   const cp = ctx.pathPoint('summit', 0.5);
