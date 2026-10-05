@@ -45,7 +45,7 @@ export function ringCourse({ x, z, y, yaw, h = () => 0, edge = 6, n = RINGS.n, l
 
 export const rings = {
   init(t) {
-    t.phase = 'ready'; t.passed = 0; t.last = -1; t.got = t.rings.map(() => 0); t.flying = false; t.prev = null; t.settle = 0; t.cool = 0; t.state = 'idle'; t.runs = 0; t.fly = 0;
+    t.passed = 0; t.last = -1; t.got = t.rings.map(() => 0); t.flying = false; t.prev = null; t.settle = 0; t.cool = 0; t.state = 'idle'; t.runs = 0;
     t.r ??= RINGS.r; t.want ??= Math.min(RINGS.want, t.rings.length);
   },
 
@@ -59,7 +59,6 @@ export const rings = {
     // a hero set back (the lava, a fall) or carried is not where he was a step ago: the run he was on is over, and no ring was passed on the way
     if (t.prev && hyp(cur.x - t.prev.x, cur.z - t.prev.z) + Math.abs(cur.y - t.prev.y) > 8) { if (t.flying) end(t, ctx, 'lost'); t.prev = null; }
     if (p.dead) { if (t.flying) end(t, ctx, 'died'); t.prev = null; return; }
-    if (t.flying) t.fly += dt;
     if (t.prev && !p.grounded) {
       for (let i = t.last + 1; i < t.rings.length; i++) {
         const c = t.rings[i];
@@ -69,7 +68,7 @@ export const rings = {
         if (Math.hypot(qx - c.x, qy - c.y, qz - c.z) > t.r) continue;                    // (through the plane, outside the hoop)
         for (let j = t.last + 1; j < i; j++) t.got[j] = -1;                              // (the rings before it that were not flown through are missed: -1; one that was is 1; one that is still to come, 0)
         t.got[i] = 1; t.last = i; t.passed++;
-        if (!t.flying) { t.flying = true; t.fly = 0; t.runs++; ctx.emit('start', { by: t }); }
+        if (!t.flying) { t.flying = true; t.runs++; ctx.emit('start', { by: t }); }
         ctx.emit('ring', { by: t, i, n: t.passed });
         if (t.passed >= t.want) { t.flying = false; t.state = 'solved'; ctx.emit('solved', { by: t }); return; }
         break;                                                                           // (one ring a step)
@@ -96,7 +95,7 @@ export const rings = {
   targets() { return []; },
 };
 
-function reset(t) { t.passed = 0; t.last = -1; t.got.fill(0); t.flying = false; t.fly = 0; t.prev = null; t.settle = 0; }
+function reset(t) { t.passed = 0; t.last = -1; t.got.fill(0); t.flying = false; t.prev = null; t.settle = 0; }
 
 /** the run is over without enough rings: the hoops go dark and he begins again (`why`: he landed, the lava or a fall set him back, he died) */
 function end(t, ctx, why) {
