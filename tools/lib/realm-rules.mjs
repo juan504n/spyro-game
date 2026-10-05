@@ -47,6 +47,13 @@ const LEGACY = {
   ],
 };
 
+/** the asks of a realm in the order of its goals (a kind of trial, or null for a plain lantern): are they varied? The first lantern is plain, at least three kinds stand in front of the others (fewer in a realm of fewer goals), none twice running */
+export function trialMix(order) {
+  const kinds = new Set(order.filter(Boolean)), want = Math.min(3, order.length - 1);
+  const twice = order.filter((k, i) => k && k === order[i - 1]);
+  return { ok: order[0] === null && kinds.size >= want && twice.length === 0, kinds: kinds.size, want, twice };
+}
+
 export function checkRealm(which, { log = () => {} } = {}) {
   const results = [];
   const W = buildHeadless(which);
@@ -317,9 +324,8 @@ export function checkRealm(which, { log = () => {} } = {}) {
   if (isRealm) {
     const T = gp.trials || [];
     const order = goals.map((g) => { const t = T.find((q) => q.goal === g.id); return t ? t.kind : null; });
-    const kinds = new Set(order.filter(Boolean)), want = Math.min(3, goals.length - 1);
-    const twice = order.filter((k, i) => k && k === order[i - 1]);
-    rule('trials.mix', 'the asks vary: the first lantern is the plain one (it teaches the lantern), at least three different kinds of trial stand in front of the others (fewer in a realm of fewer goals) and no kind stands twice running', order[0] === null && kinds.size >= want && twice.length === 0, `(${order.map((k) => k || 'plain').join(' > ')}: ${kinds.size} kinds, ${want} wanted)`);
+    const mix = trialMix(order);
+    rule('trials.mix', 'the asks vary: the first lantern is the plain one (it teaches the lantern), at least three different kinds of trial stand in front of the others (fewer in a realm of fewer goals) and no kind stands twice running', mix.ok, `(${order.map((k) => k || 'plain').join(' > ')}: ${mix.kinds} kinds, ${mix.want} wanted)`);
     // each trial stands on level, dry, clear ground that the hero can walk to, near enough to its lantern to be found
     const problems = [];
     const ringPts = (cx, cz, r) => { const out = [[cx, cz]]; for (const k of [0.4, 0.75, 1]) for (let a = 0; a < 12; a++) out.push([cx + Math.cos((a / 12) * Math.PI * 2) * r * k, cz + Math.sin((a / 12) * Math.PI * 2) * r * k]); return out; };

@@ -2,7 +2,7 @@
 // the floor of the Guardian's Court (flat round floor, the Guardian himself taken out of the world), with the trial put into the world by the TrialSystem a few metres from the hero, his stick, jump,
 // flame and ram going through the game's own input (tools/bot-inject.js), and the world stepped by the game's own update. What is read back is what happened in the game: whether the seal was broken,
 // how often it began again, what the machine said (the real events), what the HUD showed, which sounds were asked for.
-//   node tools/trial-bot.mjs [play-id-or-kind ...] [--runs 2] [--list] [--sounds]        (needs the dev server on :5173, GV_URL=http://127.0.0.1:PORT/ tests another)
+//   node tools/trial-bot.mjs [play-id-or-kind ...] [--runs 2] [--list] [--sounds] [--quick]        (needs the dev server on :5173, GV_URL=http://127.0.0.1:PORT/ tests another)
 // A play that does not do what it wants is played once more (a policy is not a person); it fails only if both runs fail.
 // Besides the plays it holds what the game does with a trial: the lantern of a trial is SEALED (a breath on it lights nothing and the HUD says why), the last step breaks the seal and the lantern is
 // lit a moment later (stats, banner), the trial's own foes pay nothing, each kind's lesson is said once, the aim assist swings to the bells and the wisps and not to the sealed lantern, a saved realm
@@ -19,7 +19,8 @@ const BASE = process.env.GV_URL || 'http://127.0.0.1:5173/';
 const args = process.argv.slice(2).filter((a) => !a.startsWith('--') && isNaN(+a));
 const flag = (k) => process.argv.includes(`--${k}`);
 const RUNS = +(process.argv[process.argv.indexOf('--runs') + 1]) || 2;
-const picked = PLAYS.filter((p) => !args.length || args.some((a) => p.id === a || p.kind === a || p.id.startsWith(a)));
+const quick = flag('quick');                                                      // (one play of each kind, the first - the right one - and every check of the system: a minute, not four)
+const picked = PLAYS.filter((p) => !args.length || args.some((a) => p.id === a || p.kind === a || p.id.startsWith(a))).filter((p, i, all) => !quick || all.findIndex((q) => q.kind === p.kind) === i);
 if (flag('list')) { for (const p of PLAYS) console.log(p.id.padEnd(16), p.kind.padEnd(8), p.want.padEnd(8), p.say); process.exit(0); }
 
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
@@ -58,6 +59,7 @@ await page.evaluate(async () => {
     for (const r of S.list.slice()) S.remove(r);
     for (const e of G.enemies.list.slice()) G.enemies.dismiss(e);
     bot.tick(60);
+    G.beacons.lit = 0; G.stats.beacons = 0; G.stats.trials = 0; G.day = G.dayTarget = 0;                   // (the Court has no lanterns of its own: what a check lit is forgotten, in the system's count and in the stats)
     rec.events = []; rec.hurts = 0; rec.sounds.clear(); rec.r = null;
     prev.jump = prev.flame = prev.charge = false; bot.ctl.mx = bot.ctl.my = 0;
     if (base === null) { base = liveList().length; baseSet = new Set(liveList().map((x) => x[1])); }
@@ -155,6 +157,52 @@ await page.evaluate(async () => {
       G.stats.beacons = lit0; G.stats.trials = trials0; G.day = G.dayTarget = 0;
       return out;
     },
+    /** a lantern far from its trial (more than 26 m): the seal breaks and the lantern waits for his fire - it is not lit, it is ready, the HUD says so - and a breath lights it */
+    far() {
+      reset();
+      const [ox, oz] = at('plates'), p = G.player;
+      const b = lantern('botlantern4', ox + 42, oz);                  // (42 m from the plates, still on the Court's floor)
+      const lit0 = G.stats.beacons, trials0 = G.stats.trials;
+      const r = S.add({ ...plays.shift(plays.SPECS.plates, ox, oz), id: 'bot-far', goal: 'botlantern4', seed: 3 });
+      place(ox, oz + 0.5, 0);
+      const policy = plays.PLAYS.find((q) => q.id === 'plates-right').policy(), said0 = rec.said.length, t0 = G.time;
+      let solvedAt = null;
+      while (G.time - t0 < 60) {
+        apply(policy({ t: G.time - t0, hero: p, trial: r.t, foes: r.foes, events: rec.events }));
+        bot.tick(1);
+        if (r.done && solvedAt === null) solvedAt = G.time - t0;
+        if (solvedAt !== null && G.time - t0 - solvedAt > 3) break;
+      }
+      stop(); bot.tick(30);
+      const freed = { solved: r.done, lit: b.litFlag, ready: b.ready === true, sealed: b.sealed, said: rec.said.slice(said0).some((t) => /SEAL IS BROKEN/.test(t)), beacons: G.stats.beacons - lit0, trials: G.stats.trials - trials0 };
+      place(b.x - 4.5, b.z, Math.PI / 2);
+      for (let i = 0; i < 300 && !b.litFlag; i++) { apply({ dx: 1, dz: 0, mag: 0, flame: true }); bot.tick(1); }
+      stop(); bot.tick(10);
+      const out = { ...freed, litByFire: b.litFlag, beaconsAfter: G.stats.beacons - lit0 };
+      S.remove(r);
+      clearLanterns();
+      G.stats.beacons = lit0; G.stats.trials = trials0; G.day = G.dayTarget = 0;
+      return out;
+    },
+    /** a sealed lantern lit by some other means: the trial has nothing left to ask, and it ends in silence (no seal breaking, no gems) */
+    other() {
+      reset();
+      const [ox, oz] = at('plates');
+      const b = lantern('botlantern5', ox + 12, oz), lit0 = G.stats.beacons;
+      const gems0 = G.gems.items.filter((g) => g.dynamic && g.alive).length;
+      const r = S.add({ ...plays.shift(plays.SPECS.plates, ox, oz), id: 'bot-other', goal: 'botlantern5', seed: 3, gems: [5, 5] });
+      place(ox, oz + 0.5, 0);
+      bot.tick(10);
+      const before = { sealed: b.sealed, done: r.done };
+      rec.sounds.clear();
+      G.beacons.ignite(b);
+      bot.tick(90);
+      const out = { before, after: { sealed: b.sealed, done: r.done, state: r.t.state }, trialBreak: rec.sounds.has('trial_break'), gems: G.gems.items.filter((g) => g.dynamic && g.alive).length - gems0, lit: b.litFlag, beacons: G.stats.beacons - lit0 };
+      S.remove(r);
+      clearLanterns();
+      G.stats.beacons = lit0; G.stats.trials = 0; G.day = G.dayTarget = 0;
+      return out;
+    },
     /** what the aim assist is shown, the HUD's line, and the lesson */
     aim() {
       reset();
@@ -249,6 +297,10 @@ if (!args.length) {
   const o = await page.evaluate(() => window.__trialplay.seal());
   check('the lantern of a trial is sealed: a breath on it lights nothing, it is turned away with a sound and the HUD says it is sealed, and the aim assist does not swing to it', o.sealedHeld && o.hintSaid && o.turnedAway && !o.aimsAtLantern, JSON.stringify(o));
   check('a solved trial breaks the seal and the lantern is lit a moment later (0.9 s), once: the lanterns lit go up by one and the trials solved by one', o.solved && o.unsealed && o.litAt !== null && o.litAt - o.solvedAt > 0.6 && o.litAt - o.solvedAt < 1.6 && o.beacons === 1 && o.trials === 1 && o.sounds.includes('trial_break'), `(solved at ${o.solvedAt && o.solvedAt.toFixed(1)}, lit at ${o.litAt && o.litAt.toFixed(1)}; banner ${o.banner})`);
+  const fr = await page.evaluate(() => window.__trialplay.far());
+  check('a lantern more than 26 m from its trial is not lit when the seal breaks: it is freed (ready), the HUD says its seal is broken and it waits for his fire, and a breath lights it', fr.solved && !fr.lit && fr.ready && !fr.sealed && fr.said && fr.beacons === 0 && fr.trials === 1 && fr.litByFire && fr.beaconsAfter === 1, JSON.stringify(fr));
+  const ot = await page.evaluate(() => window.__trialplay.other());
+  check('a sealed lantern that is lit by some other means ends its trial at once and in silence (no seal breaking, no gems)', ot.before.sealed === true && !ot.before.done && ot.after.done && ot.after.state === 'solved' && !ot.after.sealed && !ot.trialBreak && ot.gems === 0 && ot.lit && ot.beacons === 1, JSON.stringify(ot));
   const a = await page.evaluate(() => window.__trialplay.aim());
   check('the aim assist is shown the bells only while it is his turn (none while they ring) and the wisps in the air; the HUD says LISTEN, then how many bells he has got', a.listenAim2 === 0 && a.playAim === a.bells && a.wispAim >= 1 && /LISTEN/.test(a.hudListen) && /BELLS 0 OF/.test(a.hudPlay), JSON.stringify(a));
   const rs = await page.evaluate(() => window.__trialplay.restore());

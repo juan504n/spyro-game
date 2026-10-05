@@ -72,6 +72,35 @@ try {
     check('... and takes the realm back with its cast', !refused(kinds));
   }
 
+  // the trial rules bite too: the same realm with its asks alike, or with a trial where it cannot be done, is refused by the rule that holds it, and for the reason (trials.mix, trials.fair)
+  {
+    const bf = path.join(tmp, 'src/game/scratchvale/brief.js'), orig = fs.readFileSync(bf, 'utf8');
+    const ISLE = "trial: { kind: 'plates', at: [-19, 71], r: 4.4 }", PEAK = "trial: { kind: 'bells', at: [4, -138], yaw: Math.PI }", FIRST = "hintAt: [8, 140], hintR: 9 }";
+    const said = (swap) => {
+      let src = orig;
+      for (const [x, y] of swap) { if (!src.includes(x)) return `the starter has changed: '${x.slice(0, 40)}' is gone`; src = src.replace(x, y); }
+      fs.writeFileSync(bf, src);
+      const r = run(['tools/realm-check.mjs', 'scratchvale']);
+      fs.writeFileSync(bf, orig);
+      return r.stdout + r.stderr;
+    };
+    const bites = (name, swap, re) => { const out = said(swap), ok = re.test(out); check(name, ok, ok ? '' : `(${(out.match(/^(FAIL|the starter).*/gm) || ['no FAIL']).join(' | ').slice(0, 240)})`); };
+    const isle = (t) => [[ISLE, `trial: ${t}`]];
+    bites('trials.mix refuses a realm whose asks are the same kind twice running', [[PEAK, "trial: { kind: 'plates', at: [4, -138], r: 4.4 }"]], /^FAIL trials\.mix.*plain > plates > plates/m);
+    bites('... and one whose first lantern is not the plain one', [[FIRST, "hintAt: [8, 140], hintR: 9, trial: { kind: 'bells', at: [12, 120], yaw: 0 } }"]], /^FAIL trials\.mix.*\(bells > plates > bells/m);
+    bites('trials.fair refuses a trial in the water', isle("{ kind: 'plates', at: [-4, 56], r: 4.4 }"), /^FAIL trials\.fair.*of its ground are wet or under a prop/m);
+    bites('... on a slope', isle("{ kind: 'plates', at: [35, 20], r: 4.4 }"), /^FAIL trials\.fair.*of its ground are over 0\.9 m off level/m);
+    bites('... where the hero cannot walk to it', isle("{ kind: 'plates', at: [-45, 50], r: 4.4 }"), /^FAIL trials\.fair.*the hero cannot walk to it/m);
+    bites('... too far from its lantern to be found (110 m)', isle("{ kind: 'plates', at: [2, 160], r: 4.4 }"), /^FAIL trials\.fair.*114 m from its lantern/m);
+    const PYL = '[[0,150],[-4,130],[2,110],[2,92],[-14,80],[-28,66],[-34,52]]';
+    bites('... a circuit whose clock is too little for the way (14 s for 114 m)', isle(`{ kind: 'circuit', pylons: ${PYL}, time: 14 }`), /^FAIL trials\.fair.*14 s is too little for 114 m/m);
+    bites('... a circuit whose way crosses water', isle("{ kind: 'circuit', pylons: [[0,100],[0,80],[0,60],[0,40],[0,20]] }"), /^FAIL trials\.fair.*the way from pylon 2 to 3 is wet, blocked or too steep/m);
+    bites('... a circuit with a pylon where he cannot walk', isle("{ kind: 'circuit', pylons: [[0,150],[-4,130],[2,110],[-45,50],[2,92]] }"), /^FAIL trials\.fair.*pylon 4 is not on ground he can walk to/m);
+    bites('... a Pilferling with no country to run in', isle("{ kind: 'thief', at: [0, 52], spawn: [-4, 52] }"), /^FAIL trials\.fair.*of a ring of 14 m round the Pilferling are ground to run on/m);
+    const out = said(isle(`{ kind: 'circuit', pylons: ${PYL} }`));
+    check('... and takes the same circuit with the clock the machine gives it (a rule that refuses everything is not a rule either)', /^PASS trials\.fair/m.test(out) && /^PASS trials\.mix/m.test(out) && !/^FAIL/m.test(out), (out.match(/^FAIL.*/gm) || []).join(' | ').slice(0, 200));
+  }
+
   const again = run(['tools/new-realm.mjs', 'scratchvale', '--name', 'SCRATCH VALE']);
   check('the generator refuses an id that is taken', again.status !== 0 && /exists already|registered/.test(again.stdout));
   check('... a bad id', run(['tools/new-realm.mjs', 'Bad_Id']).status !== 0);

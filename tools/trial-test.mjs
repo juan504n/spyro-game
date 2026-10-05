@@ -9,6 +9,9 @@ import { playTrial } from './lib/trialsim.mjs';
 import { PLAYS, SPECS, judge, plays, shift } from './lib/trial-plays.mjs';
 import { MACHINES, TRIALS, TRIAL_IDS, BELLS, PLATES, CIRCUIT, WISPS, PUCK, MIRRORS, timeFor, pressed, solveBoard, trace, solveMirrors, reflect, cellWorld, lcg } from '../src/game/trials/index.js';
 import { makeTrial, stepTrial, hudOf, targetsOf, AWAKE, distTo } from '../src/game/trials/index.js';
+import { buildTrial, footprint, rewardOf, trialProblems, lookOf, DEFAULTS, SIEGE_KINDS } from '../src/game/trials/place.js';
+import { KINDS } from '../src/game/foes/kinds.js';
+import { trialMix } from './lib/realm-rules.mjs';
 
 let failed = 0;
 const check = (name, ok, detail) => { if (!ok) failed++; console.log(ok ? 'PASS' : 'FAIL', name, detail === undefined ? '' : detail); };
@@ -320,6 +323,98 @@ const bellsAt = (cx, cz, r, n) => Array.from({ length: n }, (_, i) => { const a 
   check('a trial never asks for Math.random (it asks ctx.rng: a puzzle can be replayed)', calls === 0, `(${calls} calls)`);
   const hudOk = TRIAL_IDS.every((k) => { const spec = Object.values(SPECS).find((q) => q.kind === k); const [tt, cc] = make(spec, 1); cc.p.z = -3; steps(tt, cc, 0.4, null); const h = MACHINES[k].hud(tt); return h === null || (typeof h.text === 'string' && h.text === h.text.toUpperCase()); });
   check('what a trial says on the HUD is in UPPER CASE (or nothing)', hudOk);
+}
+
+
+// ---- what the layout makes of a brief's trial (trials/place.js) -----------------------------------------------------------------------------------------
+{
+  const goal = { id: 'g', x: 3, z: 4 }, h = (x, z) => 0.01 * x + 0.02 * z;
+  const bt = (t, o = {}) => buildTrial(goal, t, { h, ...o });
+  const near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
+  // the bells: an arc of n in front of where he stands, 3.2 m or more apart, each on the ground it stands on
+  {
+    const sp = bt({ kind: 'bells', at: [10, 20], yaw: 0.5, n: 5, r: 6, arc: 2.4 });
+    const dists = sp.bells.map((b) => hyp(b.x - 10, b.z - 20)), gap = hyp(sp.bells[1].x - sp.bells[0].x, sp.bells[1].z - sp.bells[0].z);
+    const bearings = sp.bells.map((b) => Math.atan2(b.x - 10, b.z - 20));
+    check('place: a trial is the record the system is given: an id of its lantern and its kind, where it stands and its ground', sp.id === 'g-bells' && sp.goal === 'g' && sp.kind === 'bells' && sp.x === 10 && sp.z === 20 && near(sp.y, h(10, 20)));
+    check('place: bells stand on an arc of the radius in front of the hero (the yaw a mid-line), 3.2 m or more apart, each on the ground', sp.bells.length === 5 && dists.every((d) => near(d, 6, 1e-6)) && near(bearings[0], 0.5 - 1.2, 1e-6) && near(bearings[4], 0.5 + 1.2, 1e-6) && gap >= 3.2 && sp.bells.every((b) => near(b.y, h(b.x, b.z))), `(${f2(gap)} m apart)`);
+    check('place: a trial that says nothing of its numbers has the kind\'s own (bells: 5 of them, 5.8 m off, an arc of 2.3 rad, 4 notes)', (() => { const d = bt({ kind: 'bells', at: [0, 0] }); return d.bells.length === 5 && near(d.r, 5.8) && near(d.arc, 2.3) && d.len === 4; })());
+  }
+  // the plates and the vents: a ring round `at`
+  {
+    const pl = bt({ kind: 'plates', at: [10, 20], r: 4.4, scramble: 2 }), vn = bt({ kind: 'wisps', at: [10, 20], r: 5, n: 6, want: 7 });
+    const sides = pl.plates.map((b, i) => hyp(b.x - pl.plates[(i + 1) % 5].x, b.z - pl.plates[(i + 1) % 5].z));
+    check('place: plates stand in a ring of the radius round the hub, evenly (the last is not the first again), and a scramble is kept', pl.plates.length === 5 && pl.plates.every((b) => near(hyp(b.x - 10, b.z - 20), 4.4)) && sides.every((d) => near(d, sides[0], 1e-6)) && near(sides[0], 2 * 4.4 * Math.sin(Math.PI / 5), 1e-6) && pl.scramble === 2 && bt({ kind: 'plates', at: [0, 0] }).scramble === undefined);
+    check('place: wisps rise from vents in a ring (the count and the number wanted are the brief\'s)', vn.vents.length === 6 && vn.vents.every((b) => near(hyp(b.x - 10, b.z - 20), 5)) && vn.want === 7 && bt({ kind: 'wisps', at: [0, 0] }).want === undefined);
+  }
+  // the circuit: its pylons are the way, its first the place, its time the brief's or the machine's
+  {
+    const P = [[0, 0], [10, 0], [20, 5], [30, 5], [40, 0]];
+    const c = bt({ kind: 'circuit', pylons: P }), c2 = bt({ kind: 'circuit', pylons: P, time: 30 });
+    check('place: a circuit is its pylons on the ground, the first is where it is found, and the time is the brief\'s when it says (else the machine\'s)', c.pylons.length === 5 && c.pylons.every((q, i) => q.x === P[i][0] && q.z === P[i][1] && near(q.y, h(q.x, q.z))) && c.x === 0 && c.z === 0 && c.time === undefined && c2.time === 30);
+  }
+  // a court, a floor, a thief, a siege
+  {
+    const pk = bt({ kind: 'puck', at: [0, 0], yaw: 1 }), mr = bt({ kind: 'mirrors', at: [0, 0], seed: 4 }), th = bt({ kind: 'thief', at: [50, 60], yaw: Math.PI / 2 }), th2 = bt({ kind: 'thief', at: [50, 60], spawn: [70, 80] });
+    const sg = bt({ kind: 'siege', at: [0, 0], waves: [['basic'], ['bell', 'thorn']] });
+    check('place: a court has the numbers of a court (6.5 m across half-way, 11 m long, a goal 2.4 m across half-way), a floor of 5 by 5 squares with 3 mirrors and the seed it is given', pk.hw === 6.5 && pk.hl === 11 && pk.goalHW === 2.4 && pk.yaw === 1 && mr.w === 5 && mr.h === 5 && mr.k === 3 && mr.seed === 4 && bt({ kind: 'mirrors', at: [0, 0] }).seed === undefined);
+    check('place: the Pilferling is made 12 m from the place the way the trial faces (or where the brief says), and a siege keeps its waves and a ring of 12 m', near(th.spawnX, 62, 1e-6) && near(th.spawnZ, 60, 1e-6) && th2.spawnX === 70 && th2.spawnZ === 80 && sg.r === 12 && sg.waves.length === 2 && sg.waves[1].join() === 'bell,thorn');
+    check('place: what a solved trial pays is what the foes it brings would have dropped (a thief its sack, a siege its waves), and a brief that says its own gems is believed (even none: Vale\'s)', rewardOf(th).join() === KINDS.thief.drops.join() && rewardOf(sg).join() === [...KINDS.basic.drops, ...KINDS.bell.drops, ...KINDS.thorn.drops].join() && th.gems.join() === rewardOf(th).join() && sg.gems.length > 0 && bt({ kind: 'siege', at: [0, 0], waves: [['basic'], ['bell']], gems: [] }).gems.length === 0 && bt({ kind: 'siege', at: [0, 0], waves: [['basic'], ['bell']], gems: [5] }).gems.join() === '5' && bt({ kind: 'bells', at: [0, 0] }).gems.length === 0);
+    let threw = false; try { bt({ kind: 'riddle', at: [0, 0] }); } catch (e) { threw = /no trial kind/.test(e.message); }
+    check('place: a kind there is not is refused when it is built (and the brief says so before)', threw);
+  }
+  // the ground a trial needs: a circle round everything that stands on it (the level makes it a pad, the layout keeps props off it, the checker holds it level and dry)
+  {
+    const inside = (f, x, z, m = 0) => hyp(x - f.x, z - f.z) + m <= f.r + 1e-6;
+    const bs = bt({ kind: 'bells', at: [10, 20], yaw: 2.2, n: 6, r: 7, arc: 2.6 }), fb = footprint(bs);
+    check('footprint: bells (and the hero who stands before them) are all within the circle, with a margin of 1.5 m round the farthest', fb && bs.bells.every((b) => inside(fb, b.x, b.z, 1.4)) && inside(fb, bs.x, bs.z, 1.4));
+    const pl = bt({ kind: 'plates', at: [10, 20], r: 4.4 }), fp = footprint(pl), vn = bt({ kind: 'wisps', at: [10, 20], r: 5 }), fv = footprint(vn);
+    check('footprint: plates and vents are within the circle with their light to spare (2 m)', pl.plates.every((b) => inside(fp, b.x, b.z, 2)) && vn.vents.every((b) => inside(fv, b.x, b.z, 2)) && near(fp.r, 4.4 + 2.2) && near(fv.r, 5 + 2.2));
+    const pk = bt({ kind: 'puck', at: [10, 20], yaw: 0.9 }), fk = footprint(pk), c = Math.cos(0.9), sn = Math.sin(0.9);
+    const corners = [[-6.5, -11], [6.5, -11], [-6.5, 11], [6.5, 11]].map(([lx, lz]) => [10 + lx * c + lz * sn, 20 - lx * sn + lz * c]);
+    check('footprint: the four corners of a court are within the circle', corners.every(([x, z]) => inside(fk, x, z, 0.5)));
+    const mr = bt({ kind: 'mirrors', at: [10, 20], yaw: 0.4 }), fm = footprint(mr);
+    const cc = [[0, 0], [4, 0], [0, 4], [4, 4]].map(([i, j]) => cellWorld(mr, i, j));
+    check('footprint: the four corners of a floor of squares are within the circle, with a square\'s own width to spare', cc.every(([x, z]) => inside(fm, x, z, 1.8)));
+    const sg = bt({ kind: 'siege', at: [10, 20], waves: [['basic'], ['bell']], r: 14 }), fs = footprint(sg);
+    check('footprint: a siege has its ring and a margin, and a circuit (which runs over the country as it is) and a thief have none', near(fs.r, 15.5) && fs.x === 10 && footprint(bt({ kind: 'circuit', pylons: [[0, 0], [1, 1]] })) === null && footprint(bt({ kind: 'thief', at: [0, 0] })) === null);
+  }
+  // the realm's look: its own stone and crystal and the colour of its glow, else the Vale's
+  {
+    const plain = lookOf({ goals: [{ glow: [0.1, 0.2, 0.3] }] }), own = lookOf({ theme: { trials: { stone: 'cobble_tide', glow: [1, 0, 0] } }, goals: [{ glow: [0.1, 0.2, 0.3] }] });
+    check('look: a realm that says nothing gets the Vale\'s stone and the glow of its first lantern; one that says wears its own', plain.stone === 'cobble' && plain.glow.join() === '0.1,0.2,0.3' && own.stone === 'cobble_tide' && own.glow.join() === '1,0,0' && own.crystal === 'crystal_violet' && lookOf(null).glow.length === 3);
+  }
+  // the brief that cannot be made is refused (defineBrief says so, naming the lantern)
+  {
+    const g = { id: 'g' }, ok = { kind: 'bells', at: [0, 0] };
+    const cases = [
+      ['a trial that is not a record', 3, 'must be'], ['a kind that is not one', { kind: 'riddle', at: [0, 0] }, 'kind one of'], ['no place for it', { kind: 'bells' }, 'at:'],
+      ['bells: three', { ...ok, n: 3 }, 'bells n'], ['bells: seven', { ...ok, n: 7 }, 'bells n'], ['bells: too close together', { ...ok, n: 6, r: 4.5, arc: 1.5 }, '3.2 m'], ['bells: too near the hero', { ...ok, r: 4.0, arc: 4 }, '3.2 m'], ['bells: a tune of two', { ...ok, len: 2 }, 'bells len'], ['bells: a tune of seven', { ...ok, len: 7 }, 'bells len'],
+      ['plates: four', { kind: 'plates', at: [0, 0], n: 4 }, 'plates n'], ['plates: seven', { kind: 'plates', at: [0, 0], n: 7 }, 'plates n'], ['plates: too tight a ring', { kind: 'plates', at: [0, 0], r: 3.4 }, 'plates n'], ['wisps: four vents', { kind: 'wisps', at: [0, 0], n: 4 }, 'wisps n'],
+      ['circuit: four pylons', { kind: 'circuit', pylons: [[0, 0], [1, 0], [2, 0], [3, 0]] }, 'pylons'], ['circuit: ten pylons', { kind: 'circuit', pylons: Array.from({ length: 10 }, (_, i) => [i * 9, 0]) }, 'pylons'], ['circuit: a pylon that is not a place', { kind: 'circuit', pylons: [[0, 0], [1, 0], [2, 0], [3, 0], [4]] }, 'pylons'], ['circuit: a clock of ten seconds', { kind: 'circuit', pylons: Array.from({ length: 6 }, (_, i) => [i * 9, 0]), time: 10 }, 'time'],
+      ['puck: too narrow a court', { kind: 'puck', at: [0, 0], hw: 4 }, 'puck:'], ['puck: too short a court', { kind: 'puck', at: [0, 0], hl: 7 }, 'puck:'], ['puck: a goal that is as wide as the court', { kind: 'puck', at: [0, 0], goalHW: 6.5 }, 'puck:'], ['puck: a goal that is too narrow', { kind: 'puck', at: [0, 0], goalHW: 1.5 }, 'puck:'],
+      ['mirrors: a floor of three', { kind: 'mirrors', at: [0, 0], w: 3 }, 'mirrors:'], ['mirrors: a floor of six', { kind: 'mirrors', at: [0, 0], h: 6 }, 'mirrors:'], ['mirrors: one mirror', { kind: 'mirrors', at: [0, 0], k: 1 }, 'mirrors:'], ['mirrors: four mirrors', { kind: 'mirrors', at: [0, 0], k: 4 }, 'mirrors:'],
+      ['thief: a spawn that is not a place', { kind: 'thief', at: [0, 0], spawn: [1] }, 'thief spawn'],
+      ['siege: a small ring', { kind: 'siege', at: [0, 0], r: 6, waves: [['basic'], ['bell']] }, 'siege r'], ['siege: one wave', { kind: 'siege', at: [0, 0], waves: [['basic']] }, 'siege waves'], ['siege: five waves', { kind: 'siege', at: [0, 0], waves: [['basic'], ['basic'], ['basic'], ['basic'], ['basic']] }, 'siege waves'], ['siege: an empty wave', { kind: 'siege', at: [0, 0], waves: [['basic'], []] }, 'siege waves'], ['siege: five in a wave', { kind: 'siege', at: [0, 0], waves: [['basic'], ['basic', 'basic', 'basic', 'basic', 'basic']] }, 'siege waves'], ['siege: a moth, which flies', { kind: 'siege', at: [0, 0], waves: [['basic'], ['moth']] }, 'siege waves'], ['siege: a Smokecaller, which calls more', { kind: 'siege', at: [0, 0], waves: [['basic'], ['caller']] }, 'siege waves'],
+      ['gems that are not gems', { ...ok, gems: [3] }, 'gems'], ['gems that are not a list', { ...ok, gems: 5 }, 'gems'],
+    ];
+    const let_through = cases.filter(([, t, frag]) => { const e = trialProblems(g, t); return !(e.length >= 1 && e.every((m) => m.startsWith("goal 'g': trial ")) && e.join(' ').includes(frag)); });
+    check('place: a brief that cannot be made is refused, with what is wrong (a trial that is no record, a kind there is not, bells too close or too many, a ring too tight, a clock too short, a court too narrow, a goal as wide as the court, a floor or a number of mirrors the puzzle cannot be made on, a siege of a foe that flies or calls)', let_through.length === 0, `(${cases.length} cases${let_through.length ? '; let through: ' + let_through.map(([n]) => n).join('; ') : ''})`);
+    const fine = [{ kind: 'bells', at: [0, 0] }, { kind: 'bells', at: [0, 0], n: 6, r: 5.5, arc: 3.2, len: 6 }, { kind: 'plates', at: [0, 0], n: 6, r: 3.6 }, { kind: 'wisps', at: [0, 0], n: 5, r: 5 }, { kind: 'circuit', pylons: Array.from({ length: 5 }, (_, i) => [i * 20, 0]) }, { kind: 'circuit', pylons: Array.from({ length: 9 }, (_, i) => [i * 20, 0]), time: 14 }, { kind: 'puck', at: [0, 0] }, { kind: 'puck', at: [0, 0], hw: 5, hl: 8, goalHW: 1.8 }, { kind: 'mirrors', at: [0, 0] }, { kind: 'mirrors', at: [0, 0], w: 4, h: 4, k: 2 }, { kind: 'thief', at: [0, 0] }, { kind: 'thief', at: [0, 0], spawn: [9, 9] }, { kind: 'siege', at: [0, 0], waves: [['basic', 'bell', 'thorn', 'rime'], ['slinger', 'hog', 'warden', 'pup']], r: 8 }, { kind: 'siege', at: [0, 0], waves: [['basic'], ['bell'], ['thorn'], ['pup']] }, { kind: 'bells', at: [0, 0], gems: [1, 2, 5, 10, 25] }];
+    const refused = fine.filter((t) => trialProblems(g, t).length > 0);
+    check('place: ... and what can be made is not refused (the least and the most of every number)', refused.length === 0, `(${fine.length} cases${refused.length ? '; refused: ' + refused.map((t) => t.kind + ' ' + trialProblems(g, t)[0]).join('; ') : ''})`);
+    check('place: a siege may call only the foes that fight without a place of their own (eight kinds; not the moth, the Smokecaller, the Pilferling, the Dustmole)', SIEGE_KINDS.length === 8 && !['moth', 'caller', 'thief', 'mole'].some((k) => SIEGE_KINDS.includes(k)) && SIEGE_KINDS.every((k) => KINDS[k]));
+  }
+  // the mix of a realm's asks
+  {
+    const cases = [
+      ['five goals, four kinds of trial after the plain one', [null, 'bells', 'puck', 'siege', 'plates'], true], ['three kinds are enough', [null, 'bells', 'puck', 'bells', 'siege'], true], ['a plain lantern in the middle is fine', [null, 'bells', null, 'puck', 'siege'], true], ['the same kind with a plain lantern between is not twice running', [null, 'bells', null, 'bells', 'siege', 'puck'], true],
+      ['the first lantern has a trial', ['bells', 'puck', 'siege', 'plates', 'wisps'], false], ['the same kind twice running', [null, 'bells', 'bells', 'siege', 'puck'], false], ['two kinds where three are wanted', [null, 'bells', 'puck', 'bells', 'puck'], false],
+      ['a realm of three goals wants two kinds', [null, 'bells', 'puck'], true], ['... and one kind is not two', [null, 'bells', null], false], ['no trial at all', [null, null, null, null, null], false],
+    ];
+    const bad = cases.filter(([, o, want]) => trialMix(o).ok !== want).map(([n]) => n);
+    check('trials.mix: the first lantern is plain, three kinds stand in front of the others (two in a realm of three goals) and none twice running', bad.length === 0, `(${cases.length} cases${bad.length ? '; wrong: ' + bad.join('; ') : ''})`);
+  }
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nall trial checks passed');
