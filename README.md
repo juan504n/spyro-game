@@ -410,6 +410,7 @@ not frustum-culled), which integrated graphics and recent phones handle at 320×
 Every world has its own song, written as data (`src/engine/audio/scores/`) and played by the same synthesiser: a tune, a tempo and a meter, and for each of the two lights of a world
 (**dusk**, its lanterns unlit, and **dawn**, burning) a harmony and an orchestra. The two loops are time-aligned and the game crossfades them with the world's day, so the music wakes with the
 lanterns. A song is made when its world is built (behind the loading bar: *TUNING THE BAND*), the dawn after the hero has come in, the song of the world he left is kept for his return and the one before it is freed.
+The jingles (a lantern lit, the finale) were written in D; in a world whose song is far from D they are played in its key (`stingerShift` in its score).
 
 | World | Song | Meter, tempo | Key, dusk to dawn | What plays |
 | --- | --- | --- | --- | --- |

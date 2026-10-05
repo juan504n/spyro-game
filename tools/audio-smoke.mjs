@@ -438,6 +438,9 @@ async function inPageSong(mode) {
   if (!A.ready) return [...errors, 'not ready after init'];
   if (!A.hasSong(other)) fail(`the song of the world (${other}) asked for ${mode} init() was not made`);
   if (mode === 'before' && A.hasSong('gloaming')) fail('Vale\'s tune was made although the hero starts elsewhere');
+  const log = A._debug.songLog;                                          // (made and freed again would not show in what is kept)
+  if (mode === 'before' && log.some((k) => k === 'gloaming' || k === 'daybreak')) fail(`Vale's tune was made (and freed again) although the hero starts elsewhere: ${log.join(',')}`);
+  if (mode === 'before' && !log.length) fail('no song was made');
   A.startMusic();
   await sleep(700);
   if (A._debug.playing !== other) fail(`startMusic played ${A._debug.playing}, not ${other}`);
