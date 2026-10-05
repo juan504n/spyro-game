@@ -1,0 +1,149 @@
+// The HD textures: the same materials as the pixel textures (../world/*.js), painted at 256 x 256 in floating point (no palette, no dither), for the "smooth" look. The PS1 look keeps the pixel originals.
+//
+// A texture that has an HD painter gets `pix.hd`, a function that paints it (once: the result is kept) and returns an opaque Pix; `texFromPix` (engine/materials.js) asks for it when the smooth look is on. A texture that has none is
+// enlarged and filtered as before. The painters are written from the palette ramps of the originals (or, where the original has no ramp of its own, from the colours the original uses, by `rampFrom`), and each is held to its
+// twin's mean colour, so a realm keeps its colours.
+import { RAMPS } from '../palette.js';
+import * as T from './terrain.js';
+import * as G from './ground.js';
+import * as B from './buildings.js';
+import * as P from './plants.js';
+import * as W from './water.js';
+
+export const HD_SIZE = 256;
+
+/** how many HD textures have been painted so far and how long it took (ms): the cost of the look, read by the tools and the debug readout */
+export const HD_STATS = { made: 0, ms: 0 };
+const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+const meanOf = (pix) => {
+  const m = [0, 0, 0], n = pix.w * pix.h;
+  for (let i = 0; i < n; i++) { m[0] += pix.data[i * 4]; m[1] += pix.data[i * 4 + 1]; m[2] += pix.data[i * 4 + 2]; }
+  return m.map((v) => v / n);
+};
+
+/** a ramp of `stops` colours, dark to light, from the colours a pixel texture uses: the colour at each quantile of its pixels by luminance (so a realm's ground keeps its own colours without a ramp of its own) */
+export function rampFrom(pix, stops = 6) {
+  const counts = new Map(), n = pix.w * pix.h;
+  for (let i = 0; i < n; i++) {
+    if (pix.data[i * 4 + 3] < 128) continue;
+    const k = (pix.data[i * 4] << 16) | (pix.data[i * 4 + 1] << 8) | pix.data[i * 4 + 2];
+    counts.set(k, (counts.get(k) || 0) + 1);
+  }
+  const list = [...counts].map(([k, c]) => { const r = k >> 16, g = (k >> 8) & 255, b = k & 255; return { c: [r, g, b], l: 0.3 * r + 0.59 * g + 0.11 * b, n: c }; }).sort((a, b) => a.l - b.l);
+  const total = list.reduce((a, e) => a + e.n, 0), out = [];
+  for (let s = 0; s < stops; s++) {
+    const q = (0.04 + (0.92 * s) / Math.max(1, stops - 1)) * total;
+    let acc = 0, pick = list[list.length - 1];
+    for (const e of list) { acc += e.n; if (acc >= q) { pick = e; break; } }
+    out.push(pick.c);
+  }
+  return out;
+}
+
+const SLATE = ['#2a3048', '#3a4262', '#4a5578', '#5e6a90', '#7a86a8', '#9aa4c2'];
+const FROST = ['#3a4a68', '#56688a', '#7488ac', '#94a8c6', '#b8c8dc', '#dce8f4'];
+const BASALT = ['#161214', '#241c1c', '#362a28', '#4e3e36', '#6a5848', '#8a7660'];
+const MARBLE = ['#9a94a8', '#b8b0c4', '#d4cce0', '#e8e0ec', '#f4eef4', '#fffafc'];
+const TIDE = ['#22384a', '#34545e', '#4c747c', '#6a9498', '#8eb4b0', '#b4d0c8'];
+
+/** name -> (the pixel twin) => Canvas */
+export const PAINT = {
+  // ---- meadows
+  grass_a: (o) => T.turf(HD_SIZE, { seed: 1101, R: T.HD_RAMPS.grassSun, mean: meanOf(o) }),
+  grass_b: (o) => T.turf(HD_SIZE, { seed: 1202, R: T.HD_RAMPS.grassLush, patchCells: 4, clover: true, mean: meanOf(o) }),
+  grass_flowers: (o) => T.turf(HD_SIZE, { seed: 1101, R: T.HD_RAMPS.grassSun, mean: meanOf(o), flowers: { count: 6, kinds: [['#f4f0e8', '#ffc03c'], ['#e86a68', '#fff6c0'], ['#ffc03c', '#c05a14'], ['#5a8cf0', '#fff6c0']] } }),
+  skyturf: (o) => T.turf(HD_SIZE, { seed: 1801, R: rampFrom(o, 6), contrast: 1.7, mean: meanOf(o) }),
+  tideturf: (o) => T.turf(HD_SIZE, { seed: 2301, R: rampFrom(o, 6), contrast: 1.7, mean: meanOf(o) }),
+  moss: (o) => P.moss(HD_SIZE, { seed: 1301, R: RAMPS.moss, mean: meanOf(o) }),
+  // ---- earth, sand, snow, ash
+  dirt: (o) => G.soil(HD_SIZE, { seed: 31, R: RAMPS.dirt, pebbleRamp: RAMPS.pathStone, mean: meanOf(o) }),
+  path_snow: (o) => G.soil(HD_SIZE, { seed: 32, R: rampFrom(o, 6), pebbles: 4, ruts: 1, flecksN: 90, light: [255, 255, 255], dark: [60, 80, 130], crackColor: [70, 90, 140], mean: meanOf(o) }),
+  path_ash: (o) => G.soil(HD_SIZE, { seed: 33, R: rampFrom(o, 6), pebbleRamp: RAMPS.pathStone, ruts: 1, mean: meanOf(o) }),
+  path_sky: (o) => G.soil(HD_SIZE, { seed: 34, R: rampFrom(o, 6), pebbleRamp: RAMPS.pathStone, pebbles: 8, ruts: 1, mean: meanOf(o) }),
+  path_tide: (o) => G.soil(HD_SIZE, { seed: 35, R: rampFrom(o, 6), pebbleRamp: ['#8aa0a0', '#b4c4bc', '#e0e4dc'], pebbles: 6, ruts: 1, flecksN: 200, mean: meanOf(o) }),
+  sea_floor: (o) => G.soil(HD_SIZE, { seed: 36, R: rampFrom(o, 6), pebbleRamp: ['#2a5a5c', '#4a8a86', '#8ac0b4'], pebbles: 22, pebbleSize: [2.5, 6], crackColor: [8, 28, 34], cracks: 6, mean: meanOf(o) }),
+  sand: (o) => G.dunes(HD_SIZE, { seed: 41, R: RAMPS.sand, ripples: 6, mean: meanOf(o) }),
+  sand_tide: (o) => G.dunes(HD_SIZE, { seed: 42, R: rampFrom(o, 6), ripples: 7, shells: 3, mean: meanOf(o) }),
+  sand_wet: (o) => G.dunes(HD_SIZE, { seed: 43, R: rampFrom(o, 6), ripples: 9, sheen: 0.16, sheenPow: 2.5, glints: 30, mean: meanOf(o) }),
+  snow: (o) => G.drifts(HD_SIZE, { seed: 51, R: rampFrom(o, 6), hollow: '#9ab0dc', hollowAmount: 0.35, contrast: 0.6, mean: meanOf(o) }),
+  snow_petals: (o) => G.drifts(HD_SIZE, { seed: 52, R: rampFrom(o, 6), hollow: '#9ab0dc', hollowAmount: 0.35, contrast: 0.6, petals: '#e8607e', mean: meanOf(o) }),
+  ash: (o) => G.drifts(HD_SIZE, { seed: 53, R: rampFrom(o, 6), hollow: '#3a3030', hollowAmount: 0.45, clinker: 34, embers: 7, glints: 0, rippleAmount: 0, contrast: 1.5, clump: 0.2, grit: 0.07, mean: meanOf(o) }),
+  far_rock: (o) => G.haze(HD_SIZE, { seed: 61, R: rampFrom(o, 4), mean: meanOf(o) }),
+  far_frost: (o) => G.haze(HD_SIZE, { seed: 62, R: rampFrom(o, 4), mean: meanOf(o) }),
+  far_ember: (o) => G.haze(HD_SIZE, { seed: 63, R: rampFrom(o, 4), mean: meanOf(o) }),
+  far_sky: (o) => G.haze(HD_SIZE, { seed: 64, R: rampFrom(o, 4), mean: meanOf(o) }),
+  far_tide: (o) => G.haze(HD_SIZE, { seed: 65, R: rampFrom(o, 4), mean: meanOf(o) }),
+  // ---- cobbles, pebbles, slabs
+  cobble: (o) => T.cobbles(HD_SIZE, { seed: 5, R: RAMPS.pathStone, gap: '#3c384a', moss: '#587a3d', cells: 5, mean: meanOf(o) }),
+  cobble_frost: (o) => T.cobbles(HD_SIZE, { seed: 6, R: FROST, gap: '#b4c6de', moss: '#f4f8ff', mossAmount: 0.6, cells: 5, mean: meanOf(o) }),
+  cobble_ember: (o) => T.cobbles(HD_SIZE, { seed: 7, R: BASALT, gap: '#1a1010', moss: '#2a2020', mossAmount: 0, cells: 5, glow: '#e8541a', gapPx: 2.6, toneLo: 0.3, toneHi: 0.9, mean: meanOf(o) }),
+  cobble_sky: (o) => T.cobbles(HD_SIZE, { seed: 8, R: MARBLE, gap: '#6a6488', moss: '#8ad4ec', mossAmount: 0.4, cells: 5, mean: meanOf(o) }),
+  cobble_tide: (o) => T.cobbles(HD_SIZE, { seed: 9, R: TIDE, gap: '#1a3038', moss: '#3a7a62', mossAmount: 0.5, cells: 5, gloss: 0.25, mean: meanOf(o) }),
+  shore_pebbles: (o) => T.cobbles(HD_SIZE, { seed: 10, R: ['#4a4658', '#65627a', '#847f96', '#6a86a8', '#8a6a48', '#b8925a'], gap: '#2a2838', mossAmount: 0, cells: 9, gapPx: 1.8, relief: 0.9, rim: 10, gloss: 0.4, crackFrac: 0, mean: meanOf(o) }),
+  cinder: (o) => T.cobbles(HD_SIZE, { seed: 12, R: BASALT, gap: '#0c0808', mossAmount: 0, cells: 4, glow: '#d8481a', gapPx: 2.4, relief: 0.8, rim: 14, toneLo: 0.18, toneHi: 0.55, mean: meanOf(o) }),
+  ice: (o) => T.cobbles(HD_SIZE, { seed: 13, R: rampFrom(o, 6), gap: '#2a62ac', moss: '#eef8ff', mossAmount: 0.3, cells: 3, rows: 3, stagger: 0, jitter: 0.6, relief: 1.1, rim: 22, gloss: 0.5, crackFrac: 0.4, mean: meanOf(o) }),
+  flagstone: (o) => T.masonry(HD_SIZE, { seed: 14, R: RAMPS.pathStone, mortar: '#3a3648', cols: 2, rows: 2, bond: 0, gap: 4.2, bevel: 1.5, wear: 0.9, tint: 8, mean: meanOf(o) }),
+  // ---- rock walls
+  cliff: (o) => T.strata(HD_SIZE, { seed: 11, R: RAMPS.cliff, moss: RAMPS.moss, mean: meanOf(o) }),
+  cliff_bare: (o) => T.strata(HD_SIZE, { seed: 11, R: RAMPS.cliff, mean: meanOf(o) }),
+  cliff_warm: (o) => T.strata(HD_SIZE, { seed: 15, R: RAMPS.cliffWarm, moss: RAMPS.moss, mean: meanOf(o) }),
+  cliff_warm_bare: (o) => T.strata(HD_SIZE, { seed: 15, R: RAMPS.cliffWarm, mean: meanOf(o) }),
+  cliff_frost: (o) => T.strata(HD_SIZE, { seed: 16, R: FROST, snow: '#f2f8ff', mean: meanOf(o) }),
+  cliff_basalt: (o) => T.strata(HD_SIZE, { seed: 17, R: BASALT, snow: '#8c8480', ember: '#ff7a1c', mean: meanOf(o) }),
+  cliff_basalt_bare: (o) => T.strata(HD_SIZE, { seed: 17, R: BASALT, ember: '#ff7a1c', mean: meanOf(o) }),
+  cliff_marble: (o) => T.strata(HD_SIZE, { seed: 18, R: MARBLE, bands: 5, veins: { color: '#6a7cae', count: 9, width: 3, alpha: 0.55 }, mean: meanOf(o) }),
+  cliff_tide: (o) => T.strata(HD_SIZE, { seed: 19, R: TIDE, salt: 700, mean: meanOf(o) }),
+  // ---- masonry
+  brick: (o) => T.masonry(HD_SIZE, { seed: 21, R: RAMPS.pathStone, mortar: '#3a3648', cols: 4, rows: 8, mean: meanOf(o) }),
+  brick_warm: (o) => T.masonry(HD_SIZE, { seed: 22, R: RAMPS.brick, mortar: '#e0d4b4', cols: 4, rows: 8, tint: 16, mean: meanOf(o) }),
+  brick_mossy: (o) => T.masonry(HD_SIZE, { seed: 23, R: RAMPS.pathStone, mortar: '#3a3648', cols: 4, rows: 8, moss: '#6aa040', mossAmount: 0.55, wear: 0.8, mean: meanOf(o) }),
+  tower_stone: (o) => T.masonry(HD_SIZE, { seed: 24, R: SLATE, mortar: '#161a2c', cols: 4, rows: 8, tint: 8, mean: meanOf(o) }),
+  // ---- what is built of wood, plaster, thatch, tile and metal
+  plaster: (o) => B.stucco(HD_SIZE, { seed: 121, R: RAMPS.plaster, mean: meanOf(o) }),
+  timber: (o) => B.timber(HD_SIZE, { seed: 111, W: RAMPS.wood, P: RAMPS.plaster, mean: meanOf(o) }),
+  wood_beam: (o) => B.beam(HD_SIZE, { seed: 131, R: RAMPS.wood, mean: meanOf(o) }),
+  wood_plank: (o) => B.planks(HD_SIZE, { seed: 71, R: RAMPS.wood, mean: meanOf(o) }),
+  roof_red: (o) => B.shingles(HD_SIZE, { seed: 81, R: RAMPS.roofRed, mean: meanOf(o) }),
+  roof_teal: (o) => B.shingles(HD_SIZE, { seed: 82, R: RAMPS.roofTeal, mean: meanOf(o) }),
+  thatch: (o) => B.thatch(HD_SIZE, { seed: 91, R: RAMPS.thatch, mean: meanOf(o) }),
+  metal_brass: (o) => B.plate(HD_SIZE, { seed: 101, R: RAMPS.brass, mean: meanOf(o) }),
+  metal_iron: (o) => B.plate(HD_SIZE, { seed: 102, R: RAMPS.metal, mean: meanOf(o) }),
+  // ---- trees
+  leaves_green: (o) => P.canopy(HD_SIZE, { seed: 4101, R: RAMPS.leaf, mean: meanOf(o) }),
+  leaves_teal: (o) => P.canopy(HD_SIZE, { seed: 4102, R: RAMPS.leafTeal, mean: meanOf(o) }),
+  leaves_autumn: (o) => P.canopy(HD_SIZE, { seed: 4103, R: RAMPS.leafAutumn, mean: meanOf(o) }),
+  leaves_blossom: (o) => P.canopy(HD_SIZE, { seed: 4104, R: rampFrom(o, 6), mean: meanOf(o) }),
+  leaves_frost: (o) => P.canopy(HD_SIZE, { seed: 4105, R: rampFrom(o, 6), mean: meanOf(o) }),
+  bark: (o) => P.bark(HD_SIZE, { seed: 4601, R: RAMPS.bark, moss: '#587a3d', mossAmount: 0.55, mean: meanOf(o) }),
+  bark_pale: (o) => P.bark(HD_SIZE, { seed: 4602, R: RAMPS.barkPale, furrows: 6, depth: 0.5, dashes: 120, dashColor: [58, 48, 42], contrast: 0.7, mean: meanOf(o) }),
+  pine: (o) => P.fir(HD_SIZE, { seed: 4501, P: { shade: '#16482e', back: '#1c7048', mid: '#2c9058', light: '#48b070', tip: '#80d090' }, mean: meanOf(o) }),
+  pine_snow: (o) => P.fir(HD_SIZE, { seed: 4502, P: { shade: '#14403c', back: '#1c5a54', mid: '#2e7864', light: '#9cc4d4', tip: '#e6f2fa' }, mean: meanOf(o) }),
+  pine_char: (o) => P.fir(HD_SIZE, { seed: 4503, P: { shade: '#140e0c', back: '#241812', mid: '#3a2a20', light: '#5c4030', tip: '#e8661c' }, mean: meanOf(o) }),
+  pine_sky: (o) => P.fir(HD_SIZE, { seed: 4504, P: { shade: '#1c4048', back: '#2c6462', mid: '#4a9084', light: '#86c4b0', tip: '#d4f0e4' }, mean: meanOf(o) }),
+  // ---- water, lava, cloud, glass
+  water: (o) => W.water(HD_SIZE, { seed: 201, R: RAMPS.water, mean: meanOf(o) }),
+  water_tide: (o) => W.water(HD_SIZE, { seed: 202, R: ['#082830', '#0e4a52', '#176e72', '#2a9690', '#6cc4b4', '#c8f0e4'], glintColor: [220, 255, 244], mean: meanOf(o) }),
+  waterfall: (o) => W.fall(HD_SIZE, { seed: 251, R: rampFrom(o, 6), mean: meanOf(o) }),
+  lava: (o) => W.lava(HD_SIZE, { seed: 211, mean: meanOf(o), meanAmount: 0 }),
+  cloud_sea: (o) => W.billows(HD_SIZE, { seed: 221, R: rampFrom(o, 6), mean: meanOf(o) }),
+  glass: (o) => W.pane(HD_SIZE, { seed: 241, R: rampFrom(o, 6), mean: meanOf(o) }),
+};
+
+/** give the textures that have a painter their `hd` (see above); `all` is what generateWorldTextures() builds */
+export function attachHD(all) {
+  for (const name of Object.keys(PAINT)) {
+    const e = all[name];
+    if (!e || !e.pix) continue;
+    let made = null;
+    const k = HD_SIZE / Math.max(e.pix.w, e.pix.h), w = Math.round(e.pix.w * k), h = Math.round(e.pix.h * k);      // (a texture that is not square is painted square and squeezed to its shape)
+    const make = () => {
+      const t0 = now();
+      made = PAINT[name](e.pix).toPix(w, h);
+      HD_STATS.made++; HD_STATS.ms += now() - t0;
+      return made;
+    };
+    Object.defineProperty(e.pix, 'hd', { value: () => made || make(), enumerable: false, configurable: true });
+  }
+  return all;
+}

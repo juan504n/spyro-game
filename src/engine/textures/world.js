@@ -11,10 +11,11 @@ import { waterTextures } from './world/water.js';
 import { magicTextures } from './world/magic.js';
 import { skyTextures } from './world/sky.js';
 import { propTextures } from './world/props.js';
+import { attachHD } from './hd/index.js';
 
 /** -> { [name]: { pix: Pix, tile: boolean, cutout: boolean } }. Deterministic; ~70 ms in Node. */
 export function generateWorldTextures() {
-  return {
+  return attachHD({
     ...terrainTextures(),
     ...buildingTextures(),
     ...plantTextures(),
@@ -22,7 +23,7 @@ export function generateWorldTextures() {
     ...magicTextures(),
     ...skyTextures(),
     ...propTextures(),
-  };
+  });
 }
 
 // One-line usage hints. "N px = M units" is the recommended world size of one texture repeat

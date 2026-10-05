@@ -1,6 +1,7 @@
 import { Gfx } from './engine/gfx.js';
 import { U } from './engine/materials.js';
 import { installErrorLog } from './engine/errlog.js';
+import { HD_STATS } from './engine/textures/hd/index.js';
 
 installErrorLog();      // (debug mode shows the last errors: catch them from the very start, including the ones while the world builds)
 
@@ -78,6 +79,7 @@ async function boot() {
 
   window.__gv = {
     gfx, scene,
+    hd: HD_STATS,                                       // (how many HD textures have been painted, and how long it took: see engine/textures/hd/index.js)
     snapshot() {
       const f = gfx.readInternal();
       let bin = '';

@@ -96,10 +96,15 @@ function applyTexMode(e) {
   const tex = e.tex, { pix, tile } = e;
   let img;
   if (_smooth) {
-    const k = Math.max(1, Math.min(8, Math.floor((pix.w * pix.h > 65536 ? 512 : 256) / Math.max(pix.w, pix.h))));
-    if (k > 1) {
-      if (!e.smooth) e.smooth = smoothUpscale(pix, k, tile);
+    if (e.hd) {                                                        // (a texture with an HD painting: painted at 256 px, once)
+      if (!e.smooth) { const h = e.hd(); e.smooth = { data: new Uint8Array(h.data.buffer, h.data.byteOffset, h.data.byteLength), w: h.w, h: h.h }; }
       img = e.smooth;
+    } else {
+      const k = Math.max(1, Math.min(8, Math.floor((pix.w * pix.h > 65536 ? 512 : 256) / Math.max(pix.w, pix.h))));
+      if (k > 1) {
+        if (!e.smooth) e.smooth = smoothUpscale(pix, k, tile);
+        img = e.smooth;
+      }
     }
     tex.magFilter = THREE.LinearFilter;
     tex.generateMipmaps = tile;                                        // (atlases are sampled by sub-rect: no mip bleeding)
@@ -135,7 +140,7 @@ export function texFromPix(pix, { tile = true } = {}) {
   tex.flipY = true;
   tex.wrapS = tex.wrapT = tile ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
   tex.colorSpace = THREE.NoColorSpace;
-  const e = { tex, pix: { data: raw, w: pix.w, h: pix.h }, raw, tile, smooth: null };
+  const e = { tex, pix: { data: raw, w: pix.w, h: pix.h }, raw, tile, smooth: null, hd: typeof pix.hd === 'function' ? pix.hd : null };
   applyTexMode(e);
   _texs.add(new WeakRef(e));
   tex.userData.texEntry = e;                                           // (keeps the entry alive exactly as long as the texture)
