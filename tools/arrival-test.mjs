@@ -58,8 +58,17 @@ for (const id of WORLDS) {
       await ev(async (key) => { const { findPlace } = await import('/src/game/travel.js'); window.__app.warpTo(findPlace(key)); }, p.key);
       await settle();
       await ff(2);                                                    // (two seconds of standing there)
-      const r = await standing(ev);
-      if (!(standOk(r) && dist(r.at, [p.x, 0, p.z]) < 0.6)) bad.push({ key: p.key, at: r.at, floor: r.floor, kind: r.kind, water: r.water, grounded: r.grounded, trail: r.trail });
+      // (a place on the stack of a course of rings that is not flown yet is one the gust comes to: after 1.6 s he is carried to the ledge, and it is there that he stands when the ride is over)
+      const land = await ev(() => (window.__game.trials ? window.__game.trials.list.filter((q) => q.t.kind === 'rings' && !q.done).map((q) => ({ pad: [q.t.x, 0, q.t.z], at: [q.t.land.x, 0, q.t.land.z], r: q.t.land.r })) : []));
+      const gust = land.find((q) => dist([p.x, 0, p.z], q.at) < q.r);
+      if (gust) for (let i = 0; i < 16 && !(await ev(() => !!window.__game.player.carry)); i++) await ff(0.25);
+      for (let i = 0; i < 60 && (await ev(() => !!window.__game.player.carry)); i++) await ff(0.25);
+      await ff(0.5);
+      let r = await standing(ev);
+      // (a place inside a siege's ring is one where its Snuffers may land a blow just as the three seconds of grace run out: the knock is waited out, and he is asked to stand when he has come down)
+      for (let i = 0; i < 12 && !r.grounded && r.trail[r.trail.length - 1] === 'HURT'; i++) { await ff(0.15); r = await standing(ev); }
+      const want = gust ? gust.pad : [p.x, 0, p.z];
+      if (!(standOk(r) && dist(r.at, want) < 0.6)) bad.push({ key: p.key, at: r.at, floor: r.floor, kind: r.kind, water: r.water, grounded: r.grounded, trail: r.trail });
     }
     return { ok: places.length > 0 && bad.length === 0, places: places.length, bad: bad.slice(0, 4), nBad: bad.length };
   });

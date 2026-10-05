@@ -155,7 +155,7 @@ export const PLAYS = [
   { id: 'rime-rush', say: 'Rimeling: a hero who runs into it breathing is struck (its shell keeps it on its feet for the 0.9 s of fire it takes, and it swings in 0.66 s)', kind: 'rime', policy: rush({ flame: 5 }), T: 15, at: 12, want: 'hurt', hears: ['foe_ice', 'snuffer_swing'], sim: false },
   { id: 'rime-ram', say: 'Rimeling: a hero who rams it only slides it on its ice: it is never killed and its shell holds', kind: 'rime', policy: headOn, T: 10, at: 12, want: 'ringed', hears: ['armor_clang'], sim: false },
   { id: 'thief-flame', say: 'Pilferling: a hero who runs it down and flames it from 6 m catches it, and it never hurts him', kind: 'thief', policy: rush({ flame: 6 }), T: 25, at: 10, want: 'clear' },
-  { id: 'thief-ram', say: 'Pilferling: a hero who rams after it catches it in the end (it sidesteps a ram that comes straight at it), and it never hurts him', kind: 'thief', policy: rush({ ram: 9 }), T: 30, at: 10, want: 'clear', tol: 1 },
+  { id: 'thief-ram', say: 'Pilferling: a hero who runs it down and rams it when he is on its heels (within 1.4 m: it sidesteps a ram that comes from further off, once in 1.5 s, and cannot sidestep this one) catches it, and it never hurts him', kind: 'thief', policy: rush({ ram: 1.4 }), T: 30, at: 10, want: 'clear', tol: 1 },
   { id: 'thief-still', say: 'Pilferling: it does not fight: a hero who stands still is never touched', kind: 'thief', policy: still, T: 12, at: 14, want: 'quiet', hears: ['foe_jeer'] },
 ];
 

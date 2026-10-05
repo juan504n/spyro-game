@@ -339,7 +339,14 @@ if (wanted('sweep')) {
       await t.frame(6, 1 / 30);
       const r0 = await here(ev, place);
       await t.frame(60, 1 / 30);
-      const r = await here(ev, place);
+      // (the stack of a course of rings that is not flown yet: the gust comes after 1.6 s and carries him to the ledge, where he stands when the ride is over)
+      const gust = await ev((place) => { const G = __game; if (!G.trials) return null; const q = G.trials.list.find((r) => r.t.kind === 'rings' && !r.done && Math.hypot(place.x - r.t.land.x, place.z - r.t.land.z) < r.t.land.r); return q ? { x: q.t.x, y: q.t.y, z: q.t.z } : null; }, place);
+      if (gust) {
+        for (let i = 0; i < 12 && !(await ev(() => !!__game.player.carry)); i++) await t.frame(8, 1 / 30);
+        for (let i = 0; i < 30 && (await ev(() => !!__game.player.carry)); i++) await t.frame(8, 1 / 30);
+        await t.frame(15, 1 / 30);
+      }
+      const r = await here(ev, gust ? { ...place, ...gust } : place);
       if (shots && SHOT_PLACES.has(place.key)) await t.shot('arrive-' + place.key.replace('/', '-'));
       if (!arrivalOk(r0, place, false)) why.push('arrival ' + describe(r0));
       if (!(r0.inv > 2.5 && r0.inv <= 3)) why.push(`no grace (${r0.inv.toFixed(2)} s)`);
