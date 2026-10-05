@@ -40,6 +40,9 @@ export const siege = {
     }
   },
 
+  /** the hero has gone far off: what is left is put away and the ring is quiet (no sound) */
+  sleep(t, ctx) { if (t.state === 'active') { for (const h of t.live) ctx.dismiss(h); t.live = []; t.state = 'idle'; t.wave = -1; t.left = 0; } },
+
   hud(t) { return t.state === 'active' ? { text: `WAVE ${Math.max(1, t.wave + 1)} OF ${t.waves.length}  ${t.left} LEFT`, n: t.wave, of: t.waves.length } : null; },
   targets() { return []; },
 };

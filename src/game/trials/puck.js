@@ -77,6 +77,9 @@ export const puck = {
     }
   },
 
+  /** the hero has gone far off: the game waits (the score stays; no sound) */
+  sleep(t) { if (t.state === 'active') { t.state = 'idle'; t.vx = t.vz = 0; t.hold = 0; } },
+
   hud(t) {
     if (t.state !== 'active') return null;
     return { text: `GOALS ${t.score} OF ${t.want}`, n: t.score, of: t.want };

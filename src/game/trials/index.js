@@ -11,6 +11,7 @@ import { siege } from './siege.js';
 
 export { TRIALS, TRIAL_IDS } from './kinds.js';
 export { lcg, hyp } from './core.js';
+import { hyp } from './core.js';
 export { BELLS } from './bells.js';
 export { PLATES, pressed, solveBoard } from './plates.js';
 export { CIRCUIT, timeFor } from './circuit.js';
@@ -42,7 +43,20 @@ export function solidsOf(t) {
   return [];
 }
 
-/** One step of a trial. */
-export const stepTrial = (t, dt, ctx) => MACHINES[t.kind].step(t, dt, ctx);
-export const hudOf = (t) => MACHINES[t.kind].hud(t);
-export const targetsOf = (t) => MACHINES[t.kind].targets(t);
+/** how far from a trial the hero may be before it is put to sleep: it is not stepped (no clock runs, nothing spawns, nothing is heard from a hundred metres off), and what it was doing is let go */
+export const AWAKE = { bells: 45, plates: 45, circuit: 80, wisps: 40, puck: 50, mirrors: 50, thief: 80, siege: 60 };
+/** how far the hero is from a trial: from its middle, or, for a circuit that runs over the country, from the nearest of its pylons */
+export const distTo = (t, p) => (t.kind === 'circuit' ? Math.min(...t.pylons.map((q) => hyp(p.x - q.x, p.z - q.z))) : hyp(p.x - t.x, p.z - t.z));
+
+/** One step of a trial, if the hero is near enough for it to be awake; if he has gone far off it is put to sleep (once: `t.asleep`). */
+export function stepTrial(t, dt, ctx) {
+  const M = MACHINES[t.kind];
+  if (t.state !== 'solved' && distTo(t, ctx.p) > AWAKE[t.kind]) {
+    if (!t.asleep) { t.asleep = true; if (M.sleep) M.sleep(t, ctx); }
+    return;
+  }
+  t.asleep = false;
+  M.step(t, dt, ctx);
+}
+export const hudOf = (t) => (t.asleep ? null : MACHINES[t.kind].hud(t));
+export const targetsOf = (t) => (t.asleep ? [] : MACHINES[t.kind].targets(t));

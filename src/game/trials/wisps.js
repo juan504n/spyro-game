@@ -50,6 +50,9 @@ export const wisps = {
     }
   },
 
+  /** the hero has gone far off: the vents go quiet and begin again when he comes back (no sound) */
+  sleep(t) { if (t.state !== 'solved') { t.live = []; t.spawned = 0; t.hits = 0; t.escaped = 0; t.pause = 0; t.nextIn = WISPS.first; t.lastVent = -1; t.state = 'idle'; } },
+
   hud(t) {
     if (t.state !== 'active') return null;
     return { text: `WISPS ${t.hits} OF ${t.want}`, n: t.hits, of: t.want };

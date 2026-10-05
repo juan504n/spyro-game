@@ -72,6 +72,9 @@ export const bells = {
     }
   },
 
+  /** the hero has gone far off: the tune is forgotten, and it waits for him (no sound) */
+  sleep(t) { if (t.state !== 'solved') { t.phase = 'wait'; t.state = 'idle'; t.pos = 0; t.lit = -1; t.litT = 0; t.k = -1; t.ct = 0; } },
+
   hud(t) {
     if (t.state === 'solved' || t.phase === 'wait') return null;
     return { text: t.phase === 'listen' ? 'LISTEN' : t.phase === 'rest' ? 'AGAIN' : `BELLS ${t.pos} OF ${t.len}`, n: t.pos, of: t.len };

@@ -18,6 +18,7 @@ import { makeWalkmap } from './walkmap.mjs';
 import { launchCells, exitCells } from './lib/glide.mjs';
 import { airTools } from './lib/air.mjs';
 import { tideLow } from '../src/game/realm/tide.js';
+import { startOf } from './lib/trial-plays.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const id = process.argv[2], verbose = process.argv.includes('--verbose');
@@ -49,15 +50,18 @@ const thin = (route) => route.filter((_, k) => WATER_ON || k % 3 === 0 || k === 
 let from = { x: sp.x, z: sp.z, y: sp.y };
 const legs = [];
 const airT = brief && brief.air ? airTools({ grid: W.grid, collision: W.collision, gp: W.gp, brief, flood }) : null;
-goals.forEach((b, i) => {
+// (the walk to a goal that a trial seals has a stop on the way: where the trial begins. There he plays it with the real controller (tools/lib/trial-driver.js), the seal breaks, and the walk goes on from there to the lantern)
+const trialOf = (goalId) => (W.gp.trials || []).find((t) => t.goal === goalId);
+const planLeg = (b, i, id, kind, trialSpec) => {
+  const tl = { gi: i, ...(trialSpec ? { trial: trialSpec.id, trialKind: trialSpec.kind } : {}) };         // (gi: the goal this leg is for: the legs are more than the goals now)
   const open = (k) => gateAt !== null && k >= gateAt;      // (the goals that open the gate are behind him by then)
   if (airT) {                                               // (a country of islands: the legs of the journey from where he stands to the goal)
     const acts = airT.path(from, { x: b.x, z: b.z, y: b.y }, { openGate: open(i) });
-    if (!acts) { legs.push({ id: b.id, route: null, why: 'the air journey finds no way to it' }); return; }
+    if (!acts) { legs.push({ id, ...tl, route: null, why: 'the air journey finds no way to it' }); return; }
     const w = acts[acts.length - 1], last = w.route[w.route.length - 1];
     const mapAct = (a) => a.kind === 'walk' ? { kind: 'walk', route: thin(a.route), metres: a.route[a.route.length - 1][3], hops: a.route.some((_, k) => gapAt(a.route, k)) }
       : { kind: a.kind, id: a.link.id, land: [a.link.t.x, a.link.t.z, a.link.t.y], from: [a.link.o.x, a.link.o.z, a.link.o.y], apex: a.link.o.apex, gap: a.link.gap, drop: a.link.drop };
-    legs.push({ id: b.id, goal: [b.x, b.z], route: [[b.x, b.z]], acts: acts.map(mapAct), metres: acts.reduce((m, a) => m + (a.kind === 'walk' ? a.route[a.route.length - 1][3] : a.link.cost), 0) });
+    legs.push({ id, ...tl, goal: [b.x, b.z], route: [[b.x, b.z]], acts: acts.map(mapAct), metres: acts.reduce((m, a) => m + (a.kind === 'walk' ? a.route[a.route.length - 1][3] : a.link.cost), 0) });
     from = { x: last[0], z: last[2], y: last[1] };
     return;
   }
@@ -69,10 +73,9 @@ goals.forEach((b, i) => {
     w = flood([from.x, from.z], { startY: from.y, hop, openGate: open(i), water: WATER, mask });
     route = w.route(b.x, b.z, 4.5, b.y);
   }
-  const kind = brief ? (brief.goals.find((g) => g.id === b.id) || {}).situation : null;
   if ((!route || !route.length) && kind === 'glide') {
     const cands = launchCells(w, b, { use: USE }), L = cands[cands.length - 1];        // (the nearest ledge: the one the situation check found)
-    if (!L) { legs.push({ id: b.id, route: null, why: 'no ledge to glide from within reach' }); return; }
+    if (!L) { legs.push({ id, ...tl, route: null, why: 'no ledge to glide from within reach' }); return; }
     const r1 = w.route(L.x, L.z, 2, L.y);
     // and off again, to the walkable country nearest (on foot) the next goal
     let exit = null;
@@ -82,20 +85,25 @@ goals.forEach((b, i) => {
       const wAll = flood([sp.x, sp.z], { hop: 6.2, openGate: open(i + 1) });
       exit = exitCells(wAll, b, { next: wn, use: USE })[0] || null;
     }
-    legs.push({ id: b.id, goal: [b.x, b.z], route: thin(r1), metres: r1[r1.length - 1][3], glide: { launch: { x: L.x, y: L.y, z: L.z, gap: L.gap, drop: L.drop }, exit } });
+    legs.push({ id, ...tl, goal: [b.x, b.z], route: thin(r1), metres: r1[r1.length - 1][3], glide: { launch: { x: L.x, y: L.y, z: L.z, gap: L.gap, drop: L.drop }, exit } });
     from = exit ? { x: exit.x, z: exit.z, y: exit.y } : { x: b.x, z: b.z, y: b.y };
     return;
   }
   if ((!route || !route.length) && kind === 'puzzle') {      // (reached by something this walk does not do: the hero is put beside it, and the walk goes on from there)
     const at = { x: b.x + 3.5, z: b.z, y: W.grid.heightAt(b.x + 3.5, b.z) };
-    legs.push({ id: b.id, goal: [b.x, b.z], teleport: [at.x, at.y, at.z], route: [], metres: 0, skipped: `a ${kind} goal: not walked` });
+    legs.push({ id, ...tl, goal: [b.x, b.z], teleport: [at.x, at.y, at.z], route: [], metres: 0, skipped: `a ${kind} goal: not walked` });
     from = at;
     return;
   }
-  if (!route || !route.length) { legs.push({ id: b.id, route: null }); return; }
+  if (!route || !route.length) { legs.push({ id, ...tl, route: null }); return; }
   const last = route[route.length - 1];
-  legs.push({ id: b.id, goal: [b.x, b.z], route: thin(route), metres: last[3] });
+  legs.push({ id, ...tl, goal: [b.x, b.z], route: thin(route), metres: last[3] });
   from = { x: last[0], z: last[2], y: last[1] };
+};
+goals.forEach((b, i) => {
+  const T = trialOf(b.id), sit = brief ? (brief.goals.find((g) => g.id === b.id) || {}).situation : null;
+  if (T) { const st = startOf(T); planLeg({ id: b.id, x: st.x, z: st.z, y: W.grid.heightAt(st.x, st.z) }, i, `${b.id}:${T.kind}`, null, T); }
+  planLeg(b, i, b.id, sit, null);
 });
 
 if (process.argv.includes('--plan')) {                  // (the routes as planned, one line a leg - the points he walks through, and how far - and no walk)
@@ -123,6 +131,8 @@ page.on('pageerror', (e) => { errors.push(e.message); console.log('[pageerror]',
 await page.goto((process.env.GV_URL || 'http://127.0.0.1:5173/') + `?world=${id}&preserve=1`);
 await page.waitForFunction(() => window.__ready || window.__error, null, { timeout: 180000 });
 await page.addScriptTag({ path: path.join(here, 'bot-inject.js') });
+await page.addScriptTag({ path: path.join(here, 'lib/trial-driver.js') });
+await page.evaluate(() => window.__trialDriver.load());
 await page.waitForTimeout(1500);
 await page.evaluate(() => { __bot.god(); __bot.tick(30); });
 
@@ -175,6 +185,7 @@ for (let i = 0; i < legs.length; i++) {
         const s = __bot.state(), d = Math.hypot(s.x - x, s.z - z);
         return s.grounded && d < 9 && Math.abs(s.y - y) < 3 ? null : { ok: false, reason: `the glide to ${what} did not land there`, at: [s.x, s.y, s.z], metresOff: +d.toFixed(1), seconds: +walked.toFixed(1) };
       };
+      if (!leg.trial && G.beacons.list[leg.gi].litFlag) return { ok: true, reason: '', seconds: 0, at: __bot.state(), lit: G.beacons.lit, note: 'its trial lit it as it was solved' };          // (the lantern was near its trial: the trial's end lit it; and if it was the last the finale has begun)
       if (leg.teleport) __bot.place(leg.teleport[0], leg.teleport[2], 0, leg.teleport[1]);
       const notes = [];
       for (const a of leg.acts || []) {
@@ -209,19 +220,25 @@ for (let i = 0; i < legs.length; i++) {
         walked += s.t || 0;
         if (!s.ok) return { ok: false, reason: `${s.reason} on the way`, at: s.x === undefined ? null : [s.x, s.y, s.z], towards: [+x.toFixed(1), +z.toFixed(1)], seconds: +walked.toFixed(1), trace: tr.slice(-8) };
       }
+      if (leg.trial) {                                   // (a stop on the way to a sealed lantern: he is where the trial begins; he plays it, the seal breaks, and the lantern is lit if it is near, else freed)
+        const res = window.__trialDriver.solve(leg.trial, { place: false, T: 240 });
+        if (!res.ok) return { ok: false, reason: `the ${leg.trialKind} trial '${leg.trial}' was not solved`, seconds: +walked.toFixed(1), ...res };
+        __bot.tick(60 * 3);
+        return { ok: true, reason: '', seconds: +walked.toFixed(1), at: __bot.state(), lit: G.beacons.lit, note: `played the ${leg.trialKind}: solved in ${res.t} s (hurt ${res.hurts}, began again ${res.fails})` };
+      }
       let note = notes.join('; ');
       if (leg.glide) {
         // run off the ledge and glide to the goal: the bot jumps at the edge and holds the glide
         const L = leg.glide.launch, s0 = at();
         const g = __bot.goto(leg.goal[0], leg.goal[1], { glide: true, auto: true, tol: 3, timeout: 25 });
         walked += g.t || 0;
-        const bad = landed(leg.goal[0], leg.goal[1], G.beacons.list[i].y, 'the stack');
+        const bad = landed(leg.goal[0], leg.goal[1], G.beacons.list[leg.gi].y, 'the stack');
         if (bad) return { ...bad, from: s0, launch: [+L.x.toFixed(1), +L.y.toFixed(1), +L.z.toFixed(1)] };
         note = `glided ${L.gap.toFixed(0)} m from (${L.x.toFixed(0)}, ${L.y.toFixed(0)}, ${L.z.toFixed(0)}) to the goal`;
       }
       // at the goal: face it (walk the last steps towards it) and breathe fire
       __bot.goto(leg.goal[0], leg.goal[1], { tol: 2.6, timeout: 5, auto: false });                // (close enough to be facing it: he has walked the last steps towards it)
-      const b = G.beacons.list[i];
+      const b = G.beacons.list[leg.gi];
       for (let k = 0; k < 4 && !b.litFlag; k++) { __bot.tap('flame', 36); __bot.tick(20); }
       __bot.tick(30);
       // (the lanterns that open the gate: the barrier is told to open after 1.4 s and eases open; let it)
@@ -254,7 +271,7 @@ for (let i = 0; i < legs.length; i++) {
       return { lit: G.beacons.lit, gate: b ? { target: b.target, open: +b.open.toFixed(2), solid: !!b.c.solid } : null, water: +G.waterY.toFixed(2), t: +G.time.toFixed(0), grounded: p.grounded, kind: p.groundKind, snuffers, solid };
     });
   }
-  console.log(r.ok ? (leg.skipped ? 'SKIP' : 'PASS') : 'FAIL', `goal ${i + 1} of ${legs.length}, ${leg.id}: ${r.ok ? (leg.skipped ? `${leg.skipped}; put beside it and lit (${r.lit} lit)` : `walked ${leg.metres.toFixed(0)} m of route in ${r.seconds} s${r.note ? `, ${r.note}` : ''}, lit (${r.lit} lit)`) : r.reason}`, r.ok && !verbose ? '' : JSON.stringify(r), `(${((Date.now() - t0) / 1000).toFixed(1)}s)`);
+  console.log(r.ok ? (leg.skipped ? 'SKIP' : 'PASS') : 'FAIL', `${leg.trial ? 'trial' : 'goal'} ${i + 1} of ${legs.length}, ${leg.id}: ${r.ok ? (leg.skipped ? `${leg.skipped}; put beside it and lit (${r.lit} lit)` : `walked ${leg.metres.toFixed(0)} m of route in ${r.seconds} s${r.note ? `, ${r.note}` : ''}, lit (${r.lit} lit)`) : r.reason}`, r.ok && !verbose ? '' : JSON.stringify(r), `(${((Date.now() - t0) / 1000).toFixed(1)}s)`);
   if (!r.ok) break;                                  // (nothing after a goal that cannot be reached means anything)
 }
 // the last goal opens the finale; the gate (if any) stands open

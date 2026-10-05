@@ -8,7 +8,7 @@
 import { playTrial } from './lib/trialsim.mjs';
 import { PLAYS, SPECS, judge, plays, shift } from './lib/trial-plays.mjs';
 import { MACHINES, TRIALS, TRIAL_IDS, BELLS, PLATES, CIRCUIT, WISPS, PUCK, MIRRORS, timeFor, pressed, solveBoard, trace, solveMirrors, reflect, cellWorld, lcg } from '../src/game/trials/index.js';
-import { makeTrial } from '../src/game/trials/index.js';
+import { makeTrial, stepTrial, hudOf, targetsOf, AWAKE, distTo } from '../src/game/trials/index.js';
 
 let failed = 0;
 const check = (name, ok, detail) => { if (!ok) failed++; console.log(ok ? 'PASS' : 'FAIL', name, detail === undefined ? '' : detail); };
@@ -272,6 +272,37 @@ const bellsAt = (cx, cz, r, n) => Array.from({ length: n }, (_, i) => { const a 
   const second = made.length - first;
   d.p.dead = true; steps(s, d, 0.1, null);
   check('Siege: the waves come when he is inside the ring, one after another as each is cleared (2, then 3), and a hero who is set back finds the ring quiet and what was left put away', waiting && first === 2 && second === 3 && s.state === 'idle' && alive.size === 0 && d.events.filter((e) => e.type === 'wave').length === 2, `(${first}, ${second}; ${s.state})`);
+}
+
+{
+  // a trial is put to sleep when the hero goes far off: nothing runs, nothing is heard from a hundred metres, and what it was doing is let go; it begins afresh when he comes back
+  const run = (t, c, secs) => { for (let i = 0; i < Math.round(secs * 60); i++) stepTrial(t, 1 / 60, c); };
+  const [w, cw] = make(SPECS.wisps, 2);
+  cw.p.z = -3; run(w, cw, 6);
+  const made = cw.events.filter((e) => e.type === 'spawn').length, mid = hudOf(w);
+  cw.events.length = 0; cw.p.z = -200; run(w, cw, 30);
+  const heard = cw.events.length, h2 = hudOf(w), tg = targetsOf(w).length;
+  cw.p.z = -3; run(w, cw, 2);
+  check('Wisps: when the hero goes far off the vents go quiet (nothing spawns, nothing is heard, no line on the HUD, no target for his aim, the count is forgotten) and begin again when he comes back', made >= 2 && !!mid && heard === 0 && h2 === null && tg === 0 && w.hits === 0 && cw.events.some((e) => e.type === 'start') && w.state === 'active', `(${made} spawned, ${heard} events from afar)`);
+  const [ci, cc] = make(SPECS.circuit, 1);
+  const p0 = ci.pylons[0];
+  cc.p.x = p0.x; cc.p.z = p0.z; run(ci, cc, 0.2);
+  const started = ci.running;
+  cc.p.x = 600; cc.p.z = 600; cc.events.length = 0; run(ci, cc, 60);
+  check('Circuit: a clock that is running is stopped when the hero goes far off (it does not run out with nobody there: no fail, no sound) and the pylons are as they were', started && !ci.running && ci.next === 0 && cc.events.length === 0 && hudOf(ci) === null);
+  const [th, ct] = make(SPECS.thief, 1);
+  const spawned = [], put = [];
+  ct.spawn = (kind, x, z) => { const h = { id: spawned.length + 1 }; spawned.push(h); return h; }; ct.dismiss = (h) => put.push(h.id);
+  ct.p.z = -8; run(th, ct, 0.5);
+  ct.p.z = -300; ct.events.length = 0; run(th, ct, 3);
+  check('Thief: the Pilferling is put away, in silence, when the hero goes far off', spawned.length === 1 && put.join() === '1' && th.state === 'idle' && ct.events.length === 0);
+  const [sg, cs] = make(SPECS.siege, 1);
+  const made2 = [], put2 = [];
+  cs.spawn = (kind) => { const h = { id: made2.length + 1 }; made2.push(h); return h; }; cs.dismiss = (h) => put2.push(h.id);
+  cs.p.x = 0; cs.p.z = -8; run(sg, cs, 2);
+  cs.p.z = -300; cs.events.length = 0; run(sg, cs, 3);
+  check('Siege: what is left of the waves is put away, in silence, when the hero goes far off, and the ring is quiet', made2.length >= 2 && put2.length === made2.length && sg.state === 'idle' && sg.wave === -1 && cs.events.length === 0);
+  check('every kind has a distance at which it sleeps, and a circuit is measured from the nearest of its pylons', Object.keys(TRIALS).every((k) => AWAKE[k] >= 40) && distTo({ kind: 'circuit', pylons: [{ x: 0, z: 0 }, { x: 100, z: 0 }] }, { x: 90, z: 3 }) < 11 && distTo({ kind: 'bells', x: 10, z: 0 }, { x: 0, z: 0 }) === 10);
 }
 
 {

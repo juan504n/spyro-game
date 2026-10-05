@@ -30,6 +30,9 @@ export const thief = {
     }
   },
 
+  /** the hero has gone far off: the Pilferling is put away, and is at home when he comes back (no sound) */
+  sleep(t, ctx) { if (t.state === 'active') { ctx.dismiss(t.foe); t.foe = null; t.state = 'idle'; } },
+
   hud(t) { return t.state === 'active' ? { text: 'CATCH THE PILFERLING', n: 0, of: 1 } : null; },
   targets() { return []; },
 };

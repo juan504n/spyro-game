@@ -36,6 +36,9 @@ export const circuit = {
     }
   },
 
+  /** the hero has gone far off: the clock is stopped and the pylons are as they were (no sound) */
+  sleep(t) { if (t.state !== 'solved') { t.next = 0; t.clock = 0; t.running = false; t.state = 'idle'; } },
+
   hud(t) {
     if (t.state !== 'active' && !t.running) return null;
     const left = Math.max(0, t.time - t.clock);
