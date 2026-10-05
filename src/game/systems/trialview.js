@@ -452,7 +452,7 @@ class RingsView extends View {
     }
   }
 
-  solved() { this.finished = true; this.rings.forEach((m, i) => { this.shown[i] = 'done'; m.setState('done'); }); this.lip.forEach((m) => m.setLit(0)); }
+  solved() { this.finished = true; }                                                                   // (the next frame makes every hoop gold and the stones dark)
 }
 
 const VIEWS = { bells: BellsView, plates: PlatesView, circuit: CircuitView, wisps: WispsView, puck: PuckView, mirrors: MirrorsView, thief: ThiefView, siege: SiegeView, rings: RingsView };

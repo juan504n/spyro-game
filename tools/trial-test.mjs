@@ -870,6 +870,30 @@ const bellsAt = (cx, cz, r, n) => Array.from({ length: n }, (_, i) => { const a 
     const [t3, c3] = make(spec); c3.p.y = 24; fly(t3, c3, through(0)); fly(t3, c3, through(1)); fly(t3, c3, through(2)); fly(t3, c3, through(3));
     check('rings: when it is solved the flight is over (the state says he is not flying)', t3.state === 'solved' && t3.flying === false);
   }
+  {
+    // the checker's rule, each flight for its own sake: four courses on the ground of the tests that the model of the hero flies in some of its five ways (leaping, walking off, a thumb late, from 3 m to one side, from 3 m to the other) and not in others
+    const ok = { standable: () => true, blocking: () => false }, g2 = ringsGround();
+    const flights = (o) => {
+      const t = buildTrial({ id: 'x', x: 0, z: 40 }, { kind: 'rings', at: [0, 0], toward: [0, 40], len: 34, d0: 5.5, ...o }, { h: g2 });
+      const msgs = ringsProblems(t, { h: g2, ...ok }).filter((m) => /does not fly it/.test(m));
+      return ['leaping', 'walking off', 'a thumb late', 'to one side', 'to the other'].map((w) => (msgs.some((m) => m.includes(w)) ? 'X' : '.')).join('');
+    };
+    check('rules: each flight is flown for its own sake (a course the model flies leaping and not walking off, one walking off and with a thumb late, one leaping and from the one side but not from the other)', flights({ r: 2.2, amp: 0, sag: 0 }) === '.X...' && flights({ r: 2.2, amp: 5, sag: 0 }) === '.XX..' && flights({ r: 2.2, amp: 4, sag: 2 }) === 'X..X.' && flights({}) === '.....', `(${flights({ r: 2.2, amp: 0, sag: 0 })} ${flights({ r: 2.2, amp: 5, sag: 0 })} ${flights({ r: 2.2, amp: 4, sag: 2 })} ${flights({})})`);
+    // a ledge is a drop of 3 m or more within 4 m of the lip, and the lip is within 14 m of where he stands
+    const far = (x, z) => (z < 15.2 ? 24 : -5), step2 = (x, z) => (z < 5 ? 24 : 22);
+    const tFar = buildTrial({ id: 'x', x: 0, z: 40 }, { kind: 'rings', at: [0, 0], toward: [0, 40] }, { h: far }), tStep = buildTrial({ id: 'x', x: 0, z: 40 }, { kind: 'rings', at: [0, 0], toward: [0, 40] }, { h: step2 });
+    const pFar = ringsProblems({ ...tFar, id: 'rings' }, { h: far, ...ok }), pStep = ringsProblems({ ...tStep, id: 'rings' }, { h: step2, ...ok });
+    check('rules: a lip 15 m from where he stands is too far (14 m at the most) and a drop of 2 m is not a ledge (3 m)', pFar.some((m) => /there is no ledge to leap from.*it is 15\.0 m/.test(m)) && pStep.some((m) => /there is no ledge to leap from/.test(m)), `(${pFar[0]} | ${pStep[0]})`);
+    // a hoop must hang clear of the ground at its lowest (0.5 m): its middle 3.4 m over a hill is a hoop 0.2 m over it at the bottom
+    const spec2 = SPECS.rings, R2 = spec2.rings;
+    const hill = (x, z) => g2(x, z) + (Math.hypot(x - R2[3].x, z - R2[3].z) < 4 ? R2[3].y - 3.4 - g2(R2[3].x, R2[3].z) : 0);
+    const lowest = ringsProblems({ ...spec2, id: 'rings' }, { h: hill, ...ok });
+    check('rules: a hoop is held clear of the ground by its lowest point and not by its middle (the middle of ring 4 3.4 m over a hill: 0.2 m clear at the bottom)', lowest.some((m) => /ring 4 hangs 0\.2 m over the ground at its lowest/.test(m)), lowest.slice(0, 2).join(' | '));
+    // a prop in the plane of a hoop, at the side of it and at the other: the hoop is looked at all round
+    const at = (i, s) => { const c = R2[i]; return [c.x + c.nz * 3.2 * s, c.y, c.z - c.nx * 3.2 * s]; };
+    const propAt = (i, s) => { const q = at(i, s); return ringsProblems({ ...spec2, id: 'rings' }, { h: g2, standable: () => true, blocking: (x, y, z) => Math.hypot(x - q[0], y - q[1], z - q[2]) < 0.4 }); };
+    check('rules: a prop that stands in a hoop at either side of it (in its plane) is found: the hoop is looked at all round', propAt(1, 1).some((m) => /ring 2 has a prop or rock in its hoop/.test(m)) && propAt(1, -1).some((m) => /ring 2 has a prop or rock in its hoop/.test(m)));
+  }
   // the model of the hero in the air, held to the Player's own numbers and to what it does with them
   {
     const same = { run: 'runSpeed', accel: 'accel', brake: 'brake', airAccel: 'airAccel', airDrag: 'airDrag', gravity: 'gravity', jumpV: 'jumpV', maxFall: 'maxFall', coyote: 'coyote', jumpBuffer: 'jumpBuffer', glideSpeed: 'glideSpeed', glideFall: 'glideFall', glideAccel: 'glideAccel', turnGround: 'turnGround', turnAir: 'turnAir', turnGlide: 'turnGlide' };
