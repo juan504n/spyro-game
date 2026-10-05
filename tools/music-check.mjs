@@ -17,6 +17,9 @@
 //   key           the key the AUDIO has (chroma against the Krumhansl profiles) has the score's tonic, its relative, or a neighbour by a fifth: a pedal too low to be heard or a transposed
 //                 bar shows here
 //   pinned        the loop is the one in tools/music-hash.json; deterministic: a second render is bit-identical
+//   notation      note names, accidentals and the alter map, bars and ties, chords and slash chords, the bass degrees, voice leading
+//   validator     the validator refuses a bar that does not add up, an unknown chord or instrument, a pattern of the wrong length or one that overruns its chord, a note out of range or out of scale ...
+//   colourings    the dusk and the dawn of a song made separately (the player makes the dawn after the world is entered) are bit for bit the two made together
 //   alike         no two songs share a tempo and a meter, no two songs share a lead and a tonic, and the tunes of two songs share no more than 30% of their 3-note interval patterns
 
 import fs from 'node:fs';
@@ -30,7 +33,7 @@ import { runJob } from '../src/engine/audio/assets.js';
 import { rmsOf, peakOf } from '../src/engine/audio/synth.js';
 import { REALMS, songOf } from '../src/game/realms.js';
 import { monoOf, chromaOf, keyOf, seamCurvature, PC_NAMES } from './lib/music-dsp.mjs';
-import { scaleOf } from '../src/engine/audio/score.js';
+import { scaleOf, noteOf, parseBar, parseChord, voiceChord, degreeInterval, chordSlots } from '../src/engine/audio/score.js';
 import { intervalGrams } from './lib/score-analysis.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -145,6 +148,84 @@ if (!quick) {
   const b = songBuffers(id);
   const same = Object.keys(loops[id]).every((v) => hashOf(out[b[v]]) === hashes[`${id}:${v}`]);
   check(same, `${id}: a second render is bit-identical`, 'the render is not deterministic');
+}
+
+// ---- notation
+if (!only) {
+  const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  check(noteOf('C4') === 60 && noteOf('A4') === 69 && noteOf('Bb2') === 46 && noteOf('F#3') === 54 && noteOf('B-1') === 11, 'notation: note names are MIDI numbers (C4 = 60)', 'noteOf');
+  check(noteOf('F5', { F: 1 }) === 78 && noteOf('F=5', { F: 1 }) === 77 && noteOf('F#5', { F: 1 }) === 78 && noteOf('G+5', { '+': 1 }) === 80 && noteOf('G+5', null) === 79 && noteOf('Bb4', { B: 1 }) === 70, 'notation: the alter map moves plain letters, "=" and "#" and "b" do not, "+" is its own', 'noteOf with alter');
+  const b1 = parseBar('A4/3 D5/1 F5/2! E5/1.5 r/0.5', 8);
+  check(eq(b1.map((e) => e.u), [0, 3, 4, 6]) && eq(b1.map((e) => e.m), [69, 74, 77, 76]) && b1[2].mark === '!' && b1[3].len === 1.5, 'notation: a bar is notes with lengths in units, rests, marks', JSON.stringify(b1));
+  check(parseBar('_/2 A4/6', 8)[0].m === -1 && parseBar('r/8', 8).length === 0, 'notation: a tie holds the note before it', 'tie');
+  let threw = 0;
+  for (const bad of ['A4/3', 'A4/9', 'A4/x', 'H4/8']) { try { parseBar(bad, 8); } catch (e) { threw++; } }
+  check(threw === 4, 'notation: a bar that does not add up to the meter, or has a bad note or length, is refused', `${threw} of 4 refused`);
+  const bb = parseChord('Bbmaj7/D');
+  check(bb.root === 10 && bb.bass === 2 && eq(bb.tones, [0, 4, 7, 11]) && bb.t3 === 4 && bb.t7 === 11, 'notation: a chord symbol has its root, its bass, its tones', JSON.stringify(bb));
+  let bad = 0;
+  for (const sym of ['H', 'Gfoo', 'g', '']) { try { parseChord(sym); } catch (e) { bad++; } }
+  check(bad === 4, 'notation: an unknown chord is refused', `${bad} of 4`);
+  const cm7 = parseChord('Cm7');
+  const ce = parseChord('C/E');
+  check(['R', '3', '5', '7', '8', 'L'].map((d) => degreeInterval(cm7, d)).join() === '0,3,7,10,12,-12' && degreeInterval(ce, 'R') === 0 && degreeInterval(ce, '5') === 3 && degreeInterval(ce, '3') === 0, 'notation: bass degrees count from the bass note (a slash chord\'s fifth is above its bass)', 'degreeInterval');
+  const v1 = voiceChord(parseChord('Em'), null);
+  const v2 = voiceChord(parseChord('C'), v1);
+  const sorted = (v) => v.every((m, i) => i === 0 || m > v[i - 1]);
+  const pcs = (v) => [...new Set(v.map((m) => m % 12))].sort((a, b) => a - b).join();
+  check(v1.length === 4 && sorted(v1) && v1.every((m) => m >= 52 && m <= 72) && pcs(v1) === '4,7,11' && v2.length === 4 && sorted(v2) && pcs(v2) === '0,4,7', 'notation: a pad voicing is four voices in range on the tones of the chord', `${v1} ${v2}`);
+  check(v2.reduce((a, m, i) => a + Math.abs(m - v1[i]), 0) <= 12, 'notation: the next voicing moves by the smoothest way (a minor to its relative major in at most a whole step in total, a third at most per voice)', `${v1} -> ${v2}`);
+  const sl = chordSlots(SCORES.home, SCORES.home.variants.dawn);
+  const perBar = new Map();
+  for (const x of sl) perBar.set(x.bar, (perBar.get(x.bar) || 0) + x.len);
+  check(sl.length === 28 && [...perBar.values()].every((l) => l === SCORES.home.upb), 'notation: a bar with two chords has two slots that fill it', `${sl.length} slots`);
+}
+
+// ---- the validator refuses what it should
+if (!only) {
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+  const refuses = (what, mutate, word, id = 'home', variant = 'dawn') => {
+    const sc = clone(SCORES[id]);
+    mutate(sc, sc.variants[variant]);
+    const msgs = validateScore(sc);
+    check(msgs.some((m) => m.includes(word)), `validator: refuses ${what}`, msgs.length ? `said: ${msgs[0]}` : 'accepted it');
+  };
+  check(validateScore(clone(SCORES.home)).length === 0 && validateScore(clone(SCORES.tideglass)).length === 0, 'validator: accepts a score that is well formed (a copy of two of the songs)', validateScore(clone(SCORES.home)).join('; '));
+  refuses('a bar that does not add up', (s) => { s.lines.tune[0] = 'D5/2 G5/3'; }, 'sums to');
+  refuses('an unknown chord', (s, v) => { v.chords[0] = 'Hm'; }, 'bad chord');
+  refuses('an unknown chord quality', (s, v) => { v.chords[1] = 'Gfoo'; }, 'unknown chord quality');
+  refuses('chords that do not fill the bar', (s, v) => { v.chords[6] = [['C', 3], ['D', 2]]; }, 'fill');
+  refuses('too few chords', (s, v) => { v.chords.pop(); }, 'chords has');
+  refuses('a bass pattern that overruns its chord', (s, v) => { v.parts.find((p) => p.type === 'bass').patterns.h = [[0, 'R', 4, 1]]; }, 'overruns');
+  refuses('a step pattern of the wrong length', (s, v) => { v.parts.find((p) => p.type === 'arp').patterns.a = '0.1.2'; }, 'steps');
+  refuses('a rhythm pattern of the wrong length', (s, v) => { v.parts.find((p) => p.type === 'perc').tracks[0].patterns.a = '6.3'; }, 'steps');
+  refuses('a note outside its instrument', (s, v) => { v.parts[0].transpose = 40; }, 'outside');
+  refuses('an unknown instrument', (s, v) => { v.parts[0].inst = 'kazoo'; }, 'unknown instrument');
+  refuses('a bar mask of the wrong length', (s, v) => { v.parts[0].bars = 'xxx'; }, 'characters');
+  refuses('a pattern letter that is not defined', (s, v) => { v.parts.find((p) => p.type === 'bass').bars = 'z' + v.parts.find((p) => p.type === 'bass').bars.slice(1); }, 'not defined');
+  refuses('a note outside the scale', (s) => { s.lines.tune[1] = 'E5/2 D5/2 G#5/2'; }, 'outside the scale');
+  refuses('groups that do not add up to the meter', (s) => { s.groups = [2, 2]; }, 'groups');
+  refuses('a level that is not a level', (s, v) => { v.parts[0].level = -3; }, 'level');
+  refuses('an intensity of the wrong length', (s, v) => { v.intensity = '123'; }, 'intensity');
+  refuses('a tie in the first bar', (s) => { s.lines.tune[0] = '_/2 G5/4'; }, 'tie');
+  refuses('a loop that is too short', (s) => { s.bars = 8; s.lines.tune = s.lines.tune.slice(0, 8); s.variants.dawn.chords = s.variants.dawn.chords.slice(0, 8); }, 'loop is');
+  refuses('a part of an unknown type', (s, v) => { v.parts[0].type = 'solo'; }, 'unknown type');
+  refuses('a colouring that is neither dusk nor dawn', (s) => { s.variants.noon = s.variants.dawn; }, 'dusk and/or dawn');
+}
+
+// ---- the colourings made separately are the colourings made together
+if (!only) {
+  for (const id of ['gloaming', 'frostbloom']) {
+    const b = songBuffers(id);
+    const sep = {};
+    for (const v of variantsOf(id === 'gloaming' ? { variants: { dusk: 1, dawn: 1 } } : SCORES[id])) {
+      const out = {};
+      for (const j of songJobsOf(id, out, { variants: [v] })) runJob(j);
+      if (out[b[v]]) sep[v] = out[b[v]];
+    }
+    const same = Object.keys(sep).length === 2 && Object.entries(sep).every(([v, x]) => hashOf(x) === hashes[`${id}:${v}`]);
+    check(same, `colourings: ${id}'s dusk and dawn made separately are bit for bit the two made together`, 'the dawn made on its own is not the dawn made with the dusk');
+  }
 }
 
 // ---- not alike

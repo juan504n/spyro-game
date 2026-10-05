@@ -76,6 +76,7 @@ const S = {
   songLoading: new Map(),
   songBg: new Map(), // id -> { stop } for the colouring of a song that is being made while the hero plays (the dawn)
   songBgDone: new Map(), // id -> the promise of that
+  songSrc: 0, // live source nodes of songs (testing: a song that fades out must not leave its loops running)
   day: 0,
   dayAt: 0,
   dayTimer: 0,
@@ -339,6 +340,7 @@ function killNodes(o, at) {
     try {
       s.stop(at);
       s.onended = () => {
+        if (o.id !== undefined) S.songSrc--;
         try { s.disconnect(); } catch (e) { /* ignore */ }
         if (i === list.length - 1 && o.out) { try { o.out.disconnect(); } catch (e) { /* ignore */ } }
       };
@@ -395,6 +397,7 @@ function songNodes(id, t0) {
     src.connect(gn).connect(song.out);
     src.start(t0);
     song.srcs.push(src);
+    S.songSrc++;
     song.gains[k] = gn;
   }
   const g = songDayGains(song, S.day);
@@ -427,7 +430,9 @@ function attachDawn(id) {
   src.connect(gn).connect(song.out);
   src.start(when, offset);
   song.srcs.push(src);
+  S.songSrc++;
   song.gains.dawn = gn;
+  song.dawnStart = { when, offset };
   applyDay();
 }
 
@@ -974,7 +979,7 @@ export const audio = {
   /** Testing hook: graph nodes, live voice count and loaded buffer names. */
   get _debug() {
     const gains = S.music ? Object.fromEntries([...Object.entries(S.music.gains), ...(S.music.song ? Object.entries(S.music.song.gains).map(([k, g]) => ['song_' + k, g]) : [])].map(([k, g]) => [k, g.gain.value])) : null;
-    return { nodes: S.n, voices: S.voices.filter((v) => !v.stolen).length, voicesTotal: S.voices.length, pooled: S.pools.world.length + S.pools.ui.length, buffers: [...S.buffers.keys()], failed: S.failed, gains, day: S.day, song: S.song, playing: S.music && S.music.song ? S.music.song.id : null, songsMade: Object.keys(songsMadeIds()), songsComplete: Object.keys(songsMadeIds()).filter(songComplete) };
+    return { nodes: S.n, voices: S.voices.filter((v) => !v.stolen).length, voicesTotal: S.voices.length, pooled: S.pools.world.length + S.pools.ui.length, buffers: [...S.buffers.keys()], failed: S.failed, gains, day: S.day, song: S.song, playing: S.music && S.music.song ? S.music.song.id : null, songsMade: Object.keys(songsMadeIds()), songsComplete: Object.keys(songsMadeIds()).filter(songComplete), songSources: S.songSrc, songTiming: S.music && S.music.song ? { t0: S.music.song.t0, dawn: S.music.song.dawnStart || null, dur: (() => { const b = songBuffers(S.music.song.id); const x = S.buffers.get(b.dusk || b.dawn); return x ? x.duration : 0; })() } : null };
   },
 };
 

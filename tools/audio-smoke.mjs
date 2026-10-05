@@ -274,6 +274,29 @@ async function inPage() {
       if (!(g2.song_dusk != null && g2.song_dawn != null)) fail('the dawn did not join the song that plays: ' + JSON.stringify(g2));
       else if (!(g2.song_dusk < 0.05 && g2.song_dawn > 0.95)) fail(`at day 1 the dawn plays alone: ${JSON.stringify(g2)}`);
       songReport[slow + 'Playing'] = { gains: g2 };
+      const tm = A._debug.songTiming;
+      if (!tm || !tm.dawn || !(tm.dawn.offset > 0 && tm.dawn.offset < tm.dur)) fail('the dawn was not started inside the loop: ' + JSON.stringify(tm));
+      else {
+        const want = (((tm.dawn.when - tm.t0) % tm.dur) + tm.dur) % tm.dur;
+        if (Math.abs(tm.dawn.offset - want) > 1e-6) fail(`the dawn was started at ${tm.dawn.offset.toFixed(4)} s into the loop, the dusk has reached ${want.toFixed(4)} s`);
+      }
+    }
+    // a song that fades out leaves nothing of its loops playing, and a song whose world is left before its dawn is made leaves nothing behind
+    {
+      A.setSong('gloaming');
+      await sleep(2300);
+      const live = A._debug.songSources;
+      const want = A._debug.gains && A._debug.gains.song_dawn != null && A._debug.gains.song_dusk != null ? 2 : 1;
+      if (live !== want) fail(`${live} song loops are playing, the song that plays has ${want}: a song that faded out was left running`);
+      const [X, Y] = others.filter((i) => i !== 'home' && !A.hasSong(i));
+      if (X && Y) {
+        await A.loadSong(X, () => {});                           // (its dusk is made and its dawn is being made)
+        await A.loadSong(Y, () => {});                           // (the song he is in stays, the new one is made: X goes, dawn and all)
+        await A.whenSongComplete(X);
+        await A.whenSongComplete(Y);
+        if (bufsOf(X).length || A.hasSong(X)) fail(`the song of a world he left before its dawn was made was kept (${bufsOf(X).join(',')})`);
+        if (!A.hasSong(Y) || !A.songComplete(Y)) fail(`the song made after it is not whole (${bufsOf(Y).join(',')})`);
+      }
     }
     // the dawn's loop is started in step with the dusk's: the point of the loop the dusk has reached is where it starts (a pure function, and WebAudio's start(when, offset) on a looping source)
     {
