@@ -725,6 +725,7 @@ const bellsAt = (cx, cz, r, n) => Array.from({ length: n }, (_, i) => { const a 
     steps(t, c, 0.2, null);
     const ret = c.events.filter((e) => e.type === 'return');
     check('rings: ... and after 1.6 s a gust (once), to the ledge: where he stood to begin, facing the way the course runs', ret.length === 1 && ret[0].x === spec.x && ret[0].z === spec.z && ret[0].y === spec.y && ret[0].yaw === spec.yaw, JSON.stringify(ret));
+    check('rings: ... and the gust takes what he had settled with it (nothing is left of the 1.6 s) and rests 4 s', t.settle === 0 && t.cool > 3.9 && t.cool <= 4);
     steps(t, c, 3.9, null);
     check('rings: and not again for 4 s', c.events.filter((e) => e.type === 'return').length === 1);
     steps(t, c, 2.0, null);
@@ -866,7 +867,8 @@ const bellsAt = (cx, cz, r, n) => Array.from({ length: n }, (_, i) => { const a 
     const [t, c] = make(spec); t.state = 'solved';
     MACHINES.rings.sleep(t);
     const [t2, c2] = make(spec); fly(t2, c2, through(0)); MACHINES.rings.sleep(t2);
-    check('rings: a trial that is solved is not undone when he goes far off, and says nothing; one that is not goes idle, and is silent', t.state === 'solved' && MACHINES.rings.hud(t) === null && t2.state === 'idle' && MACHINES.rings.hud(t2) === null && t2.passed === 0);
+    const [t6, c6] = make(spec); c6.p.x = spec.land.x; c6.p.z = spec.land.z; c6.p.y = 15; c6.p.grounded = true; steps(t6, c6, 1.0, null); const settled = t6.settle; MACHINES.rings.sleep(t6);
+    check('rings: a trial that is solved is not undone when he goes far off, and says nothing; one that is not goes idle, is silent and forgets the run, where he was and what he had settled', t.state === 'solved' && MACHINES.rings.hud(t) === null && t2.state === 'idle' && MACHINES.rings.hud(t2) === null && t2.passed === 0 && t2.prev === null && settled > 0.9 && t6.settle === 0 && t6.prev === null);
     const [t3, c3] = make(spec); c3.p.y = 24; fly(t3, c3, through(0)); fly(t3, c3, through(1)); fly(t3, c3, through(2)); fly(t3, c3, through(3));
     check('rings: when it is solved the flight is over (the state says he is not flying)', t3.state === 'solved' && t3.flying === false);
   }
@@ -916,6 +918,9 @@ const bellsAt = (cx, cz, r, n) => Array.from({ length: n }, (_, i) => { const a 
     off2.step(1 / 60, press);
     check('flyhero: 0.3 s after walking off a ledge a press is a glide (the jump was spent in the fall), and the glide ends when the key is let go', off2.gliding && (off2.step(1 / 60, free), !off2.gliding));
     const unspent = mkf({ y: 6, vy: 0.5, grounded: false, jumpsUsed: 0, coyoteT: 0 }); unspent.step(1 / 60, press);
+    const stood = mkf({ y: 0, vy: 0, grounded: true, jumpsUsed: 1, coyoteT: 0 }); stood.step(1 / 60, press);
+    const edge = mkf({ y: 6, vy: -1, grounded: false, jumpsUsed: 1, coyoteT: 0.05 }); edge.step(1 / 60, press);
+    check('flyhero: a press is never a glide on the ground (whatever his jumps say), nor in the 0.11 s after a ledge', !stood.gliding && !edge.gliding && edge.vy > 13);
     check('flyhero: a press in the air by a hero who has neither jumped nor walked off a ledge is not a glide', !unspent.gliding);
     const buf = mkf({ y: 0.3, vy: -6, grounded: false, jumpsUsed: 1 }); buf.step(1 / 60, press); let jumped = false; for (let i = 0; i < 8 && !jumped; i++) { buf.step(1 / 60, hold); jumped = buf.vy > 10; }
     check('flyhero: a press just before he lands is kept (0.13 s) and he jumps on landing', jumped);
