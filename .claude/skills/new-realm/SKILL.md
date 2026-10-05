@@ -24,7 +24,8 @@ the design to what made the original games' worlds good, as code. You supply the
 | the realm played end to end in the real game | `node tools/realm-test.mjs <id>` (dev server on :5173) |
 | the realm walked by the real controller, goal to goal (gliding where a goal wants it; in a country of islands: hopping slabs, gliding, riding whirlwinds; in a realm with a tide: waiting for the ebb, off the rims; a gate tried with jumps and glides) | `node tools/realm-bot.mjs <id> [--plan]` (dev server on :5173; `--plan` prints the routes and walks nothing) |
 | the air journey of a country of islands (links as data, held to the numbers, the legs a walker plays) | `tools/lib/air.mjs` (used by the checker, the TRAVEL tools and the walker) |
-| the foundry tested as a whole (generates a scratch realm, checks, plays it) | `node tools/foundry-test.mjs` |
+| the asks in front of the lanterns: eight kinds of trial (bells, plates, circuit, wisps, puck, mirrors, thief, siege) a goal may carry (`trial: { kind, at, ... }` in the brief), each a pure state machine; the first goal of a realm stays plain, no kind stands twice running | `src/game/trials/` (`place.js` is how a brief asks for one), `src/game/systems/trials.js`, rules `trials.mix` and `trials.fair`, tools `node tools/trial-test.mjs`, `node tools/trial-bot.mjs` |
+| the foundry tested as a whole (generates a scratch realm, checks, plays it, refuses what it should) | `node tools/foundry-test.mjs` |
 | Gloaming Vale and Dawnhaven must not change by accident | `node tools/world-hash.mjs` |
 
 Read `reference/principles.md` first (what a good realm is, and which rule enforces each principle), `reference/recipe.md` when building, `reference/contract.md` for the engine's data, `reference/verification.md`
@@ -35,7 +36,7 @@ for the gates, `reference/pitfalls.md` before debugging anything strange.
 **1. Brief the realm (design before code).** Settle, in the user's words if they gave any, then in your own: the id (`frostbloom`), NAME and TAGLINE in capitals, the Dawnhaven door that leads to it
 (`src/game/home/level.js` DOOR_DEFS: `target: null` is a sleeping door; none sleeps now, so a new realm needs a door of its own, cut in a place of its own: see below), the **theme** (two or three base colours, a sky for each of its two moods: night before its goals are lit, dawn after), the
 **journey** (the parts of the country in order, each with a character; at least five; heights that span 25 m or more), the **goals** (3-9; each in a different *situation*: `landing`, `clearing`, `island`,
-`summit`, `cave`, `glide`, `puzzle`, `crater` - at least four different kinds among five), the **secrets** (three or more, off the road, one behind a cracked wall), the **danger curve** (quiet start, harder
+`summit`, `cave`, `glide`, `puzzle`, `crater` - at least four different kinds among five), the **trials** (the first goal is plain, it teaches the lantern; each of the others stands behind an ask of a different kind: at least three kinds, none twice running: `reference/recipe.md` says how each is placed), the **secrets** (three or more, off the road, one behind a cracked wall), the **danger curve** (quiet start, harder
 Snuffers as the way climbs). Do not ask the user about things the principles already decide; ask only when the theme itself is open.
 
 **2. Lay the foundation.**
@@ -45,7 +46,7 @@ node tools/new-realm.mjs <id> --name "FROSTBLOOM HOLLOW" --tagline "A REALM OF I
 This copies the starter into `src/game/<id>/` (brief.js, level.js, layout.js, index.js), writes `tools/<id>-check.mjs`, registers the realm in `realms.js`, finds and registers its TRAVEL places, and runs
 the checker. You now have a realm that builds, boots at `?world=<id>` and passes every rule, with the starter's design and one waiver (`design.loops`) as a to-do.
 
-**3. Write the design into `brief.js`.** Replace the starter's regions, lake, roads, goals, exit, secrets, words, sky. Everything the other files need to know about positions is read from the brief, so the
+**3. Write the design into `brief.js`.** Replace the starter's regions, lake, roads, goals (and the `trial: { kind, at, ... }` of each goal but the first: `reference/recipe.md`, *Trials*), exit, secrets, words, sky (and `theme.trials`, the stone, crystal and glow of its trials). Everything the other files need to know about positions is read from the brief, so the
 design lives in one place. `defineBrief` refuses a brief that is not a design yet (too few parts, goals alike, no secrets...). Draw it as you go: `node tools/realm-map.mjs <id> map.png` and look at it.
 
 **4. Build the places.** `layout.js` is a list of stages (`makePopulate(BRIEF, [goalsStage, layoutX, ..., exitStage, gemsStage])`): the kit provides the goals, the ring of light and the treasure; each part of the
@@ -57,7 +58,7 @@ with a reason in `brief.waive`; a finished realm waives nothing. Add the realm's
 
 **6. Refresh the TRAVEL places** after the layout settles: `node tools/realm-travel.mjs <id>`; then `node tools/travel-check.mjs`.
 
-**7. Play it.** `node tools/realm-test.mjs <id>` (boot, light every goal with fire, finale, ring, Dawnhaven, back restored) and `node tools/realm-bot.mjs <id>` (the real controller walks to every goal along the walk map's routes, and glides to the goals that want it, and in a country of islands hops the slabs and rides the whirlwinds: it finds what a flood fill over cells cannot), then look at it for real: screenshots from the dev server (`?world=<id>`,
+**7. Play it.** `node tools/realm-test.mjs <id>` (boot, light every goal with fire, finale, ring, Dawnhaven, back restored) and `node tools/realm-bot.mjs <id>` (the real controller walks to every goal along the walk map's routes, and glides to the goals that want it, and in a country of islands hops the slabs and rides the whirlwinds: it finds what a flood fill over cells cannot; where a lantern is sealed by a trial, both play the trial with the real controller first), then look at it for real: screenshots from the dev server (`?world=<id>`,
 `tools/shot.mjs`, `tools/play.mjs`), from the start and from each goal; the software-rendered headless browser is not a phone's GPU - say so when reporting.
 
 **7b. Give it a song.** Every world has a song of its own (`src/engine/audio/songs.js`, by the id of the world; a realm names another with `music`). Until it has one the realm plays Vale's tune and `node tools/music-check.mjs`

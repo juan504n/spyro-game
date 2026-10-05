@@ -37,6 +37,10 @@ const check = (name, ok, detail = '') => { if (!ok) failed++; console.log(ok ? '
   // (the ask that stands in front of a lantern: a trial that cannot be made is refused when the brief is read, naming the lantern and what is wrong)
   const badTrial = { 'bells: three': { trial: { kind: 'bells', at: [0, 0], n: 3 } }, 'a kind that is not one': { trial: { kind: 'riddle', at: [0, 0] } }, 'a siege of a moth': { trial: { kind: 'siege', at: [0, 0], waves: [['basic'], ['moth']] } }, 'a circuit of four pylons': { trial: { kind: 'circuit', pylons: [[0, 0], [9, 0], [18, 0], [27, 0]] } } };
   const letThrough = Object.entries(badTrial).filter(([, g]) => !refuses(g)).map(([k]) => k);
+  const badLook = { 'a stone that is not a name': { stone: 3 }, 'a glow of two numbers': { glow: [1, 0.5] }, 'a look that is a name': 'ice' };
+  const refusesLook = (look) => { try { defineBrief({ ...STARTER_BRIEF, theme: { ...STARTER_BRIEF.theme, trials: look } }); return false; } catch (e) { return /theme\.trials/.test(e.message); } };
+  const lookThrough = Object.entries(badLook).filter(([, l]) => !refusesLook(l)).map(([k]) => k);
+  check('defineBrief refuses the look of trials that is the wrong shape (a stone that is not a name, a glow of two numbers)', lookThrough.length === 0 && !refusesLook({ stone: 'cobble_tide', crystal: 'crystal_cyan', glow: [0.5, 1, 0.9] }), lookThrough.length ? `(let through: ${lookThrough.join('; ')})` : '');
   check('defineBrief refuses a trial that cannot be made', letThrough.length === 0, letThrough.length ? `(let through: ${letThrough.join('; ')})` : '');
   check('... and takes one that can', refuses({ trial: { kind: 'bells', at: [0, 0] } }) === false && refuses({ trial: { kind: 'siege', at: [0, 0], waves: [['basic'], ['bell', 'thorn']] } }) === false);
 }
@@ -97,6 +101,7 @@ try {
     bites('... on a slope', isle("{ kind: 'plates', at: [35, 20], r: 4.4 }"), /^FAIL trials\.fair.*of its ground are over 0\.9 m off level/m);
     bites('... where the hero cannot walk to it', isle("{ kind: 'plates', at: [-45, 50], r: 4.4 }"), /^FAIL trials\.fair.*the hero cannot walk to it/m);
     bites('... too far from its lantern to be found (110 m)', isle("{ kind: 'plates', at: [2, 160], r: 4.4 }"), /^FAIL trials\.fair.*114 m from its lantern/m);
+    bites('textures.exist refuses a look of trials with a texture the game does not have (a misspelt name draws flat magenta)', [["theme: {", "theme: { trials: { stone: 'cobble_tyde' },"]], /^FAIL textures\.exist.*cobble_tyde/m);
     const PYL = '[[0,162],[-4,130],[2,110],[2,92],[-14,80],[-28,66],[-34,52]]';                   // (the first pylon is 116 m from the lantern and the last 33: a circuit is found by the nearest)
     bites('... a circuit whose clock is too little for the way (14 s for a way of 126 m)', isle(`{ kind: 'circuit', pylons: ${PYL}, time: 14 }`), /^FAIL trials\.fair.*14 s is too little for \d+ m/m);
     bites('... where a fixed prop stands on its ground (a torch stand of the village)', isle("{ kind: 'plates', at: [0.4, 149], r: 4.4 }"), /^FAIL trials\.fair.*1 of 37 points of its ground are wet or under a prop \(7\.0,149\.0\)/m);

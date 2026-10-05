@@ -19,7 +19,7 @@ import { ROAD_MAX_SLOPE } from '../../src/game/roads.js';
 import { SITUATIONS } from '../../src/game/realm/situations.js';
 import { RULES } from '../../src/game/realm/brief.js';
 import { DANGER as KIND_DANGER, KIND_IDS } from '../../src/game/foes/kinds.js';
-import { footprint } from '../../src/game/trials/place.js';
+import { footprint, lookOf } from '../../src/game/trials/place.js';
 import { ENEMY_DROPS } from '../../src/game/economy.js';
 import { timeFor, CIRCUIT } from '../../src/game/trials/index.js';
 
@@ -400,6 +400,7 @@ export function checkRealm(which, { log = () => {} } = {}) {
     for (const k of W.kit.builders.keys()) used.add(k.split('|')[0]);
     for (const m of massifs) for (const t of [m.style.rock, m.style.interior, m.style.top, ...(m.style.layers || []).map((l) => l.name)]) used.add(t);
     for (const t of [L.farRock, ...Object.values(L.roadTextures || {}), ...Object.values(L.lakeTextures || {}), ...Object.values(L.cliffs || {})]) used.add(t);
+    if (gp.trials && gp.trials.length) { const look = lookOf(brief); for (const t of [look.stone, look.crystal, look.metal]) used.add(t); }                  // (the stone and the crystal of its trials: built when the realm is played, not in this headless world)
     const missing = [...used].filter((t) => t && t !== '_' && !have.has(t));
     rule('textures.exist', 'every texture the realm uses is one the game has (a misspelt name draws flat magenta)', missing.length === 0, missing.length ? `(missing: ${missing.join(' ')})` : `(${used.size} textures)`, { hard: true });
   }

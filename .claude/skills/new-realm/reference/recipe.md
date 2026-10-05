@@ -35,6 +35,22 @@ Pick the arc before the coordinates. A good five-goal arc: a **landing** goal a 
 for the **glide** (across a chasm or a lake: a stack of rock in the middle of lava, 15 m up, 36 m from the rim; **with no way on foot at all it needs a way off** by a glide, which the situation check looks for, and the lake must be deep from bank to bank so that the only dry ground is the stack) or a **puzzle**; the finale on a **summit** or in a **crater**. Each goal has `hint` (what to do) and `hintAt`. A goal on a structure of its own (an islet, a tower) takes
 `pad: false`; one given `y` keeps it. The last goal is `big: true` (a bigger lantern with a ring of light 16.5 m above it).
 
+## 3b. Trials: an ask in front of a lantern (`goals[].trial`, `src/game/trials/`)
+
+Every goal but the first (it teaches the lantern) stands behind an ask of its own: `trial: { kind, at: [x, z], ...numbers }` on the goal of the brief. The trial **seals** the lantern (a breath on it is turned away and the HUD says what the trial wants, and where it is when it is out of sight); the last step breaks the seal and lights the lantern if he is within 26 m, else frees it. Eight kinds (`trials/kinds.js`; `trials/place.js` makes the parts from the numbers, and `defineBrief` refuses what cannot be made, naming the lantern):
+
+| kind | the numbers (default) | what it needs of the ground |
+| --- | --- | --- |
+| `bells` | `at` is where he stands, the arc is in front of him: `yaw`, `n` 4-6 (5), `r` 4.4+ (5.8), `arc` (2.3), `len` 3-6 (4); the bells at least 3.2 m apart (`r * arc / (n - 1)`) | a flat circle round both |
+| `plates`, `wisps` | `at` is the hub: `n` 5 or 6 (5), `r` 3.6+ (5.5, 5); optional `scramble`, `want` | a flat circle of `r` + 2.2 m |
+| `circuit` | `pylons: [[x, z], ...]`, five to nine, a loop over the country as it is; `time` only if you must (14 s or more: the machine gives the length at 60% of a run and three seconds) | no pad: every leg walkable (slope 0.62 at most), dry and clear; the checker holds the clock to the way |
+| `puck` | `at` is the court's middle: `yaw`, `hw` 5+ (6.5), `hl` 8+ (11), `goalHW` 1.8+ and narrower than the court (2.4) | a flat rectangle, 13 m by 22 m by default |
+| `mirrors` | `at` is the floor's middle: `yaw`, `w` and `h` 4 or 5 (5), `k` 2 or 3 mirrors (3), optional `seed` | a flat floor of squares 4.4 m across (up to 21 m) |
+| `thief` | `at` is where he comes to; the Pilferling is made 12 m off (`spawn: [x, z]` or `yaw`) | country to run in: 30 of 37 points of a ring of 14 m round it |
+| `siege` | `at` is the ring's middle (the lantern's own place does well), `r` 8+ (12), `waves`: two to four waves of one to four foes of `SIEGE_KINDS` (basic bell thorn rime slinger hog warden pup: the cast of the realm; not the moth, the Smokecaller, the Pilferling or the Dustmole) | a flat circle of `r` + 1.5 m |
+
+Every trial also takes `gems` (what a solved trial pays at its lantern; by default what its foes would have dropped; counted in the gem budget; `[]` pays nothing) and `pad: false` (leave the ground as it is). The level makes each footprint level (`realm/level.js trialPads`), the layout keeps props off it (`realm/populate.js`), and `theme.trials = { stone, crystal, glow }` is the realm's look (textures of the realm's own). Choose the sites on ground that is already near level and dry, within 110 m of the lantern (a circuit: of its nearest pylon; a trial is looked for when the hero finds the lantern sealed, so near is better: the compass in the HUD says where for those out of sight). Let the checker find what is wrong (`trials.fair` names the points of the ground that are wet, steep or under a prop, the legs that cannot be run, the clock that is too short), then play it: `node tools/trial-bot.mjs --quick` for the machines in the game, `node tools/realm-test.mjs <id>` and `node tools/realm-bot.mjs <id>` for the realm (they play each trial with the real controller before the lantern it seals). No kind may stand twice running and at least three kinds must be in a realm of five goals (`trials.mix`).
+
 ## 4. The places (`layout.js`)
 
 A stage is `function layoutX(ctx) { ... }`. What you have (`reference/contract.md` has the list): `ctx.put(name, x, z, params, footprint)`, `ctx.ok(x, z, opts)` (is it clear?), `ctx.scatter(name, n, sampler,

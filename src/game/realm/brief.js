@@ -41,6 +41,11 @@ export function defineBrief(b) {
   need(b.environment && Array.isArray(b.environment.envs) && b.environment.envs.length === 2 && Array.isArray(b.environment.sky) && b.environment.sky.length === 2, 'environment: { envs: [A, B], sky: [A, B], sun, moon } (engine/lighting.js DEFAULT_ENVIRONMENT shows the shape)');
   need(b.theme && Array.isArray(b.theme.palette) && b.theme.palette.length >= 1 && b.theme.palette.length <= RULES.paletteMax, `theme.palette: one to ${RULES.paletteMax} base colours (names), a place is made of few`);
   need(b.theme && Array.isArray(b.theme.ground) && b.theme.ground.length >= 1, 'theme.ground: the ground textures the realm is made of');
+  // (the look of its trials: the textures of the stone and the crystal they are made of and the colour of their glow; a misspelt name draws flat magenta, only where it is used: the checker looks them up)
+  if (b.theme && b.theme.trials !== undefined) {
+    const T = b.theme.trials;
+    need(!!T && typeof T === 'object' && ['stone', 'crystal', 'metal'].every((k) => T[k] === undefined || typeof T[k] === 'string') && (T.glow === undefined || (Array.isArray(T.glow) && T.glow.length === 3 && T.glow.every(isNum))), 'theme.trials: { stone, crystal, metal: texture names, glow: [r, g, b] } (what its trials are made of)');
+  }
 
   const c = b.country || {};
   need(Array.isArray(c.regions) && c.regions.length >= RULES.regionsMin, `country.regions: at least ${RULES.regionsMin} parts (a country of parts joined by roads, not one open field)`);
