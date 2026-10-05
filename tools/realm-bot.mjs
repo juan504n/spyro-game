@@ -189,14 +189,14 @@ for (let i = 0; i < legs.length; i++) {
       };
       if (!leg.trial && G.beacons.list[leg.gi].litFlag) return { ok: true, reason: '', seconds: 0, at: __bot.state(), lit: G.beacons.lit, note: 'its trial lit it as it was solved' };          // (the lantern was near its trial: the trial's end lit it; and if it was the last the finale has begun)
       if (leg.teleport) __bot.place(leg.teleport[0], leg.teleport[2], 0, leg.teleport[1]);
-      const notes = [];
+      const notes = [], slips = [];
+      const slipped = () => (slips.length ? `slipped off the way ${slips.length} time(s) towards ${slips.map(([x, z]) => `(${x}, ${z})`).join(' ')} and stepped back` : '');
       for (const a of leg.acts || []) {
         if (a.kind === 'walk') {
-          for (const [x, z] of a.route) {
-            const tr = [], s = __bot.goto(x, z, { tol: TOL, timeout: 20, auto: true, careful: a.hops, trace: tr });
-            walked += s.t || 0;
-            if (!s.ok) return { ok: false, reason: `${s.reason} on the way`, at: s.x === undefined ? null : [s.x, s.y, s.z], towards: [+x.toFixed(1), +z.toFixed(1)], seconds: +walked.toFixed(1), trace: tr.slice(-8) };
-          }
+          const s = __bot.walk(a.route, { tol: TOL, timeout: 20, auto: true, careful: a.hops });
+          walked += s.t || 0;
+          slips.push(...s.slips);
+          if (!s.ok) return { ok: false, reason: `${s.reason} on the way`, at: s.x === undefined ? null : [s.x, s.y, s.z], towards: s.towards, seconds: +walked.toFixed(1), trace: s.trace, slips };
           continue;
         }
         const s0 = at();
@@ -217,16 +217,17 @@ for (let i = 0; i < legs.length; i++) {
         if (bad) return { ...bad, from: s0, link: a.id };
         notes.push(`${a.kind === 'lift' ? 'glided out' : 'glided'} ${a.gap.toFixed(0)} m to ${a.land.slice(0, 2).map((v) => v.toFixed(0)).join(', ')}`);
       }
-      for (const [x, z] of leg.acts ? [] : leg.route) {
-        const tr = [], s = __bot.goto(x, z, { tol: TOL, timeout: 20, auto: true, trace: tr });
+      if (!leg.acts) {
+        const s = __bot.walk(leg.route, { tol: TOL, timeout: 20, auto: true });
         walked += s.t || 0;
-        if (!s.ok) return { ok: false, reason: `${s.reason} on the way`, at: s.x === undefined ? null : [s.x, s.y, s.z], towards: [+x.toFixed(1), +z.toFixed(1)], seconds: +walked.toFixed(1), trace: tr.slice(-8) };
+        slips.push(...s.slips);
+        if (!s.ok) return { ok: false, reason: `${s.reason} on the way`, at: s.x === undefined ? null : [s.x, s.y, s.z], towards: s.towards, seconds: +walked.toFixed(1), trace: s.trace, slips };
       }
       if (leg.trial) {                                   // (a stop on the way to a sealed lantern: he is where the trial begins; he plays it, the seal breaks, and the lantern is lit if it is near, else freed)
         const res = window.__trialDriver.solve(leg.trial, { place: false, T: 240 });
         if (!res.ok) return { ok: false, reason: `the ${leg.trialKind} trial '${leg.trial}' was not solved`, seconds: +walked.toFixed(1), ...res };
         __bot.tick(60 * 3);
-        return { ok: true, reason: '', seconds: +walked.toFixed(1), at: __bot.state(), lit: G.beacons.lit, note: `played the ${leg.trialKind}: solved in ${res.t} s (hurt ${res.hurts}, began again ${res.fails})` };
+        return { ok: true, reason: '', seconds: +walked.toFixed(1), at: __bot.state(), lit: G.beacons.lit, note: `played the ${leg.trialKind}: solved in ${res.t} s (hurt ${res.hurts}, began again ${res.fails})${slips.length ? '; ' + slipped() : ''}` };
       }
       let note = notes.join('; ');
       if (leg.glide) {
@@ -254,7 +255,7 @@ for (let i = 0; i < legs.length; i++) {
         if (bad) return { ...bad, from: 'the goal' };
         note += `; glided off ${E.gap.toFixed(0)} m to (${E.x.toFixed(0)}, ${E.y.toFixed(0)}, ${E.z.toFixed(0)})`;
       }
-      return { ok: true, reason: '', seconds: +walked.toFixed(1), at: __bot.state(), lit: G.beacons.lit, note };
+      return { ok: true, reason: '', seconds: +walked.toFixed(1), at: __bot.state(), lit: G.beacons.lit, note: [note, slipped()].filter(Boolean).join('; ') };
       };
       const out = body();
       P.on.drown = wasDrown;

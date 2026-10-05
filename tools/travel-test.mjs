@@ -155,7 +155,7 @@ if (wanted('title')) {
   await t.shot('3-groups');
   s = await pick(t, 'THE HEIGHTS');
   await t.shot('4-places');
-  check('... a group lists its places', s.title === 'THE HEIGHTS' && gv.groups[1].places.every((p) => s.labels.includes(p.name)), `(${s.labels.join(' / ')})`);
+  check('... a group lists its places', s.title === 'THE HEIGHTS' && gv.groups.find((g) => g.name === 'THE HEIGHTS').places.every((p) => s.labels.includes(p.name)), `(${s.labels.join(' / ')})`);              // (by its name: a world's groups have grown before, with THE TRIALS)
   s = await pick(t, 'HERON POINT');
   const fits = s.extra && s.extra.every((l) => measureText(l).w <= s.width - 20);
   check('... a place asks ARE YOU SURE?, YES or NO, with the cursor on NO and the place named', s.title === 'ARE YOU SURE?' && s.labels.join() === 'YES,NO' && s.sel === 1 && s.extra.join(' ').includes('HERON POINT') && s.extra.join(' ').includes('GLOAMING VALE'), `(${s.title}: ${s.labels.join('/')}, on ${s.labels[s.sel]}; ${(s.extra || []).join(' | ')})`);
