@@ -23,6 +23,7 @@ export const SCORE = defineScore({
   title: 'The Cold Forge',
   bpm: 144, upb: 7, groups: [2, 2, 3], bars: 28, swing: 0,
   ambience: { dusk: 0.2, day: 0.45 },
+  stingerShift: -2,                                                  // (the jingles are in D: the finale of the forge is in C)
   tonic: 'C',
   bassLow: 36,
   padRange: [45, 64],                                                // (the harmony stays under the tune: the Db of the tune is a half-step above the drone, not against it)

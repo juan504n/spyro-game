@@ -56,5 +56,11 @@ export function songJobsOf(id, out, opts = {}) {
  */
 export const songAmbience = (id) => ({ dusk: 1, day: 1, ...((SCORES[id] && SCORES[id].ambience) || {}) });
 
+/**
+ * The playback rate of the jingles (stingers: written in D) in a world: a score says how many semitones to move them (`stingerShift`) so that they sit in its key; the finale of Emberfall
+ * Crags (C major) would otherwise be a fanfare in D over it.
+ */
+export const stingerRate = (id) => Math.pow(2, ((SCORES[id] && SCORES[id].stingerShift) || 0) / 12);
+
 /** Seconds a song's loop lasts (Vale's tune: 41.7). */
 export const songSeconds = (id) => (id === 'gloaming' ? 41.74 : loopSeconds(SCORES[id]));

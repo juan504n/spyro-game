@@ -1,6 +1,6 @@
 # Gloaming Vale — a PS1-style Spyro DLC realm in three.js
 
-*Lantern Keepers Pack · five realms, a homeworld, a last boss and the portals between them · 700 + 700 + 650 + 800 + 550 + 550 gems · 5 beacons in each realm · a foundry for making more · no asset files — it is all code.*
+*Lantern Keepers Pack · five realms, a homeworld, a last boss and the portals between them · a song of its own for every world · 700 + 700 + 650 + 800 + 550 + 550 gems · 5 beacons in each realm · a foundry for making more · no asset files — it is all code.*
 
 A fan-made, unofficial tribute to the PlayStation-era Spyro games. It is a complete, playable platformer level
 built with [three.js](https://threejs.org/) and rendered through a custom pipeline that reproduces the look of the
@@ -405,13 +405,32 @@ Honest caveat: the *rendering artefacts* are faithful, the *budgets* are not —
 far more than a PS1 could push. A frame submits roughly 200 k triangles and 250–300 draw calls (the static world meshes are
 not frustum-culled), which integrated graphics and recent phones handle at 320×240; **Options → Graphics → 30 FPS lock** helps older devices.
 
+## The songs
+
+Every world has its own song, written as data (`src/engine/audio/scores/`) and played by the same synthesiser: a tune, a tempo and a meter, and for each of the two lights of a world
+(**dusk**, its lanterns unlit, and **dawn**, burning) a harmony and an orchestra. The two loops are time-aligned and the game crossfades them with the world's day, so the music wakes with the
+lanterns. A song is made when its world is built (behind the loading bar: *TUNING THE BAND*), the dawn after the hero has come in, the song of the world he left is kept for his return and the one before it is freed.
+
+| World | Song | Meter, tempo | Key, dusk to dawn | What plays |
+| --- | --- | --- | --- | --- |
+| Gloaming Vale | *Vale Lullaby / Vale Reveille* | 4/4 swung, 92 | D dorian to D major | celesta and music box, a tumbao bass, shaker, wood block, toms; marimba and flute, pizzicato, bongos and congas |
+| Dawnhaven | *Lantern Keepers' Waltz* | 3/4, 104 | G major (it is always daybreak) | a whistle over an oom-pah-pah of plucked bass and strummed chords; harps and strings in the second strain |
+| Frostbloom Hollow | *Aurora Thaw* | 4/4, 66 | E minor to G major: the same notes, the bass pedal moves from E to G | glass bells, cold strings, a wind that rises and falls; a flute, a flowing harp, a shaker and a triangle |
+| Emberfall Crags | *The Cold Forge* | 7/8 counted 2+2+3, 144 | C phrygian dominant to C major | a shawm, a saw-bass ostinato, timpani, taiko and an anvil; a horn in the light, hats and a snare |
+| Skyweaver Spires | *Windbell Loom* | 4/4, 112 | A major: windless, then the winds return | a music box and a glass harmonica, chimes; a flute, piano arpeggios in sixteenths, wind swells and a harp |
+| Tideglass Reach | *The Lens and the Tide* | 6/8 barcarolle, 92 | F# minor to F# major: the third moves | a glass harmonica and a rolling harp, a wave every four bars; the same with kalimba drops and hand drums |
+| The Guardian's Court | *The Last Lantern* | 4/4 march, 100 | G minor to G major, and the tune turns upside down: it falls in the storm and rises at dawn | horns, a saw-bass that never stops, timpani, taiko and a snare, a choir; hats, bells and a harp sweep |
+
+`node tools/music-check.mjs` holds them (see below); `node tools/music-sheet.mjs <id>` draws one as a piano roll and a spectrogram and reads back the key and the tempo the *audio* has, so that a song can
+be checked without being heard. (Honest note: this project's songs were written and checked by numbers, pictures and the structure of the score; nobody has auditioned them by ear yet.)
+
 ## Repository tour
 
 ```
 src/engine/          renderer + PS1 pipeline (shaders, materials, gfx, builder, lighting)
   textures/          procedural pixel-art toolkit: 106 world textures, sprites, bitmap font, UI atlas
-  audio/             procedural PS1-SPU-style synth: music (dusk + daybreak variants), ambience, stingers, ~75 sound assets
-                     (the gem chimes are the exception: clean 48 kHz stereo, see sfx-gems.js)
+  audio/             procedural PS1-SPU-style synth: a song for every world (songs.js; each a score in scores/ with a dusk and a dawn loop, played by song.js through mixer.js, with the voices of voices.js and
+                     the notation of score.js; Vale's own tune is music.js + composition.js), ambience, stingers, ~75 sound assets (the gem chimes are the exception: clean 48 kHz stereo, see sfx-gems.js)
 src/game/
   level.js           the design source of truth for Gloaming Vale: landmarks, roads, hills, beacon order
   realms.js          the worlds: a realm (Gloaming Vale) or a homeworld (Dawnhaven), each a level + the script that populates it + its hour
@@ -493,7 +512,12 @@ node tools/shot.mjs / play.mjs / probe.mjs   # Playwright screenshots, scripted 
 node tools/model-sheet.mjs out.png --only spyro --poses idle,run,glide --views side   # contact sheets of an actor from any angle / pose
 node tools/charge-test.mjs | gem-flight-test.mjs | gem-counter-test.mjs | gem-sound-test.mjs
                               # focused checks: charge only while held, the gem lob, the floating count, the pickup chimes
-node tools/audio-render.mjs   # renders every sound to WAV and prints diagnostics
+node tools/audio-render.mjs   # renders every sound and every song to WAV and prints diagnostics
+node tools/music-check.mjs    # the songs, in Node: every world has one, every score is well formed (and the validator refuses a bad one), every loop is clean (-14 dBFS RMS, peak under -1, no DC, the loop closes), the key the audio has is the score's, nothing is out of its scale, the songs are not alike (tempo and meter, lead and key, 30% of their interval patterns at most), each is bit for bit the pinned loop (`--write` pins an intended change) and bit for bit the same on a second render, and the dawn made on its own is the dawn made with the dusk
+node tools/music-sheet.mjs <id>   # a song read back without listening: its score as a piano roll, the rendered loop as a spectrogram, the level of every bar and of every part, the key and the tempo the audio has, the pulse of the bar (`--wav` also writes the loops)
+node tools/voice-sheet.mjs    # the sample bank measured: every voice at a few pitches (the pitch it really has, level, brightness, ring, cost), `--png dir` a spectrogram of each
+node tools/music-test.mjs     # the songs in the running game (needs the dev server): each world's song made behind its loading bar and playing, kept and freed as designed, the ambience following the score, a hop within a world leaving the music alone
+node tools/audio-smoke.mjs    # the WebAudio wrapper in headless Chromium: every public method, the lazy sounds, the songs (made on demand, the dawn after the dusk and in step with it, freed two worlds on, nothing left running), the crossfade, the muffle
 node tools/build-single.mjs   # esbuild -> one HTML file
 ```
 

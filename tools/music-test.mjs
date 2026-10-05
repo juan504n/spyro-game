@@ -4,6 +4,7 @@
 //   node tools/music-test.mjs [world ...]     (needs the dev server on :5173, GV_HMR=0 recommended; GV_URL=file:///.../docs/index.html tests a built file instead)
 // The worlds are visited in the order given (default: all of them, Vale first); each is entered the way the TRAVEL menu does it (the world is built the real way, behind its loading bar).
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { travelPlaces } from '../src/game/travel.js';
 
 const BASE = process.env.GV_URL || 'http://127.0.0.1:5173/';
 const WORLDS = process.argv.slice(2).length ? process.argv.slice(2) : ['gloaming', 'home', 'frostbloom', 'home', 'emberfall', 'skyweaver', 'tideglass', 'home', 'guardian', 'gloaming'];
@@ -81,11 +82,8 @@ for (const id of WORLDS.slice(1)) {
 // a hop within the world (the TRAVEL menu to a place of the world he is in) leaves the music alone
 const here = (await snap()).realm;
 const before = await snap();
-await ev(async () => {
-  const { travelPlaces } = await import('/src/game/travel.js');
-  const places = travelPlaces(window.__game.realm.id);
-  window.__app.travelTo(window.__game.realm.id, { at: places[0] });
-});
+const place = travelPlaces(here)[0];
+await ev((pl) => { window.__app.travelTo(window.__game.realm.id, { at: pl }); }, place);
 await settle();
 await ff(1);
 const after = await snap();

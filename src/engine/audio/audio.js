@@ -32,7 +32,7 @@
 
 import { SR, softLimit } from './synth.js';
 import { assetJobs, lazyJobs, LAZY_NAMES, STINGER_NAMES } from './assets.js';
-import { songBuffers, songJobsOf, songAmbience, hasSong, DEFAULT_SONG, SONG_IDS } from './songs.js';
+import { songBuffers, songJobsOf, songAmbience, stingerRate, hasSong, DEFAULT_SONG, SONG_IDS } from './songs.js';
 import { SFX_NAMES, LOOP_NAMES, trimOf } from './sfx.js';
 import { clearInstrumentCache } from './instruments.js';
 
@@ -76,6 +76,8 @@ const S = {
   songLoading: new Map(),
   songBg: new Map(), // id -> { stop } for the colouring of a song that is being made while the hero plays (the dawn)
   songBgDone: new Map(), // id -> the promise of that
+  stingerRate: 1, // the playback rate of the last stinger (testing)
+  stingerSpan: 0, // seconds the last stinger lasts as it is played (testing)
   songSrc: 0, // live source nodes of songs (testing: a song that fades out must not leave its loops running)
   day: 0,
   dayAt: 0,
@@ -878,13 +880,18 @@ export const audio = {
       const now = ctx.currentTime;
       const src = ctx.createBufferSource();
       src.buffer = buf;
+      const rate = stingerRate(S.song || DEFAULT_SONG);                                       // (the jingles are in D: in a world whose key is far from it they are played transposed to it)
+      src.playbackRate.value = rate;
+      S.stingerRate = src.playbackRate.value;                                                 // (what the node plays at)
       src.connect(S.n.stingerBus);
       src.onended = () => {
         try { src.disconnect(); } catch (e) { /* ignore */ }
       };
       src.start(now);
       const amt = STINGER_DUCK[name] ?? 0.5;
-      const end = Math.max(S.stingerEnd, now + buf.duration);
+      const span = buf.duration / rate;                                                       // (a jingle played faster ends sooner: the music is lowered for as long as it lasts)
+      S.stingerSpan = span;
+      const end = Math.max(S.stingerEnd, now + span);
       S.stingerEnd = end;
       const g = S.n.stingerDuck.gain;
       g.cancelScheduledValues(now);
@@ -979,7 +986,7 @@ export const audio = {
   /** Testing hook: graph nodes, live voice count and loaded buffer names. */
   get _debug() {
     const gains = S.music ? Object.fromEntries([...Object.entries(S.music.gains), ...(S.music.song ? Object.entries(S.music.song.gains).map(([k, g]) => ['song_' + k, g]) : [])].map(([k, g]) => [k, g.gain.value])) : null;
-    return { nodes: S.n, voices: S.voices.filter((v) => !v.stolen).length, voicesTotal: S.voices.length, pooled: S.pools.world.length + S.pools.ui.length, buffers: [...S.buffers.keys()], failed: S.failed, gains, day: S.day, song: S.song, playing: S.music && S.music.song ? S.music.song.id : null, songsMade: Object.keys(songsMadeIds()), songsComplete: Object.keys(songsMadeIds()).filter(songComplete), songSources: S.songSrc, songTiming: S.music && S.music.song ? { t0: S.music.song.t0, dawn: S.music.song.dawnStart || null, dur: (() => { const b = songBuffers(S.music.song.id); const x = S.buffers.get(b.dusk || b.dawn); return x ? x.duration : 0; })() } : null };
+    return { nodes: S.n, voices: S.voices.filter((v) => !v.stolen).length, voicesTotal: S.voices.length, pooled: S.pools.world.length + S.pools.ui.length, buffers: [...S.buffers.keys()], failed: S.failed, gains, day: S.day, song: S.song, playing: S.music && S.music.song ? S.music.song.id : null, songsMade: Object.keys(songsMadeIds()), songsComplete: Object.keys(songsMadeIds()).filter(songComplete), songSources: S.songSrc, stingerRate: S.stingerRate, stingerSpan: S.stingerSpan, songTiming: S.music && S.music.song ? { t0: S.music.song.t0, dawn: S.music.song.dawnStart || null, dur: (() => { const b = songBuffers(S.music.song.id); const x = S.buffers.get(b.dusk || b.dawn); return x ? x.duration : 0; })() } : null };
   },
 };
 

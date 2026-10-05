@@ -22,6 +22,7 @@ export const SCORE = defineScore({
   title: 'The Last Lantern',
   bpm: 100, upb: 8, groups: [2, 2, 2, 2], bars: 16, swing: 0,
   ambience: { dusk: 0, day: 0.5 },                                   // (no crickets in the storm; the birds are the dawn's)
+  stingerShift: 5,                                                   // (the jingles are in D: in the Court they are in G)
   tonic: 'G',
   bassLow: 36,
   padRange: [43, 64],

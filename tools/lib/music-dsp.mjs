@@ -261,6 +261,40 @@ export function keyOf(chroma) {
   return best;
 }
 
+/**
+ * Roughness (Sethares' dissonance of the strongest 14 partials, averaged over the loop): how much the notes that sound together beat against each other. Vale's own lullaby measures 0.20 at dusk
+ * and 0.14 at daybreak; a song far above that is harsh in a way the first one never was. Unitless; it is a proxy for a thing nobody has heard.
+ */
+export function roughness(x, sr = SR, size = 4096) {
+  let total = 0;
+  let frames = 0;
+  for (let s = 0; s + size <= x.length; s += 8192) {
+    const mag = magSpectrum(x, s, size);
+    const peaks = [];
+    for (let i = 3; i < mag.length - 3; i++) {
+      const f = (i * sr) / size;
+      if (f < 100 || f > 3000) continue;
+      if (mag[i] > mag[i - 1] && mag[i] >= mag[i + 1] && mag[i] > mag[i - 2] && mag[i] >= mag[i + 2]) peaks.push([f, mag[i]]);
+    }
+    peaks.sort((a, b) => b[1] - a[1]);
+    const top = peaks.slice(0, 14);
+    const mx = top.length ? top[0][1] : 1;
+    let d = 0;
+    for (let a = 0; a < top.length; a++) {
+      for (let b = a + 1; b < top.length; b++) {
+        const [f1, a1] = top[a];
+        const [f2, a2] = top[b];
+        const sc = 0.24 / (0.0207 * Math.min(f1, f2) + 18.96);
+        const df = Math.abs(f1 - f2);
+        d += (a1 / mx) * (a2 / mx) * (Math.exp(-3.5 * sc * df) - Math.exp(-5.75 * sc * df));
+      }
+    }
+    total += d;
+    frames++;
+  }
+  return total / Math.max(1, frames);
+}
+
 /** Tempo (BPM) of the strongest periodicity of the onsets between 0.3 and 1.5 s (0 if none). */
 export function tempoOf(x) {
   const { env, hopSec } = onsetEnvelope(x);

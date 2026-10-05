@@ -13,6 +13,7 @@
 //   score         validateScore: bars add up, chords parse, patterns fit, notes are in their instrument's range and in the scale of the colouring
 //   loop          both colourings of a song are the same length, finite, peak under -1 dBFS, -14 dBFS RMS, no DC, and the loop closes (the curvature at the loop point is no bigger than the
 //                 99.9th percentile of the curvature inside it)
+//   rough         no more dissonance between the partials that sound together (Sethares) than Vale's own lullaby has at dusk
 //   scale         at least 80% of the audio's pitch energy (70 Hz - 2 kHz) is in the scale the score declares for the colouring
 //   key           the key the AUDIO has (chroma against the Krumhansl profiles) has the score's tonic, its relative, or a neighbour by a fifth: a pedal too low to be heard or a transposed
 //                 bar shows here
@@ -32,7 +33,7 @@ import { validateComposition, MELODY, parseBar as valeBar, LOOP_SAMPLES, BPM as 
 import { runJob } from '../src/engine/audio/assets.js';
 import { rmsOf, peakOf } from '../src/engine/audio/synth.js';
 import { REALMS, songOf } from '../src/game/realms.js';
-import { monoOf, chromaOf, keyOf, seamCurvature, PC_NAMES } from './lib/music-dsp.mjs';
+import { monoOf, chromaOf, keyOf, seamCurvature, roughness, PC_NAMES } from './lib/music-dsp.mjs';
 import { scaleOf, noteOf, parseBar, parseChord, voiceChord, degreeInterval, chordSlots } from '../src/engine/audio/score.js';
 import { intervalGrams } from './lib/score-analysis.mjs';
 
@@ -117,6 +118,8 @@ for (const id of ids) {
     check(dc < 0.002, `${tag}: no DC offset (${dc.toFixed(5)})`, `${dc}`);
     const sm = Math.max(seamCurvature(x.L).ratio, seamCurvature(x.R).ratio);
     check(sm <= 1.2, `${tag}: the loop closes (curvature at the loop point ${sm.toFixed(2)} of the interior)`, `ratio ${sm.toFixed(2)}`);
+    const rough = roughness(monoOf(x));
+    check(rough <= 0.2, `${tag}: roughness ${rough.toFixed(3)} is no more than Vale's own (0.2)`, `${rough.toFixed(3)}: the notes beat against each other more than the first song's do`);
     // the key of the audio, and how much of it is in the scale the score says
     const chroma = chromaOf(monoOf(x));
     const key = keyOf(chroma);
@@ -218,11 +221,16 @@ if (!only) {
   for (const id of ['gloaming', 'frostbloom']) {
     const b = songBuffers(id);
     const sep = {};
+    let only1 = true;
     for (const v of variantsOf(id === 'gloaming' ? { variants: { dusk: 1, dawn: 1 } } : SCORES[id])) {
       const out = {};
-      for (const j of songJobsOf(id, out, { variants: [v] })) runJob(j);
+      const jobs = songJobsOf(id, out, { variants: [v] });
+      for (const j of jobs) runJob(j);
+      const other = v === 'dusk' ? 'dawn' : 'dusk';
+      if (out[b[other]] || jobs.some((j) => j.name.includes(other === 'dusk' ? ':dusk:' : ':dawn:') || j.name.includes(other === 'dusk' ? ':gloaming:' : ':daybreak:'))) only1 = false;
       if (out[b[v]]) sep[v] = out[b[v]];
     }
+    check(only1, `colourings: ${id}'s jobs for one colouring make that colouring only`, 'asked for the dusk it made the dawn too (or the other way round)');
     const same = Object.keys(sep).length === 2 && Object.entries(sep).every(([v, x]) => hashOf(x) === hashes[`${id}:${v}`]);
     check(same, `colourings: ${id}'s dusk and dawn made separately are bit for bit the two made together`, 'the dawn made on its own is not the dawn made with the dusk');
   }

@@ -18,6 +18,7 @@ Verification here is a headless Chromium with a **software renderer** (SwiftShad
 | gate | command |
 | --- | --- |
 | the old worlds are byte-identical | `node tools/world-hash.mjs` (an intended change: `--write` in the same commit, with the reason in the message) |
+| every world has its own song, every song is clean and unlike the others, none changes by accident | `node tools/music-check.mjs` (an intended change: `--write`), in the game `node tools/music-test.mjs` (dev server) |
 | the foundry | `node tools/foundry-test.mjs` |
 | Gloaming Vale | `node tools/level-check.mjs`, `node tools/realm-check.mjs gloaming` |
 | Dawnhaven | `node tools/home-check.mjs` (about 90 s; it holds the way home from each of the five realms as data: a floor of its own height, over the water, clear, level with its door, on the walk), `node tools/home-bot.mjs`, `node tools/realm-check.mjs home` |

@@ -60,6 +60,12 @@ with a reason in `brief.waive`; a finished realm waives nothing. Add the realm's
 **7. Play it.** `node tools/realm-test.mjs <id>` (boot, light every goal with fire, finale, ring, Dawnhaven, back restored) and `node tools/realm-bot.mjs <id>` (the real controller walks to every goal along the walk map's routes, and glides to the goals that want it, and in a country of islands hops the slabs and rides the whirlwinds: it finds what a flood fill over cells cannot), then look at it for real: screenshots from the dev server (`?world=<id>`,
 `tools/shot.mjs`, `tools/play.mjs`), from the start and from each goal; the software-rendered headless browser is not a phone's GPU - say so when reporting.
 
+**7b. Give it a song.** Every world has a song of its own (`src/engine/audio/songs.js`, by the id of the world; a realm names another with `music`). Until it has one the realm plays Vale's tune and `node tools/music-check.mjs`
+fails (*world songs*). A song is a score (notation and the format in `src/engine/audio/score.js` and `song.js`; the six in `src/engine/audio/scores/` are the examples): a tune written once, and for **dusk** (its lanterns unlit) and **dawn**
+(burning) a chord for every bar and a list of parts. Make it unlike the others (a tempo and a meter no other song has, a lead and an orchestra of its own, a tune that shares at most 30% of its interval patterns with theirs), keep the two lights on
+the same chord roots so that the crossfade between them is never a clash, give the pedal or the bass a note a phone's speaker can play (nothing under 80 Hz carries the harmony), then `node tools/music-sheet.mjs <id>` reads it back (the key and the
+tempo the audio has, the level of every part, the pulse of the bar) and `node tools/music-check.mjs --write` pins it. Register it in `songs.js`; `node tools/music-test.mjs` plays it in the game.
+
 **8. Ship** (see `reference/verification.md`): the other worlds unchanged (`world-hash`) or the change pinned on purpose, the regression suite, mutation-check what you added, README and `docs/DESIGN.md`
 (a "Round N" entry before the previous round's), `npm run build:single`, smoke-test the built file, commit with the repo's trailers, push, republish the Artifact.
 

@@ -298,6 +298,21 @@ async function inPage() {
         if (!A.hasSong(Y) || !A.songComplete(Y)) fail(`the song made after it is not whole (${bufsOf(Y).join(',')})`);
       }
     }
+    // the jingles are in D: in the world whose score moves them they are played at that rate (and in Vale's, unmoved)
+    {
+      const shifted = others.find((i) => i === 'emberfall' || i === 'tideglass' || i === 'guardian');
+      if (shifted) {
+        await A.loadSong(shifted, () => {});
+        A.setSong(shifted);
+        A.stinger('lantern');
+        const r1 = A._debug.stingerRate, s1 = A._debug.stingerSpan;
+        A.setSong('gloaming');
+        A.stinger('lantern');
+        const r0 = A._debug.stingerRate, s0 = A._debug.stingerSpan;
+        if (!(Math.abs(r1 - 1) > 0.05) || Math.abs(r0 - 1) > 1e-9) fail(`the jingle's rate in ${shifted} is ${r1}, in Vale's world ${r0}`);
+        if (!(s0 > 0.5) || Math.abs(s1 * r1 - s0 * r0) > 1e-4) fail(`the music is lowered for ${s1.toFixed(2)} s by a jingle played at ${r1.toFixed(3)} and for ${s0.toFixed(2)} s by the same at ${r0}: the length of the jingle does not follow its rate`);
+      }
+    }
     // the dawn's loop is started in step with the dusk's: the point of the loop the dusk has reached is where it starts (a pure function, and WebAudio's start(when, offset) on a looping source)
     {
       const { loopOffset } = await import('/src/engine/audio/audio.js');

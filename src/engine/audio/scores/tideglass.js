@@ -20,6 +20,7 @@ export const SCORE = defineScore({
   title: 'The Lens and the Tide',
   bpm: 92, upb: 6, groups: [3, 3], bars: 24, swing: 0,
   ambience: { dusk: 0.5, day: 0.6 },
+  stingerShift: 4,                                                   // (the jingles are in D: here they are in F#)
   tonic: 'F#',
   bassLow: 36,
 

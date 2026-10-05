@@ -382,10 +382,10 @@ On a touch screen it is two fingers, one held on RAM and one tapping JUMP (the p
 
 ## Audio direction
 
-Everything is synthesised at start-up to imitate a 22 kHz sample-playback chip with ADPCM grit and a hall reverb, with one deliberate
-exception: the gem chimes (below). The score is
-one 16-bar theme in two colourings: D dorian on celesta and music box for the gloaming, D major with marimba and flute for
-daybreak. Both are the same length and time-aligned, so the game crossfades between them as beacons are lit.
+Everything is synthesised to imitate a 22 kHz sample-playback chip with ADPCM grit and a hall reverb, with one deliberate
+exception: the gem chimes (below). Every world has a song of its own, in two colourings of the same length and time-aligned (dusk, its lanterns unlit; dawn, burning), which the game crossfades
+as the lanterns are lit. Gloaming Vale's is the original 16-bar theme: D dorian on celesta and music box for the gloaming, D major with marimba and flute for daybreak (`composition.js`, `music.js`); the
+other six are scores, plain data played by one engine (`scores/`, `song.js`: round twenty-seven below).
 
 **Gem chimes.** The most-heard sound in the game gets the cleanest treatment: 48 kHz stereo, no grit, no high-cut. Each gem is a quick
 rising run of near-harmonic glass bells (A6 to A8 for the purple one) with a detuned twin on the other side of the stereo field, a 1.5 ms
