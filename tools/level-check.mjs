@@ -174,6 +174,37 @@ const check = (name, ok, detail) => { checks.push(ok); console.log(ok ? 'PASS' :
   check('... the debug readout names the rule behind it', lawn.tex === 'grass_a' && /landing lawn/.test(lawn.why || ''), `(${lawn.tex}: ${lawn.why})`);
 }
 {
+  // the shore is ONE ground (round thirty-two). The rules used to scatter a second texture over it cell by cell: a fifth of the beach was pebbles, the lake margin a coin toss of moss and grass, the river's edge
+  // 30% pebbles. In the smooth look the pebbles are sharp, blue and big against the sand's grains, and that read as hard-edged squares of cobbles lying on the beach. Now the lake's and the river's shore are sand,
+  // the moss of the margin lies in patches (a slow noise), and a realm that names a second ground for its lake's edge (snow on ice) gets it in banks. "Disagree" below is the share of neighbouring cells (in a
+  // row) that are different textures: a coin toss is about a half, a patch of ground is a few in ten, and a plain beach none.
+  const pick = terrainPicker(grid), n = grid.n;
+  const cells = (picker) => {
+    const tex = new Array(n * n), why = new Array(n * n);
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const t = picker.tris(i, j); tex[j * n + i] = t[0].tex === t[1].tex ? t[0].tex : null; why[j * n + i] = t[0].why; }
+    return { tex, why };
+  };
+  const disagree = ({ tex, why }, rule, pick = (a) => tex[a]) => {
+    let pairs = 0, diff = 0;
+    for (let j = 0; j < n; j++) for (let i = 0; i < n - 1; i++) { const a = j * n + i, b = a + 1; if (why[a] === rule && why[b] === rule && pick(a) && pick(b)) { pairs++; if (pick(a) !== pick(b)) diff++; } }
+    return { pairs, share: pairs ? diff / pairs : 0 };
+  };
+  const real = cells(pick);
+  const count = (rule) => { const by = {}; real.why.forEach((w, k) => { if (w === rule && real.tex[k]) by[real.tex[k]] = (by[real.tex[k]] || 0) + 1; }); return by; };
+  const shore = count('lake shore'), riverShore = count('river shore');
+  check('the lake\'s shore is one ground: sand, with no scatter of pebbles', Object.keys(shore).join() === 'sand' && shore.sand > 150, `(${JSON.stringify(shore)})`);
+  check('... and the river\'s edge too', Object.keys(riverShore).join() === 'sand' && riverShore.sand > 5, `(${JSON.stringify(riverShore)})`);
+  const margin = disagree(real, 'lake margin');
+  const toss = (a) => { let h = Math.imul((a % n) + 1, 374761393) ^ Math.imul(Math.floor(a / n) + 7, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296 < 0.5 ? 'moss' : 'grass_b'; };       // (the old rule's coin: a hash of the cell)
+  const coin = disagree(real, 'lake margin', toss);
+  check('the lake margin\'s moss lies in patches: neighbouring cells agree (a coin toss would disagree about half the time)', margin.pairs > 25 && margin.share < 0.3 && coin.share > 0.4, `(${(100 * margin.share).toFixed(0)}% of ${margin.pairs} pairs disagree; a coin toss over the same cells ${(100 * coin.share).toFixed(0)}%)`);
+  // a realm with a frozen lake names snow for its lake's edge: it lies in banks, not cell by cell
+  const frozen = cells(terrainPicker(Object.create(grid, { level: { value: { ...L, lakeTextures: { floor: 'ice', shore: 'ice', pebbles: 'snow' } } } })));
+  const fz = (() => { const by = {}; frozen.why.forEach((w, k) => { if (w === 'lake shore' && frozen.tex[k]) by[frozen.tex[k]] = (by[frozen.tex[k]] || 0) + 1; }); return by; })();
+  const bank = disagree(frozen, 'lake shore');
+  check('a second ground named for the lake\'s edge (snow on ice) lies in banks: some of the shore, neighbours agree', fz.snow > 10 && fz.snow < fz.ice && bank.share < 0.25, `(${JSON.stringify(fz)}; ${(100 * bank.share).toFixed(0)}% of ${bank.pairs} pairs disagree)`);
+}
+{
   // the roads are DRAPED on the terrain mesh (roads.js). Every lane of a ribbon used to stand at the height of the road's centre line, so on a slope the edges hovered above the ground on the
   // downhill side (1.2 m at the pier's landing, where three roads meet on a bank) and were buried on the uphill side: planks sticking out of the hillside. Now every vertex of every road
   // triangle lies on the terrain surface plus a small constant lift, nothing is lost, and cobble sits over dirt where two roads meet.

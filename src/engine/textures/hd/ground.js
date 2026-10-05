@@ -57,7 +57,7 @@ export function soil(n, { seed = 31, R, mottle = 4, pebbles = 12, pebbleSize = [
 // ---------------------------------------------------------------------------------------------------------------------------------------------
 // Dunes: sand with ripples that run along the tile, big soft shadows and glints; shells and pebbles if asked.
 // ---------------------------------------------------------------------------------------------------------------------------------------------
-export function dunes(n, { seed = 41, R, ripples = 7, sheen = 0, sheenPow = 6, glints = 14, shells = 0, pebbles = 0, mean = null, contrast = 1 } = {}) {
+export function dunes(n, { seed = 41, R, ripples = 7, sheen = 0, sheenPow = 6, glints = 14, shells = 0, pebbles = 0, pebbleRamp = null, pebbleSize = [2.5, 6.5], mean = null, contrast = 1 } = {}) {
   const K = n / 256;
   const rng = new RNG(seed);
   const RR = ramp(R);
@@ -95,9 +95,10 @@ export function dunes(n, { seed = 41, R, ripples = 7, sheen = 0, sheenPow = 6, g
     cv.soft(x - r * 0.25, y - r * 0.3, r * 0.5, [255, 250, 240], 0.9, r * 0.4);
     cv.stroke([[x - r * 0.6, y], [x, y - r * 0.2], [x + r * 0.6, y]], 1 * K, 0.6 * K, RR(0.3, [0, 0, 0]), RR(0.3, [0, 0, 0]), 0.5);
   }
+  const pr = pebbleRamp ? ramp(pebbleRamp) : RR;                                          // (the stones lying on the sand: of the sand's own colours, or of a ramp of their own, dark to light)
   for (let i = 0; i < cnt(pebbles, n); i++) {
-    const r = (2.5 + rng.next() * 4) * K;
-    pebble(cv, rng.next() * n, rng.next() * n, r, RR(0.4, [0, 0, 0]), RR(0.8, [0, 0, 0]), RR(0.05, [0, 0, 0]));
+    const r = (pebbleSize[0] + rng.next() * (pebbleSize[1] - pebbleSize[0])) * K, t = pebbleRamp ? 0.4 + rng.next() * 0.4 : 0.3 + rng.next() * 0.35;
+    pebble(cv, rng.next() * n, rng.next() * n, r, pr(t, [0, 0, 0]), pr(Math.min(1, t + 0.25), [0, 0, 0]), pr(Math.max(0, t - 0.3), [0, 0, 0]));
   }
   cv.modulate(grain(n, seed + 9, n / 2, 0.035));
   if (mean) cv.matchMean(mean, 0.9);

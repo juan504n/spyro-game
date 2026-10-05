@@ -10,7 +10,7 @@ const clamp = (v, a = 0, b = 1) => (v < a ? a : v > b ? b : v);
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 const hash01 = (i, j) => { let h = (i * 374761393 + j * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 
-const nTint = valueNoise(7001), nPatch = valueNoise(7002), nFlower = valueNoise(7003), nRock = valueNoise(7004);
+const nTint = valueNoise(7001), nPatch = valueNoise(7002), nFlower = valueNoise(7003), nRock = valueNoise(7004), nBank = valueNoise(7005);
 
 export const GROUND_TILE = 6;
 
@@ -78,7 +78,10 @@ export function terrainPicker(grid) {
     // (a level can name the textures of its lake: Frostbloom Hollow's is frozen at the edges, ice and snow where Mirrormere has sand and pebbles)
     const LT = L.lakeTextures || {};
     if (h < WATER_LEVEL + 0.05 && dL < 1.6) return [LT.floor || 'sand', 'lake floor'];
-    if (h < WATER_LEVEL + 0.8 && dL < 1.45 && slope < 0.5) return [r < 0.22 && h > WATER_LEVEL + 0.1 && !tidy ? (LT.pebbles || 'shore_pebbles') : (LT.shore || 'sand'), 'lake shore'];
+    // The shore is ONE ground. It used to scatter a second texture over the sand cell by cell (a fifth of the cells were pebbles), and in the smooth look, where the pebbles are drawn sharp and
+    // are bluer and bigger than the sand's grains, that was a scatter of hard-edged squares of cobbles lying on the beach. A realm that wants a second ground at its water's edge (snow on the ice,
+    // ash on the cinder: `lakeTextures.pebbles`) gets it in banks, where a slow noise says so, not cell by cell; the Vale has none.
+    if (h < WATER_LEVEL + 0.8 && dL < 1.45 && slope < 0.5) return [LT.pebbles && h > WATER_LEVEL + 0.1 && !tidy && fbm(nBank, x * 0.11 + 5, z * 0.11 + 17, 2) > 0.57 ? LT.pebbles : (LT.shore || 'sand'), 'lake shore'];
     // A road lies over the ground it runs on (roads.js drapes it on the terrain mesh): only the triangles the ribbon covers entirely carry its texture, so the road's edge is the
     // ribbon's smooth one and not a stair-step of dirt cells beside it.
     if (underRoad) return [(L.roadTextures && L.roadTextures[underRoad]) || underRoad, 'under a road'];      // (a level can wear its roads in its own textures: Frostbloom Hollow's are frosted)
@@ -86,7 +89,7 @@ export function terrainPicker(grid) {
     // a road ran along the top, into a wedge of dirt over a wall).
     if (rs !== undefined && rd < RIVER_ZONE) {
       if (hTop < rs + 0.05) return ['sand', 'river bed'];                                            // (all of it under the water)
-      if (hTop < rs + 0.6 && slope < 1.1) return [r < 0.3 ? 'shore_pebbles' : 'sand', 'river shore'];   // (a thin band along the water's edge, not the whole bank)
+      if (hTop < rs + 0.6 && slope < 1.1) return ['sand', 'river shore'];   // (a thin band along the water's edge, not the whole bank: one ground, like the lake's)
       if (slope > 0.45 && slope < 1.35) return ['grass_b', 'river bank, slope > 0.45'];                 // (only a wall that is all but vertical stays rock)
     }
     // (the Dawn Gate's surroundings are all one rock: the red cascade rock used to start ten metres from its pillars, and a
@@ -112,7 +115,7 @@ export function terrainPicker(grid) {
     const K = L.hollow;
     if (K && Math.hypot(x - K.x, z - K.z) < K.r * 0.9) return ['moss', 'crystal hollow'];
     if (tidy) return ['grass_a', 'the pier\'s landing lawn: one calm grass'];
-    if (dL < 1.5 && h < 1.5) return [r < 0.5 ? 'moss' : 'grass_b', 'lake margin'];
+    if (dL < 1.5 && h < 1.5) return [fbm(nBank, x * 0.13 + 40, z * 0.13 + 9, 2) > 0.54 ? 'moss' : 'grass_b', 'lake margin'];       // (moss lies in patches in the damp grass: it was a coin toss per cell, a checkerboard of two greens)
     const f = flowerAt(x, z);
     if (f > 0.6 && r < 0.9) return ['grass_flowers', 'flower noise'];
     const p = fbm(nPatch, x * 0.05 + 40, z * 0.05, 2);

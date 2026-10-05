@@ -10,6 +10,7 @@ import { performance } from 'node:perf_hooks';
 import crypto from 'node:crypto';
 import { ramp, noise, fbm, fbmWH, voronoi, blur, Canvas, grain, smoothstep, wrapN, clamp, cnt } from '../src/engine/textures/hd/kit.js';
 import { generateWorldTextures } from '../src/engine/textures/world.js';
+import { dunes } from '../src/engine/textures/hd/ground.js';
 import { PAINT, HD, HD_STATS, SIZE, configureHD, rampFrom, withoutHD, attachHD } from '../src/engine/textures/hd/index.js';
 import { Pix, RNG } from '../src/engine/textures/pix.js';
 import { setTextureSmoothing, setTextureHD, texFromPix } from '../src/engine/materials.js';
@@ -195,6 +196,10 @@ const sha = (data) => crypto.createHash('sha1').update(data).digest('hex').slice
   const g = grain(32, 3, 16, 0.05, 48);
   check('grain: w x h, centred on zero, no bigger than its amplitude', g.length === 32 * 48 && g.every((v) => Math.abs(v) <= 0.05 + 1e-6) && Math.abs(g.reduce((a, b) => a + b, 0) / g.length) < 0.01);
   check('grain: a whole number of cells even if asked for a fraction (a fractional lattice made NaN once)', grain(64, 1, 64 / 3, 0.05).every((v) => Number.isFinite(v)));
+  // the sand's stones (the beach has small pebbles of its own, in sand colours, in place of the squares of cobbles the shore used to have): the painter's options do what they say
+  const grey = ['#808080', '#a0a0a0', '#c0c0c0'], reds = (cv, from = 0) => { let k = 0; for (let i = from; i < cv.w * cv.h; i++) if (cv.px[i * 3] - cv.px[i * 3 + 1] > 60) k++; return k; };
+  const bare = dunes(256, { seed: 5, R: grey, pebbles: 0 }), few = dunes(256, { seed: 5, R: grey, pebbles: 12, pebbleRamp: ['#ff0000', '#ff0000'], pebbleSize: [2, 3] }), big = dunes(256, { seed: 5, R: grey, pebbles: 12, pebbleRamp: ['#ff0000', '#ff0000'], pebbleSize: [6, 8] });
+  check('dunes: pebbles are drawn from their own ramp and in the size asked for (none without them: no stone of the ramp\'s colour; bigger stones cover more)', reds(bare) === 0 && reds(few) > 40 && reds(big) > reds(few) * 3, `(${reds(bare)}, ${reds(few)}, ${reds(big)} red pixels)`);
   // rampFrom: a ramp of the colours a texture uses
   const tp = new Pix(4, 4); for (let i = 0; i < 16; i++) { tp.data[i * 4] = i < 8 ? 10 : 200; tp.data[i * 4 + 1] = i < 8 ? 10 : 200; tp.data[i * 4 + 2] = i < 8 ? 10 : 200; tp.data[i * 4 + 3] = 255; }
   const rf = rampFrom(tp, 3);
