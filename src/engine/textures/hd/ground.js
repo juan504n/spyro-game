@@ -66,7 +66,7 @@ export function dunes(n, { seed = 41, R, ripples = 7, sheen = 0, sheenPow = 6, g
   for (let y = 0; y < n; y++) {
     for (let x = 0; x < n; x++) {
       const k = y * n + x;
-      const ph = (y / n) * ripples * 2 + (warpF[k] - 0.5) * 0.9 + (x / n) * 0.25;           // ripples: nearly straight lines, a little tilted and a little wavy
+      const ph = (y / n) * ripples * 2 + (warpF[k] - 0.5) * 0.9 + x / n;                     // ripples: nearly straight lines, tilted by one wave across the tile (a whole number: it must wrap) and a little wavy
       const s = Math.sin(ph * 2 * Math.PI);
       const body = smoothstep(0.38, 0.62, fine[k]);                                          // the ripples are not everywhere: they lie in patches on the dune
       crest[k] = Math.max(0, s) * body;

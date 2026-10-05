@@ -9,6 +9,9 @@ import * as G from './ground.js';
 import * as B from './buildings.js';
 import * as P from './plants.js';
 import * as W from './water.js';
+import * as S from './sprites.js';
+import * as Q from './props.js';
+import * as M from './magic.js';
 
 export const HD_SIZE = 256;
 
@@ -128,7 +131,50 @@ export const PAINT = {
   lava: (o) => W.lava(HD_SIZE, { seed: 211, mean: meanOf(o), meanAmount: 0 }),
   cloud_sea: (o) => W.billows(HD_SIZE, { seed: 221, R: rampFrom(o, 6), mean: meanOf(o) }),
   glass: (o) => W.pane(HD_SIZE, { seed: 241, R: rampFrom(o, 6), mean: meanOf(o) }),
+  // ---- sprites (cut out of a card: painted at their own size, with a plane of coverage)
+  tuft: (o, d) => S.tuft(d.w, d.h, { R: RAMPS.grass }),
+  flower_pink: (o, d) => S.flowerPink(d.w, d.h, { R: RAMPS.grass }),
+  flower_yellow: (o, d) => S.flowerYellow(d.w, d.h, { R: RAMPS.grass }),
+  flower_blue: (o, d) => S.flowerBlue(d.w, d.h, { R: RAMPS.grass }),
+  flower_ember: (o, d) => S.flowerEmber(d.w, d.h, {}),
+  flower_sky: (o, d) => S.flowerSky(d.w, d.h, {}),
+  reeds: (o, d) => S.reeds(d.w, d.h, { R: RAMPS.grass }),
+  fern: (o, d) => S.fern(d.w, d.h, { R: RAMPS.leaf }),
+  lilypad: (o, d) => S.lilypad(d.w, d.h, { R: RAMPS.leaf }),
+  vine: (o, d) => S.vine(d.w, d.h, { R: RAMPS.leaf }),
+  // ---- what is made and carried
+  crate: (o, d) => Q.crate(d.w, d.h, { R: RAMPS.wood }),
+  chest_wood: (o, d) => Q.chest(d.w, d.h, { R: RAMPS.wood, M: RAMPS.metal, B: RAMPS.brass }),
+  vase: (o, d) => Q.vase(d.w, d.h, { R: ['#5a2a1a', '#8a4a2c', '#b8704a', '#d8946a', '#f0b890'] }),
+  window: (o, d) => Q.windowTex(d.w, d.h, { W: RAMPS.wood, G: RAMPS.amber }),
+  door: (o, d) => Q.door(d.w, d.h, { W: RAMPS.wood, M: RAMPS.metal }),
+  banner: (o, d) => Q.banner(d.w, d.h, { P: RAMPS.crystalViolet, G: RAMPS.amber, W: RAMPS.wood }),
+  // ---- light, magic and the sky
+  crystal_violet: (o, d) => M.crystal(d.w, d.h, { seed: 9001, R: RAMPS.crystalViolet }),
+  crystal_cyan: (o, d) => M.crystal(d.w, d.h, { seed: 9002, R: [...RAMPS.crystalCyan, '#eaffff'] }),
+  crystal_ember: (o, d) => M.crystal(d.w, d.h, { seed: 9003, R: ['#3a0a0a', '#7a1a10', '#c4401a', '#f07a22', '#ffc060', '#fff0c0'] }),
+  lantern_glass_off: (o, d) => M.lanternGlass(d.w, d.h, { seed: 9101, on: false, B: RAMPS.brass, V: RAMPS.crystalViolet, A: RAMPS.amber }),
+  lantern_glass_on: (o, d) => M.lanternGlass(d.w, d.h, { seed: 9102, on: true, B: RAMPS.brass, V: RAMPS.crystalViolet, A: RAMPS.amber }),
+  barrier: (o, d) => M.barrier(HD_SIZE, { seed: 9201, R: RAMPS.crystalViolet }),
+  portal_swirl: (o, d) => M.swirl(d.w, { seed: 9301, R: RAMPS.crystalViolet }),
+  beam: (o, d) => M.beam(d.w, d.h, { seed: 9401 }),
+  sun_glow: (o, d) => M.glow(d.w),
+  rune_ring: (o, d) => M.runeRing(d.w, { seed: 9501, R: RAMPS.crystalViolet }),
+  rune_court: (o, d) => M.runeCourt(d.w, { seed: 9601, R: RAMPS.crystalViolet }),
+  moon: (o, d) => M.moon(d.w, d.h, { seed: 9701, R: ['#6a6684', '#9894b4', '#c4c0d8', '#e8e4f2', '#ffffff'] }),
+  sun_disc: (o, d) => M.sunDisc(d.w, d.h, { seed: 9801, R: ['#e06a10', '#f0901c', '#ffc03c', '#ffe27a', '#fff6c0', '#ffffff'] }),
+  cloud: (o, d) => M.cloud(d.w, d.h, { seed: 9901 }),
+  foam: (o, d) => M.foam(HD_SIZE, { seed: 9951 }),
+  whirl: (o, d) => M.whirl(HD_SIZE, { seed: 9961 }),
+  portal: (o, d) => M.portalTile(HD_SIZE, { seed: 9971, R: RAMPS.crystalViolet }),
+  mushroom_cap: (o, d) => P.mushroomCap(d.w, d.h, { T: RAMPS.leafTeal, V: RAMPS.crystalViolet }),
+  mushroom_stem: (o, d) => P.mushroomStem(d.w, d.h, {}),
 };
+
+/** the size (px, the longer side) of the textures that are not painted at HD_SIZE; the shape is the twin's */
+const SIZE = { tuft: 128, flower_pink: 128, flower_yellow: 128, flower_blue: 128, flower_ember: 128, flower_sky: 128, fern: 128, lilypad: 128, reeds: 256, vine: 256, window: 128, crystal_violet: 128, crystal_cyan: 128, crystal_ember: 128, lantern_glass_off: 128, lantern_glass_on: 128, sun_glow: 128, moon: 128, sun_disc: 128, mushroom_stem: 128 };
+/** the sprites: cut out by their coverage, and mipmapped (as a tile is) so that they do not shimmer at a distance */
+const SPRITES = new Set(['tuft', 'flower_pink', 'flower_yellow', 'flower_blue', 'flower_ember', 'flower_sky', 'reeds', 'fern', 'lilypad', 'vine', 'moon', 'sun_disc', 'cloud', 'foam']);
 
 /** give the textures that have a painter their `hd` (see above); `all` is what generateWorldTextures() builds */
 export function attachHD(all) {
@@ -136,14 +182,16 @@ export function attachHD(all) {
     const e = all[name];
     if (!e || !e.pix) continue;
     let made = null;
-    const k = HD_SIZE / Math.max(e.pix.w, e.pix.h), w = Math.round(e.pix.w * k), h = Math.round(e.pix.h * k);      // (a texture that is not square is painted square and squeezed to its shape)
+    const size = SIZE[name] || HD_SIZE, k = size / Math.max(e.pix.w, e.pix.h), dims = { w: Math.round(e.pix.w * k), h: Math.round(e.pix.h * k) };      // (a texture that is not square is painted square and squeezed to its shape)
     const make = () => {
       const t0 = now();
-      made = PAINT[name](e.pix).toPix(w, h);
+      made = PAINT[name](e.pix, dims).toPix(dims.w, dims.h);
       HD_STATS.made++; HD_STATS.ms += now() - t0;
       return made;
     };
-    Object.defineProperty(e.pix, 'hd', { value: () => made || make(), enumerable: false, configurable: true });
+    const hd = () => made || make();
+    hd.mip = SPRITES.has(name);
+    Object.defineProperty(e.pix, 'hd', { value: hd, enumerable: false, configurable: true });
   }
   return all;
 }

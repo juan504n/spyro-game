@@ -1,11 +1,11 @@
 // HD painters for plants: leaf canopies, fir boughs and bark. Colours come from a ramp (`R`, dark to light) or a palette, which the registry takes from the pixel twin, so each realm keeps its own trees.
-import { Canvas, RNG, clamp, mix, smoothstep, wrapN, ramp, col, fbm, blur, grain, voronoi } from './kit.js';
+import { Canvas, RNG, clamp, mix, smoothstep, wrapN, ramp, col, fbm, fbmWH, blur, grain, voronoi } from './kit.js';
 
 /**
  * A leaf, drawn straight into the canvas: a lens shape with a mid-rib, lit on the side that faces the upper left.
  * (x, y) is the stalk end, `ang` the way it points (radians, y down), `lo`/`hi` the colours of its shaded and lit side.
  */
-function leaf(cv, x, y, ang, len, wid, lo, hi, a = 1, rib = 0.35) {
+export function leaf(cv, x, y, ang, len, wid, lo, hi, a = 1, rib = 0.35) {
   const ca = Math.cos(ang), sa = Math.sin(ang);
   const ex = x + ca * len, ey = y + sa * len, pad = wid * 0.5 + 1.5;
   const x0 = Math.floor(Math.min(x, ex) - pad), x1 = Math.ceil(Math.max(x, ex) + pad), y0 = Math.floor(Math.min(y, ey) - pad), y1 = Math.ceil(Math.max(y, ey) + pad);
@@ -184,5 +184,62 @@ export function moss(n, { seed = 1301, R, count = 190, size = [12, 26], fuzz = 2
   for (let i = 0; i < 24; i++) cv.soft(rng.next() * n, rng.next() * n, 1.2 * K, [214, 236, 200], 0.5);
   cv.modulate(grain(n, seed + 9, n / 2, 0.035));
   if (mean) cv.matchMean(mean, 0.92);
+  return cv;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+// A mushroom's cap: a dome from a pale crown to a deep skirt, a scalloped frill of violet, cream spots in staggered rows. (It wraps round the cap: u is a full turn.)
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+export function mushroomCap(w, h, { seed = 4801, T, V } = {}) {
+  const K = w / 256;
+  const rng = new RNG(seed);
+  const TR = ramp(T), VR = ramp(V), cv = new Canvas(w, [0, 0, 0], { h });
+  const f = fbmWH(w, h, seed + 1, 4, 3, 0.5, 3), g = fbmWH(w, h, seed + 2, 28, 2, 0.5, 6);
+  const tmp = [0, 0, 0], height = new Float32Array(w * h);
+  cv.fillWith((x, y, out) => {
+    const k = y * w + x, u = x / w, v = y / h;
+    const frac = (u * 4) % 1, edge = 0.84 - 0.07 * Math.sqrt(Math.max(0, 1 - Math.pow(2 * frac - 1, 2)));      // a frill of rounded scallops
+    if (v < edge) {
+      const t = 1 - v / 0.84;                                                                                     // 1 at the crown, 0 at the frill
+      TR(clamp(0.18 + 0.7 * t + (f[k] - 0.5) * 0.12 + (g[k] - 0.5) * 0.06), out);
+      height[k] = t * 0.3;
+    } else {
+      const d = (v - edge) / (1 - edge);                                                                          // 0 at the rim of the frill, 1 at the bottom
+      VR(clamp(0.95 - d * 0.9 + (g[k] - 0.5) * 0.12), out);
+      const gill = 0.5 + 0.5 * Math.sin(u * Math.PI * 2 * 48);
+      out[0] *= 0.88 + 0.12 * gill; out[1] *= 0.88 + 0.12 * gill; out[2] *= 0.88 + 0.12 * gill;
+      height[k] = -0.2 + (1 - d) * 0.15;
+    }
+  });
+  cv.shade(height, 1.4);
+  const spots = [[4, 6, 3], [15, 4, 2.3], [26, 7, 3.2], [9, 14, 2.6], [21, 15, 3], [31, 13, 2.2], [3, 20, 2], [14, 21, 2.4], [27, 21, 2]];
+  for (const [sx, sy, r] of spots) {
+    const x = (sx / 32) * w, y = (sy / 32) * h * 0.97, R = r * 8.4 * K;
+    cv.soft(x + 3 * K, y + 4 * K, R * 1.12, [10, 60, 62], 0.4, R * 1.0);
+    cv.soft(x, y, R, col('#c8bc9c'), 1, R * 0.94);
+    cv.soft(x - R * 0.12, y - R * 0.14, R * 0.86, col('#efe5ca'), 1, R * 0.8);
+    cv.soft(x - R * 0.34, y - R * 0.4, R * 0.36, [255, 252, 240], 0.9);
+  }
+  cv.modulate(grain(w, seed + 9, w / 2, 0.025, h));
+  return cv;
+}
+
+export function mushroomStem(w, h, { seed = 4901 } = {}) {
+  const K = w / 128;
+  const rng = new RNG(seed);
+  const cv = new Canvas(w, [0, 0, 0], { h });
+  const fib = fbmWH(w, h, seed + 1, 22, 3, 0.55, 2), fib2 = fbmWH(w, h, seed + 2, 8, 2, 0.5, 2), dirt = fbmWH(w, h, seed + 3, 10, 3, 0.55, 5);
+  const base = ramp(['#9a8c78', '#c8bc9e', '#dccfb2', '#f0e6cc', '#fff8e6']), soil = ramp(['#4a3a2e', '#6a5a4a', '#8a7a6a', '#b8a890']), height = new Float32Array(w * h);
+  cv.fillWith((x, y, out) => {
+    const k = y * w + x, v = y / h, u = x / w;
+    base(clamp(0.55 + (fib[k] - 0.5) * 0.4 + (fib2[k] - 0.5) * 0.2 + 0.1 * Math.sin(u * Math.PI * 2 + 0.6)), out);       // fibres run up the stalk; it is a little rounder in the middle of the card
+    if (v < 0.18) { const gill = 0.5 + 0.5 * Math.sin(u * Math.PI * 2 * 24); out[0] = mix(out[0], 168 + 28 * gill, 0.55 * (1 - v / 0.18)); out[1] = mix(out[1], 150 + 30 * gill, 0.55 * (1 - v / 0.18)); out[2] = mix(out[2], 176 + 26 * gill, 0.55 * (1 - v / 0.18)); }
+    const collar = Math.exp(-Math.pow((v - 0.3) / 0.025, 2));
+    height[k] = collar * 0.8;
+    const foot = smoothstep(0.62, 0.98, v) * (0.7 + 0.5 * dirt[k]);
+    if (foot > 0) { const sc = soil(clamp(0.2 + 0.6 * dirt[k])); out[0] = mix(out[0], sc[0], clamp(foot)); out[1] = mix(out[1], sc[1], clamp(foot)); out[2] = mix(out[2], sc[2], clamp(foot)); }
+  });
+  cv.shade(height, 1.2);
+  cv.modulate(grain(w, seed + 9, w / 2, 0.03, h));
   return cv;
 }

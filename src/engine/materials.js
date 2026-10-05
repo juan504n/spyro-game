@@ -106,9 +106,10 @@ function applyTexMode(e) {
         img = e.smooth;
       }
     }
+    const mip = tile || !!(e.hd && e.hd.mip);                           // (a sprite with an HD painting is mipmapped like a tile: it would shimmer at a distance)
     tex.magFilter = THREE.LinearFilter;
-    tex.generateMipmaps = tile;                                        // (atlases are sampled by sub-rect: no mip bleeding)
-    tex.minFilter = tile ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter;
+    tex.generateMipmaps = mip;                                         // (atlases are sampled by sub-rect: no mip bleeding)
+    tex.minFilter = mip ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter;
     tex.anisotropy = tile ? 4 : 1;
   } else {
     tex.magFilter = tex.minFilter = THREE.NearestFilter;

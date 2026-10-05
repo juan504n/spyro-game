@@ -221,7 +221,7 @@ export function strata(n, { seed = 11, R, bands = 6, moss = null, blocks = 3, cr
   }
   cv.modulate(ao);
   cv.tint(joint, crack, crackDepth + 0.1);
-  specks(cv, rng, 700, [226, 220, 238], [30, 26, 40], (x, y) => 1 - joint[y * n + x], K);
+  specks(cv, rng, 560, [226, 220, 238], [30, 26, 40], (x, y) => 1 - joint[y * n + x], K);
   for (let i = 0; i < 6; i++) {
     const x0 = rng.next() * n, y0 = rng.next() * n, pts = [[x0, y0]];
     let a = Math.PI / 2 + (rng.next() - 0.5) * 1.2;
@@ -234,7 +234,8 @@ export function strata(n, { seed = 11, R, bands = 6, moss = null, blocks = 3, cr
       const x0 = rng.next() * n, y0 = rng.next() * n, pts = [[x0, y0]];
       let a = Math.PI / 2 + (rng.next() - 0.5) * 0.8;
       for (let s = 1; s <= 8; s++) { a += (rng.next() - 0.5) * 0.7; pts.push([pts[s - 1][0] + Math.cos(a) * 5 * K, pts[s - 1][1] + Math.sin(a) * 5 * K]); }
-      cv.stroke(pts, 2.2 * K, 0.7 * K, e1, [255, 210, 120], 0.9);
+      cv.stroke(pts, 9 * K, 3 * K, [210, 70, 24], [210, 70, 24], 0.26);            // the glow it throws on the rock
+      cv.stroke(pts, 2.4 * K, 0.7 * K, e1, [255, 222, 140], 0.95);
     }
   }
   // (the lip - moss, snow or ash - hangs from the top of the tile only: one row of it in a tall wall; the tile is repeated whole, so the lip is at the head of every repeat)
