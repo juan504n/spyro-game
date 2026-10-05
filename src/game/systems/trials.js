@@ -105,7 +105,11 @@ export class TrialSystem {
       else if (Math.hypot(g.player.x - b.x, g.player.z - b.z) < NEAR) g.after(0.9, () => g.beacons.ignite(b));        // (the seal falls, and then the lantern is lit)
       else {                                                                        // (a lantern far from the trial: its seal is broken, and it waits for his fire; its column pulses so that it is seen)
         b.ready = true;
-        g.after(1.6, () => { if (!b.litFlag) g.hud.hint(`THE SEAL IS BROKEN  -  THE ${b.def.name} WAITS FOR YOUR FIRE`, 5); });
+        g.after(1.6, () => {
+          if (b.litFlag) return;
+          const where = whereIs({ x: b.x, z: b.z }, g.player);                              // (and where it is: a lantern 70 m off is not in sight)
+          g.hud.hint(`THE SEAL IS BROKEN  -  THE ${b.def.name} WAITS FOR YOUR FIRE${where ? `  (${where})` : ''}`, where ? 6.5 : 5);
+        });
       }
     }
     g.emit('trial', r.t, g.stats.trials);
@@ -138,7 +142,7 @@ export class TrialSystem {
         game.fx.hitSpark(fp.x, fp.y, fp.z, 1.0);
         game.audio?.sfx('trial_seal', { vol: 0.9 });
         const where = whereIs(r.t, p);                                                       // (and where to find it, when it is not in sight: 98 m of country is a long way to hunt)
-        game.hud.hint(`THE LANTERN IS SEALED  -  ${TRIALS[r.t.kind].hint}${where ? `  (${where})` : ''}`, where ? 6.5 : 5);
+        if (!(r.t.kind === 'siege' && r.t.state === 'active')) game.hud.hint(`THE LANTERN IS SEALED  -  ${TRIALS[r.t.kind].hint}${where ? `  (${where})` : ''}`, where ? 6.5 : 5);        // (not in the middle of the siege that stands round it: he is doing what it says)
       }
       if (!seen.has(r.t.kind) && Math.hypot(p.x - r.t.x, p.z - r.t.z) < LESSON_R && !this.queue.some((q) => q.id === r.t.kind)) this.queue.push({ id: r.t.kind, text: TRIALS[r.t.kind].hint });
     }

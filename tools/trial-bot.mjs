@@ -174,7 +174,8 @@ await page.evaluate(async () => {
         if (solvedAt !== null && G.time - t0 - solvedAt > 3) break;
       }
       stop(); bot.tick(30);
-      const freed = { solved: r.done, lit: b.litFlag, ready: b.ready === true, sealed: b.sealed, said: rec.said.slice(said0).some((t) => /SEAL IS BROKEN/.test(t)), beacons: G.stats.beacons - lit0, trials: G.stats.trials - trials0 };
+      const hintText = rec.said.slice(said0).find((t) => /SEAL IS BROKEN/.test(t)) || null;
+      const freed = { solved: r.done, lit: b.litFlag, ready: b.ready === true, sealed: b.sealed, said: !!hintText, hintText, beacons: G.stats.beacons - lit0, trials: G.stats.trials - trials0 };
       place(b.x - 4.5, b.z, Math.PI / 2);
       for (let i = 0; i < 300 && !b.litFlag; i++) { apply({ dx: 1, dz: 0, mag: 0, flame: true }); bot.tick(1); }
       stop(); bot.tick(10);
@@ -198,6 +199,22 @@ await page.evaluate(async () => {
       S.remove(r);
       clearLanterns();
       return { hint };
+    },
+    /** a breath on the sealed lantern in the middle of a siege that is going on turns away with its sound and says nothing: he is doing what the hint would tell him */
+    siegeSeal() {
+      reset();
+      const [ox, oz] = at('plates');
+      const b = lantern('botlantern7', ox, oz);
+      const r = S.add({ ...plays.shift(plays.SPECS.siege, ox, oz), id: 'bot-siegeseal', goal: 'botlantern7', seed: 3 });
+      place(ox + 4.5, oz, -Math.PI / 2);
+      bot.tick(40);
+      const said0 = rec.said.length; rec.sounds.clear();
+      for (let i = 0; i < 40; i++) { apply({ dx: -1, dz: 0, mag: 0, flame: true }); bot.tick(1); }
+      stop(); bot.tick(10);
+      const out = { state: r.t.state, sealed: b.sealed, hint: rec.said.slice(said0).some((t) => /SEALED/.test(t)), sound: rec.sounds.has('trial_seal') };
+      S.remove(r);
+      clearLanterns();
+      return out;
     },
     /** a sealed lantern lit by some other means: the trial has nothing left to ask, and it ends in silence (no seal breaking, no gems) */
     other() {
@@ -314,9 +331,11 @@ if (!args.length) {
   check('the lantern of a trial is sealed: a breath on it lights nothing, it is turned away with a sound and the HUD says it is sealed, and the aim assist does not swing to it', o.sealedHeld && o.hintSaid && o.turnedAway && !o.aimsAtLantern, JSON.stringify(o));
   check('a solved trial breaks the seal and the lantern is lit a moment later (0.9 s), once: the lanterns lit go up by one and the trials solved by one', o.solved && o.unsealed && o.litAt !== null && o.litAt - o.solvedAt > 0.6 && o.litAt - o.solvedAt < 1.6 && o.beacons === 1 && o.trials === 1 && o.sounds.includes('trial_break'), `(solved at ${o.solvedAt && o.solvedAt.toFixed(1)}, lit at ${o.litAt && o.litAt.toFixed(1)}; banner ${o.banner})`);
   const fr = await page.evaluate(() => window.__trialplay.far());
-  check('a lantern more than 26 m from its trial is not lit when the seal breaks: it is freed (ready), the HUD says its seal is broken and it waits for his fire, and a breath lights it', fr.solved && !fr.lit && fr.ready && !fr.sealed && fr.said && fr.beacons === 0 && fr.trials === 1 && fr.litByFire && fr.beaconsAfter === 1, JSON.stringify(fr));
+  check('a lantern more than 26 m from its trial is not lit when the seal breaks: it is freed (ready), the HUD says its seal is broken and where it waits for his fire (about 40 M TO THE EAST), and a breath lights it', fr.solved && !fr.lit && fr.ready && !fr.sealed && fr.said && /\((3[5-9]|4\d|50) M TO THE EAST\)$/.test(fr.hintText) && fr.beacons === 0 && fr.trials === 1 && fr.litByFire && fr.beaconsAfter === 1, JSON.stringify(fr));
   const wh = await page.evaluate(() => window.__trialplay.rebuff());
   check('a breath on a sealed lantern whose trial is out of sight says where the trial is (40 M TO THE WEST), and in sight it does not', !!wh.hint && /\(40 M TO THE WEST\)$/.test(wh.hint) && !/\(\d+ M TO/.test(o.hintText || ''), JSON.stringify(wh));
+  const sg = await page.evaluate(() => window.__trialplay.siegeSeal());
+  check('a breath on the sealed lantern in the middle of a siege that is going on is turned away with its sound and says nothing', sg.state === 'active' && sg.sealed === true && !sg.hint && sg.sound, JSON.stringify(sg));
   const ot = await page.evaluate(() => window.__trialplay.other());
   check('a sealed lantern that is lit by some other means ends its trial at once and in silence (no seal breaking, no gems)', ot.before.sealed === true && !ot.before.done && ot.after.done && ot.after.state === 'solved' && !ot.after.sealed && !ot.trialBreak && ot.gems === 0 && ot.lit && ot.beacons === 1, JSON.stringify(ot));
   const a = await page.evaluate(() => window.__trialplay.aim());
