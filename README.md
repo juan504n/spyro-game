@@ -461,6 +461,11 @@ strata with fissures and a lip, planks with grain and nails, leaves and fir need
 Each is the **same material in the same colours**: a painter is written from the ramps of its pixel twin (or, for a realm's own ground, from the colours the twin uses) and each tile is held to its twin's mean colour,
 so Emberfall is still ash and basalt and Tideglass still teal. Every painting wraps, so a tile is seamless by construction; a sprite is cut out of its card by a plane of coverage.
 
+<p align="center">
+  <img src="docs/shots/48-hd-textures.jpg" width="80%" alt="Four places of the game, each twice: before (the pixel textures enlarged by a filter: blocky cobbles and grass) and after (the HD textures: rounded stones with moss in the joints, blades of grass, brick, glowing basalt cobbles, sea-stone flags)">
+</p>
+<p align="center"><sub>Before and after, the same places (software-rendered, <code>?hd=0</code> against <code>?hd=256</code>): Gloaming Vale's start and Windmill Hill, the Cinder Flats of Emberfall Crags and the Strand of Tideglass Reach. The pictures are taken a moment after a warp, so the first and the last are still fading in.</sub></p>
+
 | | PS1 look | smooth look, HD on (default) | smooth look, HD off |
 | --- | --- | --- | --- |
 | a world texture | the pixels, point sampled | the 256 px painting, mipmapped, anisotropic ×4 | the pixels, enlarged 8× by a smoothing filter |
