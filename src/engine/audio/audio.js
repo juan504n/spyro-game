@@ -5,20 +5,21 @@
 //   audio.startMusic(); audio.setDay(0.3); audio.sfx('gem_red', { pitch: 1.05, pan: -0.3 });
 //
 // All sound is synthesized at startup by the pure-DSP core (assets.js and friends) at 22050 Hz and
-// handed to WebAudio as AudioBuffers (the browser resamples to the device rate). The one exception is the Guardian's
-// (a fifth of the cost, and only a hero who has restored every realm hears it): they are made by audio.load('guardian')
-// when the Court is built, behind its loading bar. Rendering is sliced
+// handed to WebAudio as AudioBuffers (the browser resamples to the device rate). Two things are made later, behind the loading bar of the world
+// that needs them: the Guardian's sounds (a fifth of the cost, and only a hero who has restored every realm hears them: audio.load('guardian')),
+// and the SONG of a world (every world has its own, songs.js: audio.loadSong(id) makes it, audio.setSong(id) plays it with a crossfade; the
+// song of the world the hero has left is kept for his return and the one before it is freed). Rendering is sliced
 // into small jobs with time-boxed yields so the page stays responsive; total main-thread cost is
 // roughly 1-2 s on a desktop machine. Every public method is safe to call at any time: before init,
 // after a failed init, or with unknown names it is a silent no-op (unknown names warn once).
 //
 // Signal graph (all gains smoothed with setTargetAtTime / linear ramps, never stepped):
 //
-//   gloaming ─ gain cos(day) ┐
-//   daybreak ─ gain sin(day) ┤
-//   amb_dusk ─ gain cos(day) ┼─> musicMix ─> userDuck ─> stingerDuck ─┐
-//   amb_day  ─ gain sin(day) ┘                                        ├─> musicVol ─┐
-//   stinger (one-shot) ─ stingerGain ─────────────────────────────────┘             │
+//   song dusk ─ gain cos(day) ┐
+//   song dawn ─ gain sin(day) ┴─> song gain ┐   (the song of the world the hero is in; one with a single colouring plays it at full level)
+//   amb_dusk ─ gain cos(day) ───────────────┼─> musicMix ─> userDuck ─> stingerDuck ─┐
+//   amb_day  ─ gain sin(day) ───────────────┘   (the beds: scaled by the song's `ambience`)   ├─> musicVol ─┐
+//   stinger (one-shot) ─ stingerGain ────────────────────────────────────────────────────────┘             │
 //   sfx voices (pooled gain+pan chains) / loops ─> sfxBus ─> sfxVol ────────────────┼─> master
 //   master ─> muffle (low-pass, pause/underwater) ─┐
 //   UI sounds ─> uiBus ─> uiVol ─> uiMaster (bypass the muffle) ─┴─> preLimit(x0.5) ─> soft-clip WaveShaper ─> out
@@ -31,6 +32,7 @@
 
 import { SR, softLimit } from './synth.js';
 import { assetJobs, lazyJobs, LAZY_NAMES, STINGER_NAMES } from './assets.js';
+import { songBuffers, songJobsOf, songAmbience, hasSong, DEFAULT_SONG, SONG_IDS } from './songs.js';
 import { SFX_NAMES, LOOP_NAMES, trimOf } from './sfx.js';
 import { clearInstrumentCache } from './instruments.js';
 
@@ -69,7 +71,11 @@ const S = {
   pools: { world: [], ui: [] }, // pooled { g, p, pool } gain+pan pairs, one pool per destination bus
   voices: [], // active one-shots
   recent: new Map(), // name -> { t, n } for burst compensation
-  music: null, // { srcs: [], gains: {}, t0 }
+  music: null, // { srcs: [] (the ambience beds), gains: { amb_dusk, amb_day }, song: { id, srcs, gains: { dusk, dawn }, out } }
+  song: null, // the song the world on screen wants (a world id, songs.js); null until a world says
+  songLoading: new Map(),
+  songBg: new Map(), // id -> { stop } for the colouring of a song that is being made while the hero plays (the dawn)
+  songBgDone: new Map(), // id -> the promise of that
   day: 0,
   dayAt: 0,
   dayTimer: 0,
@@ -305,47 +311,173 @@ function dayGains(t) {
   return { night: Math.cos(a), day: Math.sin(a) };
 }
 
+/** The gains of a song's two loops for a day: both colourings crossfade, a song with one colouring plays it at full level. */
+function songDayGains(song, day) {
+  const { night, day: dawn } = dayGains(day);
+  if (song.gains.dusk && song.gains.dawn) return { dusk: night, dawn };
+  return { dusk: 1, dawn: 1 };
+}
+
 function applyDay() {
   const m = S.music;
   if (!m || !S.ctx) return;
   const { night, day } = dayGains(S.day);
   const now = S.ctx.currentTime;
-  retarget(m.gains.gloaming.gain, night, now, 0.15);
-  retarget(m.gains.daybreak.gain, day, now, 0.15);
-  retarget(m.gains.amb_dusk.gain, night * AMB_LEVEL, now, 0.25);
-  retarget(m.gains.amb_day.gain, day * AMB_LEVEL, now, 0.25);
+  if (m.song) {
+    const g = songDayGains(m.song, S.day);
+    if (m.song.gains.dusk) retarget(m.song.gains.dusk.gain, g.dusk, now, 0.15);
+    if (m.song.gains.dawn) retarget(m.song.gains.dawn.gain, g.dawn, now, 0.15);
+  }
+  const amb = songAmbience(S.song || DEFAULT_SONG);
+  retarget(m.gains.amb_dusk.gain, night * AMB_LEVEL * amb.dusk, now, 0.25);
+  retarget(m.gains.amb_day.gain, day * AMB_LEVEL * amb.day, now, 0.25);
 }
 
-function killMusicNodes(m, at) {
-  for (const s of m.srcs) {
+function killNodes(o, at) {
+  const list = o.srcs;
+  list.forEach((s, i) => {
     try {
       s.stop(at);
       s.onended = () => {
         try { s.disconnect(); } catch (e) { /* ignore */ }
+        if (i === list.length - 1 && o.out) { try { o.out.disconnect(); } catch (e) { /* ignore */ } }
       };
     } catch (e) { /* ignore */ }
+  });
+}
+
+function killMusicNodes(m, at) {
+  killNodes(m, at);
+  if (m.song) killNodes(m.song, at);
+}
+
+// ---- songs: one for every world (songs.js); made when the world is built, freed when the hero has moved two worlds on
+const bufferNames = (id) => { const b = songBuffers(id); return [b.dusk, b.dawn].filter(Boolean); };
+/** A song can be played once its first colouring is made (the dusk; the dawn of a song that has one is made while the hero plays). */
+const songMade = (id) => { const b = songBuffers(id); const first = b.dusk || b.dawn; return !!first && S.buffers.has(first); };
+const songComplete = (id) => { const n = bufferNames(id); return n.length > 0 && n.every((k) => S.buffers.has(k)); };
+
+function freeSong(id) {
+  const t = S.songBg.get(id);
+  if (t) t.stop = true;                                                                      // (a colouring still being made for a song that goes is dropped)
+  for (const k of bufferNames(id)) S.buffers.delete(k);
+}
+
+/** Free every song's buffers but the ones in `keep` (the nodes still playing a song keep their own reference until they have faded out). */
+function trimSongs(keep) {
+  for (const id of ['gloaming', ...Object.keys(songsMadeIds())]) if (!keep.has(id)) freeSong(id);
+}
+function songsMadeIds() {
+  const out = {};
+  for (const k of S.buffers.keys()) {
+    if (k === 'gloaming' || k === 'daybreak') out.gloaming = 1;
+    const m = /^song_(.+)_(dusk|dawn)$/.exec(k);
+    if (m) out[m[1]] = 1;
   }
+  return out;
+}
+
+/** Start the loops of a song at t0, silent, behind one gain node. */
+function songNodes(id, t0) {
+  const ctx = S.ctx;
+  const b = songBuffers(id);
+  const song = { id, srcs: [], gains: {}, out: ctx.createGain(), t0 };
+  song.out.gain.value = 0;
+  song.out.connect(S.n.musicMix);
+  for (const k of ['dusk', 'dawn']) {
+    const buf = b[k] && S.buffers.get(b[k]);
+    if (!buf) continue;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    const gn = ctx.createGain();
+    gn.gain.value = 0;
+    src.connect(gn).connect(song.out);
+    src.start(t0);
+    song.srcs.push(src);
+    song.gains[k] = gn;
+  }
+  const g = songDayGains(song, S.day);
+  if (song.gains.dusk) song.gains.dusk.gain.value = g.dusk;
+  if (song.gains.dawn) song.gains.dawn.gain.value = g.dawn;
+  return song;
+}
+
+/** Where in a loop of `dur` seconds that was started at `t0` (context time) the playback is at time `when`: what a second, time-aligned loop is started at to be in step with it. */
+export function loopOffset(when, t0, dur) {
+  return (((when - t0) % dur) + dur) % dur;
+}
+
+/** The dawn of the song that is playing has been made: it joins the dusk loop in phase (the two are time-aligned: it starts at the point of the loop the dusk has reached) and the day decides the mix. */
+function attachDawn(id) {
+  const m = S.music;
+  const song = m && m.song;
+  if (!song || song.id !== id || song.gains.dawn || !S.ctx) return;
+  const b = songBuffers(id);
+  const buf = b.dawn && S.buffers.get(b.dawn);
+  if (!buf) return;
+  const ctx = S.ctx;
+  const when = ctx.currentTime + 0.05;
+  const offset = loopOffset(when, song.t0, buf.duration);
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.loop = true;
+  const gn = ctx.createGain();
+  gn.gain.value = 0;
+  src.connect(gn).connect(song.out);
+  src.start(when, offset);
+  song.srcs.push(src);
+  song.gains.dawn = gn;
+  applyDay();
+}
+
+const SONG_FADE = 1.6;
+/** The music playing is moved to another song: the new one fades in while the old one fades out (and stops). False when the song is not made yet. */
+function switchSong(id) {
+  const m = S.music;
+  if (!m || !S.ctx) return false;
+  if (m.song && m.song.id === id) return true;
+  if (!songMade(id)) return false;
+  const now = S.ctx.currentTime;
+  const next = songNodes(id, now + 0.06);
+  next.out.gain.setValueAtTime(0, now);
+  next.out.gain.linearRampToValueAtTime(1, now + 0.06 + SONG_FADE);
+  const old = m.song;
+  if (old) {
+    old.out.gain.cancelScheduledValues(now);
+    old.out.gain.setValueAtTime(old.out.gain.value, now);
+    old.out.gain.linearRampToValueAtTime(0, now + SONG_FADE);
+    killNodes(old, now + SONG_FADE + 0.1);
+  }
+  m.song = next;
+  applyDay();                                                                               // (the new song has its own ambience: the Court's storm has no crickets)
+  return true;
 }
 
 /**
  * Run render jobs with time-boxed yields (the page stays responsive) and hand each result to WebAudio as soon as it is made. `out` is the object the jobs write their PCM to; `report(0..1)` is called as
- * jobs complete.
+ * jobs complete. opt: { slice (ms of work before the page gets its turn, 10), gap (ms of waiting between slices, 0: only a yield), token ({ stop: true } ends the run: the work of a song that is gone) }.
  */
-async function renderJobs(jobs, out, report) {
+async function renderJobs(jobs, out, report, opt = {}) {
+  const slice = opt.slice ?? 10;
+  const pause = opt.gap ? () => new Promise((r) => setTimeout(r, opt.gap)) : yieldToBrowser;
+  const stopped = () => !!(opt.token && opt.token.stop);
   let total = 0;
   for (const j of jobs) total += j.weight;
   let done = 0;
   let sliceStart = performance.now();
   report(0);
   for (const job of jobs) {
+    if (stopped()) return;
     try {
       const it = job.run();
       if (it && typeof it.next === 'function') {
         // generator job: it yields between steps, so hand control back to the browser mid-job
         for (let step = it.next(); !step.done; step = it.next()) {
-          if (performance.now() - sliceStart > 10) {
-            await yieldToBrowser();
+          if (performance.now() - sliceStart > slice) {
+            await pause();
             sliceStart = performance.now();
+            if (stopped()) return;
           }
         }
       }
@@ -354,18 +486,20 @@ async function renderJobs(jobs, out, report) {
     }
     for (const k of Object.keys(out)) {
       if (!S.buffers.has(k) && out[k] && (out[k] instanceof Float32Array || out[k].L)) {
-        try {
-          S.buffers.set(k, toAudioBuffer(out[k]));
-        } catch (e) {
-          warnOnce('buffer failed for', k);
+        if (!stopped()) {
+          try {
+            S.buffers.set(k, toAudioBuffer(out[k]));
+          } catch (e) {
+            warnOnce('buffer failed for', k);
+          }
         }
         delete out[k]; // release the PCM as soon as the AudioBuffer owns a copy
       }
     }
     done += job.weight;
     report(Math.min(0.999, done / total));
-    if (performance.now() - sliceStart > 10) {
-      await yieldToBrowser();
+    if (performance.now() - sliceStart > slice) {
+      await pause();
       sliceStart = performance.now();
     }
   }
@@ -391,6 +525,56 @@ function loadGroup(group, onProgress) {
   })();
   S.lazyLoading.set(group, p);
   return p;
+}
+
+/** Make the song of a world (songs.js) and hand it to WebAudio; resolves when it is there (a failure is a warning and silence, never an exception). */
+function loadSongNow(id, onProgress) {
+  if (!hasSong(id) || songMade(id)) return Promise.resolve();
+  if (S.songLoading.has(id)) return S.songLoading.get(id);
+  trimSongs(new Set([S.song, id]));                                                       // (the song of the world the hero is in stays, the one he came from goes, the new one is made)
+  const b = songBuffers(id);
+  const first = b.dusk ? 'dusk' : 'dawn';
+  const rest = b.dusk && b.dawn ? 'dawn' : null;
+  const p = (async () => {
+    try {
+      const out = {};
+      const report = (f) => { try { if (onProgress) onProgress(f); } catch (e) { /* the game's callback must not break audio */ } };
+      await renderJobs(songJobsOf(id, out, { variants: [first] }), out, report);
+      report(1);
+    } catch (e) {
+      warnOnce('song failed', id + ': ' + (e && e.message));
+    } finally {
+      S.songLoading.delete(id);
+    }
+    if (S.song === id && S.music && (!S.music.song || S.music.song.id !== id)) switchSong(id);          // (the world it is for is already on screen)
+    if (rest && songMade(id) && !songComplete(id)) makeDawnWhilePlaying(id);
+    else if (!S.songBg.size && !S.songLoading.size) clearInstrumentCache();
+  })();
+  S.songLoading.set(id, p);
+  return p;
+}
+
+/**
+ * The dawn of a song is made after the world is entered, in small slices between the frames (a realm is entered at dusk; the dawn is needed when its first lantern is lit, a minute on): the loading
+ * bar waits for half of the song, not all of it. It joins the dusk loop in phase when it is done (attachDawn); if the hero has gone on before that, it is dropped.
+ */
+function makeDawnWhilePlaying(id) {
+  const token = { stop: false };
+  S.songBg.set(id, token);
+  const done = (async () => {
+    try {
+      const out = {};
+      await renderJobs(songJobsOf(id, out, { variants: ['dawn'] }), out, () => {}, { token, slice: 5, gap: 8 });
+    } catch (e) {
+      warnOnce('song failed', id + ': ' + (e && e.message));
+    }
+    if (token.stop) freeSong(id);
+    else attachDawn(id);
+    if (S.songBg.get(id) === token) S.songBg.delete(id);
+    if (!S.songBg.size && !S.songLoading.size) clearInstrumentCache();
+  })();
+  S.songBgDone.set(id, done);
+  done.then(() => { if (S.songBgDone.get(id) === done) S.songBgDone.delete(id); });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -420,10 +604,17 @@ export const audio = {
           for (const ev of ['pointerdown', 'keydown', 'touchend']) document.addEventListener(ev, kick, { passive: true });
         }
         const out = {};
-        await renderJobs(assetJobs(out), out, report);
+        if (!S.song) S.song = DEFAULT_SONG;
+        await renderJobs(assetJobs(out, { songs: [S.song] }), out, report);                  // (the sounds of the game and the song of the world the hero is in)
         for (const g of S.lazyWanted) await loadGroup(g, null);                                // (a place that asked for its sounds before the audio was up)
+        if (!songMade(S.song)) await loadSongNow(S.song, null);                                // (he has moved to another world while the audio was being made)
+        if (!songMade(S.song) && S.song !== DEFAULT_SONG) {                                    // (a song that could not be made must not take the sounds of the game with it: Vale's tune plays instead)
+          S.song = DEFAULT_SONG;
+          await loadSongNow(S.song, null);
+        }
         clearInstrumentCache();
-        S.ready = S.buffers.has('gloaming') && S.buffers.has('daybreak');
+        const core = ['amb_dusk', 'amb_day', ...STINGER_NAMES.map((n) => 'stinger_' + n)];
+        S.ready = core.every((k) => S.buffers.has(k)) && songMade(S.song);
         S.failed = !S.ready;
       } catch (e) {
         S.failed = true;
@@ -438,6 +629,10 @@ export const audio = {
         S.ctx = null;
         S.buffers.clear();
         S.lazyDone.clear();
+        S.songLoading.clear();
+        for (const t of S.songBg.values()) t.stop = true;
+        S.songBg.clear();
+        S.songBgDone.clear();
         S.n = {};
         S.pools.world.length = 0;
         S.pools.ui.length = 0;
@@ -459,6 +654,47 @@ export const audio = {
     if (S.lazyDone.has(group)) return Promise.resolve();
     if (!S.ready) { S.lazyWanted.add(group); return Promise.resolve(); }
     return loadGroup(group, onProgress);
+  },
+
+  /**
+   * Make the song of a world (songs.js: the id of the world) from the loading bar of that world; onProgress(0..1) as it is made. Before init() it does nothing (init() makes the song
+   * of the world the hero is in). Idempotent; never rejects. A song that is already made costs nothing.
+   */
+  loadSong(id, onProgress) {
+    if (!S.ready) return Promise.resolve();
+    return loadSongNow(id, onProgress);
+  },
+
+  /**
+   * The world on screen has changed: this is its song. The music playing crossfades to it (it must have been made with loadSong, or it starts when it is made); before init()
+   * it is only noted, and startMusic() plays it. An id with no song plays Vale's tune.
+   */
+  setSong(id) {
+    try {
+      id = hasSong(id) ? id : DEFAULT_SONG;
+      if (S.song === id) return;
+      S.song = id;
+      if (S.ready && S.music) switchSong(id);
+    } catch (e) { /* ignore */ }
+  },
+
+  /** Whether the song of a world can be played (so that loadSong costs nothing): its first colouring is made. */
+  hasSong(id) {
+    return songMade(id);
+  },
+
+  /** Whether both colourings of the song are made (the dawn of a song is made after the world is entered, between the frames). */
+  songComplete(id) {
+    return songComplete(id);
+  },
+
+  /** Resolves when the song is whole (its dawn made and playing, or dropped because the hero moved on); at once for a song that is. Never rejects. */
+  async whenSongComplete(id) {
+    for (let i = 0; i < 4; i++) {
+      const p = S.songLoading.get(id) || S.songBgDone.get(id);
+      if (!p) return;
+      await p;
+    }
   },
 
   /** context.resume() helper — safe anytime; resolves even when there is no context. */
@@ -547,7 +783,7 @@ export const audio = {
     }
   },
 
-  /** Start both music variants and both ambience beds (sample-aligned), faded in over 1.2 s. */
+  /** Start the song of the world and both ambience beds (sample-aligned), faded in over 1.2 s. */
   startMusic() {
     try {
       if (!S.ready || S.music) return;
@@ -557,8 +793,8 @@ export const audio = {
         S.fading = null;
       }
       const t0 = ctx.currentTime + 0.06;
-      const m = { srcs: [], gains: {} };
-      for (const name of ['gloaming', 'daybreak', 'amb_dusk', 'amb_day']) {
+      const m = { srcs: [], gains: {}, song: null };
+      for (const name of ['amb_dusk', 'amb_day']) {
         const buf = S.buffers.get(name);
         if (!buf) continue;
         const src = ctx.createBufferSource();
@@ -572,11 +808,15 @@ export const audio = {
         m.gains[name] = gn;
       }
       S.music = m;
+      const id = S.song || DEFAULT_SONG;
+      if (songMade(id)) {
+        m.song = songNodes(id, t0);
+        m.song.out.gain.value = 1;
+      }
       const { night, day } = dayGains(S.day);
-      m.gains.gloaming.gain.value = night;
-      m.gains.daybreak.gain.value = day;
-      m.gains.amb_dusk.gain.value = night * AMB_LEVEL;
-      m.gains.amb_day.gain.value = day * AMB_LEVEL;
+      const amb = songAmbience(id);
+      m.gains.amb_dusk.gain.value = night * AMB_LEVEL * amb.dusk;
+      m.gains.amb_day.gain.value = day * AMB_LEVEL * amb.day;
       const mg = S.n.musicMix.gain;
       mg.cancelScheduledValues(ctx.currentTime);
       mg.setValueAtTime(0, ctx.currentTime);
@@ -721,13 +961,20 @@ export const audio = {
   get stingerNames() {
     return [...STINGER_NAMES];
   },
+  /** The worlds that have a song (songs.js), and the song the world on screen wants. */
+  get songIds() {
+    return [...SONG_IDS];
+  },
+  get song() {
+    return S.song;
+  },
   get context() {
     return S.ctx;
   },
   /** Testing hook: graph nodes, live voice count and loaded buffer names. */
   get _debug() {
-    const gains = S.music ? Object.fromEntries(Object.entries(S.music.gains).map(([k, g]) => [k, g.gain.value])) : null;
-    return { nodes: S.n, voices: S.voices.filter((v) => !v.stolen).length, voicesTotal: S.voices.length, pooled: S.pools.world.length + S.pools.ui.length, buffers: [...S.buffers.keys()], failed: S.failed, gains, day: S.day };
+    const gains = S.music ? Object.fromEntries([...Object.entries(S.music.gains), ...(S.music.song ? Object.entries(S.music.song.gains).map(([k, g]) => ['song_' + k, g]) : [])].map(([k, g]) => [k, g.gain.value])) : null;
+    return { nodes: S.n, voices: S.voices.filter((v) => !v.stolen).length, voicesTotal: S.voices.length, pooled: S.pools.world.length + S.pools.ui.length, buffers: [...S.buffers.keys()], failed: S.failed, gains, day: S.day, song: S.song, playing: S.music && S.music.song ? S.music.song.id : null, songsMade: Object.keys(songsMadeIds()), songsComplete: Object.keys(songsMadeIds()).filter(songComplete) };
   },
 };
 

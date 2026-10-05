@@ -23,6 +23,8 @@ import { assetJobs, pcmBytes, runJob } from '../src/engine/audio/assets.js';
 import { SR } from '../src/engine/audio/synth.js';
 import { LOOP_NAMES } from '../src/engine/audio/sfx.js';
 import { validateComposition, BEAT, BARS } from '../src/engine/audio/composition.js';
+import { SCORES, SONG_IDS, songBuffers } from '../src/engine/audio/songs.js';
+import { validateScore } from '../src/engine/audio/song.js';
 
 const args = process.argv.slice(2);
 const cli = new Set(args.filter((a) => a.startsWith('--') && !a.includes('=')));
@@ -34,7 +36,7 @@ if (writeWav) fs.mkdirSync(outDir, { recursive: true });
 
 // ---------------------------------------------------------------------------------------------
 const dB = (x) => 20 * Math.log10(Math.max(x, 1e-9));
-const LOOP_SET = new Set([...LOOP_NAMES, 'gloaming', 'daybreak', 'amb_dusk', 'amb_day']);
+const LOOP_SET = new Set([...LOOP_NAMES, 'amb_dusk', 'amb_day', ...SONG_IDS.flatMap((id) => Object.values(songBuffers(id)).filter(Boolean))]);
 const NOTE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const noteName = (f) => {
   const m = 69 + 12 * Math.log2(f / 440);
@@ -170,8 +172,8 @@ function seamOf(x) {
 }
 
 // ---------------------------------------------------------------------------------------------
-const problems = validateComposition();
-console.log(problems.length ? `composition: ${problems.length} PROBLEM(S)\n  ${problems.join('\n  ')}` : 'composition: structure OK (16 bars, every bar sums to 8 eighths, all patterns 16 steps)');
+const problems = [...validateComposition(), ...Object.values(SCORES).flatMap((sc) => validateScore(sc))];
+console.log(problems.length ? `composition: ${problems.length} PROBLEM(S)\n  ${problems.join('\n  ')}` : `composition: structure OK (Vale's tune: 16 bars, every bar sums to 8 eighths, all patterns 16 steps; the scores of ${Object.keys(SCORES).join(', ')}: bars add up, chords parse, patterns fit, notes in range)`);
 
 const out = {};
 const jobs = assetJobs(out, { stats: true, all: true });
@@ -184,7 +186,7 @@ for (const job of jobs) {
   const a = performance.now();
   runJob(job);
   const ms = performance.now() - a;
-  const g = job.name.startsWith('music:') ? 'music' : job.name.startsWith('amb_') ? 'ambience' : job.name.startsWith('stinger_') ? 'stingers' : 'sfx';
+  const g = job.name.startsWith('music:') || job.name.startsWith('song:') ? 'music' : job.name.startsWith('amb_') ? 'ambience' : job.name.startsWith('stinger_') ? 'stingers' : 'sfx';
   groupMs[g] = (groupMs[g] || 0) + ms;
   for (const k of Object.keys(out)) {
     if (k === 'stats' || out[k].__done) continue;

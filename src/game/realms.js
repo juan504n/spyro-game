@@ -51,3 +51,6 @@ export const REALMS = {
 
 /** The realm a world id names (unknown ids fall back to the first realm, which is where the game begins). */
 export const realmById = (id) => REALMS[id] || REALMS.gloaming;
+
+/** The song of a world: every world has its own (engine/audio/songs.js, by the id of the world); an entry of REALMS may name another with `music`. */
+export const songOf = (realm) => realm.music || realm.id;

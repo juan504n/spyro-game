@@ -1,7 +1,7 @@
 // Application flow: loading -> title -> intro fly-through -> play <-> pause -> finale (sunrise) -> results -> free roam.
 import * as THREE from 'three';
 import { Game } from './game.js';
-import { REALMS } from './realms.js';
+import { REALMS, songOf } from './realms.js';
 import { Assets } from './assets.js';
 import { Input } from './input.js';
 import { loadProgress, noteRealmDone, noteRealmGems, noteSecret, realmsDone, noteGateOpen, allRestored, noteGuardianFreed } from './progress.js';
@@ -106,11 +106,23 @@ class App {
     const restored = REALMS[id].kind === 'realm' && from === 'home' && !!(this.progress.realms[id] && this.progress.realms[id].done);
     const gate = REALMS[id].kind === 'homeworld' ? this._gateMode(from) : null;
     const freed = REALMS[id].kind === 'arena' && !!this.progress.guardian.freed && !rematch;      // (the Guardian's Court after the ending: he sits quiet on his dais; THE FIGHT AGAIN of the TRAVEL menu builds it as it was, and what is saved stays saved)
-    // (the Guardian's sounds are not made at start-up: the Court makes them first, behind its loading bar)
-    const lazy = REALMS[id].kind === 'arena' && !!this.audio && !!this.audio.load;
-    if (lazy) { this.load = { frac: 0, label: 'TUNING THE COURT' }; await this.audio.load('guardian', (f) => { this.load = { frac: f * 0.3, label: 'TUNING THE COURT' }; }); }
+    // (what the world needs that is not made at start-up is made first, behind its loading bar: the Guardian's sounds in the Court, and the song of every world the hero has not been in lately)
+    const audio = this.audio;
+    const song = songOf(REALMS[id]);
+    const steps = [];
+    if (REALMS[id].kind === 'arena' && audio && audio.load) steps.push({ label: 'TUNING THE COURT', w: 0.25, run: (cb) => audio.load('guardian', cb) });
+    if (audio && audio.loadSong) {
+      if (audio.ready && audio.songIds && audio.songIds.includes(song) && !audio.hasSong(song)) steps.push({ label: 'TUNING THE BAND', w: 0.2, run: (cb) => audio.loadSong(song, cb) });
+      else if (!audio.ready) audio.setSong?.(song);                       // (the audio is not up yet: init() makes the song of the world the hero is in, behind its own bar)
+    }
+    let pre = 0;
+    for (const s of steps) {
+      this.load = { frac: pre, label: s.label };
+      await s.run((f) => { this.load = { frac: pre + f * s.w, label: s.label }; });
+      pre += s.w;
+    }
     const game = new Game(gfx, { realm: REALMS[id], assets: this.assets, audio: this.audio, input: this.input, progress: this.progress, from, restored, gate, freed });
-    await game.build((frac, label) => { this.load = { frac: lazy ? 0.3 + frac * 0.7 : frac, label }; return new Promise((r) => setTimeout(r, 16)); });
+    await game.build((frac, label) => { this.load = { frac: pre + frac * (1 - pre), label }; return new Promise((r) => setTimeout(r, 16)); });
     game.externalPoll = true;
     game.resize(gfx.W, gfx.H);
     game.counter.resize(gfx.hud.w, gfx.W / gfx.H);
@@ -145,6 +157,7 @@ class App {
     game.on('chest', (c) => { if (c.secret) this._secretFound(c.secret); });
     window.__game = game;
     game.input.onGesture = () => this.unlockAudio();         // the first user gesture unlocks audio
+    this.audio?.setSong?.(songOf(game.realm));                // (the song of the world: it crossfades in; made behind the loading bar by _build)
     this.audio?.setDay?.(game.day);
   }
 

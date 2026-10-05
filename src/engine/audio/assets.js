@@ -4,13 +4,13 @@
 //
 // Results land in a flat object keyed by asset name:
 //   mono   Float32Array   every sfx name ('jump', 'gem_red', 'glide_loop', ...)
-//   stereo { L, R }       'gloaming', 'daybreak' (music loops), 'amb_dusk', 'amb_day' (ambience loops),
-//                         'stinger_lantern' | 'stinger_sunrise' | 'stinger_complete' | 'stinger_gameover'
+//   stereo { L, R }       the songs' loops (songs.js: Vale's 'gloaming' and 'daybreak', 'song_<world>_dusk' | 'song_<world>_dawn' for the others),
+//                         'amb_dusk', 'amb_day' (ambience loops), 'stinger_lantern' | 'stinger_sunrise' | 'stinger_complete' | 'stinger_gameover'
 
 import { SFX, SFX_NAMES } from './sfx.js';
 import { ambienceJobs } from './ambience.js';
 import { stingerJobs } from './stingers.js';
-import { musicJobs } from './music.js';
+import { SONG_IDS, DEFAULT_SONG, songJobsOf } from './songs.js';
 
 export { SR } from './synth.js';
 
@@ -30,11 +30,14 @@ export const LAZY_NAMES = new Set(Object.values(LAZY_GROUPS).flat());
  * All render jobs in load order: [{ name, weight, run() }]. Weights sum to the progress total.
  * run() is either a plain function or a generator function; a generator yields between its steps so
  * a runner can hand control back to the browser mid-job (use runJob() to drive either kind to the end).
+ * The songs: opts.songs is the list of world ids whose songs are made (default: Vale's, the one the game begins with; the player makes the song of the world it is in and
+ * the others when their worlds are built); opts.all makes the sounds of the lazy groups and every song, for the tools.
  */
 export function assetJobs(out, opts = {}) {
   const jobs = [];
   for (const name of SFX_NAMES) if (opts.all || !LAZY_NAMES.has(name)) jobs.push({ name, weight: WEIGHT[name] ?? 1, run: () => { out[name] = SFX[name](); } });       // (opts.all: the tools that render every sound)
-  jobs.push(...ambienceJobs(out), ...stingerJobs(out), ...musicJobs(out, opts));
+  jobs.push(...ambienceJobs(out), ...stingerJobs(out));
+  for (const id of opts.songs || (opts.all ? SONG_IDS : [DEFAULT_SONG])) jobs.push(...songJobsOf(id, out, opts));
   return jobs;
 }
 

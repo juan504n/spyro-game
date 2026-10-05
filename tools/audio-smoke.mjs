@@ -67,6 +67,8 @@ async function inPage() {
   const preLoop = tryCall('pre-init loop', () => A.loop('glide_loop'));
   tryCall('pre-init loop.set/stop', () => { preLoop.set({ vol: 0.5 }); preLoop.stop(); });
   tryCall('pre-init music', () => { A.startMusic(); A.setDay(0.4); A.stopMusic(); });
+  tryCall('pre-init songs', () => { A.loadSong('home'); A.hasSong('home'); A.setSong('nope'); });
+  if (A.song !== 'gloaming') fail('an unknown song id must play Vale\'s tune, got ' + A.song);
   tryCall('pre-init stinger/duck/muffle/volumes/mute', () => { A.stinger('lantern'); A.duck(0.5, 1); A.setMuffled(true); A.setVolumes({ master: 1 }); A.setMuted(false); });
   tryCall('pre-init resume', () => A.resume());
   if (A.ready !== false) fail('ready should be false before init');
@@ -162,7 +164,7 @@ async function inPage() {
     tryCall('setDay', () => A.setDay(d));
     await sleep(1600); // let the smoothing settle (time constant 0.15 s / 0.25 s)
     const g = A._debug.gains;
-    powers.push({ d, night: g.gloaming, day: g.daybreak, sum: g.gloaming ** 2 + g.daybreak ** 2 });
+    powers.push({ d, night: g.song_dusk, day: g.song_dawn, sum: g.song_dusk ** 2 + g.song_dawn ** 2 });
   }
   report.crossfade = powers;
   for (const p of powers) if (Math.abs(p.sum - 1) > 0.03) fail(`crossfade not equal-power at day=${p.d}: cos^2+sin^2=${p.sum.toFixed(3)}`);
@@ -180,6 +182,123 @@ async function inPage() {
   tryCall('sfx while muted', () => A.sfx('jump'));
   tryCall('setMuted off', () => A.setMuted(false));
   if (A.muted !== false) fail('muted getter (off)');
+
+  // 4b. songs: every world has its own; loadSong makes it, setSong plays it (a crossfade), and the one two worlds back is freed
+  const ids = A.songIds;
+  const bufsOf = (id) => A._debug.buffers.filter((b) => (id === 'gloaming' ? b === 'gloaming' || b === 'daybreak' : new RegExp('^song_' + id + '_(dusk|dawn)$').test(b)));
+  const others = ids.filter((i) => i !== 'gloaming');
+  if (ids[0] !== 'gloaming') fail('Vale\'s tune must be the first song');
+  if (!A.hasSong('gloaming') || bufsOf('gloaming').length !== 2) fail('Vale\'s tune is made at start-up');
+  if (others.length < 1) fail('no song besides Vale\'s');
+  if (A._debug.playing !== 'gloaming') fail('the music should be playing Vale\'s tune, it plays ' + A._debug.playing);
+  const songReport = {};
+  // (loadSong makes the first colouring of a song, the dusk, and resolves: the dawn is made after the world is entered, between the frames)
+  const loadOne = async (id) => {
+    const pr = [];
+    const t = performance.now();
+    await A.loadSong(id, (p) => pr.push(p));
+    const ms = performance.now() - t;
+    const early = bufsOf(id).length;
+    if (!A.hasSong(id)) fail(`loadSong(${id}) did not make the song`);
+    if (!pr.length || pr[pr.length - 1] !== 1) fail(`loadSong(${id}) did not report its end (${pr.slice(-3).join(',')})`);
+    for (let i = 1; i < pr.length; i++) if (pr[i] < pr[i - 1]) { fail(`loadSong(${id}) progress not monotonic`); break; }
+    const pr2 = [];
+    await A.loadSong(id, (p) => pr2.push(p));
+    if (pr2.length) fail(`a second loadSong(${id}) made the song again`);
+    await A.whenSongComplete(id);
+    const whole = bufsOf(id).length;
+    songReport[id] = { ms, wholeMs: performance.now() - t, files: whole };
+    if (early !== 1) fail(`loadSong(${id}) should resolve with the first colouring only (${early} loops made)`);
+    if (!A.songComplete(id)) fail(`${id} is not whole after whenSongComplete`);
+    if (whole === 2 && A.hasSong(id) && songReport[id].wholeMs < ms + 100) fail(`the dawn of ${id} was not made after the world was entered (${ms.toFixed(0)} ms, whole ${songReport[id].wholeMs.toFixed(0)} ms)`);
+    return whole;
+  };
+  if (others.length) {
+    const a = others[0];
+    await loadOne(a);
+    if (!A.hasSong('gloaming')) fail('loading a song freed the one the hero is in');
+    tryCall('setSong ' + a, () => A.setSong(a));
+    if (A._debug.playing !== a || A.song !== a) fail(`setSong(${a}) did not move the music: playing ${A._debug.playing}`);
+    await sleep(2300);                                                                    // (the crossfade is 1.6 s; the old song's nodes are stopped after it)
+    const sg = A._debug.gains;
+    const two = bufsOf(a).length === 2;
+    if (two && !(sg.song_dusk != null && sg.song_dawn != null)) fail(`song ${a} has two colourings and its gains are ${JSON.stringify(sg)}`);
+    if (!two && sg.song_dusk != null) fail(`song ${a} has one colouring but a dusk gain`);
+    A.setDay(0);
+    await sleep(1500);
+    const g0 = A._debug.gains;
+    if (!two && Math.abs(g0.song_dawn - 1) > 0.02) fail(`a song with one colouring must play at full level whatever the day (gain ${g0.song_dawn})`);
+    if (two && !(g0.song_dusk > 0.97 && g0.song_dawn < 0.03)) fail(`dusk of ${a} at day 0: ${JSON.stringify(g0)}`);
+    if (!(Math.abs(g0.amb_dusk - 0.85) < 0.03)) fail('the ambience must follow the day whatever the song: ' + JSON.stringify(g0));
+    A.setDay(1);
+    await sleep(1200);
+    const mu = await watch(500);
+    if (!(mu.rms > 0.005)) fail(`no signal at the output while ${a} plays (${mu.rms})`);
+    songReport[a].rms = mu.rms;
+    // a third world's song: the one the hero came from stays only while he is still in the world after it
+    if (others.length > 1) {
+      const c = others[1];
+      await loadOne(c);
+      if (A.hasSong('gloaming')) fail('the song two worlds back must be freed when the next is made');
+      if (!A.hasSong(a)) fail('the song of the world the hero is in was freed');
+      tryCall('setSong ' + c, () => A.setSong(c));
+      await sleep(300);
+      if (A._debug.playing !== c) fail(`setSong(${c}) did not move the music`);
+      tryCall('setSong back to a song that was freed', () => A.setSong('gloaming'));
+      if (A._debug.playing !== c) fail('a song that is not made must wait, the music keeps playing');
+      const t = performance.now();
+      await A.loadSong('gloaming', () => {});
+      songReport.gloamingAgain = { ms: performance.now() - t };
+      if (!A.hasSong('gloaming')) fail('loadSong did not make a freed song again');
+      if (A.hasSong(a)) fail('making a song should have freed the one two worlds back');
+      if (A._debug.playing !== 'gloaming') fail('a song that was waited for must start when it is made');
+    } else {
+      tryCall('setSong gloaming', () => A.setSong('gloaming'));
+      await sleep(200);
+    }
+    // the dawn of a song that has two colourings is made while it plays: until then the dusk plays at full level whatever the day, then the dawn joins in step and the day decides the mix
+    const slow = others.find((i) => i !== a && i !== others[1] && bufsOf(i).length === 0) || others.find((i) => !['home'].includes(i));
+    if (slow) {
+      A.setDay(1);
+      await A.loadSong(slow, () => {});
+      A.setSong(slow);
+      const g1 = A._debug.gains;
+      if (A._debug.playing !== slow) fail(`${slow} is not playing`);
+      if (A.songComplete(slow)) fail(`the dawn of ${slow} should still be being made`);
+      if (!(g1.song_dusk != null && g1.song_dawn == null)) fail(`while the dawn is made only the dusk plays: ${JSON.stringify(g1)}`);
+      await sleep(400);
+      if (!(A._debug.gains.song_dusk > 0.9)) fail('the dusk must play at full level while the dawn is not there, whatever the day: ' + JSON.stringify(A._debug.gains));
+      await A.whenSongComplete(slow);
+      await sleep(1800);
+      const g2 = A._debug.gains;
+      if (!(g2.song_dusk != null && g2.song_dawn != null)) fail('the dawn did not join the song that plays: ' + JSON.stringify(g2));
+      else if (!(g2.song_dusk < 0.05 && g2.song_dawn > 0.95)) fail(`at day 1 the dawn plays alone: ${JSON.stringify(g2)}`);
+      songReport[slow + 'Playing'] = { gains: g2 };
+    }
+    // the dawn's loop is started in step with the dusk's: the point of the loop the dusk has reached is where it starts (a pure function, and WebAudio's start(when, offset) on a looping source)
+    {
+      const { loopOffset } = await import('/src/engine/audio/audio.js');
+      if (Math.abs(loopOffset(13.4, 0.06, 41.5) - ((13.34) % 41.5)) > 1e-9 || Math.abs(loopOffset(0.01, 0.06, 41.5) - 41.45) > 1e-9) fail('loopOffset is not the point of the loop');
+      const sr = 22050, dur = 4;
+      const oc = new OfflineAudioContext(1, sr * 14, sr);
+      const imp = () => { const b = oc.createBuffer(1, sr * dur, sr); const d = b.getChannelData(0); for (let k = 0; k < dur; k++) d[k * sr] = 1; return b; };
+      const t0 = 1323 / sr, when = 74970 / sr;                                              // (whole frames: the offline context cannot start between two of them)
+      const s1 = oc.createBufferSource(); s1.buffer = imp(); s1.loop = true; s1.connect(oc.destination); s1.start(t0);
+      const s2 = oc.createBufferSource(); s2.buffer = imp(); s2.loop = true; s2.connect(oc.destination); s2.start(when, loopOffset(when, t0, dur));
+      const x = (await oc.startRendering()).getChannelData(0);
+      let doubled = 0, single = 0;
+      for (let i = Math.round((when + 0.2) * sr); i < x.length; i++) { if (x[i] > 1.5) doubled++; else if (x[i] > 0.5) single++; }
+      if (doubled < 5 || single > 0) fail(`a loop started late with loopOffset is not in step with the one that was playing (${doubled} impulses together, ${single} apart)`);
+    }
+    // the ids that have no song play Vale's tune and nothing throws
+    tryCall('loadSong unknown', () => A.loadSong('nope'));
+    tryCall('setSong unknown', () => A.setSong('nope'));
+    if (A.song !== 'gloaming') fail('an unknown song id must play Vale\'s tune');
+    // every other song can be made (a bad score would show here): one after the other, each freeing the one two back
+    for (const id of others.slice(2)) if (!A.hasSong(id)) await loadOne(id);
+    if (others.length > 2) { A.setSong('gloaming'); await sleep(300); }
+  }
+  report.songs = songReport;
 
   // 5. every sfx name (varied opts), loops, stingers
   const names = A.sfxNames;
@@ -262,6 +381,31 @@ async function inPageWanted(mode) {
   return errors;
 }
 
+/** Runs inside a fresh page: the song of the world the hero is in is the one the audio makes when it comes up (not Vale's tune first), before or while init() runs. */
+async function inPageSong(mode) {
+  const A = window.audio, errors = [];
+  const fail = (m) => errors.push(m);
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const other = A.songIds.find((i) => i !== 'gloaming');
+  if (mode === 'before') {
+    A.setSong(other);
+    await A.init(() => {});
+  } else {
+    const p = A.init(() => {});
+    await sleep(400);
+    if (A.ready) fail('init() was over before the test could ask');
+    A.setSong(other);
+    await p;
+  }
+  if (!A.ready) return [...errors, 'not ready after init'];
+  if (!A.hasSong(other)) fail(`the song of the world (${other}) asked for ${mode} init() was not made`);
+  if (mode === 'before' && A.hasSong('gloaming')) fail('Vale\'s tune was made although the hero starts elsewhere');
+  A.startMusic();
+  await sleep(700);
+  if (A._debug.playing !== other) fail(`startMusic played ${A._debug.playing}, not ${other}`);
+  return errors;
+}
+
 const results = [];
 let failed = false;
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
@@ -286,6 +430,16 @@ for (let run = 0; run < runs; run++) {
     if (errs.length) report.errors.push(...errs);
     await p2.close();
   }
+  // (the song of a world asked for before the audio is up, and while it is coming up)
+  for (const mode of ['before', 'during']) {
+    const p3 = await browser.newPage();
+    await p3.goto(`http://127.0.0.1:${port}/`);
+    await p3.waitForFunction(() => window.__ready === true, null, { timeout: 15000 });
+    await p3.mouse.click(10, 10);
+    const errs = await p3.evaluate(inPageSong, mode);
+    if (errs.length) report.errors.push(...errs.map((e) => `song ${mode} init: ${e}`));
+    await p3.close();
+  }
   report.consoleErrors = bad;
   report.consoleWarnings = warns;
   if (bad.length) report.errors.push(...bad.map((b) => 'console ' + b));
@@ -304,7 +458,8 @@ else {
     console.log(`  context ${r.ctxState} @ ${r.ctxRate} Hz, base latency ${r.baseLatency ? (r.baseLatency * 1000).toFixed(1) + ' ms' : 'n/a'}, ${r.buffers} buffers, clock advances: ${r.clockAdvances}`);
     console.log(`  music rms at output ${r.musicRms.toFixed(3)}, burst: ${r.voicesInBurst} voices, peak ${r.burstPeak.toFixed(3)}, max peak seen ${r.maxPeakSeen.toFixed(3)}, muffle freq ${Math.round(r.mufFreq)} Hz`);
     console.log(`  muffle test (loudest RMS at output): ui_move ${r.muffle.uiOpen.toFixed(3)} -> ${r.muffle.uiMuf.toFixed(3)} (bypasses), gem_red ${r.muffle.gemOpen.toFixed(3)} -> ${r.muffle.gemMuf.toFixed(3)} (filtered)`);
-    console.log('  crossfade (day, gloaming gain, daybreak gain, power): ' + r.crossfade.map((p) => `${p.d}: ${p.night.toFixed(3)}/${p.day.toFixed(3)}/${p.sum.toFixed(3)}`).join('  '));
+    console.log('  crossfade (day, dusk gain, dawn gain, power): ' + r.crossfade.map((p) => `${p.d}: ${p.night.toFixed(3)}/${p.day.toFixed(3)}/${p.sum.toFixed(3)}`).join('  '));
+    console.log('  songs made on demand (the first colouring, then the whole): ' + Object.entries(r.songs || {}).filter(([k, v]) => v.ms !== undefined).map(([k, v]) => `${k} ${v.ms.toFixed(0)} ms${v.wholeMs ? ' / ' + v.wholeMs.toFixed(0) + ' ms' : ''}${v.files ? ' (' + v.files + ' loops)' : ''}`).join(', '));
     if (r.notes.length) console.log('  notes: ' + r.notes.join(' | '));
     console.log(r.errors.length ? '  FAILURES:\n    ' + r.errors.join('\n    ') : '  all checks passed');
   });

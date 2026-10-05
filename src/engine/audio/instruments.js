@@ -15,6 +15,7 @@
 //   pizz       pizzicato strings: tuned Karplus-Strong pluck
 //   chime      metal wind-chime tube: inharmonic partials with long decays
 //   shaker / wood / tom / bongo / conga / tambourine / kick   the percussion kit
+// The voices of the other worlds' songs (harp, glass bells, strings, horns, choir, drums ...) are in voices.js, on the same bank.
 
 import {
   SR, TAU, Noise, Biquad, mtof, samples, gen, barVoice, pluckString, adsr, ad, clamp, seedOf, smooth, blep,
@@ -22,7 +23,7 @@ import {
 import { finalizeSfx } from './spu.js';
 
 const REF_DB = -6;
-const done = (buf, o = {}) => finalizeSfx(buf, { peakDb: REF_DB, grit: 0.3, fadeIn: 1, fadeOut: 4, ...o });
+export const done = (buf, o = {}) => finalizeSfx(buf, { peakDb: REF_DB, grit: 0.3, fadeIn: 1, fadeOut: 4, ...o });
 
 /** Tiny memo table so each distinct sample is rendered only once. */
 export class Bank {
@@ -47,7 +48,7 @@ export class Bank {
  * the same notes), so a given (instrument, pitch, length) is synthesised once per session.
  * Returned arrays are shared: callers must treat them as read-only.
  */
-const SHARED = new Bank();
+export const SHARED = new Bank();
 export const clearInstrumentCache = () => SHARED.clear();
 
 // ---------------------------------------------------------------------------------------------
@@ -208,7 +209,7 @@ function render_wood(kind) {
 }
 
 /** Pitch-swept membrane drum used for toms, bongos, congas and the soft kick. */
-function drum(name, fStart, fEnd, sweepTau, ampTau, sec, noiseAmt, harm = 0) {
+export function drum(name, fStart, fEnd, sweepTau, ampTau, sec, noiseAmt, harm = 0) {
   const nz = new Noise(seedOf(name));
   const lp = new Biquad('lp', 2200, 0.7);
   let ph = 0;
