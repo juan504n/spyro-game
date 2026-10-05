@@ -109,7 +109,7 @@ await page.evaluate(async () => {
       apply(act);
       bot.tick(1); frames++;
       if (r.done && solvedAt === null) solvedAt = G.time - t0;
-      if (solvedAt !== null && G.time - t0 - solvedAt > 1.6) break;
+      if (solvedAt !== null && (spec.kind === 'rings' ? (p.grounded && G.time - t0 - solvedAt > 0.5) || G.time - t0 - solvedAt > 9 : G.time - t0 - solvedAt > 1.6)) break;          // (a course in the air is flown to the ground)
       if (r.t.state === 'active') { const h = S.hudState(); if (h) { hudSeen++; hudText = h.text; } }
     }
     stop();

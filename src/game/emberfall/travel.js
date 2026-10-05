@@ -17,6 +17,7 @@ export const TRAVEL_PLACES = {
       name: 'THE TRIALS',
       places: [
         { id: 'grove-wisps', name: 'THE WISPS', x: -124, z: -41, yaw: 0 },
+        { id: 'anvil-rings', name: 'THE RINGS', x: -46, z: -30, yaw: 0 },
         { id: 'smelter-mirrors', name: 'THE MIRRORS', x: 81.36, z: 11.34, yaw: 0.21 },
         { id: 'heart-plates', name: 'THE PLATES', x: 142, z: -174, yaw: 0, opens: true },
       ],

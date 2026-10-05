@@ -119,7 +119,7 @@ export const BRIEF = defineBrief({
   goals: [
     { id: 'gate', name: 'FORGE STONE', situation: 'landing', x: -146, z: 28, hint: 'BREATHE FIRE AT THE EMBERSTONE TO LIGHT IT', hintAt: [-156, 34], hintR: 10, ...STONE },
     { id: 'grove', name: 'GROVE STONE', situation: 'clearing', x: -124, z: -56, hint: 'AN EMBERSTONE STANDS IN A CLEARING OF THE CINDER GROVE', hintAt: [-124, -34], hintR: 14, trial: { kind: 'wisps', at: [-124, -41], r: 4.4 }, ...STONE },
-    { id: 'anvil', name: 'ANVIL STONE', situation: 'glide', x: ANVIL.x, z: ANVIL.z, pad: false, hint: 'GLIDE FROM THE RIM TO THE STACK IN THE LAVA', hintAt: [-58, 4], hintR: 14, ...STONE },
+    { id: 'anvil', name: 'ANVIL STONE', situation: 'glide', x: ANVIL.x, z: ANVIL.z, pad: false, hint: 'GLIDE FROM THE RIM TO THE STACK IN THE LAVA', hintAt: [-58, 4], hintR: 14, trial: { kind: 'rings', at: [-46, -30], toward: [ANVIL.x, ANVIL.z], len: 28, pad: false }, ...STONE },
     { id: 'smelter', name: 'SMELTER STONE', situation: 'cave', x: FURNACE.x, z: FURNACE.z, pad: false, hint: 'THE FURNACE: AN EMBERSTONE BURNS COLD UNDER THE SKYLIGHT', hintAt: [140, 24], hintR: 14, trial: { kind: 'mirrors', at: [84, 24], w: 4, h: 4, k: 2 }, ...STONE },
     { id: 'heart', name: 'HEARTFORGE', situation: 'crater', x: CALDERA.x, z: CALDERA.z, big: true, hint: 'THE HEARTFORGE WAITS IN THE CALDERA. LIGHT IT TO BRING THE FORGES BACK', hintAt: [150, -146], hintR: 14, trial: { kind: 'plates', at: [142, -174], r: 5.2 }, ...STONE },
   ],

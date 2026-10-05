@@ -90,10 +90,10 @@ export class TrialSystem {
    */
   _carryBack(r, d) {
     const g = this.game, p = g.player;
-    if (p.carry || p.dead || g.locked || r.done) return;
+    if (p.carry || p.dead || r.done) return;
     const from = [p.x, p.y, p.z], to = [d.x, d.y + 0.05, d.z], dist = Math.hypot(to[0] - from[0], to[2] - from[2]);
     const dur = 1.3 + dist / 45, ease = (k) => k * k * (3 - 2 * k), toward = Math.atan2(to[0] - from[0], to[2] - from[2]);
-    p.locked = true; g.locked = true; p.invulnT = 99;
+    p.invulnT = Math.max(p.invulnT, dur + 0.6);                                                    // (the carry owns him; nothing is locked, so that a hero who is put somewhere else on the way - the TRAVEL menu - is free at once)
     g.audio?.sfx('trial_gust', { vol: 0.9 });
     g.fx.puff(p.x, p.y + 0.5, p.z, 1.0);
     g.hud.hint('A GUST CARRIES YOU BACK TO THE LEDGE', 3.2);
@@ -101,7 +101,7 @@ export class TrialSystem {
       t: 0, dur,
       at: (k) => { const e = ease(k), arc = Math.sin(Math.PI * k) * (4 + 0.14 * dist); return [from[0] + (to[0] - from[0]) * e, from[1] + (to[1] - from[1]) * e + arc, from[2] + (to[2] - from[2]) * e, k < 0.85 ? toward : d.yaw]; },
       onDone: () => {
-        p.carry = null; p.locked = false; g.locked = false;
+        p.carry = null;
         p.vx = p.vy = p.vz = 0; p.yaw = p.pyaw = d.yaw; p.invulnT = 1.2;
         g.cam.snapBehind(p);
         g.fx.puff(p.x, p.y + 0.5, p.z, 0.9);

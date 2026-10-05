@@ -187,7 +187,9 @@ for (let i = 0; i < legs.length; i++) {
         const s = __bot.state(), d = Math.hypot(s.x - x, s.z - z);
         return s.grounded && d < 9 && Math.abs(s.y - y) < 3 ? null : { ok: false, reason: `the glide to ${what} did not land there`, at: [s.x, s.y, s.z], metresOff: +d.toFixed(1), seconds: +walked.toFixed(1) };
       };
-      if (!leg.trial && G.beacons.list[leg.gi].litFlag) return { ok: true, reason: '', seconds: 0, at: __bot.state(), lit: G.beacons.lit, note: 'its trial lit it as it was solved' };          // (the lantern was near its trial: the trial's end lit it; and if it was the last the finale has begun)
+      const litBefore = !leg.trial && G.beacons.list[leg.gi].litFlag;
+      if (litBefore && !(leg.glide && leg.glide.exit)) return { ok: true, reason: '', seconds: 0, at: __bot.state(), lit: G.beacons.lit, note: 'its trial lit it as it was solved' };          // (the lantern was near its trial: the trial's end lit it)
+      // (a glide goal that its trial lit from the air - the rings are flown to the stack and the pilot lands him on it - has nothing left to walk to or light: he glides off the stack as the leg ends)          // (the lantern was near its trial: the trial's end lit it; and if it was the last the finale has begun)
       if (leg.teleport) __bot.place(leg.teleport[0], leg.teleport[2], 0, leg.teleport[1]);
       const notes = [], slips = [];
       const slipped = () => (slips.length ? `slipped off the way ${slips.length} time(s) towards ${slips.map(([x, z]) => `(${x}, ${z})`).join(' ')} and stepped back` : '');
@@ -217,7 +219,7 @@ for (let i = 0; i < legs.length; i++) {
         if (bad) return { ...bad, from: s0, link: a.id };
         notes.push(`${a.kind === 'lift' ? 'glided out' : 'glided'} ${a.gap.toFixed(0)} m to ${a.land.slice(0, 2).map((v) => v.toFixed(0)).join(', ')}`);
       }
-      if (!leg.acts) {
+      if (!leg.acts && !litBefore) {
         const s = __bot.walk(leg.route, { tol: TOL, timeout: 20, auto: true });
         walked += s.t || 0;
         slips.push(...s.slips);
@@ -230,7 +232,8 @@ for (let i = 0; i < legs.length; i++) {
         return { ok: true, reason: '', seconds: +walked.toFixed(1), at: __bot.state(), lit: G.beacons.lit, note: `played the ${leg.trialKind}: solved in ${res.t} s (hurt ${res.hurts}, began again ${res.fails})${slips.length ? '; ' + slipped() : ''}` };
       }
       let note = notes.join('; ');
-      if (leg.glide) {
+      if (litBefore) note = 'lit from the air by its trial: he is on the stack';
+      if (leg.glide && !litBefore) {
         // run off the ledge and glide to the goal: the bot jumps at the edge and holds the glide
         const L = leg.glide.launch, s0 = at();
         const g = __bot.goto(leg.goal[0], leg.goal[1], { glide: true, auto: true, tol: 3, timeout: 25 });
@@ -240,13 +243,15 @@ for (let i = 0; i < legs.length; i++) {
         note = `glided ${L.gap.toFixed(0)} m from (${L.x.toFixed(0)}, ${L.y.toFixed(0)}, ${L.z.toFixed(0)}) to the goal`;
       }
       // at the goal: face it (walk the last steps towards it) and breathe fire
-      __bot.goto(leg.goal[0], leg.goal[1], { tol: 2.6, timeout: 5, auto: false });                // (close enough to be facing it: he has walked the last steps towards it)
       const b = G.beacons.list[leg.gi];
-      for (let k = 0; k < 4 && !b.litFlag; k++) { __bot.tap('flame', 36); __bot.tick(20); }
-      __bot.tick(30);
-      // (the lanterns that open the gate: the barrier is told to open after 1.4 s and eases open; let it)
-      if (G.level.goal && G.level.brief && G.level.brief.gate && G.beacons.lit === G.level.brief.gate.at) __bot.tick(60 * 6);
-      if (!b.litFlag) return { ok: false, reason: 'he got there, and breathed fire, and it did not light', seconds: +walked.toFixed(1), at: __bot.state(), lit: G.beacons.lit };
+      if (!litBefore) {
+        __bot.goto(leg.goal[0], leg.goal[1], { tol: 2.6, timeout: 5, auto: false });                // (close enough to be facing it: he has walked the last steps towards it)
+        for (let k = 0; k < 4 && !b.litFlag; k++) { __bot.tap('flame', 36); __bot.tick(20); }
+        __bot.tick(30);
+        // (the lanterns that open the gate: the barrier is told to open after 1.4 s and eases open; let it)
+        if (G.level.goal && G.level.brief && G.level.brief.gate && G.beacons.lit === G.level.brief.gate.at) __bot.tick(60 * 6);
+        if (!b.litFlag) return { ok: false, reason: 'he got there, and breathed fire, and it did not light', seconds: +walked.toFixed(1), at: __bot.state(), lit: G.beacons.lit };
+      }
       if (leg.glide && leg.glide.exit) {
         const E = leg.glide.exit;
         const g2 = __bot.goto(E.x, E.z, { glide: true, auto: true, tol: 3, timeout: 25 });

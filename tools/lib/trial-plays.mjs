@@ -241,6 +241,11 @@ export const ringsRight = ({ late = 0, walk = false, look = 6, aim = null } = {}
   return (s) => {
     const t = s.trial, h = s.hero, E = t.edgePt, fx = Math.sin(t.yaw), fz = Math.cos(t.yaw);
     pts = pts || ringsPath(t);
+    if (t.state === 'solved') {                                                                                  // (the seal is broken: he flies on to where the course ends - the lantern - and lets go of the glide a few metres over the ground)
+      if (h.grounded) return STILL;
+      const [dx, dz] = dirTo(h, t.land), ground = s.floorAt ? s.floorAt(h.x, h.z) : -Infinity;
+      return { dx, dz, mag: 1, jump: h.y - ground > 3.0 };
+    }
     if (phase === 'run') {
       // he runs at the edge and jumps when the ground ahead falls away (as a person does: he looks at the edge; the plays that are not told the ground go by where the lip is)
       const gx = E.x + fx * 3, gz = E.z + fz * 3, d = (h.x - E.x) * fx + (h.z - E.z) * fz;
@@ -281,7 +286,7 @@ const guardMaker = (mk) => (...a) => guard(mk(...a));
 export const plays = {
   bellsRight: guard(bellsRight), bellsWrong: guard(bellsWrong), platesRight: guardMaker(platesRight), platesLap: guard(platesLap), circuitRun: guardMaker(circuitRun),
   wispsRight: guard(wispsRight), wispsLetGo: guardMaker(wispsLetGo), puckRight: guard(puckRight), mirrorsRight: guardMaker(mirrorsRight), hunt: guardMaker(hunt), siegeRight: guardMaker(siegeRight),
-  ringsRight: guardMaker(ringsRight), ringsStraight: guardMaker(ringsStraight), ringsDrop: guardMaker(ringsDrop),
+  ringsRight, ringsStraight: guardMaker(ringsStraight), ringsDrop: guardMaker(ringsDrop),
 };
 
 

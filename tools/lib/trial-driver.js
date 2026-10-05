@@ -46,7 +46,7 @@
       S._on = (rr, type, dd) => { if (rr === r) { events.push(type); if (type === 'fail') fails++; if (type === 'miss') misses++; } return on(rr, type, dd); };
       while (g.time - t0 < T) {
         if (r.done && doneAt === null) doneAt = g.time - t0;
-        if (doneAt !== null) break;
+        if (doneAt !== null && (r.t.kind !== 'rings' || (P.grounded && g.time - t0 - doneAt > 0.5) || g.time - t0 - doneAt > 9)) break;                   // (a course in the air is flown to the ground: the pilot lands him where it ends)
         const snap = { t: g.time - t0, hero: P, trial: r.t, foes: r.foes, events, floorAt: (x, z) => g.collision.support(x, z, P.y + 0.6, 0.62).y };
         if (frames % 2 === 0 || !act) act = policy(snap) || { dx: 0, dz: 0, mag: 0 };
         const Y = g.cam.yaw, m = Math.max(0, Math.min(1, act.mag || 0));
