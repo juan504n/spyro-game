@@ -920,7 +920,7 @@ const bellsAt = (cx, cz, r, n) => Array.from({ length: n }, (_, i) => { const a 
     const unspent = mkf({ y: 6, vy: 0.5, grounded: false, jumpsUsed: 0, coyoteT: 0 }); unspent.step(1 / 60, press);
     const stood = mkf({ y: 0, vy: 0, grounded: true, jumpsUsed: 1, coyoteT: 0 }); stood.step(1 / 60, press);
     const edge = mkf({ y: 6, vy: -1, grounded: false, jumpsUsed: 1, coyoteT: 0.05 }); edge.step(1 / 60, press);
-    check('flyhero: a press is never a glide on the ground (whatever his jumps say), nor in the 0.11 s after a ledge', !stood.gliding && !edge.gliding && edge.vy > 13);
+    check('flyhero: a press is never a glide on the ground (whatever his jumps say: it is a jump), nor in the 0.11 s after a ledge (it is a jump)', !stood.gliding && stood.vy > 14 && !edge.gliding && edge.vy > 13);
     check('flyhero: a press in the air by a hero who has neither jumped nor walked off a ledge is not a glide', !unspent.gliding);
     const buf = mkf({ y: 0.3, vy: -6, grounded: false, jumpsUsed: 1 }); buf.step(1 / 60, press); let jumped = false; for (let i = 0; i < 8 && !jumped; i++) { buf.step(1 / 60, hold); jumped = buf.vy > 10; }
     check('flyhero: a press just before he lands is kept (0.13 s) and he jumps on landing', jumped);
