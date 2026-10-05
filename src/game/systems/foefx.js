@@ -9,7 +9,7 @@ const seen = new Set();                                // the kinds whose lesson
 const rnd = (a, b) => a + (b - a) * Math.random();
 
 export class FoeFx {
-  constructor(game) { this.game = game; }
+  constructor(game) { this.game = game; this.queue = []; }
 
   /** a mark on the floor: a dark stain, a bright ring, and a second ring that says "now" */
   _mark() {
@@ -141,12 +141,21 @@ export class FoeFx {
     }
   }
 
-  /** What a kind teaches, the first time one has seen the hero (once a kind per time the game is open). */
+  /** What a kind teaches, the first time one has seen the hero (once a kind per time the game is open): it waits for the hint line to be free, a lesson never cuts another message off (`frameHints`). */
   hint(e) {
     const id = e.kind;
-    if (!e.K.hint || seen.has(id)) return;
-    seen.add(id);
-    this.game.hud?.hint(e.K.hint, 5.5);
+    if (!e.K.hint || seen.has(id) || this.queue.some((q) => q.id === id)) return;
+    this.queue.push({ id, text: e.K.hint });
+  }
+
+  /** Once a frame: the next lesson is said when nothing else is on the hint line (a place's name and the gate opening, a zone's words). */
+  frameHints() {
+    if (!this.queue.length) return;
+    const hud = this.game.hud;
+    if (!hud || hud.hintState) return;
+    const q = this.queue.shift();
+    seen.add(q.id);
+    hud.hint(q.text, 5.5);
   }
 
   /** Something a brain said. */

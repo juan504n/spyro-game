@@ -140,6 +140,7 @@ export class EnemySystem {
     const hero = this.ctx.hero;
     hero.x = p.x; hero.y = p.y; hero.z = p.z; hero.dead = p.dead; hero.ram = p.chargeT > 0; hero.vx = p.vx; hero.vz = p.vz;
     this.foefx.frameFlashes();
+    this.foefx.frameHints();
     for (let i = this.list.length - 1; i >= 0; i--) {
       const e = this.list[i];
       const dxp = p.x - e.x, dzp = p.z - e.z;

@@ -2,6 +2,7 @@
 // the Player's numbers), by a hero who plays it right, one who plays it wrong and one who stands still.
 //   node tools/foe-test.mjs
 //
+//   the lessons   a kind teaches once, and waits for the hint line to be free
 //   the table     every foe has its row: a model, a hint, a drop, a danger, a brain that has what a brain must
 //   the matrix    what a flame and a ram do to each foe from the front, the side and the back, in each of its states (written out here, not derived: the code is held to the design)
 //   the breath    how often each foe attacks (the least time between two of its attacks), where a ball's ring is, who keeps away from a hero who walks, what cannot be aimed at, a keg once, a blow once
@@ -12,6 +13,7 @@ import { simulate, HERO, FUSE } from './lib/foesim.mjs';
 import { PLAYS, judge, dirTo, dist, still, rush, lap } from './lib/foe-plays.mjs';
 import { KINDS, FOE_IDS, KIND_IDS, DANGER, BRAINS, makeFoe, stepFoe, struckBy, explode, SLING, CHARGE, BURROW, WARD, SWOOP, CALL, FLEE, hitsOn } from '../src/game/foes/index.js';
 import { ENEMY_DROPS } from '../src/game/economy.js';
+import { FoeFx } from '../src/game/systems/foefx.js';
 
 let failed = 0;
 const check = (name, ok, detail) => { if (!ok) failed++; console.log(ok ? 'PASS' : 'FAIL', name, detail === undefined ? '' : detail); };
@@ -27,6 +29,20 @@ const sum = (a) => a.reduce((x, y) => x + y, 0);
   check('every brain has what a brain must (init, step, struck, pose) and every kind with a brain has one', FOE_IDS.every((k) => { const B = BRAINS[KINDS[k].brain]; return B && ['init', 'step', 'struck', 'pose'].every((f) => typeof B[f] === 'function'); }));
   check('every foe falls to one hit of the right thing (hp 1), as the Snuffers always did', KIND_IDS.every((k) => KINDS[k].hp === 1));
   check('the foes that ask more of the hero pay more: a Lidwarden, a Ramhog, a Smokecaller pay at least the Bell Snuffer\'s 7; a Pilferling, a prize, pays more than a Thorn Snuffer', ['warden', 'hog', 'caller'].every((k) => sum(ENEMY_DROPS[k]) >= 7) && sum(ENEMY_DROPS.thief) > sum(ENEMY_DROPS.thorn));
+}
+
+// ---- the lessons -----------------------------------------------------------------------------------------------------------------------------------
+{
+  // what a kind teaches is said once, and never over another message (a place's name, the gate opening, a zone's words): it waits until the hint line is free
+  const hud = { hintState: null, said: [], hint(text, dur) { this.said.push(text); this.hintState = { text, dur }; } };
+  const fx = new FoeFx({ hud });
+  hud.hint('THE DAWN GATE IS OPEN', 5);
+  fx.hint({ kind: 'moth', K: KINDS.moth }); fx.frameHints();
+  const held = hud.said.length === 1 && hud.hintState.text === 'THE DAWN GATE IS OPEN';
+  hud.hintState = null; fx.frameHints();
+  const said = hud.said.length === 2 && hud.said[1] === KINDS.moth.hint;
+  hud.hintState = null; fx.hint({ kind: 'moth', K: KINDS.moth }); fx.hint({ kind: 'moth', K: KINDS.moth }); fx.frameHints();
+  check('a kind\'s lesson waits for the hint line to be free (it never cuts another message off) and is said once', held && said && hud.said.length === 2, `(held ${held}, said ${said}, ${hud.said.length} lines)`);
 }
 
 // ---- the matrix ------------------------------------------------------------------------------------------------------------------------------------
