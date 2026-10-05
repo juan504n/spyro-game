@@ -327,7 +327,7 @@ function layoutDanger(ctx) {
   const marks = [
     ['trunk', 0.8, 'basic'], ['groveroad', 0.5, 'basic'],
     ['ashway', 0.12, 'basic'], ['ashway', 0.3, 'basic'], ['stair', 0.5, 'basic'], ['stair', 0.85, 'bell'], ['rim', 0.4, 'pup'],
-    ['ashway', 0.55, 'hog'], ['ashway', 0.8, 'basic'], ['shelf', 0.25, 'bell'], ['shelf', 0.5, 'thorn'], ['shelf', 0.75, 'pup'], ['forecourt', 0.6, 'warden'],
+    ['ashway', 0.55, 'thorn'], ['ashway', 0.8, 'basic'], ['shelf', 0.25, 'bell'], ['shelf', 0.5, 'thorn'], ['shelf', 0.75, 'pup'], ['forecourt', 0.6, 'warden'],
     ['northway', 0.3, 'hog'], ['northway', 0.6, 'thorn'], ['northway', 0.85, 'pup'],
     ['gorge', 0.1, 'basic'], ['gorge', 0.22, 'thorn'], ['gorge', 0.34, 'warden'], ['gorge', 0.48, 'thorn'], ['gorge', 0.6, 'pup'], ['gorge', 0.72, 'thorn'], ['gorge', 0.86, 'warden'],
   ];
@@ -342,7 +342,7 @@ function layoutDanger(ctx) {
   // the caldera's guardians: a ring round the Heartforge (the crater situation wants at least two within 30 m)
   for (let k = 0; k < 5; k++) {
     const a = (k / 5) * TAU + 0.6;
-    for (const r of [15, 13, 17, 19]) { const x = CALDERA.x + Math.cos(a) * r, z = CALDERA.z + Math.sin(a) * r; if (ctx.ok(x, z, { r: 1.6, path: 0, maxSlope: 0.5 })) { ctx.addEnemy(x, z, ['thorn', 'pup', 'bell', 'hog', 'thorn'][k], 3); break; } }
+    for (const r of [15, 13, 17, 19]) { const x = CALDERA.x + Math.cos(a) * r, z = CALDERA.z + Math.sin(a) * r; if (ctx.ok(x, z, { r: 1.6, path: 0, maxSlope: 0.5 })) { ctx.addEnemy(x, z, ['thorn', 'pup', 'warden', 'hog', 'pup'][k], 3); break; } }
   }
   ctx.gp.hints.push({ x: -96, z: 34, r: 10, text: 'ARMOURED SNUFFERS: FIRE BOUNCES OFF BELLS, SPIKES HURT WHEN RAMMED', dur: 7 });
 }

@@ -19,6 +19,8 @@ import { ROAD_MAX_SLOPE } from '../../src/game/roads.js';
 import { SITUATIONS } from '../../src/game/realm/situations.js';
 import { RULES } from '../../src/game/realm/brief.js';
 import { DANGER as KIND_DANGER, KIND_IDS } from '../../src/game/foes/kinds.js';
+import { footprint } from '../../src/game/trials/place.js';
+import { timeFor, CIRCUIT } from '../../src/game/trials/index.js';
 
 const f1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : String(v));
 const f0 = (v) => (Number.isFinite(v) ? String(Math.round(v)) : String(v));
@@ -309,6 +311,53 @@ export function checkRealm(which, { log = () => {} } = {}) {
     });
     rule('enemies.room', 'a Ramhog stands where the hero has room to step off its line (11 of 16 points of a ring of 6 m round it are ground he can stand on, within 1.5 m of its height)', cramped.length === 0, cramped.length ? `(cramped: ${cramped.map((e) => `${f1(e.x)},${f1(e.z)}`).join(' ')})` : `(${hogs.length} Ramhogs)`);
     rule('design.danger', 'danger grows with the journey: the first third of the walk is the quietest, the busiest holds at least twice its danger, and more than one kind of Snuffer appears', en.length >= 8 && thirds[0] <= Math.min(thirds[1], thirds[2]) && Math.max(...thirds) >= thirds[0] * 2 && kinds.size >= 2, `(danger by thirds of the way: ${thirds.join(' / ')}; ${en.length} Snuffers, kinds ${[...kinds].join(', ')})`);
+  }
+
+  // the trials: the asks that stand in front of the lanterns (src/game/trials/, docs/DESIGN.md round twenty-nine): a realm is not the same ask five times, and each ask can be done where it stands
+  if (isRealm) {
+    const T = gp.trials || [];
+    const order = goals.map((g) => { const t = T.find((q) => q.goal === g.id); return t ? t.kind : null; });
+    const kinds = new Set(order.filter(Boolean)), want = Math.min(3, goals.length - 1);
+    const twice = order.filter((k, i) => k && k === order[i - 1]);
+    rule('trials.mix', 'the asks vary: the first lantern is the plain one (it teaches the lantern), at least three different kinds of trial stand in front of the others (fewer in a realm of fewer goals) and no kind stands twice running', order[0] === null && kinds.size >= want && twice.length === 0, `(${order.map((k) => k || 'plain').join(' > ')}: ${kinds.size} kinds, ${want} wanted)`);
+    // each trial stands on level, dry, clear ground that the hero can walk to, near enough to its lantern to be found
+    const problems = [];
+    const ringPts = (cx, cz, r) => { const out = [[cx, cz]]; for (const k of [0.4, 0.75, 1]) for (let a = 0; a < 12; a++) out.push([cx + Math.cos((a / 12) * Math.PI * 2) * r * k, cz + Math.sin((a / 12) * Math.PI * 2) * r * k]); return out; };
+    const standable = (x, z) => h(x, z) > sea1 + 0.35 && !collision.blocking(x, h(x, z) + 0.7, z, 0.35);
+    for (const t of T) {
+      const g = goals.find((q) => q.id === t.goal), tag = `${t.id}`;
+      if (!g) { problems.push(`${tag}: its goal '${t.goal}' is not one of the goals`); continue; }
+      const f = footprint(t);
+      if (f) {
+        let pts = ringPts(f.x, f.z, f.r);
+        if (t.kind === 'puck') {                                                                       // (the court itself, a rectangle: turned by its yaw)
+          pts = []; const c = Math.cos(t.yaw), sn = Math.sin(t.yaw);
+          for (let lx = -t.hw; lx <= t.hw + 0.01; lx += t.hw / 2) for (let lz = -t.hl; lz <= t.hl + 0.01; lz += t.hl / 4) pts.push([t.x + lx * c + lz * sn, t.z - lx * sn + lz * c]);
+        }
+        const y0 = h(f.x, f.z), bad = pts.filter(([x, z]) => !standable(x, z)), steep = pts.filter(([x, z]) => Math.abs(h(x, z) - y0) > 0.9);
+        if (bad.length) problems.push(`${tag}: ${bad.length} of ${pts.length} points of its ground are wet or under a prop (${bad.slice(0, 2).map((q) => q.map(f1).join(',')).join(' ')})`);
+        if (steep.length) problems.push(`${tag}: ${steep.length} of ${pts.length} points of its ground are over 0.9 m off level`);
+        if (!(near(walk, t.x, t.z, 3, y0) < Infinity)) problems.push(`${tag}: the hero cannot walk to it`);
+      }
+      if (t.kind === 'circuit') {
+        const P = t.pylons;
+        P.forEach((q, i) => { if (!standable(q.x, q.z) || !(near(walk, q.x, q.z, 3, h(q.x, q.z)) < Infinity)) problems.push(`${tag}: pylon ${i + 1} is not on ground he can walk to`); });
+        let len = 0;
+        for (let i = 1; i < P.length; i++) {
+          const a = P[i - 1], b = P[i], d = Math.hypot(b.x - a.x, b.z - a.z); len += d;
+          for (let u = 0; u <= d; u += 1.5) { const x = a.x + (b.x - a.x) * (u / d), z = a.z + (b.z - a.z) * (u / d); if (!standable(x, z) || grid.slopeAt(x, z) > 0.62) { problems.push(`${tag}: the way from pylon ${i} to ${i + 1} is wet, blocked or too steep at ${f1(x)},${f1(z)}`); break; } }
+        }
+        if (t.time !== undefined && t.time < timeFor(len)) problems.push(`${tag}: ${t.time} s is too little for ${f0(len)} m (a run at ${Math.round(CIRCUIT.pace * 100)}% of full speed takes ${timeFor(len)} s)`);
+      }
+      if (t.kind === 'thief') {                                                                          // (it needs country to run in: a ring of 14 m round where it stands is mostly ground)
+        const y0 = h(t.spawnX, t.spawnZ);
+        const ok = ringPts(t.spawnX, t.spawnZ, 14).filter(([x, z]) => near(walk, x, z, 2, h(x, z)) < Infinity && Math.abs(h(x, z) - y0) < 6).length;
+        if (ok < 30) problems.push(`${tag}: only ${ok} of 37 points of a ring of 14 m round the Pilferling are ground to run on`);
+      }
+      const dd = t.kind === 'circuit' ? Math.min(...t.pylons.map((q) => Math.hypot(q.x - g.x, q.z - g.z))) : Math.hypot(t.x - g.x, t.z - g.z);          // (a circuit is found by the nearest of its pylons)
+      if (dd > 110) problems.push(`${tag}: ${f0(dd)} m from its lantern (110 at the most: it must be found)`);
+    }
+    rule('trials.fair', 'every trial stands where it can be done: its ground is level (within 0.9 m), dry and clear of props, the hero can walk to it, a circuit\'s ways are walkable and its clock gives time for them, the Pilferling has country to run in, and it is within 110 m of its lantern', problems.length === 0, problems.length ? `(${problems.join('; ')})` : `(${T.length} trials)`);
   }
 
   // gems that lead the way

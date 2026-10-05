@@ -8,7 +8,7 @@
 //   trial_mirror   a crystal slab on a drum of stone that turns a quarter: setSlope(0 = '/', 1 = '\'), setLit(k) (the beam is in it), spin() (it turns)                      [mirrors]
 //   trial_lens     the lamp the beam leaves (opts.role 'lamp') or the receiver it must reach ('receiver'): setLit(k)                                                         [mirrors]
 //   trial_puck     a disc of crystal: setLit(k), spin(a)                                                                                                                  [puck]
-//   trial_goalie   a slab of stone with an eye that slides across the goal: look(k) (the eye follows the puck)                                                           [puck]
+//   trial_goalie   a slab of stone with an eye on its +z face that slides across the goal                                                                              [puck]
 //   trial_goal     two posts and a crossbar with a net of light between them (opts.hw: the half-width of the mouth): flash(k)                                                  [puck]
 //   trial_court    the lines of a court on the floor (opts.hw, opts.hl: its half-width and half-length, opts.goalHW): setLit(k)                                                 [puck]
 //   trial_stone    a standing stone with a rune that wakes: setLit(k)                                                                                                     [siege]
@@ -325,10 +325,11 @@ export function createTrialGoalie(assets, opts = {}) {
     b.box(0, 0.75, 0, 1.9, 1.5, 0.7, o);                                                                           // the slab
     b.box(0, 1.62, 0, 1.5, 0.24, 0.6, o);
     b.box(0, 0.12, 0, 2.1, 0.24, 0.9, { ...o, color: [0.8, 0.8, 0.85] });
+    for (const sd of [-1, 1]) b.box(sd * 1.12, 0.8, 0, 0.34, 1.1, 0.5, { ...o, color: [0.9, 0.9, 0.96] });          // two blocks for arms
     rig.mesh(b, mStone, null, { name: 'slab' });
-    const e = litBuilder(1, 132);
-    e.quad([-0.7, 0.95, -0.37], [0.7, 0.95, -0.37], [0.7, 1.1, -0.37], [-0.7, 1.1, -0.37], { uv: [0, 0, 1, 1], color: [0.5, 0.5, 0.5] });
-    cards(e, 0, 1.0, -0.42, 0.45, 1, 0.7);
+    const e = litBuilder(1, 132);                                                                                   // (its eye is on its +z face, as every model's front is)
+    e.quad([-0.62, 0.98, 0.37], [0.62, 0.98, 0.37], [0.62, 1.12, 0.37], [-0.62, 1.12, 0.37], { uv: [0, 0, 1, 1], color: [0.5, 0.5, 0.5] });
+    cards(e, 0, 1.05, 0.42, 0.42, 1, 0.7);
     rig.mesh(e, mEye, null, { name: 'eye', order: 9 });
   }
   const st = { t: 0 };

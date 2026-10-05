@@ -5,6 +5,7 @@
 import { solveBoard } from '../../src/game/trials/plates.js';
 import { solveMirrors, cellWorld } from '../../src/game/trials/mirrors.js';
 import { solidsOf } from '../../src/game/trials/index.js';
+import { wardPlay, hogPlay, rush } from './foe-plays.mjs';
 import { goalieX, toLocal, toWorld } from '../../src/game/trials/puck.js';
 
 const hyp = Math.hypot;
@@ -169,12 +170,33 @@ export const hunt = (flameRange = 5, ramRange = 2) => (s) => {
   return { dx, dz, mag: 1, flame, charge: ram };
 };
 
+/**
+ * The siege as a person plays it: at the foe that is nearest, and what he does to it is what that kind asks (tools/lib/foe-plays.mjs): round a Lidwarden to its side, off the line of a Ramhog, fire on a
+ * Rimeling that comes and on a Fusepup from afar, a ram for a Bell Snuffer and the flame for a Thorn Snuffer.
+ */
+export const siegeRight = () => (s) => {
+  const live = s.foes.filter((e) => e.state !== 'dead');
+  if (!live.length) return goTo(s, s.trial.x, s.trial.z, { stop: 1.0 });
+  const e = live.sort((a, b) => dist(s.hero, a) - dist(s.hero, b))[0], t = { ...s, foe: e };
+  switch (e.kind) {
+    case 'warden': return wardPlay(t);
+    case 'hog': return hogPlay(t);
+    case 'rime': return flameAt(s, e.x, e.z, { range: 6.4 });                                                  // (turned to it first: it comes from where it likes, and a breath into the air melts nothing)
+    case 'pup': {                                                                                              // (a Fusepup is breathed on from 4.4 m or more, out of its blast, and backed away from when it is nearer)
+      const d = dist(s.hero, e), [dx, dz] = dirTo(s.hero, e);
+      return d < 4.4 ? { dx: -dx, dz: -dz, mag: 1 } : flameAt(s, e.x, e.z, { range: 6.4 });
+    }
+    case 'slinger': return rush({ ram: 2.5, flame: 5 })(t);
+    default: return hunt(5, 2)(s);
+  }
+};
+
 // a hero whose trial is solved does nothing more
 const guard = (f) => (s) => (s.trial.state === 'solved' ? STILL : f(s));
 const guardMaker = (mk) => (...a) => guard(mk(...a));
 export const plays = {
   bellsRight: guard(bellsRight), bellsWrong: guard(bellsWrong), platesRight: guardMaker(platesRight), platesLap: guard(platesLap), circuitRun: guardMaker(circuitRun),
-  wispsRight: guard(wispsRight), puckRight: guard(puckRight), mirrorsRight: guardMaker(mirrorsRight), hunt: guardMaker(hunt),
+  wispsRight: guard(wispsRight), puckRight: guard(puckRight), mirrorsRight: guardMaker(mirrorsRight), hunt: guardMaker(hunt), siegeRight: guardMaker(siegeRight),
 };
 
 
@@ -195,6 +217,29 @@ export const SPECS = {
   thief: { kind: 'thief', id: 'thief', goal: 'x', x: 0, z: 0, spawnX: 0, spawnZ: 12 },
   siege: { kind: 'siege', id: 'siege', goal: 'x', x: 0, z: 0, r: 12, waves: [['basic', 'basic'], ['slinger', 'basic', 'bell'], ['thorn', 'basic']] },
 };
+
+/** the right play of each kind, made fresh (some have a memory) */
+export const POLICY = {
+  bells: () => plays.bellsRight, plates: () => plays.platesRight(), circuit: () => plays.circuitRun(1), wisps: () => plays.wispsRight, puck: () => plays.puckRight,
+  mirrors: () => plays.mirrorsRight(), thief: () => plays.hunt(6, 0), siege: () => plays.siegeRight(),
+};
+
+/** where a hero begins a trial (the realm's bots put him there, on foot or at once): near it, on ground the checker found level and clear, and facing what it asks him to face. `t` is the trial's record or its spec. */
+export function startOf(t) {
+  const P = t.pylons;
+  switch (t.kind) {
+    case 'bells': return { x: t.x, z: t.z, yaw: t.yaw };
+    case 'circuit': {
+      const a = P[0], b = P[1], d = hyp(b.x - a.x, b.z - a.z) || 1;
+      return { x: a.x - ((b.x - a.x) / d) * 6, z: a.z - ((b.z - a.z) / d) * 6, yaw: Math.atan2(b.x - a.x, b.z - a.z) };
+    }
+    case 'puck': { const [x, z] = toWorld(t, 0, -t.hl * 0.55); return { x, z, yaw: t.yaw }; }
+    case 'mirrors': { const [x, z] = cellWorld(t, (t.w - 1) / 2, -1.7); return { x, z, yaw: t.yaw }; }
+    case 'thief': return { x: t.x, z: t.z, yaw: Math.atan2((t.spawnX ?? t.x) - t.x, (t.spawnZ ?? t.z + 1) - t.z) };
+    case 'siege': return { x: t.x + 3, z: t.z, yaw: -Math.PI / 2 };
+    default: return { x: t.x, z: t.z, yaw: 0 };                                                                    // (plates and wisps: the middle of the ring)
+  }
+}
 
 /** a spec moved to (ox, oz): the same trial in another place (the bot puts it on the floor of the Court) */
 export function shift(spec, ox, oz) {

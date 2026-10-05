@@ -291,12 +291,12 @@ function layoutDanger(ctx) {
   const marks = [
     ['field', 0.45, 'basic'], ['field', 0.8, 'basic'],
     ['orchard', 0.25, 'basic'], ['terrace', 0.35, 'bell'], ['orchard', 0.55, 'moth'], ['terrace', 0.7, 'thorn'], ['orchard', 0.82, 'slinger'],
-    ['loomway', 0.2, 'slinger'], ['loomway', 0.5, 'moth'], ['loomway', 0.75, 'caller'], ['loomway', 0.9, 'moth'],
+    ['loomway', 0.2, 'slinger'], ['loomway', 0.5, 'moth'], ['loomway', 0.5, 'caller'], ['loomway', 0.9, 'moth'],
   ];
   // (a Snuffer stands where nothing else does: the first of the offsets from the road that is clear)
   marks.forEach(([road, t, kind], i) => {
     const p = ctx.pathPoint(road, t);
-    for (const k of [3.8, 5.2, 3.0, 6.6]) for (const sd of [i % 2 ? 1 : -1, i % 2 ? -1 : 1]) {
+    for (const k of [3.8, 5.2, 3.0, 6.6, 10.5]) for (const sd of [i % 2 ? 1 : -1, i % 2 ? -1 : 1]) {                       // (the last: on the Loom's island, where the road runs between a rock and a lantern's pad)
       const [x, z] = side(p, sd * k);
       if (ctx.ok(x, z, { r: 1.6, path: 0, maxSlope: 0.5 })) { ctx.addEnemy(x, z, kind, 4); return; }
     }

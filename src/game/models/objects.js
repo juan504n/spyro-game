@@ -120,7 +120,7 @@ export const OBJECTS = {
   trial_mirror: { create: createTrialMirror, size: 2.9, note: 'a crystal slab on a drum that turns a quarter; setSlope(0 "/" | 1 "\\"), setLit(k) the beam is in it; opts.slope' },
   trial_lens: { create: createTrialLens, size: 3, note: 'the lamp a beam leaves (opts.role "lamp", a funnel along +z) or the receiver it must reach ("receiver", a ring of blocks); setLit(k)' },
   trial_puck: { create: createTrialPuck, size: 0.6, note: 'a disc of crystal; setLit(k), spinBy(a)' },
-  trial_goalie: { create: createTrialGoalie, size: 2, note: 'a slab of stone with an eye on its face (-z) that slides across the goal' },
+  trial_goalie: { create: createTrialGoalie, size: 2, note: 'a slab of stone with an eye on its +z face that slides across the goal' },
   trial_goal: { create: createTrialGoal, size: 6, note: 'two posts and a crossbar with a net of light, opts.hw the half-width of the mouth; flash(k)' },
   trial_court: { create: createTrialCourt, size: 24, note: 'the lines of a court on the floor: opts.hw, opts.hl, opts.goalHW; setLit(k)' },
   trial_stone: { create: createTrialStone, size: 3.3, note: 'a standing stone with a rune that wakes; opts.big x1.5; setLit(k)' },

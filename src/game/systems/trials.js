@@ -10,6 +10,7 @@ import { makeView, SealView } from './trialview.js';
 
 const seen = new Set();                                  // the kinds whose lesson the HUD has said this time the game is open (a kind teaches once)
 const LESSON_R = 17;                                     // how near a trial the hero comes before it says what it asks
+const NEAR = 26;                                         // how near its lantern he must be, when the seal breaks, for the lantern to be lit at once (else it waits for his fire)
 const hash = (s) => { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0; return h || 1; };
 
 export class TrialSystem {
@@ -82,7 +83,7 @@ export class TrialSystem {
     if (type === 'solved') this._solved(r, false);
   }
 
-  /** The seal breaks. `quiet`: no ceremony (the lantern was lit some other way, or the realm is a saved one entered again). */
+  /** The seal breaks. `quiet`: no ceremony (the lantern was lit some other way, or the realm is a saved one entered again). A lantern within 26 m is lit a moment later with all its ceremony; one that is further off is freed, and waits for his breath. */
   _solved(r, quiet) {
     if (r.done) return;
     r.done = true;
@@ -101,7 +102,11 @@ export class TrialSystem {
     }
     if (b && !b.litFlag) {
       if (quiet) g.beacons.ignite(b);
-      else g.after(0.9, () => g.beacons.ignite(b));                                // (the seal falls, and then the lantern is lit)
+      else if (Math.hypot(g.player.x - b.x, g.player.z - b.z) < NEAR) g.after(0.9, () => g.beacons.ignite(b));        // (the seal falls, and then the lantern is lit)
+      else {                                                                        // (a lantern far from the trial: its seal is broken, and it waits for his fire; its column pulses so that it is seen)
+        b.ready = true;
+        g.after(1.6, () => { if (!b.litFlag) g.hud.hint(`THE SEAL IS BROKEN  -  THE ${b.def.name} WAITS FOR YOUR FIRE`, 5); });
+      }
     }
     g.emit('trial', r.t, g.stats.trials);
   }

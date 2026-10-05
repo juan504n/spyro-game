@@ -7,6 +7,14 @@ import { scatterWorld } from './scatter.js';
 import { planIslandDecor } from './islands.js';
 import { Kit } from '../kit.js';
 import { PROPS } from '../props/index.js';
+import { buildTrial } from '../trials/place.js';
+
+/** The Vale's trials: [the lantern they seal, the trial (trials/place.js)]. The pier's bell by the lake, a Pilferling in the east meadow, the siege at the foot of the Dawn mountain. */
+const VALE_TRIALS = [
+  ['isle', { kind: 'bells', at: [-26, 83], yaw: 0 }],
+  ['mill', { kind: 'thief', at: [112, 75] }],
+  ['dawn', { kind: 'siege', at: [-16, -66], r: 10, waves: [['basic', 'basic'], ['bell', 'slinger', 'basic'], ['thorn', 'bell', 'pup']] }],
+];
 
 /** Gameplay lists whose records get a `src` (the stage that made them) for the debug readout. */
 const STAGED = ['gems', 'vases', 'chests', 'walls', 'braziers', 'mushrooms', 'enemies', 'bunnies', 'npcs', 'hints', 'beacons', 'islands'];
@@ -59,6 +67,9 @@ export function populate(kit, world) {
   // beacon order: hearth, isle, mill, sky, dawn (HUD counts lit beacons, order is cosmetic)
   const byId = Object.fromEntries(ctx.gp.beacons.map((b) => [b.id, b]));
   ctx.gp.beacons = [hearth, isle, byId.mill, byId.sky, byId.dawn].filter(Boolean);
+  // the asks that seal three of the five lanterns (trials/place.js; the hearth teaches the lantern and the sky isles are a glide: those two stay plain). They stand on the meadow where it is level and clear,
+  // and pay no gems of their own: the Vale's treasure was counted (700) before they were asked for.
+  for (const [goal, t] of VALE_TRIALS) { const g = ctx.gp.beacons.find((b) => b.id === goal); if (g) ctx.gp.trials.push({ ...buildTrial(g, t, { h: ctx.h }), gems: [], src: 'populate' }); }
   ctx.gp.spawn = { x: L.spawn.x, y: ctx.h(L.spawn.x, L.spawn.z), z: L.spawn.z, yaw: L.spawn.yaw };
   ctx.gp.counts = ctx.counts;
 

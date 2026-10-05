@@ -63,8 +63,8 @@ export const BRIEF = defineBrief({
   // ---- the goals: the lanterns of the realm, each in a different kind of place (realm/situations.js says how each is checked) -----------------------------
   goals: [
     { id: 'first', name: 'FIRST LANTERN', situation: 'landing', x: 12, z: 132, hint: 'BREATHE FIRE AT THE LANTERN TO LIGHT IT', hintAt: [8, 140], hintR: 9 },
-    { id: 'isle', name: 'ISLE LANTERN', situation: 'island', x: -2, z: 46, pad: false, hint: 'HOP THE STONES OUT TO THE ISLE', hintAt: [-24, 46], hintR: 12 },
-    { id: 'peak', name: 'GREAT LANTERN', situation: 'summit', x: 2, z: -132, big: true, hint: 'THE LAST LANTERN WAITS AT THE TOP OF THE RIDGE', hintAt: [-4, -112], hintR: 14 },
+    { id: 'isle', name: 'ISLE LANTERN', situation: 'island', x: -2, z: 46, pad: false, hint: 'HOP THE STONES OUT TO THE ISLE', hintAt: [-24, 46], hintR: 12, trial: { kind: 'plates', at: [-19, 71], r: 4.4 } },
+    { id: 'peak', name: 'GREAT LANTERN', situation: 'summit', x: 2, z: -132, big: true, hint: 'THE LAST LANTERN WAITS AT THE TOP OF THE RIDGE', hintAt: [-4, -112], hintR: 14, trial: { kind: 'bells', at: [4, -138], yaw: Math.PI } },     // (an ask in front of a lantern: trials/place.js; the first goal stays plain)
   ],
   // the ring of light over the last goal: lit, it opens a way out of the realm
   exit: { name: 'DAWNHAVEN', tag: 'HOMEWORLD OF THE LANTERN KEEPERS', color: [0.78, 0.62, 1.0], target: 'home' },

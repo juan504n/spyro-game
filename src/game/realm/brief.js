@@ -21,6 +21,7 @@ export const RULES = {
 };
 
 import { tideProblems } from './tide.js';
+import { trialProblems } from '../trials/place.js';
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const isXZ = (o) => o && isNum(o.x) && isNum(o.z);
@@ -83,6 +84,7 @@ export function defineBrief(b) {
     if (g.spark !== undefined) need(!!g.spark && col(g.spark.c0, 4) && col(g.spark.c1, 4), `goal '${g.id}': spark { c0: [r, g, b, a], c1: [r, g, b, a] } (the colours of the burst when it is lit: from, to)`);
     if (g.model !== undefined) need(typeof g.model === 'string', `goal '${g.id}': model the name of a model (models/objects.js)`);
     if (g.sfx !== undefined) need(typeof g.sfx === 'string', `goal '${g.id}': sfx the name of a sound (engine/audio: it is played, with the lantern's beam, when the goal is lit)`);
+    if (g.trial !== undefined) for (const m of trialProblems(g, g.trial)) err(m);                  // (an ask that seals the lantern: trials/place.js)
   }
   const kinds = new Set(goals.map((g) => g.situation));
   need(kinds.size >= RULES.situationsMin(goals.length), `goals: ${kinds.size} different situations among ${goals.length} goals; at least ${RULES.situationsMin(goals.length)} (every goal in a place of its own kind)`);

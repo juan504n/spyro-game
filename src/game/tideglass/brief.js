@@ -117,6 +117,7 @@ export const BRIEF = defineBrief({
     palette: ['sea-glass teal', 'pale sand', 'brass'],               // two base colours and the accent: the sky of each mood is made of them
     ground: ['sand_tide', 'tideturf', 'cliff_tide'],
     mood: 'a teal dusk over a sea that cannot keep its hours, waiting for the light to come back to the glass',
+    trials: { stone: 'cobble_tide', crystal: 'crystal_cyan', glow: [0.55, 1.0, 0.9] },            // (what its trials are made of: sea-stone and aquamarine glass)
     // what the props wear (kit.skin): rocks wear dune turf where they would wear moss and slate-teal strata where they would wear stone, the meadow flowers are all one kind
     skin: {
       textures: { moss: 'tideturf', cliff: 'cliff_tide', cliff_warm: 'cliff_tide', tower_stone: 'cliff_tide', brick: 'cliff_tide', flower_yellow: 'flower_sky', flower_blue: 'flower_sky', flower_pink: 'flower_sky' },
@@ -170,9 +171,9 @@ export const BRIEF = defineBrief({
   goals: [
     { id: 'quay', name: 'QUAY LENS', situation: 'landing', x: -178, z: 10, hint: 'BREATHE FIRE AT THE LENS TO MAKE IT SHINE. WATCH THE TIDE GAUGE: THE SEA COMES AND GOES', hintAt: [-186, 14], hintR: 9, ...LENS },
     { id: 'pearl', name: 'PEARL LENS', situation: 'island', x: -18, z: 32, hint: 'THE CAUSEWAY IS BARE AT LOW TIDE. RUN TO PEARL ROCK AND CLIMB', hintAt: [-52, 60], hintR: 12, ...LENS },
-    { id: 'court', name: 'COURT LENS', situation: 'bridge', x: 21, z: -18, hint: 'THE GLASS BRIDGES CARRY YOU OUT OVER THE REACH TO THE GLASS COURT', hintAt: [12, -99], hintR: 12, ...LENS },
-    { id: 'weeping', name: 'WEEPING LENS', situation: 'cave', x: GROTTO.x, z: GROTTO.z, y: GROTTO.floorY, pad: false, hint: 'THE LENS HANGS IN THE CAVE BEHIND THE FALL. THE SEA FLOODS ITS MOUTH AT HIGH TIDE', hintAt: [98, 14], hintR: 12, ...LENS },
-    { id: 'light', name: 'TIDEGLASS', situation: 'summit', x: 140, z: -134, big: true, hint: 'THE TIDEGLASS HANGS BEFORE THE LIGHTHOUSE. LIGHT IT AND THE TIDE IS TRUE AGAIN', hintAt: [150, -118], hintR: 14, ...LENS },
+    { id: 'court', name: 'COURT LENS', situation: 'bridge', x: 21, z: -18, hint: 'THE GLASS BRIDGES CARRY YOU OUT OVER THE REACH TO THE GLASS COURT', hintAt: [12, -99], hintR: 12, trial: { kind: 'circuit', pylons: [[-87, -117], [-65, -118], [-43, -118], [-21, -115], [1, -112], [23, -107]] }, ...LENS },
+    { id: 'weeping', name: 'WEEPING LENS', situation: 'cave', x: GROTTO.x, z: GROTTO.z, y: GROTTO.floorY, pad: false, hint: 'THE LENS HANGS IN THE CAVE BEHIND THE FALL. THE SEA FLOODS ITS MOUTH AT HIGH TIDE', hintAt: [98, 14], hintR: 12, trial: { kind: 'plates', at: [88, -86], r: 4.4 }, ...LENS },
+    { id: 'light', name: 'TIDEGLASS', situation: 'summit', x: 140, z: -134, big: true, hint: 'THE TIDEGLASS HANGS BEFORE THE LIGHTHOUSE. LIGHT IT AND THE TIDE IS TRUE AGAIN', hintAt: [150, -118], hintR: 14, trial: { kind: 'bells', at: [140, -140], yaw: 0 }, ...LENS },
   ],
   exit: { name: 'DAWNHAVEN', tag: 'HOMEWORLD OF THE LANTERN KEEPERS', color: [0.6, 1.0, 0.9], target: 'home' },
   gate: GATE,

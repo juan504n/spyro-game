@@ -13,6 +13,7 @@
 // A realm whose water RISES AND FALLS (Tideglass Reach) says `brief.tide = { period, amp, start, hint, tint }` (realm/tide.js): the ground is made at the mean level, WATER_LEVEL, and the tide moves the
 // surface that is drawn and the water the hero drowns in (Game.waterY) round it.
 import { makeCountry, basin, mound, dryLand, flatten } from './country.js';
+import { buildTrial, footprint } from '../trials/place.js';
 
 /** The engine wants a lake (the water, the debug readout and the drowning hint read it): a realm without one has a speck of one far outside its world, which touches nothing. */
 export const NO_LAKE = { x: 6000, z: 6000, rx: 1, rz: 1, bed: -1, name: 'NO LAKE' };
@@ -28,7 +29,9 @@ export function makeLevel(brief, extras = {}) {
   // cave, on a tower or a shelf of its own) keeps the ground the realm gives it; one with `y` stands at that height.
   let pads = null;
   const base = (x, z, L) => (extras.landforms ? extras.landforms(C.ground(x, z), x, z, C, L) : C.ground(x, z));
-  const padsFor = (L) => pads || (pads = brief.goals.filter((g) => g.pad !== false && g.y === undefined).map((g) => ({ x: g.x, z: g.z, r: (g.pad && g.pad.r) || (g.big ? 9 : 7), fall: (g.pad && g.pad.fall) || 6, y: base(g.x, g.z, L) })));
+  // (and so does the ground of a trial that stands in front of one (brief.goals[].trial: trials/place.js `footprint`), unless it says `pad: false`: the floor of a court, a ring of plates, a ring of stones)
+  const trialPads = (L) => brief.goals.filter((g) => g.trial && g.trial.pad !== false).map((g) => ({ g, f: footprint(buildTrial(g, g.trial))})).filter((q) => q.f).map(({ g, f }) => ({ x: f.x, z: f.z, r: f.r, fall: (g.trial.fall) || 5, y: base(f.x, f.z, L) }));
+  const padsFor = (L) => pads || (pads = [...brief.goals.filter((g) => g.pad !== false && g.y === undefined).map((g) => ({ x: g.x, z: g.z, r: (g.pad && g.pad.r) || (g.big ? 9 : 7), fall: (g.pad && g.pad.fall) || 6, y: base(g.x, g.z, L) })), ...trialPads(L)]);
 
   const height = (x, z, L) => {
     let h = C.ground(x, z);

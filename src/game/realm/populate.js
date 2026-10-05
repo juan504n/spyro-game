@@ -10,6 +10,7 @@ import { Collision } from '../collision.js';
 import { WATER_LEVEL } from '../level.js';
 import { ENEMY_DROPS } from '../economy.js';
 import { sum } from './helpers.js';
+import { buildTrial, footprint, lookOf } from '../trials/place.js';
 
 /** Gameplay lists whose records get a `src` (the step that made them) for the debug readout. */
 const STAGED = ['gems', 'vases', 'chests', 'walls', 'braziers', 'mushrooms', 'enemies', 'bunnies', 'npcs', 'hints', 'beacons', 'trials', 'portals'];
@@ -50,12 +51,21 @@ export function makePopulate(brief, steps, { seed = 4417 } = {}) {
 /** The goals of the brief become the realm's goal objects (the lanterns: gp.beacons), each with its hint zone if the brief gives one. Their order is the order the brief lists them in. */
 export function goalsStage(ctx) {
   const { gp, brief, h } = ctx;
+  const look = lookOf(brief);
   for (const g of brief.goals) {
     const rec = { id: g.id, name: g.name, x: g.x, y: g.y !== undefined ? g.y : h(g.x, g.z), z: g.z, yaw: g.yaw || 0 };
     for (const k of ['big', 'model', 'beam', 'glow', 'wisp', 'flame', 'spark', 'sparkle', 'sfx']) if (g[k] !== undefined) rec[k] = g[k];
     gp.beacons.push(rec);
     ctx.occ.add(g.x, g.z, g.big ? 7 : 4.5);                    // (nothing grows where a goal stands)
     if (g.hint) gp.hints.push({ x: g.hintAt ? g.hintAt[0] : g.x, z: g.hintAt ? g.hintAt[1] : g.z, r: g.hintR || 10, text: g.hint, dur: 6 });
+    // the trial that seals this goal's lantern (trials/place.js): its parts on the ground, and the ground it needs kept clear of scatter (the level made it a pad: realm/level.js)
+    if (g.trial) {
+      const spec = buildTrial({ ...g, y: rec.y }, g.trial, { h, look });
+      gp.trials.push(spec);
+      const f = footprint(spec);
+      if (f) ctx.occ.add(f.x, f.z, f.r);
+      else for (const q of spec.pylons || []) ctx.occ.add(q.x, q.z, 3);
+    }
   }
 }
 
@@ -91,6 +101,7 @@ export function gemsStage(ctx) {
   for (const v of gp.vases) dyn += sum(v.gems);
   for (const c of gp.chests) dyn += sum(c.gems);
   for (const w of gp.walls) dyn += sum(w.gems);
+  for (const t of gp.trials) dyn += sum(t.gems || []);                       // (what a solved trial pays at its lantern: systems/trials.js)
   const fixed = dyn + sum(gp.gems.map((g) => g.value));
   const target = Math.max(brief.gems.min, Math.ceil(fixed / 50) * 50);
   let need = target - fixed, guard = 0;

@@ -5,6 +5,8 @@
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 import { tideLevel } from '../src/game/realm/tide.js';
 import { homecoming as homecomingAt, homeOk } from './lib/homecoming.mjs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const id = process.argv[2];
 if (!id) { console.log('usage: node tools/realm-test.mjs <realm id>'); process.exit(1); }
@@ -39,6 +41,8 @@ const arrived = async (realm) => {
 };
 
 await load(`?world=${id}`);
+await page.addScriptTag({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), 'lib/trial-driver.js') });         // (the trials that seal the lanterns are played by the real controller: tools/lib/trial-driver.js)
+await ev(() => window.__trialDriver.load());
 const info = await ev(() => {
   const g = window.__game, b = g.level.brief;
   return { realm: g.realm.id, kind: g.realm.kind, goals: g.beacons.list.map((q) => ({ id: q.def.id, name: q.def.name, x: q.x, y: q.y, z: q.z, big: !!q.def.big, sfx: q.def.sfx || null })), gate: b && b.gate ? b.gate.at : null, exit: g.gameplay.portals.find((p) => p.kind === 'lift') };
@@ -294,6 +298,20 @@ for (let i = 0; i < goals.length; i++) {
     await ff(0.6);
     const before = await ev((n) => window.__game.stats.beacons + 0 * n, i);
     await ev(() => { const g = window.__game; window.__sfx = []; if (g.audio && g.audio.sfx && !g.audio.__spy) { const was = g.audio.sfx.bind(g.audio); g.audio.sfx = (name, o) => { window.__sfx.push(name); return was(name, o); }; g.audio.__spy = true; } });
+    // a lantern with a trial in front of it is sealed: a breath on it lights nothing (and says why); the trial is played, with the real controller, and the seal breaks
+    const trial = await ev((gid) => { const r = window.__game.trials.list.find((q) => q.spec.goal === gid); return r ? { id: r.spec.id, kind: r.t.kind, sealed: r.beacon.sealed } : null; }, goals[i].id);
+    if (trial) {
+      await burn();
+      const held = await ev((n) => { const b = window.__game.beacons.list[n]; return { lit: b.litFlag, sealed: b.sealed }; }, i);
+      if (held.lit || !held.sealed) return { ok: false, reason: `the lantern of the ${trial.kind} trial took a breath while it was sealed`, trial, held };
+      const played = await ev(([tid]) => window.__trialDriver.solve(tid, { T: 240 }), [trial.id]);
+      if (!played.ok) return { ok: false, reason: `the ${trial.kind} trial was not solved`, trial, played };
+      await ff(3.2);
+      const after = await ev((n) => { const b = window.__game.beacons.list[n]; return { lit: b.litFlag, sealed: b.sealed, ready: !!b.ready }; }, i);
+      if (after.sealed || (!after.lit && !after.ready)) return { ok: false, reason: 'the trial was solved and its lantern is neither lit nor free of the seal', trial, played, after };
+      await light(i);
+      await ff(0.6);
+    }
     await burn();
     const r = await ev((n) => {
       const g = window.__game, b = g.beacons.list[n];

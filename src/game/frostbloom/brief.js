@@ -64,6 +64,7 @@ export const BRIEF = defineBrief({
     palette: ['ice teal', 'snow white', 'blossom pink'],             // two base colours and the accent: the sky of each mood is made of them
     ground: ['snow', 'ice', 'cliff_frost'],
     mood: 'a frozen night under the aurora, waiting for a blossom dawn',
+    trials: { stone: 'cobble_frost', crystal: 'crystal_cyan', glow: [0.62, 0.92, 1.0] },     // (what its trials are made of: a ring of frosted stone and ice-blue glass)
     // what the props wear (kit.skin): rocks wear snow where they would wear moss and frost-blue stone, pines are under snow, the meadow flowers are all blossom (the palette has no yellow or blue)
     skin: {
       textures: { moss: 'snow', cliff: 'cliff_frost', cliff_warm: 'cliff_frost', pine: 'pine_snow', flower_yellow: 'flower_pink', flower_blue: 'flower_pink' },
@@ -108,10 +109,10 @@ export const BRIEF = defineBrief({
   // ---- the goals: five Frostblooms, each in a different kind of place -------------------------------------------------------------------------------
   goals: [
     { id: 'gate', name: 'GATE BLOOM', situation: 'landing', x: 14, z: 140, hint: 'BREATHE FIRE AT THE FROSTBLOOM TO THAW IT', hintAt: [8, 148], hintR: 10, ...BLOOM },
-    { id: 'rime', name: 'RIMEWOOD BLOOM', situation: 'clearing', x: -122, z: 20, hint: 'A FROSTBLOOM SLEEPS IN A CLEARING OF RIMEWOOD', hintAt: [-100, 38], hintR: 14, ...BLOOM },
-    { id: 'glass', name: 'GLASSWATER BLOOM', situation: 'island', x: 2, z: 50, pad: false, hint: 'HOP THE ICE FLOES OUT TO THE ISLET', hintAt: [0, 76], hintR: 12, ...BLOOM },
+    { id: 'rime', name: 'RIMEWOOD BLOOM', situation: 'clearing', x: -122, z: 20, hint: 'A FROSTBLOOM SLEEPS IN A CLEARING OF RIMEWOOD', hintAt: [-100, 38], hintR: 14, trial: { kind: 'bells', at: [-134.5, 17], yaw: -Math.PI / 2 }, ...BLOOM },
+    { id: 'glass', name: 'GLASSWATER BLOOM', situation: 'island', x: 2, z: 50, pad: false, hint: 'HOP THE ICE FLOES OUT TO THE ISLET', hintAt: [0, 76], hintR: 12, trial: { kind: 'puck', at: [4, 90], yaw: Math.PI / 2 }, ...BLOOM },
     { id: 'ice', name: 'ICEFALL BLOOM', situation: 'cave', x: HEART.x, z: HEART.z, pad: false, hint: 'A FROSTBLOOM SLEEPS IN THE ICE BEHIND THE ICEFALL', hintAt: [150, 6], hintR: 14, ...BLOOM },
-    { id: 'heart', name: 'HEARTBLOOM', situation: 'crater', x: HOLLOW.x, z: HOLLOW.z, big: true, hint: 'THE HEARTBLOOM WAITS IN THE HOLLOW. LIGHT IT TO BRING BACK THE SPRING', hintAt: [0, -138], hintR: 14, ...BLOOM },
+    { id: 'heart', name: 'HEARTBLOOM', situation: 'crater', x: HOLLOW.x, z: HOLLOW.z, big: true, hint: 'THE HEARTBLOOM WAITS IN THE HOLLOW. LIGHT IT TO BRING BACK THE SPRING', hintAt: [0, -138], hintR: 14, trial: { kind: 'siege', at: [HOLLOW.x, HOLLOW.z], r: 11, waves: [['rime', 'rime'], ['warden', 'rime'], ['warden', 'rime', 'rime']] }, ...BLOOM },
   ],
   exit: { name: 'DAWNHAVEN', tag: 'HOMEWORLD OF THE LANTERN KEEPERS', color: [0.7, 0.88, 1.0], target: 'home' },
   gate: GATE,

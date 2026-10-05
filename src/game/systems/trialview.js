@@ -6,6 +6,7 @@ import { toWorld, cellWorld, trace, MIRRORS, solidsOf } from '../trials/index.js
 const VIOLET = [0.72, 0.5, 1.0], GOLD = [1.0, 0.82, 0.42];
 const NOTES = [1, 9 / 8, 5 / 4, 3 / 2, 5 / 3, 2];                       // the bells: a major pentatonic over the bell's own pitch, a note each (a tune never has two of the same in a row)
 const RING_K = 0.875;                                                   // the 'ring' sprite's ring lies at 14 of 16 pixels from its centre: a decal's half-size is the radius over this
+const BEAM_N = 6;                                                       // glows to a square of the mirrors' floor
 const rnd = (a, b) => a + (b - a) * Math.random();
 
 /** the textures and the glow of a realm's trials: what the layout wrote in `look`, else the stone and the violet of the Vale */
@@ -254,7 +255,7 @@ class PuckView extends View {
     this.puck.spinBy(Math.hypot(t.vx, t.vz) * 0.02);
     const [gx, gz] = toWorld(t, t.gx, t.hl - 1.5);
     this.goalie.root.position.set(gx, y, gz);
-    this.goalie.root.rotation.y = t.yaw;                                                                           // (its eye is on its -z face: it looks down the court)
+    this.goalie.root.rotation.y = t.yaw + Math.PI;                                                                 // (its eye is on its +z face: turned to look down the court)
   }
 
   frame(dt) {
@@ -320,11 +321,11 @@ class MirrorsView extends View {
     this.hit = tr.hit;
     if (!this.beamHandles) {
       const fx = this.g.fx;
-      this.beamHandles = Array.from({ length: MIRRORS.maxSteps + 2 }, () => fx.billboard({ pool: 'add', sprite: 'glow', size: 1.4, color: this.look.glow, alpha: 0 }));
+      this.beamHandles = Array.from({ length: (MIRRORS.maxSteps + 2) * BEAM_N }, () => fx.billboard({ pool: 'add', sprite: 'glow', size: 1.4, color: this.look.glow, alpha: 0 }));
     }
-    // a string of glows along the path, three to a square (a billboard each: cheap and reads from every side)
+    // a string of glows along the path, six to a square (a billboard each: cheap and reads from every side)
     const out = [];
-    for (let s = 0; s + 1 < pts.length; s++) for (let k = 0; k < 3; k++) { const u = k / 3; out.push([pts[s][0] + (pts[s + 1][0] - pts[s][0]) * u, pts[s][1] + (pts[s + 1][1] - pts[s][1]) * u]); }
+    for (let s = 0; s + 1 < pts.length; s++) for (let k = 0; k < BEAM_N; k++) { const u = k / BEAM_N; out.push([pts[s][0] + (pts[s + 1][0] - pts[s][0]) * u, pts[s][1] + (pts[s + 1][1] - pts[s][1]) * u]); }
     out.push(pts[pts.length - 1]);
     this.beamPts = out.slice(0, this.beamHandles.length);
   }
@@ -336,8 +337,8 @@ class MirrorsView extends View {
       if (!p) { h.alpha = 0; return; }
       h.x = p[0]; h.z = p[1]; h.y = t.y + 1.15;
       h.color = hit ? GOLD : this.look.glow;
-      h.size = 1.5 + 0.25 * Math.sin(this.g.time * 6 + n);
-      h.alpha = 0.7;
+      h.size = 1.5 + 0.25 * Math.sin(this.g.time * 6 + n * 0.7);
+      h.alpha = 0.55;
     });
     this.lamp.setLit(1);
     this.recv.setLit(hit ? 1 : 0);
@@ -381,7 +382,6 @@ class ThiefView extends View {
   }
 
   on(type) {
-    if (type === 'start') this.g.hud.hint('A PILFERLING HAS THE FLAME  -  CATCH IT', 3.5);
     if (type === 'fail') this.g.hud.hint('IT SLIPPED AWAY  -  IT WILL BE BACK AT ITS PLACE', 3.5);
   }
 
@@ -410,7 +410,7 @@ class SiegeView extends View {
 
   on(type, d) {
     switch (type) {
-      case 'start': this.sfx('trial_horn', { vol: 0.9, pitch: 0.9 }); this.g.hud.hint('THE WARD IS UP  -  CLEAR THE WAVES', 3); break;
+      case 'start': this.sfx('trial_horn', { vol: 0.9, pitch: 0.9 }); break;
       case 'wave': this.sfx('trial_horn', { vol: 0.8, pitch: 1 + d.k * 0.12 }); break;
       case 'fail': this.sfx('trial_fail', { vol: 0.8 }); this.g.hud.hint(d.why === 'down' ? 'THE WARD IS QUIET AGAIN  -  TRY ONCE MORE' : 'YOU LEFT THE RING  -  THE WAVES BEGIN AGAIN', 3.5); break;
       default: break;

@@ -93,7 +93,7 @@ export class BeaconSystem {
   ignite(b) {
     if (b.litFlag) return;
     const g = this.game;
-    b.litFlag = true;
+    b.litFlag = true; b.ready = false;
     this.lit++;
     g.stats.beacons = this.lit;
     const fp = this.flamePos(b, new THREE.Vector3());
@@ -121,7 +121,7 @@ export class BeaconSystem {
       // beam: pale violet call -> golden shaft
       const c0 = b.colors.off, c1 = b.colors.on;
       b.beam.setColor?.([c0[0] + (c1[0] - c0[0]) * L, c0[1] + (c1[1] - c0[1]) * L, c0[2] + (c1[2] - c0[2]) * L]);
-      b.beam.setIntensity?.((0.3 + 0.62 * L) * (1 - 0.35 * day * L) * (b.sealed ? 0.55 : 1));          // (a sealed lantern's column is dimmer)
+      b.beam.setIntensity?.((0.3 + 0.62 * L) * (1 - 0.35 * day * L) * (b.sealed ? 0.55 : 1) * (b.ready && !b.litFlag ? 1.35 + 0.35 * Math.sin(t * 4.5) : 1));          // (a sealed lantern's column is dimmer; one whose seal is broken and waits for fire pulses)
       b.beam.update?.(dt, { t });
       const flick = 0.9 + Math.sin(t * 9 + b.index) * 0.06 + Math.sin(t * 23) * 0.04;
       b.pool.alpha = 0.85 * L * flick * (1 - 0.55 * day);
