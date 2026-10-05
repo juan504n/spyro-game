@@ -7,6 +7,8 @@ import { solveMirrors, cellWorld } from '../../src/game/trials/mirrors.js';
 import { solidsOf } from '../../src/game/trials/index.js';
 import { wardPlay, hogPlay, rush } from './foe-plays.mjs';
 import { goalieX, toLocal, toWorld } from '../../src/game/trials/puck.js';
+import { buildTrial } from '../../src/game/trials/place.js';
+import { ledgeWorld } from './flyhero.mjs';
 
 const hyp = Math.hypot;
 export const dirTo = (a, b) => { const d = hyp(b.x - a.x, b.z - a.z) || 1; return [(b.x - a.x) / d, (b.z - a.z) / d]; };
@@ -202,12 +204,83 @@ export const siegeRight = () => (s) => {
   }
 };
 
+// ---- rings -------------------------------------------------------------------------------------------------------------------------------------------
+/**
+ * The way a person flies it: along the line through the middle of the rings, looking a few metres ahead on it (not at the next ring itself, which is always off to the side of where he is: a glide turns slowly,
+ * and a hero who steers at the next hoop swings past it). `path(t)` is the polyline from the lip of the ledge through each ring and on past the last along its way.
+ */
+export const ringsPath = (t) => {
+  const pts = [{ x: t.edgePt.x, z: t.edgePt.z }, ...t.rings.map((r) => ({ x: r.x, z: r.z }))], last = t.rings[t.rings.length - 1];
+  pts.push({ x: last.x + last.nx * 12, z: last.z + last.nz * 12 });
+  return pts;
+};
+/** the point `look` metres along a polyline from the nearest point of it to (x, z) */
+export function ahead(pts, x, z, look) {
+  let best = Infinity, bi = 0, bk = 0;
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const a = pts[i], b = pts[i + 1], dx = b.x - a.x, dz = b.z - a.z, L2 = dx * dx + dz * dz || 1;
+    const k = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / L2)), d = hyp(x - (a.x + dx * k), z - (a.z + dz * k));
+    if (d < best) { best = d; bi = i; bk = k; }
+  }
+  let i = bi, rest = look;
+  const a = pts[i], b = pts[i + 1], seg = hyp(b.x - a.x, b.z - a.z);
+  let at = bk * seg;
+  for (;;) {
+    const A = pts[i], B = pts[i + 1], len = hyp(B.x - A.x, B.z - A.z);
+    if (at + rest <= len || i + 2 >= pts.length) { const k = Math.min(1, (at + rest) / (len || 1)); return { x: A.x + (B.x - A.x) * k, z: A.z + (B.z - A.z) * k }; }
+    rest -= len - at; at = 0; i++;
+  }
+}
+/**
+ * The right play: run at the edge of the ledge along the course, jump at the lip, let go and press again at the top of the jump (that press is the glide), hold JUMP, and steer along the line of the rings.
+ * `late` (s): waits that long after the top before he glides (a hero who is slow with his thumb); `walk`: he walks off the edge and does not jump (the glide begins in the fall); `look`: how far ahead on the line he
+ * looks (m); `aim(s)` says where he steers for instead (the plays that do not follow the line).
+ */
+export const ringsRight = ({ late = 0, walk = false, look = 6, aim = null } = {}) => {
+  let phase = 'run', wait = 0, atTop = 0, pts = null;
+  return (s) => {
+    const t = s.trial, h = s.hero, E = t.edgePt, fx = Math.sin(t.yaw), fz = Math.cos(t.yaw);
+    pts = pts || ringsPath(t);
+    if (phase === 'run') {
+      // he runs at the edge and jumps when the ground ahead falls away (as a person does: he looks at the edge; the plays that are not told the ground go by where the lip is)
+      const gx = E.x + fx * 3, gz = E.z + fz * 3, d = (h.x - E.x) * fx + (h.z - E.z) * fz;
+      const ahead = s.floorAt ? s.floorAt(h.x + fx * (walk ? 0.1 : 0.9), h.z + fz * (walk ? 0.1 : 0.9)) < h.y - 0.8 : d > -(walk ? 0.2 : 0.9);
+      if (ahead) { phase = walk ? 'fall' : 'jump'; } else return goTo(s, gx, gz, { stop: 0.1 });
+    }
+    if (phase === 'jump') { phase = 'rise'; return { dx: fx, dz: fz, mag: 1, jump: true }; }
+    if (phase === 'rise') {                                                                                      // (the key is let go, and pressed again at the top of the jump)
+      if (h.vy > 0.5 || h.grounded) return { dx: fx, dz: fz, mag: 1, jump: h.grounded };
+      atTop += 1 / 60; if (atTop < late) return { dx: fx, dz: fz, mag: 1, jump: false };
+      phase = 'glide'; return { dx: fx, dz: fz, mag: 1, jump: false };
+    }
+    if (phase === 'fall') { if (h.grounded || h.vy > -5) return { dx: fx, dz: fz, mag: 1, jump: false }; phase = 'glide'; return { dx: fx, dz: fz, mag: 1, jump: false }; }          // (a press in the 0.11 s after the ledge is a jump, not a glide: he waits for the fall to pass 5 m/s)
+    // glide: the key goes down (a press) one step after it was up, and stays down
+    wait += 1;
+    const to = aim ? aim(s) : ahead(pts, h.x, h.z, look);
+    const [dx, dz] = dirTo(h, to);
+    return { dx, dz, mag: 1, jump: wait > 1 };
+  };
+};
+/** a hero who glides without steering: straight along the course from the ledge, never turning for a ring */
+export const ringsStraight = () => ringsRight({ aim: (s) => ({ x: s.hero.x + Math.sin(s.trial.yaw) * 20, z: s.hero.z + Math.cos(s.trial.yaw) * 20 }) });
+/** a hero who runs off the edge and never glides (he falls, and what he falls on is the bed) */
+export const ringsDrop = () => {
+  let off = false;
+  return (s) => {
+    const t = s.trial, E = t.edgePt, fx = Math.sin(t.yaw), fz = Math.cos(t.yaw), d = (s.hero.x - E.x) * fx + (s.hero.z - E.z) * fz;
+    if (d > 2) off = true;
+    if (off && s.hero.grounded) return STILL;                                                                    // (he has fallen, and he stands where he fell)
+    return d < 2 ? goTo(s, E.x + fx * 6, E.z + fz * 6, { stop: 0.1 }) : { dx: fx, dz: fz, mag: 1, jump: false };
+  };
+};
+
 // a hero whose trial is solved does nothing more
 const guard = (f) => (s) => (s.trial.state === 'solved' ? STILL : f(s));
 const guardMaker = (mk) => (...a) => guard(mk(...a));
 export const plays = {
   bellsRight: guard(bellsRight), bellsWrong: guard(bellsWrong), platesRight: guardMaker(platesRight), platesLap: guard(platesLap), circuitRun: guardMaker(circuitRun),
   wispsRight: guard(wispsRight), wispsLetGo: guardMaker(wispsLetGo), puckRight: guard(puckRight), mirrorsRight: guardMaker(mirrorsRight), hunt: guardMaker(hunt), siegeRight: guardMaker(siegeRight),
+  ringsRight: guardMaker(ringsRight), ringsStraight: guardMaker(ringsStraight), ringsDrop: guardMaker(ringsDrop),
 };
 
 
@@ -229,10 +302,15 @@ export const SPECS = {
   siege: { kind: 'siege', id: 'siege', goal: 'x', x: 0, z: 0, r: 12, waves: [['basic', 'basic'], ['slinger', 'basic', 'bell'], ['thorn', 'basic']] },
 };
 
+/** the ground the rings are flown over in the tests: a ledge 24 m up with its edge 4.5 m out, a stack of ground 9 m under it 40 m out and the bed (the lava) far below; the course from the ledge toward the stack */
+export const RING_WORLD = { x: 0, z: 0, y: 24, yaw: 0, edge: 4.5, from: 40, r: 10, top: 15, bed: -5, half: 20 };
+export const ringsGround = () => ledgeWorld(RING_WORLD);
+SPECS.rings = { ...buildTrial({ id: 'x', x: 0, z: 40 }, { kind: 'rings', at: [0, 0], toward: [0, 40] }, { h: ringsGround() }), id: 'rings', goal: 'x' };
+
 /** the right play of each kind, made fresh (some have a memory) */
 export const POLICY = {
   bells: () => plays.bellsRight, plates: () => plays.platesRight(), circuit: () => plays.circuitRun(1), wisps: () => plays.wispsRight, puck: () => plays.puckRight,
-  mirrors: () => plays.mirrorsRight(), thief: () => plays.hunt(6, 0), siege: () => plays.siegeRight(),
+  mirrors: () => plays.mirrorsRight(), thief: () => plays.hunt(6, 0), siege: () => plays.siegeRight(), rings: () => plays.ringsRight(),
 };
 
 /** where a hero begins a trial (the realm's bots put him there, on foot or at once): near it, on ground the checker found level and clear, and facing what it asks him to face. `t` is the trial's record or its spec. */
@@ -248,15 +326,21 @@ export function startOf(t) {
     case 'mirrors': { const [x, z] = cellWorld(t, (t.w - 1) / 2, -1.7); return { x, z, yaw: t.yaw }; }
     case 'thief': return { x: t.x, z: t.z, yaw: Math.atan2((t.spawnX ?? t.x) - t.x, (t.spawnZ ?? t.z + 1) - t.z) };
     case 'siege': return { x: t.x + 3, z: t.z, yaw: -Math.PI / 2 };
+    case 'rings': return { x: t.x, z: t.z, yaw: t.yaw };                                                           // (the ledge, facing the way the course runs)
     default: return { x: t.x, z: t.z, yaw: 0 };                                                                    // (plates and wisps: the middle of the ring)
   }
 }
 
 /** a spec moved to (ox, oz): the same trial in another place (the bot puts it on the floor of the Court) */
-export function shift(spec, ox, oz) {
+export function shift(spec, ox, oz, oy = 0) {
   const s = JSON.parse(JSON.stringify(spec));
   s.x += ox; s.z += oz;
   for (const k of ['bells', 'plates', 'pylons', 'vents']) if (s[k]) s[k] = s[k].map((p) => ({ ...p, x: p.x + ox, z: p.z + oz }));
+  if (s.rings) {                                                                                                  // (a course in the air: its heights are the ground's and the ground is moved too)
+    s.y += oy; s.rings = s.rings.map((r) => ({ ...r, x: r.x + ox, z: r.z + oz, y: r.y + oy }));
+    s.edgePt = { ...s.edgePt, x: s.edgePt.x + ox, z: s.edgePt.z + oz, y: s.edgePt.y + oy };
+    s.land = { ...s.land, x: s.land.x + ox, z: s.land.z + oz };
+  }
   if (s.spawnX !== undefined) { s.spawnX += ox; s.spawnZ += oz; }
   return s;
 }
@@ -289,6 +373,12 @@ export const PLAYS = [
   { id: 'mirrors-still', say: 'Mirrors: a hero who does not ram anything leaves the beam where it is', kind: 'mirrors', spec: SPECS.mirrors, policy: () => still, T: 20, hero: { x: 0, z: -14, yaw: 0 }, want: 'quiet' },
   { id: 'thief-flame', say: 'Thief: a hero who runs the Pilferling down and flames it from 6 m solves it', kind: 'thief', spec: SPECS.thief, policy: () => plays.hunt(6, 0), T: 60, hero: { x: 0, z: -8, yaw: 0 }, want: 'solved' },
   { id: 'thief-still', say: 'Thief: a hero who stands still is not hurt by it and does not solve it', kind: 'thief', spec: SPECS.thief, policy: () => still, T: 30, hero: { x: 0, z: -8, yaw: 0 }, want: 'quiet' },
+  { id: 'rings-right', say: 'Rings: a hero who leaps from the ledge, glides and steers along the line of the rings solves it', kind: 'rings', spec: SPECS.rings, policy: () => plays.ringsRight(), T: 12, hero: { x: 0, z: -2, yaw: 0 }, want: 'solved', floor: ringsGround },
+  { id: 'rings-walk', say: 'Rings: ... and one who walks off the edge and glides from the fall (the way the Anvil Stone has always been reached) too', kind: 'rings', spec: SPECS.rings, policy: () => plays.ringsRight({ walk: true }), T: 12, hero: { x: 0, z: -2, yaw: 0 }, want: 'solved', floor: ringsGround },
+  { id: 'rings-late', say: 'Rings: ... and one whose thumb is a third of a second late', kind: 'rings', spec: SPECS.rings, policy: () => plays.ringsRight({ late: 0.3 }), T: 12, hero: { x: 0, z: -2, yaw: 0 }, want: 'solved', floor: ringsGround },
+  { id: 'rings-straight', say: 'Rings: a hero who glides straight and never steers passes some of the rings and not enough', kind: 'rings', spec: SPECS.rings, policy: () => plays.ringsStraight(), T: 14, hero: { x: 0, z: -2, yaw: 0 }, want: 'unsolved', floor: ringsGround },
+  { id: 'rings-drop', say: 'Rings: a hero who runs off the ledge and does not glide falls to the bed and nothing comes of it', kind: 'rings', spec: SPECS.rings, policy: () => plays.ringsDrop(), T: 8, hero: { x: 0, z: -2, yaw: 0 }, want: 'quiet', floor: ringsGround },
+  { id: 'rings-still', say: 'Rings: a hero who stands on the ledge does nothing to it', kind: 'rings', spec: SPECS.rings, policy: () => still, T: 10, hero: { x: 0, z: -2, yaw: 0 }, want: 'quiet', floor: ringsGround },
   { id: 'siege-right', say: 'Siege: a hero who fights what comes in three waves clears it', kind: 'siege', spec: SPECS.siege, policy: () => plays.hunt(5, 2), T: 120, hero: { x: 0, z: -8, yaw: 0 }, want: 'solved' },
   { id: 'siege-still', say: 'Siege: a hero who does not fight does not clear it (and it does not clear itself)', kind: 'siege', spec: SPECS.siege, policy: () => still, T: 40, hero: { x: 0, z: -8, yaw: 0 }, want: 'unsolved' },
 ];

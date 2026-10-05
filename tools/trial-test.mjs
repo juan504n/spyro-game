@@ -23,7 +23,7 @@ const SEEDS = [1, 2, 3, 4, 5, 6];
 
 // ---- the table -------------------------------------------------------------------------------------------------------------------------------------
 {
-  check('there are eight kinds, each with a machine (init, step, hud, targets) and a row in the table', TRIAL_IDS.length === 8 && TRIAL_IDS.every((k) => MACHINES[k] && ['init', 'step', 'hud', 'targets'].every((f) => typeof MACHINES[k][f] === 'function') && TRIALS[k]), TRIAL_IDS.join(' '));
+  check('there are nine kinds, each with a machine (init, step, hud, targets) and a row in the table', TRIAL_IDS.length === 9 && TRIAL_IDS.every((k) => MACHINES[k] && ['init', 'step', 'hud', 'targets'].every((f) => typeof MACHINES[k][f] === 'function') && TRIALS[k]), TRIAL_IDS.join(' '));
   check('every kind says what it asks in UPPER CASE words the HUD can show (a hint of at least 25 letters), and what its failing costs', TRIAL_IDS.every((k) => /^[A-Z0-9 ,.:;'!?-]{25,}$/.test(TRIALS[k].hint) && TRIALS[k].name === TRIALS[k].name.toUpperCase() && TRIALS[k].fails && TRIALS[k].reads && TRIALS[k].verbs.length));
   check('no kind takes a life: failing a trial costs a try (a wrong bell, a clock that ran out, wisps that got away)', TRIAL_IDS.every((k) => !/life|die|death|hurt/i.test(TRIALS[k].fails)));
 }
@@ -33,7 +33,7 @@ const outcome = (r) => ({ solved: r.solvedAt !== null, fails: r.events.filter((e
 {
   for (const pl of PLAYS) {
     const seeds = pl.seeds || SEEDS;
-    const outs = seeds.map((seed) => { try { return outcome(playTrial({ spec: pl.spec, hero: pl.hero, policy: pl.policy(), T: pl.T, seed })); } catch (e) { return { threw: e.message }; } });       // (a machine that stops agreeing with the policy that plays it is a failed play, not a crash)
+    const outs = seeds.map((seed) => { try { return outcome(playTrial({ spec: pl.spec, hero: pl.hero, policy: pl.policy(), T: pl.T, seed, floorAt: pl.floor ? pl.floor() : undefined })); } catch (e) { return { threw: e.message }; } });       // (a machine that stops agreeing with the policy that plays it is a failed play, not a crash)
     const fails = outs.map((o) => (o.threw ? `the play threw: ${o.threw}` : judge(pl.want, o))).filter(Boolean);
     const times = outs.filter((o) => o.solved).map((o) => o.t);
     check(pl.say, fails.length === 0, `(${outs.length - fails.length}/${outs.length} runs as wanted${times.length ? `, solved in ${f1(Math.min(...times))} to ${f1(Math.max(...times))} s` : ''}${fails.length ? ': ' + fails[0] : ''})`);

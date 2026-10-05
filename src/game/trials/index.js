@@ -8,6 +8,7 @@ import { puck } from './puck.js';
 import { mirrors, solidsOf as mirrorSolids } from './mirrors.js';
 import { thief } from './thief.js';
 import { siege } from './siege.js';
+import { rings } from './rings.js';
 
 export { TRIALS, TRIAL_IDS } from './kinds.js';
 export { lcg, hyp } from './core.js';
@@ -20,9 +21,10 @@ export { PUCK, toLocal, toWorld, goalieX } from './puck.js';
 export { MIRRORS, cellWorld, trace, solveMirrors, reflect } from './mirrors.js';
 export { THIEF } from './thief.js';
 export { SIEGE } from './siege.js';
+export { RINGS, ringCourse, glideLine } from './rings.js';
 
 /** The machines by kind. Each: init(t, ctx), step(t, dt, ctx), hud(t) -> { text, n, of, clock? } | null, targets(t) -> [{ x, y, z, r }] (what the hero's aim assist may swing to). */
-export const MACHINES = { bells, plates, circuit, wisps, puck, mirrors, thief, siege };
+export const MACHINES = { bells, plates, circuit, wisps, puck, mirrors, thief, siege, rings };
 
 /** A trial record for a spec the layout wrote ({ kind, id, goal, x, z, y?, yaw?, ...the kind's own parts }), made ready: `ctx.rng` is used for what is random in it (a tune, a scramble, a puzzle). */
 export function makeTrial(spec, ctx) {
@@ -44,7 +46,7 @@ export function solidsOf(t) {
 }
 
 /** how far from a trial the hero may be before it is put to sleep: it is not stepped (no clock runs, nothing spawns, nothing is heard from a hundred metres off), and what it was doing is let go */
-export const AWAKE = { bells: 45, plates: 45, circuit: 80, wisps: 40, puck: 50, mirrors: 50, thief: 80, siege: 60 };
+export const AWAKE = { bells: 45, plates: 45, circuit: 80, wisps: 40, puck: 50, mirrors: 50, thief: 80, siege: 60, rings: 70 };
 /** how far the hero is from a trial: from its middle, or, for a circuit that runs over the country, from the nearest of its pylons */
 export const distTo = (t, p) => (t.kind === 'circuit' ? Math.min(...t.pylons.map((q) => hyp(p.x - q.x, p.z - q.z))) : hyp(p.x - t.x, p.z - t.z));
 

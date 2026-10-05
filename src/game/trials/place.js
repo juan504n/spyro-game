@@ -5,6 +5,7 @@
 import { arcPoints, polar, hyp } from './core.js';
 import { TRIAL_IDS, TRIALS } from './kinds.js';
 import { MIRRORS } from './mirrors.js';
+import { RINGS, ringCourse } from './rings.js';
 import { foesOf } from './index.js';
 import { KINDS } from '../foes/kinds.js';
 
@@ -18,6 +19,7 @@ export const DEFAULTS = {
   mirrors: { yaw: 0, w: 5, h: 5, k: 3 },
   thief: { dist: 12 },
   siege: { r: 12 },
+  rings: { n: RINGS.n, want: RINGS.want, r: RINGS.r, amp: RINGS.amp, sag: RINGS.sag, len: RINGS.len, d0: RINGS.d0, edge: 6, landR: RINGS.landR, padR: RINGS.padR },
 };
 
 /** the foes a siege may call (the ones that fight without a place of their own: not the Dusk Moth, which flies, the Smokecaller, which calls more, the Pilferling, which runs, nor the Dustmole, which digs) */
@@ -44,6 +46,7 @@ export function footprint(spec) {
     case 'puck': return { x: spec.x, z: spec.z, r: hyp(spec.hw, spec.hl) + 0.8 };
     case 'mirrors': return { x: spec.x, z: spec.z, r: hyp(((spec.w ?? MIRRORS.w) - 1) / 2, ((spec.h ?? MIRRORS.h) - 1) / 2) * MIRRORS.cell + 1.8 };
     case 'siege': return { x: spec.x, z: spec.z, r: spec.r + 1.5 };
+    case 'rings': return { x: spec.x, z: spec.z, r: spec.padR ?? RINGS.padR };                  // (the ledge he leaps from: the air over the drop is the checker's)
     default: return null;
   }
 }
@@ -90,6 +93,13 @@ export function buildTrial(goal, t, { h = () => 0, look = null } = {}) {
     case 'siege':
       spec.r = D.r; spec.waves = t.waves;
       break;
+    case 'rings': {                                                                              // (the ledge is where he stands, `toward` the way the course runs (the lantern, by default): the rings hang along the glide from the edge)
+      const to = t.toward || [goal.x, goal.z];
+      const yaw = t.yaw ?? Math.atan2(to[0] - at[0], to[1] - at[1]);
+      const C = ringCourse({ x: at[0], z: at[1], y: spec.y, yaw, h, edge: D.edge, n: D.n, len: D.len, amp: D.amp, sag: D.sag, d0: D.d0 });
+      Object.assign(spec, { yaw, r: D.r, want: Math.min(D.want, D.n), padR: D.padR, edgePt: C.edge, rings: C.rings, land: { x: goal.x, z: goal.z, r: D.landR } });
+      break;
+    }
     default: break;
   }
   spec.gems = t.gems !== undefined ? t.gems : rewardOf(spec);
@@ -117,6 +127,16 @@ export function trialProblems(goal, t) {
   if (t.kind === 'puck' && !(D.hw >= 5 && D.hl >= 8 && D.goalHW >= 1.8 && D.goalHW < D.hw)) say('puck: hw 5 m or more, hl 8 m or more, goalHW 1.8 m or more and narrower than the court');
   if (t.kind === 'mirrors' && !(Number.isInteger(D.w) && Number.isInteger(D.h) && D.w >= 4 && D.w <= 5 && D.h >= 4 && D.h <= 5 && Number.isInteger(D.k) && D.k >= 2 && D.k <= 3)) say('mirrors: a floor of 4 or 5 squares each way and 2 or 3 mirrors');
   if (t.kind === 'thief' && t.spawn !== undefined && !xz(t.spawn)) say('thief spawn: [x, z]');
+  if (t.kind === 'rings') {
+    if (!(Number.isInteger(D.n) && D.n >= 4 && D.n <= 8)) say('rings n: 4 to 8');
+    if (!(Number.isInteger(D.want) && D.want >= 3 && D.want <= D.n)) say('rings want: 3 or more and no more than n');
+    if (!(D.r >= 2.2 && D.r <= 4)) say('rings r: 2.2 to 4 m (the hoop he must fly through)');
+    if (!(D.len >= 20 && D.len <= 60 && D.d0 >= 4.5 && D.d0 <= D.len - 8)) say('rings len: 20 to 60 m, and d0 from 4.5 m (the first ring is past the jump) and 8 m short of the end');
+    if (!(D.amp >= 0 && D.amp <= 6)) say('rings amp: 0 to 6 m (the S of the way)');
+    if (!(D.sag >= 0 && D.sag <= 4)) say('rings sag: 0 to 4 m under the glide line');
+    if (t.toward !== undefined && !xz(t.toward)) say('rings toward: [x, z]');
+    if (t.yaw !== undefined && !num(t.yaw)) say('rings yaw: radians');
+  }
   if (t.kind === 'siege') {
     if (!(D.r >= 8)) say('siege r: 8 m or more');
     if (!Array.isArray(t.waves) || t.waves.length < 2 || t.waves.length > 4 || !t.waves.every((w) => Array.isArray(w) && w.length >= 1 && w.length <= 4 && w.every((k) => SIEGE_KINDS.includes(k)))) say(`siege waves: two to four waves of one to four of ${SIEGE_KINDS.join(' ')}`);

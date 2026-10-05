@@ -6,6 +6,7 @@
 // A trial that brings foes (a thief, a siege) has them here as the foes of foes/ are in tools/lib/foesim.mjs: the brains of the new kinds, a stand-in for a Snuffer of the old (it chases and swings
 // as the real one does); a hero's flame and ram fell them by the same tests (hitsOn).
 import { DuelHero, HERO } from './duel.mjs';
+import { FlyHero } from './flyhero.mjs';
 import { minionStep } from './foesim.mjs';
 import { makeFoe, stepFoe, hitsOn, sideOf, BRAINS } from '../../src/game/foes/index.js';
 import { makeTrial, stepTrial, lcg, solidsOf } from '../../src/game/trials/index.js';
@@ -15,7 +16,7 @@ const hyp = Math.hypot;
 export function playTrial({ spec, hero: spot = { x: 0, z: 12, yaw: Math.PI }, policy, T = 60, seed = 1, floorAt = () => 0, solids = [], immortal = true, stopWhenSolved = true, onEvent = null } = {}) {
   const DT = 1 / 60;
   const rng = lcg(seed);
-  const hero = new DuelHero({ ...spot }, floorAt);
+  const hero = new (spec.kind === 'rings' ? FlyHero : DuelHero)({ ...spot }, floorAt);                    // (a trial that is flown: a hero who can leave the ground, glide and land)
   hero.invulnT = 0;
   if (immortal) hero.hp = Infinity;
   const events = [];
@@ -63,7 +64,7 @@ export function playTrial({ spec, hero: spot = { x: 0, z: 12, yaw: Math.PI }, po
   const kill = (rec) => { if (rec.e.state === 'dead') return; rec.e.state = 'dead'; rec.how = 'killed'; };
   for (; now < T; now += DT) {
     sync();
-    const s = { t: now, hero, trial, foes: foes.map((f) => f.e), events, foeRecs: foes };
+    const s = { t: now, hero, trial, foes: foes.map((f) => f.e), events, foeRecs: foes, floorAt };
     const a = policy ? policy(s) : { dx: 0, dz: 0, mag: 0 };
     hero.step(DT, a || { dx: 0, dz: 0, mag: 0 }, solids, 1e9);
     sync();

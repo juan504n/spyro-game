@@ -15,6 +15,7 @@ export const TRIALS = {
   puck: { name: 'THE PUCK', verbs: ['ram'], hint: 'RAM THE PUCK PAST THE GOALIE: THREE GOALS', fails: 'none: a game', reads: 'the score' },
   mirrors: { name: 'THE MIRRORS', verbs: ['ram', 'puzzle'], hint: 'RAM THE MIRRORS TO TURN THE BEAM ON THE RECEIVER', fails: 'none', reads: 'the beam' },
   thief: { name: 'THE THIEF', verbs: ['chase', 'flame', 'ram'], hint: 'A PILFERLING HAS STOLEN THE FLAME: CATCH IT', fails: 'none: it is still out there', reads: 'its glow', foes: true },
+  rings: { name: 'THE RINGS', verbs: ['glide', 'steer'], hint: 'LEAP FROM THE LEDGE, HOLD JUMP AND GLIDE THROUGH THE RINGS', fails: 'you land with too few: the rings go dark and you begin again (a gust carries you back to the ledge)', reads: 'a hoop of light for each, the next one bright' },
   siege: { name: 'THE SIEGE', verbs: ['fight'], hint: 'STEP INSIDE THE RING AND CLEAR THE WAVES', fails: 'he is set back: the waves begin again', reads: 'a count of foes', foes: true },
 };
 export const TRIAL_IDS = Object.keys(TRIALS);
