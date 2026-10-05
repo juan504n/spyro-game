@@ -473,6 +473,13 @@ so Emberfall is still ash and basalt and Tideglass still teal. Every painting wr
 </p>
 <p align="center"><sub>Top: before; bottom: after (software-rendered, the smooth look with HD textures). Left: the place a player's screenshot showed; right: the same shore a little further north. The pictures are taken a few seconds after a warp.</sub></p>
 
+* **Flowers stand on the ground.** A patch of flowers, tufts, ferns or reeds is 3 to 5.6 m across, and every card of it used to be drawn at the height of the patch's middle, so on a slope or at the edge of a ledge half of it hung in the air (a quarter of the Vale's tufts, some by metres). Each card is now drawn on the terrain under it (`groundAt` in `src/game/props/nature/util.js`), and skipped on a cliff face or in deep water: round thirty-three in `docs/DESIGN.md`, `node tools/cover-test.mjs`.
+
+<p align="center">
+  <img src="docs/shots/50-flowers.jpg" width="80%" alt="Two ledges of the Vale, before and after: flowers and tufts hanging in the air over the rim of a cliff, and the same rims with flowers standing on the grass">
+</p>
+<p align="center"><sub>Top: Heron Point, from the camera of a player's screenshot; bottom: the ledge above the Dawn Gate's forecourt. Left: before; right: after (software-rendered; the pictures are taken a few seconds after a warp).</sub></p>
+
 | | PS1 look | smooth look, HD on (default) | smooth look, HD off |
 | --- | --- | --- | --- |
 | a world texture | the pixels, point sampled | the 256 px painting, mipmapped, anisotropic ×4 | the pixels, enlarged 8× by a smoothing filter |
