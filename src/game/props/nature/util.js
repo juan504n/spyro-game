@@ -4,6 +4,7 @@
 // (dry pass + wet pass).  All helpers emit vertices in the PROP FRAME (the frame inside kit.at) so that colour
 // functions see prop-frame coordinates: a vertical gradient is a gradient in tree/rock height.
 import { col } from '../../../engine/builder.js';
+import { WATER_LEVEL } from '../../level.js';
 
 export const TAU = Math.PI * 2;
 export const clamp = (v, a = 0, b = 1) => (v < a ? a : v > b ? b : v);
@@ -30,6 +31,23 @@ export const oneOf = (v, list, def) => (list.includes(v) ? v : def);
  * would slide against its own trunk / the ground.  Props only ask for sway below `limit` metres of world height.
  */
 export const swayOK = (kit, x, z, y, limit) => (typeof y === 'number' && Number.isFinite(y) ? y : kit.groundY(x, z)) < limit;
+
+/**
+ * Ground cover stands on the ground under it, not at the height of the middle of its patch: a patch of flowers is 3 to 5.6 m across, so on any slope or ledge a flower at the same height as
+ * the patch's centre hung in the air (or was buried): about a quarter of the Vale's flowers, tufts and ferns floated more than 15 cm up, some by metres, over a cliff's edge or the shore.
+ * The height of the terrain under the point (lx, lz) of the patch the kit is working on (`kit.at`), in the patch's own units (so it is the `y` to draw at), or `null` where nothing should
+ * grow: the ground there is steeper than `slope` (a cliff face: an upright flower on it hangs over the drop) or under the water, deeper than `wade` metres (a reed stands in the shallows, at
+ * the water's surface; nothing else grows under it). A prop that was given a `y` of its own (a sky island's top, a pond's edge) is on a floor the terrain knows nothing of: 0, flat, as it was.
+ */
+export function groundAt(kit, lx, lz, { y, slope = 0.55, wade = 0 } = {}) {
+  if (typeof y === 'number' && Number.isFinite(y)) return 0;
+  const o = kit.origin, c = Math.cos(o.rot), s = Math.sin(o.rot);
+  const wx = o.x + (lx * c + lz * s) * o.scale, wz = o.z + (lz * c - lx * s) * o.scale;
+  let g = kit.groundY(wx, wz);
+  if (g < WATER_LEVEL) { if (g < WATER_LEVEL - wade) return null; g = WATER_LEVEL; }
+  if (kit.grid.slopeAt && kit.grid.slopeAt(wx, wz) > slope) return null;
+  return (g - o.y) / o.scale;
+}
 
 /**
  * Props that float (sky-island decor, the islands themselves) must not sample the TERRAIN shadow map: the map only knows

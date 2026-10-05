@@ -1,5 +1,5 @@
 // Ground cover: flower / tuft / fern patches, reeds, lilypads, logs, stumps, mushrooms.
-import { lump, lumps, tube, shade, card, cross, flat, TAU, lerp, clamp, mulc, h3, num, int, oneOf, swayOK } from './util.js';
+import { lump, lumps, tube, shade, card, cross, flat, TAU, lerp, clamp, mulc, h3, num, int, oneOf, swayOK, groundAt } from './util.js';
 
 const FLOWERS = ['flower_pink', 'flower_yellow', 'flower_blue'];
 const CUT = { mode: 'cutout', double: true, sway: true };
@@ -43,17 +43,18 @@ export function flowerPatch(kit, { x, z, rot = 0, scale = 1, y, r: rad, count, t
   const r = kit.rng(x, z, 83);
   const cut = swayOK(kit, x, z, y, SWAY_GROUND) ? CUT : CUT_STATIC;
   kit.at(x, z, { rot, scale, y }, () => {
+    // (every draw of the rng is made whether the flower is drawn or not, and its builder is asked for: a flower that has no ground to stand on changes none of the others)
     const pts = scatter(r, count, rad, 0.75);
     pts.forEach((p, i) => {
       const k = kinds[Math.floor(r.next() * kinds.length)];
-      const s = r.float(0.7, 1.0);
-      cross(kit.b(k, cut), p[0], -0.05, p[1], 0.88 * s, 0.94 * s, r.float(0, 3), { color: vary(r, 1.12, 0.06) });
+      const s = r.float(0.7, 1.0), b = kit.b(k, cut), yaw = r.float(0, 3), color = vary(r, 1.12, 0.06), gy = groundAt(kit, p[0], p[1], { y });
+      if (gy !== null) cross(b, p[0], gy - 0.05, p[1], 0.88 * s, 0.94 * s, yaw, { color });
     });
     if (tufts) {
       const n = Math.round(count * 0.45);
       scatter(r, n, rad * 1.05, 0.9).forEach((p) => {
-        const s = r.float(0.8, 1.2);
-        cross(kit.b('tuft', cut), p[0], -0.05, p[1], 1.1 * s, 0.95 * s, r.float(0, 3), { color: vary(r, 1.0, 0.1) });
+        const s = r.float(0.8, 1.2), b = kit.b('tuft', cut), yaw = r.float(0, 3), color = vary(r, 1.0, 0.1), gy = groundAt(kit, p[0], p[1], { y });
+        if (gy !== null) cross(b, p[0], gy - 0.05, p[1], 1.1 * s, 0.95 * s, yaw, { color });
       });
     }
   });
@@ -68,7 +69,8 @@ export function tuftPatch(kit, { x, z, rot = 0, scale = 1, y, r: rad, count, tea
     scatter(r, count, rad, 0.8).forEach((p) => {
       const s = r.float(0.75, 1.3);
       const tint = teal ? [0.85, 1.05, 1.0] : vary(r, 1.0, 0.1);
-      cross(kit.b('tuft', cut), p[0], -0.05, p[1], 1.15 * s, 1.0 * s, r.float(0, 3), { color: tint });
+      const b = kit.b('tuft', cut), yaw = r.float(0, 3), gy = groundAt(kit, p[0], p[1], { y });
+      if (gy !== null) cross(b, p[0], gy - 0.05, p[1], 1.15 * s, 1.0 * s, yaw, { color: tint });
     });
   });
 }
@@ -84,9 +86,11 @@ export function fernPatch(kit, { x, z, rot = 0, scale = 1, y, r: rad, count }) {
       const nF = 5 + r.int(0, 2);
       const a0 = r.float(0, TAU);
       const s = r.float(0.85, 1.2);
+      const gy = groundAt(kit, c[0], c[1], { y });
       for (let i = 0; i < nF; i++) {
         const a = a0 + (i / nF) * TAU + r.float(-0.2, 0.2);
-        card(kit.b('fern', cut), c[0] + Math.sin(a) * 0.15, -0.05, c[1] + Math.cos(a) * 0.15, 1.5 * s, 1.5 * s, a, { lean: r.float(0.65, 0.95), color: vary(r, 1.02, 0.08) });
+        const b = kit.b('fern', cut), lean = r.float(0.65, 0.95), color = vary(r, 1.02, 0.08);
+        if (gy !== null) card(b, c[0] + Math.sin(a) * 0.15, gy - 0.05, c[1] + Math.cos(a) * 0.15, 1.5 * s, 1.5 * s, a, { lean, color });
       }
     });
   });
@@ -100,7 +104,8 @@ export function reeds(kit, { x, z, rot = 0, scale = 1, y, r: rad, count }) {
   kit.at(x, z, { rot, scale, y }, () => {
     scatter(r, count, rad, 0.6).forEach((p) => {
       const s = r.float(0.8, 1.25);
-      cross(kit.b('reeds', cut), p[0], -0.1, p[1], 1.05 * s, 2.5 * s, r.float(0, 3), { color: vary(r, 1.0, 0.08) });
+      const b = kit.b('reeds', cut), yaw = r.float(0, 3), color = vary(r, 1.0, 0.08), gy = groundAt(kit, p[0], p[1], { y, wade: 1.0 });       // (cattails stand in the shallows: at the water's surface where the bed is under it)
+      if (gy !== null) cross(b, p[0], gy - 0.1, p[1], 1.05 * s, 2.5 * s, yaw, { color });
     });
   });
 }
