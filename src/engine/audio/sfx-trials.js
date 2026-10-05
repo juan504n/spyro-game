@@ -19,6 +19,8 @@
 //   trial_seal   0.6 s  a breath on a sealed lantern is turned away: a dull ring of a rune and a hush
 //   trial_break  1.4 s  the seal breaks: a rush of glass, a crash of shards and a low thud
 //   trial_horn   1.1 s  a wave of the siege: a low horn
+//   trial_ring   0.6 s  a ring is flown through: a quick whoosh of air and a bright chime (played faster for each one after the first)
+//   trial_gust   1.3 s  a gust carries him back to the ledge: a wind that rises and falls over a few glassy pings
 
 import { TAU, decay, ad, smooth, seedOf, removeDC } from './synth.js';
 import { finalizeSfx as fin, reverbMono } from './spu.js';
@@ -136,5 +138,18 @@ export const TRIAL_SFX = {
     const s = seedOf('trial_horn');
     const horn = vowel(1.0, (t, x) => 110 * (1 + 0.012 * Math.sin(TAU * 5.5 * t)) * (0.97 + 0.06 * smooth(x * 4)), [[330, 4, 1], [720, 6, 0.55], [1250, 7, 0.2]], { src: 'saw', raw: 0.25, breath: 0.03, seed: s, env: (t, x) => ad(t, 0.12, 0.9) * (1 - smooth((x - 0.85) / 0.15)) });
     return fin(removeDC(horn), { grit: 0.3, fadeOut: 150 });
+  },
+
+  trial_ring() {
+    const s = seedOf('trial_ring');
+    const whoosh = noiseFilt(0.35, s, { mode: 'bp', f0: 700, f1: 3000, q: 1.2, curve: 1.2, env: (t, x) => pk(x, 0.9) * 0.8 });
+    return fin(layer(0.6, [[lvl(whoosh, 0.1), 0, 0.9], [bell(hz('A5'), 0.5, 0.3, 1.0, 0.002), 0.03, 0.8], [ping(hz('E6'), 0.35, 0.08, { h2: 0.3 }), 0.08, 0.5]]), { grit: 0.2, fadeOut: 80 });
+  },
+
+  trial_gust() {
+    const s = seedOf('trial_gust');
+    const wind = noiseFilt(1.3, s, { mode: 'bp', f0: 500, f1: 1800, q: 0.9, curve: 1.0, env: (t, x) => pk(x, 0.8) });
+    const rise = sweep(1.0, 300, 900, { wave: 'sine', curve: 1.2, env: (t, x) => pk(x, 1.0) * 0.25 });
+    return fin(layer(1.3, [[lvl(wind, 0.14), 0, 1], [rise, 0.05, 0.6], [tinkles(1.0, s + 1, 8, 1800, 4800, { tauLo: 0.05, tauHi: 0.1, tMax: 0.9, gain: 0.25 }), 0.3, 0.6]]), { grit: 0.25, fadeOut: 160 });
   },
 };

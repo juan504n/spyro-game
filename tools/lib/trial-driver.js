@@ -47,7 +47,7 @@
       while (g.time - t0 < T) {
         if (r.done && doneAt === null) doneAt = g.time - t0;
         if (doneAt !== null) break;
-        const snap = { t: g.time - t0, hero: P, trial: r.t, foes: r.foes, events };
+        const snap = { t: g.time - t0, hero: P, trial: r.t, foes: r.foes, events, floorAt: (x, z) => g.collision.support(x, z, P.y + 0.6, 0.62).y };
         if (frames % 2 === 0 || !act) act = policy(snap) || { dx: 0, dz: 0, mag: 0 };
         const Y = g.cam.yaw, m = Math.max(0, Math.min(1, act.mag || 0));
         ctl.my = (act.dx * Math.sin(Y) + act.dz * Math.cos(Y)) * m; ctl.mx = (-act.dx * Math.cos(Y) + act.dz * Math.sin(Y)) * m;

@@ -19,7 +19,7 @@ import { createWhirlwind } from './objects/whirlwind.js';
 import { createWindbell } from './objects/windbell.js';
 import { createTidelens } from './objects/tidelens.js';
 import { createGuardian, createGuardianFist } from './objects/guardian.js';
-import { createTrialBell, createTrialPlate, createTrialPylon, createTrialVent, createTrialMirror, createTrialLens, createTrialPuck, createTrialGoalie, createTrialGoal, createTrialCourt, createTrialStone } from './objects/trial.js';
+import { createTrialBell, createTrialPlate, createTrialPylon, createTrialVent, createTrialMirror, createTrialLens, createTrialPuck, createTrialGoalie, createTrialGoal, createTrialCourt, createTrialStone, createTrialRing } from './objects/trial.js';
 
 export const OBJECTS = {
   beacon: {
@@ -124,6 +124,7 @@ export const OBJECTS = {
   trial_goal: { create: createTrialGoal, size: 6, note: 'two posts and a crossbar with a net of light, opts.hw the half-width of the mouth; flash(k)' },
   trial_court: { create: createTrialCourt, size: 24, note: 'the lines of a court on the floor: opts.hw, opts.hl, opts.goalHW; setLit(k)' },
   trial_stone: { create: createTrialStone, size: 3.3, note: 'a standing stone with a rune that wakes; opts.big x1.5; setLit(k)' },
+  trial_ring: { create: createTrialRing, size: 6.4, note: 'a hoop of metal and crystal hung in the air (rings), middle at the origin, facing +z; opts.r the radius; setState(off | next | done | missed), pass() a flash' },
   realm_portal: {
     create: createPortal,
     size: 6,

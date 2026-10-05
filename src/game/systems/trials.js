@@ -81,6 +81,32 @@ export class TrialSystem {
   _on(r, type, d) {
     r.view.on(type, d);
     if (type === 'solved') this._solved(r, false);
+    if (type === 'return') this._carryBack(r, d);
+  }
+
+  /**
+   * A gust carries the hero back to where a flown trial begins (the ledge): he landed where its course ends, with it unsolved, and the way back is a long walk or none (the stack in the lava). The
+   * ride is the game's own carry (Player.carry, as the light of a portal takes him up): an arc over the gap, a moment of wind, and he stands on the ledge facing the course.
+   */
+  _carryBack(r, d) {
+    const g = this.game, p = g.player;
+    if (p.carry || p.dead || g.locked || r.done) return;
+    const from = [p.x, p.y, p.z], to = [d.x, d.y + 0.05, d.z], dist = Math.hypot(to[0] - from[0], to[2] - from[2]);
+    const dur = 1.3 + dist / 45, ease = (k) => k * k * (3 - 2 * k), toward = Math.atan2(to[0] - from[0], to[2] - from[2]);
+    p.locked = true; g.locked = true; p.invulnT = 99;
+    g.audio?.sfx('trial_gust', { vol: 0.9 });
+    g.fx.puff(p.x, p.y + 0.5, p.z, 1.0);
+    g.hud.hint('A GUST CARRIES YOU BACK TO THE LEDGE', 3.2);
+    p.carry = {
+      t: 0, dur,
+      at: (k) => { const e = ease(k), arc = Math.sin(Math.PI * k) * (4 + 0.14 * dist); return [from[0] + (to[0] - from[0]) * e, from[1] + (to[1] - from[1]) * e + arc, from[2] + (to[2] - from[2]) * e, k < 0.85 ? toward : d.yaw]; },
+      onDone: () => {
+        p.carry = null; p.locked = false; g.locked = false;
+        p.vx = p.vy = p.vz = 0; p.yaw = p.pyaw = d.yaw; p.invulnT = 1.2;
+        g.cam.snapBehind(p);
+        g.fx.puff(p.x, p.y + 0.5, p.z, 0.9);
+      },
+    };
   }
 
   /** The seal breaks. `quiet`: no ceremony (the lantern was lit some other way, or the realm is a saved one entered again). A lantern within 26 m is lit a moment later with all its ceremony; one that is further off is freed, and waits for his breath. */

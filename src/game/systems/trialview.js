@@ -420,7 +420,42 @@ class SiegeView extends View {
   solved() { this.stones.forEach((m) => m.setLit(0)); }
 }
 
-const VIEWS = { bells: BellsView, plates: PlatesView, circuit: CircuitView, wisps: WispsView, puck: PuckView, mirrors: MirrorsView, thief: ThiefView, siege: SiegeView };
+// ---- the rings -----------------------------------------------------------------------------------------------------------------------------------------
+class RingsView extends View {
+  constructor(sys, r) {
+    super(sys, r);
+    const t = this.t, E = t.edgePt, fx = Math.sin(t.yaw), fz = Math.cos(t.yaw);
+    this.rings = t.rings.map((c, i) => { const m = this.prop('trial_ring', c.x, c.z, c.y, { seed: i, r: t.r }); m.root.rotation.y = Math.atan2(c.nx, c.nz); return m; });
+    // two stones at the lip, either side of the way, so that the place to leap from is seen from the ledge
+    this.lip = [-1, 1].map((sd, i) => this.prop('trial_stone', E.x + fz * 3.6 * sd - fx * 0.4, E.z - fx * 3.6 * sd - fz * 0.4, undefined, { seed: i }));
+    this.floorMark(t.padR ?? 3.6, 0.35);
+    this.shown = this.rings.map(() => '');
+    this.finished = false;
+  }
+
+  frame(dt) {
+    const t = this.t, next = t.last + 1;
+    this.rings.forEach((m, i) => {
+      const s = this.finished ? 'done' : t.got[i] === 1 ? 'done' : t.got[i] === -1 ? 'missed' : i === next ? 'next' : 'off';
+      if (this.shown[i] !== s) { this.shown[i] = s; m.setState(s); }
+    });
+    const lit = this.finished ? 0 : t.state === 'active' ? 1 : 0.35;
+    this.lip.forEach((m) => m.setLit(lit));
+    super.frame(dt);
+  }
+
+  on(type, d) {
+    switch (type) {
+      case 'ring': { const c = this.t.rings[d.i]; this.rings[d.i].pass(); this.sfx('trial_ring', { vol: 0.9, pitch: 1 + (d.n - 1) * 0.1 }); this.burst(c.x, c.y, c.z, GOLD, 10); break; }
+      case 'fail': this.sfx('trial_fail', { vol: 0.8 }); this.g.hud.hint(d.n > 0 ? `THE RINGS GO DARK  -  ${d.n} OF ${this.t.want}: LEAP FROM THE LEDGE AGAIN` : 'THE RINGS GO DARK  -  LEAP FROM THE LEDGE AGAIN', 3.4); break;
+      default: break;
+    }
+  }
+
+  solved() { this.finished = true; this.rings.forEach((m, i) => { this.shown[i] = 'done'; m.setState('done'); }); this.lip.forEach((m) => m.setLit(0)); }
+}
+
+const VIEWS = { bells: BellsView, plates: PlatesView, circuit: CircuitView, wisps: WispsView, puck: PuckView, mirrors: MirrorsView, thief: ThiefView, siege: SiegeView, rings: RingsView };
 
 /** The view of a trial record (`r.t` is its machine's record). */
 export function makeView(sys, r) {

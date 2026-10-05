@@ -42,7 +42,7 @@ await page.evaluate(async () => {
   const G = window.__game, bot = window.__bot, S = G.trials;
   bot.install();
   G.systems = G.systems.filter((s) => s !== G.boss);                            // (the Guardian sleeps: this is a floor to play on)
-  const AT = { circuit: [0, -30] };                                              // (the Court: a flat floor round a dais at (0, -30); a trial stands on its western side, a loop of pylons goes round the dais)
+  const AT = { circuit: [0, -30], rings: [-12, -58] };                           // (the Court: a flat floor round a dais at (0, -30); a trial stands on its western side, a loop of pylons goes round the dais; the ledge of the rings is up in the air over its north-west, its course running south over the floor)
   const at = (kind) => AT[kind] || [-22, -30];
   const rec = { events: [], hurts: 0, sounds: new Set(), n: {}, said: [], r: null };
   const hud = G.hud, hint = hud.hint.bind(hud);
@@ -89,18 +89,22 @@ await page.evaluate(async () => {
     ctl.charge = !!a.charge; if (a.charge && !prev.charge) bot.edge('charge');
     prev.jump = !!a.jump; prev.flame = !!a.flame; prev.charge = !!a.charge;
   };
-  const place = (x, z, yaw) => { const p = G.player; p.place(x, G.collision.heightAt(x, z) + 0.05, z, yaw); p.invulnT = 0; p.hurtT = 0; G.sparx.hp = 3; G.cam.snapBehind(p); bot.tick(20); p.invulnT = 0; };
+  const place = (x, z, yaw, y) => { const p = G.player; p.place(x, (y ?? G.collision.heightAt(x, z)) + 0.05, z, yaw); p.invulnT = 0; p.hurtT = 0; G.sparx.hp = 3; G.cam.snapBehind(p); bot.tick(20); p.invulnT = 0; };
   const stop = () => { bot.ctl.mx = bot.ctl.my = 0; bot.ctl.jump = bot.ctl.flame = bot.ctl.charge = false; prev.jump = prev.flame = prev.charge = false; };
   /** play a policy on a trial (a spec of trial-plays shifted to the Court) until it is solved or T seconds have gone: returns what happened */
   const playOn = (spec, hero, policy, T, seed, extra = {}) => {
     const [ox, oz] = at(spec.kind);
-    place(ox + hero.x, oz + hero.z, hero.yaw);
-    const r = S.add({ ...plays.shift(spec, ox, oz), id: 'bot-' + spec.kind, seed, goal: undefined, ...extra });                 // (the plays' specs name a goal that is not in the Court: these seal nothing)
+    const sp = plays.shift(spec, ox, oz, spec.kind === 'rings' ? G.collision.heightAt(ox, oz) : 0);                                   // (a course in the air is written over a ground: the Court's floor is it)
+    let ledge = null;
+    if (spec.kind === 'rings') ledge = G.collision.add({ type: 'cyl', x: sp.x, z: sp.z, r: 4.5, y0: sp.y - 20, y1: sp.y, top: true, tag: 'botledge' });          // (the ledge he leaps from: a stand of stone with its edge 4.5 m out)
+    place(ox + hero.x, oz + hero.z, hero.yaw, spec.kind === 'rings' ? sp.y : undefined);
+    const r = S.add({ ...sp, id: 'bot-' + spec.kind, seed, goal: undefined, ...extra });                 // (the plays' specs name a goal that is not in the Court: these seal nothing)
     rec.r = r; rec.events = []; rec.sounds.clear(); rec.n = {}; rec.hurts = 0;
     const p = G.player, t0 = G.time;
+    const floorAt = (x, z) => G.collision.support(x, z, p.y + 0.6, 0.62).y;                                   // (what a pilot is told of the ground: where it falls away)
     let act = null, frames = 0, solvedAt = null, hudSeen = 0, hudText = null;
     while (G.time - t0 < T) {
-      const snap = { t: G.time - t0, hero: p, trial: r.t, foes: r.foes, events: rec.events };
+      const snap = { t: G.time - t0, hero: p, trial: r.t, foes: r.foes, events: rec.events, floorAt };
       if (frames % 2 === 0 || !act) act = policy(snap);
       apply(act);
       bot.tick(1); frames++;
@@ -110,7 +114,9 @@ await page.evaluate(async () => {
     }
     stop();
     const t = r.t, q = (v) => +v.toFixed(1);
-    const detail = t.kind === 'siege' ? { wave: t.wave, left: t.left, foes: r.foes.map((e) => `${e.kind}:${e.state}`), hero: [q(p.x), q(p.z)] }
+    if (ledge) G.collision.remove(ledge);
+    const detail = t.kind === 'rings' ? { passed: t.passed, last: t.last, got: t.got, runs: t.runs, hero: [q(p.x), q(p.y), q(p.z)], grounded: p.grounded }
+      : t.kind === 'siege' ? { wave: t.wave, left: t.left, foes: r.foes.map((e) => `${e.kind}:${e.state}`), hero: [q(p.x), q(p.z)] }
       : t.kind === 'mirrors' ? { turns: t.turns, par: t.par, hit: t.beam.hit, hero: [q(p.x), q(p.z)], mirrors: t.mirrors.map((m) => [m.i, m.j, m.s]), source: t.source, receiver: t.receiver, turned: rec.events.filter((e) => e.type === 'turn_mirror').map((e) => e.i) }
       : t.kind === 'puck' ? { score: t.score, puck: [q(t.px), q(t.pz)] } : t.kind === 'thief' ? { foe: t.foe && t.foe.state } : {};
     const res = { detail, solved: r.done, t: solvedAt === null ? null : +solvedAt.toFixed(1), fails: rec.events.filter((e) => e.type === 'fail').length, misses: rec.events.filter((e) => e.type === 'miss').length, hurts: rec.hurts, events: rec.events.map((e) => e.type), sounds: [...rec.sounds], counts: { ...rec.n }, hudSeen, hudText, foes: r.foes.length, state: r.t.state };
@@ -307,7 +313,7 @@ await page.evaluate(async () => {
 });
 
 let n = 0;
-const wanted = { bells: ['trial_bell'], plates: ['trial_plate'], circuit: ['trial_start', 'trial_pylon'], wisps: ['trial_pop', 'trial_wisp'], puck: ['trial_kick'], mirrors: ['trial_turn'], thief: ['foe_puff'], siege: ['trial_horn'] };
+const wanted = { bells: ['trial_bell'], plates: ['trial_plate'], circuit: ['trial_start', 'trial_pylon'], wisps: ['trial_pop', 'trial_wisp'], puck: ['trial_kick'], mirrors: ['trial_turn'], thief: ['foe_puff'], siege: ['trial_horn'], rings: ['trial_ring'] };
 for (const pl of picked) {
   const results = [];
   for (let run = 0; run < RUNS; run++) {

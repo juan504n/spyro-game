@@ -12,6 +12,7 @@
 //   trial_goal     two posts and a crossbar with a net of light between them (opts.hw: the half-width of the mouth): flash(k)                                                  [puck]
 //   trial_court    the lines of a court on the floor (opts.hw, opts.hl: its half-width and half-length, opts.goalHW): setLit(k)                                                 [puck]
 //   trial_stone    a standing stone with a rune that wakes: setLit(k)                                                                                                     [siege]
+//   trial_ring     a hoop of metal and crystal hung in the air, its middle at the origin, facing +z: setState('off' | 'next' | 'done' | 'missed'), pass() (a flash)            [rings]
 // All: update(dt, { t }), flash(k), dispose(); the origin is on the floor under the middle of the thing.
 import { U } from '../../../engine/materials.js';
 import { Rig, setMul, setAlpha } from './common.js';
@@ -420,3 +421,44 @@ export function createTrialStone(assets, opts = {}) {
 }
 
 void smooth;
+
+// ---- the ring ----------------------------------------------------------------------------------------------------------------------------------------------
+/** A hoop of light that hangs in the air over a drop (rings): a flat ring of the realm's metal with eight crystals set in it and a soft membrane of light across it. Its middle is the origin and it faces +z (the view turns it to the way the course runs). opts.r: the hoop's radius (m). */
+export function createTrialRing(assets, opts = {}) {
+  const look = lookOf(opts), rig = new Rig(assets), anchors = {}, R = (opts.r ?? 3.2) - 0.4;
+  const mMetal = rig.lit(look.metal, { double: true }), mCrystal = rig.lit(look.crystal, { double: true }), mGlow = rig.glow('sun_glow', { double: true });
+  {
+    const b = litBuilder(1, 121), o = { tile: 2.4, color: [1.0, 0.98, 0.98] }, t = 0.26;
+    b.at(0, 0, 0, (q) => { q.rotateX(Math.PI / 2); q.lathe([[R + t, -0.2], [R + t, 0.2], [R - t, 0.2], [R - t, -0.2], [R + t, -0.2]], 20, { ...o, rot: 0.1, smooth: false }); });
+    rig.mesh(b, mMetal, null, { name: 'hoop' });
+    const c = litBuilder(1, 122), n = 8;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * TAU + 0.2;
+      c.at(Math.cos(a) * R, Math.sin(a) * R, 0, (q) => { q.cone(0.34, 0.62, 4, { tile: 2, color: [1, 1, 1] }); q.rotateX(Math.PI); q.cone(0.34, 0.62, 4, { tile: 2, color: [1, 1, 1] }); });
+    }
+    rig.mesh(c, mCrystal, null, { name: 'studs' });
+    const g = litBuilder(1, 123);
+    g.at(0, 0, 0, (q) => { q.rotateX(Math.PI / 2); flatDisc(q, R * 0.98, 0, 20); });                          // (the membrane: a disc across the hoop)
+    cards(g, 0, 0, 0, R * 1.35, 2, R * 1.35);                                                                  // (and a halo that reads from afar, from every side)
+    rig.mesh(g, mGlow, null, { name: 'light', order: 9 });
+  }
+  const st = { k: 0.3, want: 0.3, col: look.glow, flash: 0, t: 0, phase: (opts.seed ?? 0) * 0.9, state: 'off' };
+  const apply = () => {
+    const e = lift(), day = 1 - 0.3 * U.uDay.value, pulse = 0.5 + 0.5 * Math.sin(st.t * 5 + st.phase);
+    const c = st.col, k = st.k + st.flash;
+    setMul(mMetal, [e * (0.8 + 0.5 * c[0] * k), e * (0.8 + 0.5 * c[1] * k), e * (0.8 + 0.5 * c[2] * k)]);
+    setMul(mCrystal, [e * (0.5 + 1.0 * c[0] * k), e * (0.5 + 1.0 * c[1] * k), e * (0.5 + 1.0 * c[2] * k)]);
+    setAlpha(mGlow, (0.05 + k * (st.state === 'next' ? 0.5 + 0.3 * pulse : 0.3)) * day); tint(mGlow, c); mGlow.visible = st.k + st.flash > 0.04;
+  };
+  apply();
+  return {
+    ...done(rig, anchors, { radius: R + 0.4, height: 2 * R, poses: { off: { state: 'off' }, next: { state: 'next' }, done: { state: 'done' }, missed: { state: 'missed' } } }),
+    setState(s) { st.state = s; st.want = s === 'next' ? 1 : s === 'done' ? 0.55 : s === 'missed' ? 0.05 : 0.28; st.col = s === 'done' ? GOLD : look.glow; },
+    pass() { st.flash = 1; },
+    update(dt, pose) {
+      st.t = pose && pose.t !== undefined ? pose.t : st.t + dt;
+      if (pose && pose.state) this.setState(pose.state);
+      st.k = damp(st.k, st.want, 9, dt); st.flash = Math.max(0, st.flash - dt * 2.4); apply();
+    },
+  };
+}

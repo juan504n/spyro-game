@@ -250,7 +250,8 @@ export const ringsRight = ({ late = 0, walk = false, look = 6, aim = null } = {}
     if (phase === 'jump') { phase = 'rise'; return { dx: fx, dz: fz, mag: 1, jump: true }; }
     if (phase === 'rise') {                                                                                      // (the key is let go, and pressed again at the top of the jump)
       if (h.vy > 0.5 || h.grounded) return { dx: fx, dz: fz, mag: 1, jump: h.grounded };
-      atTop += 1 / 60; if (atTop < late) return { dx: fx, dz: fz, mag: 1, jump: false };
+      if (atTop === 0) atTop = s.t;                                                                              // (the top of the jump: by the game's clock, not by how often he is asked)
+      if (s.t - atTop < late) return { dx: fx, dz: fz, mag: 1, jump: false };
       phase = 'glide'; return { dx: fx, dz: fz, mag: 1, jump: false };
     }
     if (phase === 'fall') { if (h.grounded || h.vy > -5) return { dx: fx, dz: fz, mag: 1, jump: false }; phase = 'glide'; return { dx: fx, dz: fz, mag: 1, jump: false }; }          // (a press in the 0.11 s after the ledge is a jump, not a glide: he waits for the fall to pass 5 m/s)
