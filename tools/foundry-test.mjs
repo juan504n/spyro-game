@@ -35,14 +35,14 @@ const check = (name, ok, detail = '') => { if (!ok) failed++; console.log(ok ? '
   const fine = { spark: { c0: [1, 0.8, 0.9, 1], c1: [1, 0.5, 0.7, 0] }, beam: { off: [0.5, 0.8, 1], on: [1, 0.7, 0.9] }, glow: [1, 0.7, 0.9], wisp: [0.6, 0.9, 1], sparkle: [1, 0.8, 0.9], model: 'frostbloom' };
   check('... and takes the shape the engine reads', refuses(fine) === false);
   // (the ask that stands in front of a lantern: a trial that cannot be made is refused when the brief is read, naming the lantern and what is wrong)
-  const badTrial = { 'bells: three': { trial: { kind: 'bells', at: [0, 0], n: 3 } }, 'a kind that is not one': { trial: { kind: 'riddle', at: [0, 0] } }, 'a siege of a moth': { trial: { kind: 'siege', at: [0, 0], waves: [['basic'], ['moth']] } }, 'a circuit of four pylons': { trial: { kind: 'circuit', pylons: [[0, 0], [9, 0], [18, 0], [27, 0]] } } };
+  const badTrial = { 'bells: three': { trial: { kind: 'bells', at: [0, 0], n: 3 } }, 'a kind that is not one': { trial: { kind: 'riddle', at: [0, 0] } }, 'a siege of a moth': { trial: { kind: 'siege', at: [0, 0], waves: [['basic'], ['moth']] } }, 'a circuit of four pylons': { trial: { kind: 'circuit', pylons: [[0, 0], [9, 0], [18, 0], [27, 0]] } }, 'three rings': { trial: { kind: 'rings', at: [0, 0], n: 3 } }, 'more rings asked for than there are': { trial: { kind: 'rings', at: [0, 0], n: 5, want: 6 } }, 'a course of rings of 70 m': { trial: { kind: 'rings', at: [0, 0], len: 70 } } };
   const letThrough = Object.entries(badTrial).filter(([, g]) => !refuses(g)).map(([k]) => k);
   const badLook = { 'a stone that is not a name': { stone: 3 }, 'a crystal that is not a name': { crystal: 7 }, 'a metal that is a list': { metal: ['metal_brass'] }, 'a glow of two numbers': { glow: [1, 0.5] }, 'a glow of four': { glow: [1, 0.5, 0.2, 1] }, 'a glow that is not numbers': { glow: ['a', 'b', 'c'] }, 'a glow that is not finite': { glow: [0.5, NaN, 1] }, 'a glow that is a number': { glow: 1 }, 'a look that is a name': 'ice' };
   const refusesLook = (look) => { try { defineBrief({ ...STARTER_BRIEF, theme: { ...STARTER_BRIEF.theme, trials: look } }); return false; } catch (e) { return /theme\.trials/.test(e.message); } };
   const lookThrough = Object.entries(badLook).filter(([, l]) => !refusesLook(l)).map(([k]) => k);
   check('defineBrief refuses the look of trials that is the wrong shape (a stone, a crystal or a metal that is not a name, a glow that is not three finite numbers)', lookThrough.length === 0 && !refusesLook({ stone: 'cobble_tide', crystal: 'crystal_cyan', glow: [0.5, 1, 0.9] }), lookThrough.length ? `(let through: ${lookThrough.join('; ')})` : '');
   check('defineBrief refuses a trial that cannot be made', letThrough.length === 0, letThrough.length ? `(let through: ${letThrough.join('; ')})` : '');
-  check('... and takes one that can', refuses({ trial: { kind: 'bells', at: [0, 0] } }) === false && refuses({ trial: { kind: 'siege', at: [0, 0], waves: [['basic'], ['bell', 'thorn']] } }) === false);
+  check('... and takes one that can', refuses({ trial: { kind: 'bells', at: [0, 0] } }) === false && refuses({ trial: { kind: 'siege', at: [0, 0], waves: [['basic'], ['bell', 'thorn']] } }) === false && refuses({ trial: { kind: 'rings', at: [0, 0], toward: [30, 30], n: 7, want: 5, len: 40 } }) === false);
 }
 
 // ---- the generator, in a scratch copy of the repo ---------------------------------------------------------------------------------------------------------------
@@ -108,6 +108,7 @@ try {
     bites('... a circuit whose way is dry and clear and too steep', isle("{ kind: 'circuit', pylons: [[-76,114],[-60,114],[-44,114],[-28,114],[-12,114]] }"), /^FAIL trials\.fair.*the way from pylon 1 to 2 is wet, blocked or too steep at -68\.5,114\.0/m);
     bites('... a circuit whose way crosses water', isle("{ kind: 'circuit', pylons: [[0,100],[0,80],[0,60],[0,40],[0,20]] }"), /^FAIL trials\.fair.*the way from pylon 2 to 3 is wet, blocked or too steep/m);
     bites('... a circuit with a pylon where he cannot walk', isle("{ kind: 'circuit', pylons: [[0,150],[-4,130],[2,110],[-45,50],[2,92]] }"), /^FAIL trials\.fair.*pylon 4 is not on ground he can walk to/m);
+    bites('... a course of rings where the ground does not fall away (a meadow: no ledge to leap from)', isle("{ kind: 'rings', at: [12, 120] }"), /^FAIL trials\.fair.*there is no ledge to leap from/m);
     bites('... a Pilferling with no country to run in', isle("{ kind: 'thief', at: [0, 52], spawn: [-4, 52] }"), /^FAIL trials\.fair.*of a ring of 14 m round the Pilferling are ground to run on/m);
     // (the ground of a trial is made level where the country is not: a ring of plates on a hillside the ruins stand on is level, and is refused where it says it wants the ground as it is)
     const hill = (extra) => isle(`{ kind: 'plates', at: [-69, 75], r: 4.4${extra} }`);

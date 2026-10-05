@@ -306,6 +306,37 @@ await page.evaluate(async () => {
       G.stats.beacons = 0; G.stats.trials = 0; G.day = G.dayTarget = 0;
       return { before, after };
     },
+    /** a hero who stands where the course of rings ends with its seal unbroken is carried back to the ledge by a gust; one who is put somewhere else on the way is free at once (nothing is locked) */
+    gust() {
+      reset();
+      const [ox, oz] = at('rings'), p = G.player;
+      const sp = plays.shift(plays.SPECS.rings, ox, oz, G.collision.heightAt(ox, oz));
+      const ledge = G.collision.add({ type: 'cyl', x: sp.x, z: sp.z, r: 4.5, y0: sp.y - 20, y1: sp.y, top: true, tag: 'botledge' });
+      const r = S.add({ ...sp, id: 'bot-gust', goal: undefined, seed: 1 });
+      rec.r = r; rec.events = []; rec.sounds.clear();
+      const said0 = rec.said.length, out = {};
+      place(sp.land.x + 2, sp.land.z, 0);                                                                     // (on the floor where the course ends)
+      let t0 = G.time, ret = null, carried = false;
+      while (G.time - t0 < 3.4) { bot.tick(1); if (ret === null && rec.events.some((e) => e.type === 'return')) ret = G.time - t0; if (p.carry) carried = true; }
+      let guard = 0; while (p.carry && guard++ < 400) bot.tick(1);
+      bot.tick(20);
+      out.first = { returnedAt: ret === null ? null : +ret.toFixed(2), carried, sound: rec.sounds.has('trial_gust'), hint: rec.said.slice(said0).some((t) => /A GUST CARRIES YOU BACK TO THE LEDGE/.test(t)), at: [+p.x.toFixed(1), +p.y.toFixed(1), +p.z.toFixed(1)], pad: [sp.x, sp.y, sp.z], grounded: p.grounded, carryAfter: !!p.carry, locked: !!(p.locked || G.locked), yaw: +p.yaw.toFixed(2), want: sp.yaw };
+      // put him somewhere else while the gust has him (the TRAVEL menu does): he is free at once, and runs when he is told to
+      S.remove(r);
+      const r2 = S.add({ ...sp, id: 'bot-gust2', goal: undefined, seed: 1 });
+      rec.r = r2; rec.events = [];
+      place(sp.land.x + 2, sp.land.z, 0);
+      t0 = G.time; while (G.time - t0 < 3 && !p.carry) bot.tick(1);
+      const had = !!p.carry;
+      place(ox + 20, oz + 20, 0);
+      const x0 = p.x, z0 = p.z;
+      for (let i = 0; i < 40; i++) { apply({ dx: 1, dz: 0, mag: 1 }); bot.tick(1); }
+      stop();
+      out.second = { carriedWhenPlaced: had, carryAfter: !!p.carry, locked: !!(p.locked || G.locked), ran: +Math.hypot(p.x - x0, p.z - z0).toFixed(1), invuln: +p.invulnT.toFixed(1) };
+      S.remove(r2);
+      G.collision.remove(ledge);
+      return out;
+    },
     settle() { reset(); return liveList().length - base + G.collision.colliders.filter((c) => c.tag === 'trial').length; },
     extras() { return [...liveList().filter((x) => !baseSet.has(x[1])).map(([k, h]) => `${k}:${h.sprite}@${(h.x ?? 0).toFixed(0)},${(h.z ?? 0).toFixed(0)}`), ...G.collision.colliders.filter((c) => c.tag === 'trial').map((c) => `collider ${c.src}`)]; },
     said() { return rec.said.slice(); },
@@ -313,6 +344,16 @@ await page.evaluate(async () => {
 });
 
 let n = 0;
+if (flag('gust')) {                                                                  // (only the gust: --gust)
+  const gs = await page.evaluate(() => window.__trialplay.gust());
+  const f1 = gs.first, f2 = gs.second;
+  check('the gust carries him back to the ledge', f1.returnedAt !== null && f1.returnedAt > 1.1 && f1.returnedAt < 2.0 && f1.carried && f1.sound && f1.hint && Math.hypot(f1.at[0] - f1.pad[0], f1.at[2] - f1.pad[2]) < 1 && Math.abs(f1.at[1] - f1.pad[1]) < 0.5 && f1.grounded && !f1.carryAfter && !f1.locked && Math.abs(f1.yaw - f1.want) < 0.05, JSON.stringify(f1));
+  check('... and a hero put somewhere else on the way is free', f2.carriedWhenPlaced && !f2.carryAfter && !f2.locked && f2.ran > 4 && f2.invuln < 5, JSON.stringify(f2));
+  check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await browser.close();
+  console.log(failed ? `\n${failed} FAILED` : '\nthe gust held');
+  process.exit(failed ? 1 : 0);
+}
 const wanted = { bells: ['trial_bell'], plates: ['trial_plate'], circuit: ['trial_start', 'trial_pylon'], wisps: ['trial_pop', 'trial_wisp'], puck: ['trial_kick'], mirrors: ['trial_turn'], thief: ['foe_puff'], siege: ['trial_horn'], rings: ['trial_ring'] };
 for (const pl of picked) {
   const results = [];
@@ -352,6 +393,10 @@ if (!args.length) {
   check('what a trial calls pays nothing when it falls (a siege cleared: no gems on the floor)', py.solved && py.after === py.before, JSON.stringify(py));
   const rw = await page.evaluate(() => window.__trialplay.reward());
   check('a trial with gems pays them, once, when it is solved', rw.after - rw.before === 3, JSON.stringify(rw));
+  const gs = await page.evaluate(() => window.__trialplay.gust());
+  const f1 = gs.first, f2 = gs.second;
+  check('a hero who stands where the course of rings ends with its seal unbroken is carried back to the ledge after about 1.6 s (a gust, its sound and its hint) and stands there facing the course, free', f1.returnedAt !== null && f1.returnedAt > 1.1 && f1.returnedAt < 2.0 && f1.carried && f1.sound && f1.hint && Math.hypot(f1.at[0] - f1.pad[0], f1.at[2] - f1.pad[2]) < 1 && Math.abs(f1.at[1] - f1.pad[1]) < 0.5 && f1.grounded && !f1.carryAfter && !f1.locked && Math.abs(f1.yaw - f1.want) < 0.05, JSON.stringify(gs.first));
+  check('... and one who is put somewhere else while the gust has him (the TRAVEL menu) is free at once: nothing is locked, he runs when he is told to (the realm test once found him frozen for good)', f2.carriedWhenPlaced && !f2.carryAfter && !f2.locked && f2.ran > 4 && f2.invuln < 5, JSON.stringify(f2));
   const said = await page.evaluate(() => window.__trialplay.said());
   const kinds = [...new Set(picked.map((p) => p.kind))];
   const wrong = kinds.filter((k) => said.filter((t) => t === TRIALS[k].hint).length !== 1).map((k) => `${k} said ${said.filter((t) => t === TRIALS[k].hint).length} times`);
