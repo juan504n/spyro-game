@@ -466,6 +466,13 @@ so Emberfall is still ash and basalt and Tideglass still teal. Every painting wr
 </p>
 <p align="center"><sub>Before and after, the same places (software-rendered, <code>?hd=0</code> against <code>?hd=256</code>): Gloaming Vale's start and Windmill Hill, the Cinder Flats of Emberfall Crags and the Strand of Tideglass Reach. The pictures are taken a moment after a warp, so the first and the last are still fading in.</sub></p>
 
+* **The shore.** The beach round Mirrormere used to have a fifth of its cells laid with `shore_pebbles` by the hash of the cell, which the HD textures made into hard-edged squares of cobbles on the sand. The shore is now one ground (sand), the moss of the lake margin lies in patches, a second ground named for a lake's edge (snow on Frostbloom's ice) lies in banks, and the sand has small stones of its own: round thirty-two in `docs/DESIGN.md`.
+
+<p align="center">
+  <img src="docs/shots/49-lake-shore.jpg" width="80%" alt="The beach on the east side of Mirrormere, twice: before (squares of blue cobbles lying on the sand, with straight edges) and after (one beach of sand with small pebbles, teal grass behind it)">
+</p>
+<p align="center"><sub>Top: before; bottom: after (software-rendered, the smooth look with HD textures). Left: the place a player's screenshot showed; right: the same shore a little further north. The pictures are taken a few seconds after a warp.</sub></p>
+
 | | PS1 look | smooth look, HD on (default) | smooth look, HD off |
 | --- | --- | --- | --- |
 | a world texture | the pixels, point sampled | the 256 px painting, mipmapped, anisotropic ×4 | the pixels, enlarged 8× by a smoothing filter |
