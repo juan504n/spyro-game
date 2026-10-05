@@ -33,6 +33,8 @@ const sp = W.gp.spawn, goals = W.gp.beacons;
 // (a realm with a tide: the routes are the walk map's with the water where it stands at the START of the window each leg is begun in - 0.5 m over the low tide, ebbing - so that no route cuts across ground
 // that is only wadable at the very bottom of the tide; the road, and the sand the road crosses, are all safe from there for the 35 s or so before the water comes up to drown him)
 const WATER = W.level.tide ? tideLow(W.level.tide) + 0.5 : undefined, WATER_ON = WATER !== undefined;
+// (how near a waypoint of a route he must come before he turns to the next: the route of a country of cliffs runs up narrow ramps, 1.5 m apart, and a runner who cuts a corner of 1.8 m runs into the face beside the ramp and slides)
+const TOL = WATER_ON ? 1.0 : 1.8;
 const USE = +(process.env.GLIDE_USE || 1.0);                                           // (a glide uses at most this share of the reach the situation check allows: the check's own margin is already a person's, not a ballistic curve's)
 // (every third point of a route; every point of a hop: the cells either side of a gap are where he must leave and land, a straight line between waypoints would run off a slab)
 const gapAt = (route, k) => k > 0 && Math.hypot(route[k][0] - route[k - 1][0], route[k][2] - route[k - 1][2]) > 2.1;
@@ -166,7 +168,7 @@ for (let i = 0; i < legs.length; i++) {
   let r;
   if (!leg.route) r = { ok: false, reason: leg.why || 'the walk map finds no way to it' };
   else {
-    r = await page.evaluate(({ leg, i }) => {
+    r = await page.evaluate(({ leg, i, TOL }) => {
       const G = window.__game, P = G.player;
       let walked = 0, waited = 0, drowned = 0;
       const drownAt = [];
@@ -191,7 +193,7 @@ for (let i = 0; i < legs.length; i++) {
       for (const a of leg.acts || []) {
         if (a.kind === 'walk') {
           for (const [x, z] of a.route) {
-            const tr = [], s = __bot.goto(x, z, { tol: 1.8, timeout: 20, auto: true, careful: a.hops, trace: tr });
+            const tr = [], s = __bot.goto(x, z, { tol: TOL, timeout: 20, auto: true, careful: a.hops, trace: tr });
             walked += s.t || 0;
             if (!s.ok) return { ok: false, reason: `${s.reason} on the way`, at: s.x === undefined ? null : [s.x, s.y, s.z], towards: [+x.toFixed(1), +z.toFixed(1)], seconds: +walked.toFixed(1), trace: tr.slice(-8) };
           }
@@ -216,7 +218,7 @@ for (let i = 0; i < legs.length; i++) {
         notes.push(`${a.kind === 'lift' ? 'glided out' : 'glided'} ${a.gap.toFixed(0)} m to ${a.land.slice(0, 2).map((v) => v.toFixed(0)).join(', ')}`);
       }
       for (const [x, z] of leg.acts ? [] : leg.route) {
-        const tr = [], s = __bot.goto(x, z, { tol: 1.8, timeout: 20, auto: true, trace: tr });
+        const tr = [], s = __bot.goto(x, z, { tol: TOL, timeout: 20, auto: true, trace: tr });
         walked += s.t || 0;
         if (!s.ok) return { ok: false, reason: `${s.reason} on the way`, at: s.x === undefined ? null : [s.x, s.y, s.z], towards: [+x.toFixed(1), +z.toFixed(1)], seconds: +walked.toFixed(1), trace: tr.slice(-8) };
       }
@@ -258,7 +260,7 @@ for (let i = 0; i < legs.length; i++) {
       P.on.drown = wasDrown;
       if (drowned) return { ...out, ok: false, reason: `the sea drowned him ${drowned} time(s) on the way (the water stood at ${G.waterY.toFixed(1)} m, the tide is ${G.tide ? G.tide.period : 0} s round)`, waited, drownedAt: drownAt };
       return G.tide ? { ...out, waited, note: `${out.note ? out.note + '; ' : ''}waited ${waited.toFixed(0)} s for the ebb` } : out;
-    }, { leg, i });
+    }, { leg, i, TOL });
   }
   if (!r.ok) {
     failed++;

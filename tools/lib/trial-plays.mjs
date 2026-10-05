@@ -46,16 +46,18 @@ export const bellsWrong = (s) => {
 };
 
 // ---- plates ------------------------------------------------------------------------------------------------------------------------------------------
-/** the right play: press the plates of the shortest way out of the board, one at a time, from the hub and back to it */
+/** the right play: press the plates of the shortest way out of the board, one at a time, from the hub and back to it (a straight line from the hub to a plate crosses no other plate; and the way out is looked for again from
+ * the board as it is each time he is on the hub, so a plate pressed by the way - he came in over one - costs a press more, not the play) */
 export const platesRight = () => {
-  let queue = null, target = null, leaving = false;
+  let target = null, leaving = false;
   return (s) => {
-    const t = s.trial;
-    if (!queue) queue = solveBoard(t.on).presses.slice();
-    if (leaving) { if (t.was.some(Boolean) || hyp(s.hero.x - t.x, s.hero.z - t.z) > 1.2) return goTo(s, t.x, t.z, { stop: 0.8 }); leaving = false; target = null; }
+    const t = s.trial, atHub = hyp(s.hero.x - t.x, s.hero.z - t.z) < 1.2;
+    if (leaving) { if (t.was.some(Boolean) || !atHub) return goTo(s, t.x, t.z, { stop: 0.8 }); leaving = false; target = null; }
     if (target === null) {
-      if (!queue.length) return goTo(s, t.x, t.z, { stop: 0.8 });
-      target = queue.shift();
+      if (!atHub) return goTo(s, t.x, t.z, { stop: 0.8 });
+      const way = solveBoard(t.on);
+      if (!way || !way.presses.length) return STILL;
+      target = way.presses[0];
     }
     const b = t.plates[target];
     if (t.was[target]) { leaving = true; return goTo(s, t.x, t.z, { stop: 0.8 }); }
@@ -263,6 +265,7 @@ export const PLAYS = [
   { id: 'bells-still', say: 'Bells: a hero who does nothing hears the tune (and hears it again) and nothing comes of it', kind: 'bells', spec: SPECS.bells, policy: () => still, T: 40, hero: { x: 0, z: -2, yaw: 0 }, want: 'unsolved' },
   { id: 'plates-right', say: 'Plates: a hero who presses the plates of the shortest way solves it', kind: 'plates', spec: SPECS.plates, policy: () => plays.platesRight(), T: 40, hero: { x: 0, z: 0.5, yaw: 0 }, want: 'solved' },
   { id: 'plates-six', say: 'Plates: ... and a ring of six that was spoilt four times', kind: 'plates', spec: SPECS.plates6, policy: () => plays.platesRight(), T: 60, hero: { x: 0, z: 0.5, yaw: 0 }, want: 'solved' },
+  { id: 'plates-in', say: 'Plates: ... and one who comes into the ring over a plate (the way out is looked for again, from the board as it is)', kind: 'plates', spec: SPECS.plates, policy: () => plays.platesRight(), T: 60, hero: { x: 0, z: 9, yaw: Math.PI }, want: 'solved' },
   { id: 'plates-still', say: 'Plates: a hero who stands on the hub does nothing to it', kind: 'plates', spec: SPECS.plates, policy: () => still, T: 20, hero: { x: 0, z: 0.5, yaw: 0 }, want: 'quiet' },
   { id: 'circuit-run', say: 'Circuit: a hero who runs the pylons in order inside the time solves it', kind: 'circuit', spec: SPECS.circuit, policy: () => plays.circuitRun(1), T: 40, hero: { x: 16, z: -6, yaw: 0 }, want: 'solved' },
   { id: 'circuit-pace', say: 'Circuit: ... at 60% of a run too (the clock is made for that)', kind: 'circuit', spec: SPECS.circuit, policy: () => plays.circuitRun(0.6), T: 60, hero: { x: 16, z: -6, yaw: 0 }, want: 'solved' },

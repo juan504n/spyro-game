@@ -1,4 +1,4 @@
-// Finds the places of a realm for the TRAVEL menu (src/game/travel.js) and writes them to src/game/<id>/travel.js: the start, a spot in front of every goal, a spot in each named part of the
+// Finds the places of a realm for the TRAVEL menu (src/game/travel.js) and writes them to src/game/<id>/travel.js: the start, a spot in front of every goal, one where each trial begins, a spot in each named part of the
 // country and beside every secret. Each place is searched for round the point it is meant for (nearest first, looking back along the way the hero comes from) until one passes every rule a
 // place must (tools/lib/travel-rules.mjs: he can stand there, clear of rock and props, away from the Snuffers, not in a pocket...), so the list is valid by construction; re-run it after the
 // realm's layout changes. The generator (tools/new-realm.mjs) calls it, and registers the list in travel.js.
@@ -12,6 +12,8 @@ import { makePlaceChecker } from './lib/travel-rules.mjs';
 import { journeyMap } from './lib/air.mjs';
 import { measureText } from '../src/engine/textures/font.js';
 import { pointOn, regionAt } from '../src/game/realm/country.js';
+import { TRIALS } from '../src/game/trials/kinds.js';
+import { startOf } from './lib/trial-plays.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -77,6 +79,12 @@ export function findTravelPlaces(which) {
     const s = brief ? brief.secrets.find((q) => q.id === c.secret) : null;
     secrets.push(find(`secret-${c.secret}`, s ? s.name : `SECRET ${c.secret.toUpperCase()}`, c.x, c.z, c.x, c.z, sp.x, sp.z, [3.5, 5, 7, 9, 12, 16], c.y));
   }
+  // (a trial: the place where its play begins, looking at it: the bells in front of him, the plates ring round him, the circuit's first pylon, the court's middle)
+  const trials = [];
+  for (const T of gp.trials || []) {
+    const st = startOf(T), look = T.kind === 'circuit' ? T.pylons[0] : T.kind === 'thief' ? { x: T.spawnX, z: T.spawnZ } : T;
+    trials.push(find(T.id, TRIALS[T.kind].name, st.x, st.z, look.x, look.z, sp.x, sp.z, [0, 3, 4.5, 6, 8, 10, 13, 17], st.y ?? null));
+  }
   // (a page of a phone's menu shows about six rows: a list is split into pages of six; a lone place left over for the last page (a page needs two) is made up with one from the page before it)
   const chunk = (list, name) => {
     const ok = list.filter(Boolean), sizes = [], out = [];
@@ -86,7 +94,7 @@ export function findTravelPlaces(which) {
     sizes.forEach((n, k) => { out.push({ name: k ? `${name} (${k + 1})` : name, places: ok.slice(from, from + n) }); from += n; });
     return out;
   };
-  const groups = [...chunk(goals, 'THE GOALS'), ...chunk(country, 'THE COUNTRY'), ...chunk(secrets, 'THE SECRETS')].filter((g) => g.places.length >= 2);
+  const groups = [...chunk(goals, 'THE GOALS'), ...chunk(trials, 'THE TRIALS'), ...chunk(country, 'THE COUNTRY'), ...chunk(secrets, 'THE SECRETS')].filter((g) => g.places.length >= 2);
   for (const g of groups) for (const p of g.places) if (measureText(p.name).w > MAX_NAME) problems.push(`'${p.name}' is too wide for a page of the menu (${measureText(p.name).w} px, at most ${MAX_NAME})`);
   const world = typeof which === 'object' ? which.id : which;
   return { entry: { world, name: L.name.toUpperCase(), groups }, problems };
@@ -95,7 +103,7 @@ export function findTravelPlaces(which) {
 /** the text of src/game/<id>/travel.js */
 export function travelSource(entry) {
   const place = (p) => `        { id: '${p.id}', name: '${p.name.replace(/'/g, "\\'")}', x: ${p.x}, z: ${p.z}, ${p.y !== undefined ? `y: ${p.y}, ` : ''}yaw: ${p.yaw}${p.opens ? ', opens: true' : ''}${p.shelf ? ', shelf: true' : ''} },`;
-  return `// The places of ${entry.name} for the TRAVEL menu (src/game/travel.js): the start, a spot in front of every goal, one in each named part of the country and beside each secret. FOUND AND CHECKED
+  return `// The places of ${entry.name} for the TRAVEL menu (src/game/travel.js): the start, a spot in front of every goal, one where each trial begins, one in each named part of the country and beside each secret. FOUND AND CHECKED
 // by tools/realm-travel.mjs (every place passes the rules of tools/lib/travel-rules.mjs): re-run \`node tools/realm-travel.mjs ${entry.world}\` after the layout changes rather than editing by hand.
 export const TRAVEL_PLACES = {
   world: '${entry.world}', name: '${entry.name}',

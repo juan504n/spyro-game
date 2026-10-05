@@ -31,6 +31,14 @@ export const TRAVEL = [
         ],
       },
       {
+        name: 'THE TRIALS',
+        places: [
+          { id: 'isle-bells', name: 'THE BELLS', x: -26, z: 83, yaw: 0 },
+          { id: 'mill-thief', name: 'THE THIEF', x: 112, z: 75, yaw: 0 },
+          { id: 'dawn-siege', name: 'THE SIEGE', x: -12.83, z: -63.01, yaw: -2.33 },
+        ],
+      },
+      {
         name: 'THE HEIGHTS',
         places: [
           { id: 'mesa', name: 'LAUNCH MESA', x: -112, z: 44, yaw: face(-112, 44, -4, 30) },

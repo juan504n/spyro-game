@@ -1,4 +1,4 @@
-// The places of TIDEGLASS REACH for the TRAVEL menu (src/game/travel.js): the start, a spot in front of every goal, one in each named part of the country and beside each secret. FOUND AND CHECKED
+// The places of TIDEGLASS REACH for the TRAVEL menu (src/game/travel.js): the start, a spot in front of every goal, one where each trial begins, one in each named part of the country and beside each secret. FOUND AND CHECKED
 // by tools/realm-travel.mjs (every place passes the rules of tools/lib/travel-rules.mjs): re-run `node tools/realm-travel.mjs tideglass` after the layout changes rather than editing by hand.
 export const TRAVEL_PLACES = {
   world: 'tideglass', name: 'TIDEGLASS REACH',
@@ -11,6 +11,14 @@ export const TRAVEL_PLACES = {
         { id: 'court', name: 'COURT LENS', x: 18.82, z: -21.35, yaw: 0.58 },
         { id: 'weeping', name: 'WEEPING LENS', x: 140.01, z: -4.68, yaw: 1.65 },
         { id: 'light', name: 'TIDEGLASS', x: 136.38, z: -132.3, yaw: 2.01, opens: true },
+      ],
+    },
+    {
+      name: 'THE TRIALS',
+      places: [
+        { id: 'court-circuit', name: 'THE CIRCUIT', x: -92.99, z: -116.73, yaw: 1.62 },
+        { id: 'weeping-plates', name: 'THE PLATES', x: 88, z: -86, yaw: 0 },
+        { id: 'light-bells', name: 'THE BELLS', x: 140, z: -140, yaw: 0, opens: true },
       ],
     },
     {

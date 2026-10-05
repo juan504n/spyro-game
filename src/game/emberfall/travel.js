@@ -1,4 +1,4 @@
-// The places of EMBERFALL CRAGS for the TRAVEL menu (src/game/travel.js): the start, a spot in front of every goal, one in each named part of the country and beside each secret. FOUND AND CHECKED
+// The places of EMBERFALL CRAGS for the TRAVEL menu (src/game/travel.js): the start, a spot in front of every goal, one where each trial begins, one in each named part of the country and beside each secret. FOUND AND CHECKED
 // by tools/realm-travel.mjs (every place passes the rules of tools/lib/travel-rules.mjs): re-run `node tools/realm-travel.mjs emberfall` after the layout changes rather than editing by hand.
 export const TRAVEL_PLACES = {
   world: 'emberfall', name: 'EMBERFALL CRAGS',
@@ -11,6 +11,14 @@ export const TRAVEL_PLACES = {
         { id: 'anvil', name: 'ANVIL STONE', x: -10.74, z: -10.11, yaw: 1.84, shelf: true },
         { id: 'smelter', name: 'SMELTER STONE', x: 154.58, z: 29.74, yaw: 2.78, opens: true },
         { id: 'heart', name: 'HEARTFORGE', x: 146.62, z: -167.86, yaw: 2.14, opens: true },
+      ],
+    },
+    {
+      name: 'THE TRIALS',
+      places: [
+        { id: 'grove-wisps', name: 'THE WISPS', x: -124, z: -41, yaw: 0 },
+        { id: 'smelter-mirrors', name: 'THE MIRRORS', x: 81.36, z: 11.34, yaw: 0.21 },
+        { id: 'heart-plates', name: 'THE PLATES', x: 142, z: -174, yaw: 0, opens: true },
       ],
     },
     {
@@ -30,9 +38,9 @@ export const TRAVEL_PLACES = {
         { id: 'ashway', name: 'THE ASHWAY', x: -15.73, z: 114.09, yaw: 1.53 },
         { id: 'lookout', name: 'THE LOOKOUT TRAIL', x: -52.12, z: 133.17, yaw: 0.35 },
         { id: 'shelf', name: 'THE ANVIL PLATEAU', x: 56.03, z: -22.52, yaw: 2.62 },
-        { id: 'forecourt', name: 'THE MAW', x: 79.15, z: 17.23, yaw: 0.98 },
+        { id: 'forecourt', name: 'THE MAW', x: 78, z: 20, yaw: 1.57 },
         { id: 'gorge', name: 'THE CINDER GORGE', x: 153.98, z: -82.01, yaw: -1.89, opens: true },
-        { id: 'caldera', name: 'THE CALDERA', x: 152.12, z: -143.88, yaw: -2.88, opens: true },
+        { id: 'caldera', name: 'THE CALDERA', x: 151.15, z: -143.23, yaw: -3.01, opens: true },
       ],
     },
     {

@@ -12,6 +12,8 @@ page.on('pageerror', (e) => console.log('[pageerror]', e.message.slice(0, 300)))
 await page.goto((process.env.GV_URL || 'http://127.0.0.1:5173/') + '?skip=1&preserve=1');
 await page.waitForFunction(() => window.__ready || window.__error, null, { timeout: 120000 });
 await page.addScriptTag({ path: path.join(here, 'bot-inject.js') });
+await page.addScriptTag({ path: path.join(here, 'lib/trial-driver.js') });
+await page.evaluate(() => window.__trialDriver.load());
 await page.waitForTimeout(1200);
 
 const stage = async (name, fn) => {
@@ -50,6 +52,15 @@ await page.evaluate(() => {
       return { ok: true };
     },
     beacon: (id) => G().beacons.get(id),
+    /** the trial that seals a lantern (the Vale has three: tools/lib/trial-driver.js plays it with the real controller from where it begins) */
+    trial(goal, o = {}) {
+      const t = __trialDriver.trials().find((q) => q.goal === goal);
+      if (!t) return { ok: false, reason: `no trial seals '${goal}'` };
+      const p = G().player, was = { x: p.x, y: p.y, z: p.z, yaw: p.yaw };
+      const r = __trialDriver.solve(t.id, { T: 240, ...o });
+      __bot.place(was.x, was.z, was.yaw, was.y);                     // (and he is where he was: the trial was a visit)
+      return { ...r, trial: t.id };
+    },
   };
 });
 
@@ -64,6 +75,13 @@ await run('1 hearth beacon', () => {
   if (!r.ok) return { ...r, phase: 'main road' };
   const f = __pt.burn(b.x, b.z, () => b.litFlag, { tol: 4 });
   return { ...f, lit: G.stats.beacons, day: +G.dayTarget.toFixed(2) };
+});
+
+await run('2a the bells by the pier', () => {              // (the isle's lantern is sealed: the bells play, and the hero answers them)
+  const G = __game, b = __pt.beacon('isle');
+  const sealed = b.sealed === true;
+  const f = __pt.trial('isle');
+  return { ...f, sealedBefore: sealed, sealedAfter: b.sealed === true, lit: G.stats.beacons, ready: !!b.ready };
 });
 
 await run('2 isle beacon', () => {
@@ -96,6 +114,13 @@ await run('3 mill braziers', () => {
     }
   }
   return { ok: brs.every((b) => b.lit), lit: brs.filter((b) => b.lit).length, of: brs.length, log };
+});
+
+await run('3b the thief of the east meadow', () => {      // (the mill's lantern is sealed: a Pilferling has run off with its key)
+  const G = __game, b = __pt.beacon('mill');
+  const sealed = b.sealed === true;
+  const f = __pt.trial('mill');
+  return { ...f, sealedBefore: sealed, sealedAfter: b.sealed === true, lit: G.stats.beacons, ready: !!b.ready };
 });
 
 await run('4 mill stair + beacon', () => {
@@ -153,6 +178,13 @@ await run('6 barrier opens', () => {
   const G = __game;
   for (let i = 0; i < 400 && G.objects.barrier.c.solid; i++) __bot.tick(6);
   return { ok: !G.objects.barrier.c.solid, open: +G.objects.barrier.open.toFixed(2), beacons: G.stats.beacons, day: +G.day.toFixed(2) };
+});
+
+await run('6b the siege at the foot of the mountain', () => {         // (the Dawn lantern is sealed: its waves must be seen off first)
+  const G = __game, b = __pt.beacon('dawn');
+  const sealed = b.sealed === true;
+  const f = __pt.trial('dawn');
+  return { ...f, sealedBefore: sealed, sealedAfter: b.sealed === true, lit: G.stats.beacons, ready: !!b.ready };
 });
 
 await run('7 summit road', () => {

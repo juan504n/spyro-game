@@ -1,4 +1,4 @@
-// The places of FROSTBLOOM HOLLOW for the TRAVEL menu (src/game/travel.js): the start, a spot in front of every goal, one in each named part of the country and beside each secret. FOUND AND CHECKED
+// The places of FROSTBLOOM HOLLOW for the TRAVEL menu (src/game/travel.js): the start, a spot in front of every goal, one where each trial begins, one in each named part of the country and beside each secret. FOUND AND CHECKED
 // by tools/realm-travel.mjs (every place passes the rules of tools/lib/travel-rules.mjs): re-run `node tools/realm-travel.mjs frostbloom` after the layout changes rather than editing by hand.
 export const TRAVEL_PLACES = {
   world: 'frostbloom', name: 'FROSTBLOOM HOLLOW',
@@ -11,6 +11,14 @@ export const TRAVEL_PLACES = {
         { id: 'glass', name: 'GLASSWATER BLOOM', x: 1.89, z: 57, y: 0.45, yaw: 3.13 },
         { id: 'ice', name: 'ICEFALL BLOOM', x: 151.71, z: -44.72, yaw: 2.53 },
         { id: 'heart', name: 'HEARTBLOOM', x: 0, z: -154, yaw: 3.14, opens: true },
+      ],
+    },
+    {
+      name: 'THE TRIALS',
+      places: [
+        { id: 'rime-bells', name: 'THE BELLS', x: -134.5, z: 17, yaw: 0 },
+        { id: 'glass-puck', name: 'THE PUCK', x: -2.05, z: 90, yaw: 1.57 },
+        { id: 'heart-siege', name: 'THE SIEGE', x: 3, z: -158, yaw: -1.57, opens: true },
       ],
     },
     {
