@@ -268,8 +268,8 @@ await page.evaluate(async () => {
       G.stats.beacons = 0; G.stats.trials = 0; G.day = G.dayTarget = 0;
       return { before, after };
     },
-    settle() { reset(); return liveList().length - base; },
-    extras() { return liveList().filter((x) => !baseSet.has(x[1])).map(([k, h]) => `${k}:${h.sprite}@${(h.x ?? 0).toFixed(0)},${(h.z ?? 0).toFixed(0)}`); },
+    settle() { reset(); return liveList().length - base + G.collision.colliders.filter((c) => c.tag === 'trial').length; },
+    extras() { return [...liveList().filter((x) => !baseSet.has(x[1])).map(([k, h]) => `${k}:${h.sprite}@${(h.x ?? 0).toFixed(0)},${(h.z ?? 0).toFixed(0)}`), ...G.collision.colliders.filter((c) => c.tag === 'trial').map((c) => `collider ${c.src}`)]; },
     said() { return rec.said.slice(); },
   };
 });
@@ -314,7 +314,7 @@ if (!args.length) {
   const wrong = kinds.filter((k) => said.filter((t) => t === TRIALS[k].hint).length !== 1).map((k) => `${k} said ${said.filter((t) => t === TRIALS[k].hint).length} times`);
   check(`each kind's lesson is put on the HUD once (${kinds.join(' ')})`, kinds.length > 0 && wrong.length === 0, wrong.join(', '));
   const leak = await page.evaluate(() => window.__trialplay.settle());
-  check('what a trial put into the world goes with it (the decals and billboards left after the last play are the ones there were before the first)', leak === 0, `(${leak} left: ${(await page.evaluate(() => window.__trialplay.extras())).join(' ')})`);
+  check('what a trial put into the world goes with it (the decals, billboards and colliders left after the last play are the ones there were before the first)', leak === 0, `(${leak} left: ${(await page.evaluate(() => window.__trialplay.extras())).join(' ')})`);
 }
 check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 await browser.close();

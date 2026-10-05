@@ -34,6 +34,11 @@ const check = (name, ok, detail = '') => { if (!ok) failed++; console.log(ok ? '
   check('defineBrief refuses a goal whose look is the wrong shape', missed.length === 0, missed.length ? `(let through: ${missed.join('; ')})` : '');
   const fine = { spark: { c0: [1, 0.8, 0.9, 1], c1: [1, 0.5, 0.7, 0] }, beam: { off: [0.5, 0.8, 1], on: [1, 0.7, 0.9] }, glow: [1, 0.7, 0.9], wisp: [0.6, 0.9, 1], sparkle: [1, 0.8, 0.9], model: 'frostbloom' };
   check('... and takes the shape the engine reads', refuses(fine) === false);
+  // (the ask that stands in front of a lantern: a trial that cannot be made is refused when the brief is read, naming the lantern and what is wrong)
+  const badTrial = { 'bells: three': { trial: { kind: 'bells', at: [0, 0], n: 3 } }, 'a kind that is not one': { trial: { kind: 'riddle', at: [0, 0] } }, 'a siege of a moth': { trial: { kind: 'siege', at: [0, 0], waves: [['basic'], ['moth']] } }, 'a circuit of four pylons': { trial: { kind: 'circuit', pylons: [[0, 0], [9, 0], [18, 0], [27, 0]] } } };
+  const letThrough = Object.entries(badTrial).filter(([, g]) => !refuses(g)).map(([k]) => k);
+  check('defineBrief refuses a trial that cannot be made', letThrough.length === 0, letThrough.length ? `(let through: ${letThrough.join('; ')})` : '');
+  check('... and takes one that can', refuses({ trial: { kind: 'bells', at: [0, 0] } }) === false && refuses({ trial: { kind: 'siege', at: [0, 0], waves: [['basic'], ['bell', 'thorn']] } }) === false);
 }
 
 // ---- the generator, in a scratch copy of the repo ---------------------------------------------------------------------------------------------------------------

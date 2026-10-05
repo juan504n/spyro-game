@@ -8,7 +8,7 @@
 import { playTrial } from './lib/trialsim.mjs';
 import { PLAYS, SPECS, judge, plays, shift } from './lib/trial-plays.mjs';
 import { MACHINES, TRIALS, TRIAL_IDS, BELLS, PLATES, CIRCUIT, WISPS, PUCK, MIRRORS, timeFor, pressed, solveBoard, trace, solveMirrors, reflect, cellWorld, lcg } from '../src/game/trials/index.js';
-import { makeTrial, stepTrial, hudOf, targetsOf, AWAKE, distTo } from '../src/game/trials/index.js';
+import { makeTrial, stepTrial, hudOf, targetsOf, AWAKE, distTo, solidsOf } from '../src/game/trials/index.js';
 import { buildTrial, footprint, rewardOf, trialProblems, lookOf, DEFAULTS, SIEGE_KINDS } from '../src/game/trials/place.js';
 import { KINDS } from '../src/game/foes/kinds.js';
 import { trialMix } from './lib/realm-rules.mjs';
@@ -415,6 +415,32 @@ const bellsAt = (cx, cz, r, n) => Array.from({ length: n }, (_, i) => { const a 
     const bad = cases.filter(([, o, want]) => trialMix(o).ok !== want).map(([n]) => n);
     check('trials.mix: the first lantern is plain, three kinds stand in front of the others (two in a realm of three goals) and none twice running', bad.length === 0, `(${cases.length} cases${bad.length ? '; wrong: ' + bad.join('; ') : ''})`);
   }
+}
+
+
+{
+  // how far off a trial sleeps: each kind has its own distance (a circuit from its nearest pylon): beyond it nothing is stepped, said or aimed at; within it the trial is awake
+  const wrong = [];
+  for (const k of TRIAL_IDS) {
+    const spec = Object.values(SPECS).find((q) => q.kind === k);
+    const [t, c] = make(spec, 1);
+    const far = AWAKE[k] + 5, near = AWAKE[k] - 5;
+    const origin = k === 'circuit' ? t.pylons.reduce((a, q) => (q.x > a.x ? q : a)) : t;          // (a circuit: from the pylon furthest east, he stands east of it, so that it is the nearest)
+    c.p.x = origin.x + far; c.p.z = origin.z;
+    const t0 = t.t;
+    stepTrial(t, 1 / 60, c);
+    const asleep = t.asleep === true && t.t === t0 && hudOf(t) === null && targetsOf(t).length === 0;
+    c.p.x = origin.x + near;
+    stepTrial(t, 1 / 60, c);
+    const awake = t.asleep === false && t.t > t0;
+    if (!asleep) wrong.push(`${k} does not sleep ${far} m off`);
+    if (!awake) wrong.push(`${k} does not wake ${near} m off`);
+  }
+  check('every kind sleeps beyond its distance (not stepped: its clock stands still; no line on the HUD, nothing to aim at) and is awake within it', wrong.length === 0, wrong.join('; '));
+  // what a trial puts on the floor that cannot be walked through
+  const [bt] = make({ kind: 'bells', id: 'b', goal: 'g', x: 0, z: 0, bells: bellsAt(0, 0, 5.8, 5) }, 1), [mt] = make(SPECS.mirrors, 1);
+  const bs = solidsOf(bt), ms = solidsOf(mt);
+  check('solids: each bell stands solid where it is (the hero and the foes walk round it), the lamp and the receiver and each mirror of a floor of squares too, and the others have none', bs.length === 5 && bs.every((q, i) => q.x === bt.bells[i].x && q.z === bt.bells[i].z && q.r > 0.4 && q.h > 2) && ms.length === 2 + mt.mirrors.length && ms.every((q) => q.r > 0.5 && q.h > 2) && TRIAL_IDS.filter((k) => !['bells', 'mirrors'].includes(k)).every((k) => solidsOf({ kind: k }).length === 0));
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nall trial checks passed');
