@@ -32,8 +32,6 @@ export { FLEE } from './flee.js';
 
 /** The brains by name. Each: init(e), step(e, dt, ctx), struck(e, attack, side) -> 'kill' | 'ring' | 'ignore' | 'boom', pose(e), and `front`: the half angle of what it guards. */
 export const BRAINS = { sling, charge, burrow, ward, fuse, swoop, call, flee };
-charge.front = 0.96;
-ward.front = 1.13;
 
 export const hasBrain = (K) => !!BRAINS[K.brain];
 

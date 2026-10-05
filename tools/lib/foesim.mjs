@@ -4,6 +4,7 @@
 //   simulate({ kind, foe: { x, z, yaw }, hero: { x, z, yaw }, policy, seed, T, solids, floorAt, arenaR, others }) -> { t, hero, foe, foes, events, hurts, killedAt, ... }
 //     policy(s) -> { dx, dz, mag, jump, flame, charge }   what the hero does, from  s = { t, hero (the model), foe (the one foe), foes, events (so far) }
 //     solids: [{ x, z, r }] that nothing walks through (the hero and the foes)       arenaR: the radius of the floor (nothing leaves it)
+//     killedAt: when the hero's blow brought the foe down (a keg that goes off by itself is gone, not beaten)       immortal: the hero is hit as often as the foe can hit him and never falls
 // A foe the harness knows beside the brains: a 'basic' Snuffer stand-in (a Smokecaller's call), which chases and swings as the real one does (0.66 s of wind-up, 2.7 m of reach).
 import { DuelHero, HERO } from './duel.mjs';
 import { makeFoe, stepFoe, hitsOn, explode, sideOf, BRAINS, FUSE } from '../../src/game/foes/index.js';
@@ -24,11 +25,12 @@ function minionStep(m, dt, ctx) {
   }
 }
 
-export function simulate({ kind, foe = { x: 0, z: 0, yaw: 0 }, hero: spot = { x: 0, z: 14, yaw: Math.PI }, policy, seed = 1, T = 20, solids = [], floorAt = () => 0, arenaR = 45, others = [], onEvent = null } = {}) {
+export function simulate({ kind, foe = { x: 0, z: 0, yaw: 0 }, hero: spot = { x: 0, z: 14, yaw: Math.PI }, policy, seed = 1, T = 20, solids = [], floorAt = () => 0, arenaR = 45, others = [], onEvent = null, immortal = false } = {}) {
   const DT = 1 / 60;
   const rng = lcg(seed);
   const hero = new DuelHero({ ...spot }, floorAt);
   hero.invulnT = 0;
+  if (immortal) hero.hp = Infinity;                                              // (for watching a foe fight a hero who is hit and does not fall: how often it attacks)
   const events = [];
   const main = makeFoe(kind, { ...foe, y: floorAt(foe.x, foe.z) });
   const foes = [main];
@@ -36,7 +38,7 @@ export function simulate({ kind, foe = { x: 0, z: 0, yaw: 0 }, hero: spot = { x:
   let now = 0, hurts = 0, killedAt = null;
   const heroView = { x: 0, y: 0, z: 0, r: HERO.r, dead: false, ram: false, vx: 0, vz: 0 };
   const syncHero = () => { heroView.x = hero.x; heroView.y = hero.y; heroView.z = hero.z; heroView.dead = hero.dead; heroView.ram = hero.chargeT > 0; heroView.vx = hero.vx; heroView.vz = hero.vz; };
-  const kill = (e, how) => { if (e.state === 'dead') return; e.state = 'dead'; e.diedAt = now; e.how = how; if (e === main) killedAt = now; if (e.minions) for (const m of e.minions) ctx.dismiss(m); };
+  const kill = (e, how) => { if (e.state === 'dead') return; e.state = 'dead'; e.diedAt = now; e.how = how; if (e === main && how !== 'exploded') killedAt = now; if (e.minions) for (const m of e.minions) ctx.dismiss(m); };
   const ctx = {
     hero: heroView, rng, floorAt,
     alive: (m) => m.state !== 'dead',
@@ -44,14 +46,20 @@ export function simulate({ kind, foe = { x: 0, z: 0, yaw: 0 }, hero: spot = { x:
     move(e, vx, vz, dt) {
       const sp = hyp(vx, vz);
       if (sp < 1e-9) return 1;
-      const nx = e.x + vx * dt, nz = e.z + vz * dt;
-      let bad = hyp(nx, nz) > arenaR;
-      for (const so of solids) if (hyp(nx - so.x, nz - so.z) < so.r + e.r) bad = true;
-      e.bump = bad;
-      if (bad) return 0;
+      // as the game's EnemySystem._step: the step is pushed out of what it runs into, and made only if at least half of it was got along its way (an edge of the floor stops it)
+      let nx = e.x + vx * dt, nz = e.z + vz * dt;
+      for (let pass = 0; pass < 3; pass++) {                                    // (a few passes: a row of posts must not be squeezed through at a corner)
+        for (const so of solids) {
+          const dx = nx - so.x, dz = nz - so.z, rr = so.r + e.r, d = hyp(dx, dz);
+          if (d < rr) { const k = rr / (d || 1e-4); nx = so.x + dx * k; nz = so.z + dz * k; }
+        }
+      }
+      if (hyp(nx, nz) > arenaR) return 0;
+      const f = ((nx - e.x) * vx + (nz - e.z) * vz) / (sp * sp * dt);
+      if (f < 0.5) return Math.max(0, f);
       e.x = nx; e.z = nz;
       if (!e.K.flies) e.y = floorAt(e.x, e.z);
-      return 1;
+      return Math.min(1.2, f);
     },
     emit(type, data) {
       const ev = { t: now, type, ...data, by: data && data.by ? data.by.kind : undefined };

@@ -12,6 +12,8 @@ export const CHARGE = {
 };
 
 export const charge = {
+  front: CHARGE.front,                                                                   // (the half angle of its brow: what sideOf calls 'front')
+
   init(e) { e.rushT = 0; e.v = 0; e.dx = 0; e.dz = 1; e.hit = false; e.locked = false; e.cool = 0; },
 
   step(e, dt, ctx) {

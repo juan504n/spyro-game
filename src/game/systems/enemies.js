@@ -75,22 +75,21 @@ export class EnemySystem {
   }
 
   /**
-   * A brain's step (foes/core.js): the same rules, and the answer is how much of the step it got along its way (0 to 1; the step is made only if it got at least half of it) with
-   * `e.bump` saying whether it ran into something (a prop, a slope, water, a ledge): a Ramhog that bumps while it runs is stunned.
+   * A brain's step (foes/core.js): the same rules, and the answer is how much of the step it got along its way (0 to 1; the step is made only if it got at least half of it): a prop, a
+   * slope, water or a ledge in the way gives less, and a Ramhog that gets less than half of its step while it runs has hit something and is stunned.
    */
   _step(e, vx, vz, dt) {
     const sp = Math.hypot(vx, vz);
     if (sp < 1e-9) return 1;
     const col = this.game.collision, ox = e.x, oz = e.z, oy = e.y;
-    e.bump = false;
     e.x += vx * dt; e.z += vz * dt;
-    if (col.pushOut(e, e.y, e.h, 0.55)) e.bump = true;
+    col.pushOut(e, e.y, e.h, 0.55);
     const n = col.normalAt(e.x, e.z), gh = col.heightAt(e.x, e.z);
     let ok = !(n[1] < 0.66 || gh < this.game.waterY - 0.5 || gh - e.y > 0.9);
     if (ok) { const sup = col.support(e.x, e.z, e.y, 0.6); if (e.y - sup.y > 1.3) ok = false; else e.y = sup.y; }
-    if (!ok) { e.x = ox; e.z = oz; e.y = oy; e.bump = true; return 0; }
+    if (!ok) { e.x = ox; e.z = oz; e.y = oy; return 0; }
     const f = ((e.x - ox) * vx + (e.z - oz) * vz) / (sp * sp * dt);
-    if (f < 0.5) { e.x = ox; e.z = oz; e.y = oy; e.bump = true; return Math.max(0, f); }
+    if (f < 0.5) { e.x = ox; e.z = oz; e.y = oy; return Math.max(0, f); }
     return Math.min(1.2, f);
   }
 
@@ -130,9 +129,8 @@ export class EnemySystem {
     g.emit('enemy', e);
   }
 
-  /** A foe that is down leaves nothing in the air: what it threw falls with it, what it called goes up in smoke, what it drew on the floor is wiped. */
+  /** A foe that is down leaves nothing behind: what it threw is never stepped again (a Slinger's ball falls with it), what it called goes up in smoke, what it drew on the floor is wiped. */
   _gone(e) {
-    if (e.balls) e.balls.length = 0;
     if (e.minions) { for (const m of e.minions) this.dismiss(m); e.minions.length = 0; }
     if (e.vis) this.foefx.dispose(e);
   }

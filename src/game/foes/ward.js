@@ -8,6 +8,8 @@ import { hyp, bearing, turnTo, wrap, clamp, loiter, startAlert, stepAlert, goHom
 export const WARD = { alert: 0.5, walk: 3.6, turn: 1.3, turnRaise: 0.6, near: 2.6, raise: 1.1, reach: 2.7, arc: 1.05, open: 0.9, front: 1.13 };
 
 export const ward = {
+  front: WARD.front,                                                                     // (the half angle of its shield: what sideOf calls 'front')
+
   init(e) { e.shield = 1; },
 
   step(e, dt, ctx) {
