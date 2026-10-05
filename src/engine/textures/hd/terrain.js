@@ -1,7 +1,7 @@
 // HD painters for the ground and the stone of the worlds: meadows, cobbles, rock strata, masonry. Each paints one periodic tile of n x n pixels with the palette ramps of its pixel twin (../palette.js),
 // so a realm's colours do not change, only how finely they are painted.
 import { RAMPS } from '../palette.js';
-import { Canvas, RNG, clamp, mix, smoothstep, wrapN, ramp, col, fbm, voronoi, blur, grain, warp } from './kit.js';
+import { Canvas, RNG, clamp, mix, smoothstep, wrapN, ramp, col, fbm, voronoi, blur, grain, warp, cnt } from './kit.js';
 
 export const HD_RAMPS = {
   grassSun: [RAMPS.grass[1], RAMPS.grass[2], RAMPS.grass[3], RAMPS.grass[4], RAMPS.grass[5], '#c4f088'],
@@ -10,8 +10,8 @@ export const HD_RAMPS = {
 
 /** grit: small light and dark specks of 1-2 px on a canvas, where `where(x, y)` (0..1) allows them */
 function specks(cv, rng, count, light, dark, where = null, size = 1) {
-  const n = cv.n;
-  for (let i = 0; i < count; i++) {
+  const n = cv.n, total = Math.max(1, Math.round(count * size * size));            // (a count for 256 px, `size` being the scale)
+  for (let i = 0; i < total; i++) {
     const x = rng.next() * n, y = rng.next() * n;
     const w = where ? where(Math.floor(x), Math.floor(y)) : 1;
     if (w <= 0.02) continue;
@@ -56,7 +56,7 @@ export function turf(n, { seed = 1, R, patchCells = 3, tufts = 26, blade = [14, 
     }
   }
   if (clover) {
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < cnt(5, n); i++) {
       const cx = rng.next() * n, cy = rng.next() * n;
       for (let l = 0; l < 3; l++) {
         const a = l * 2.094 + rng.next() * 0.5;
@@ -121,7 +121,7 @@ export function cobbles(n, { seed = 5, R, gap = '#2e2c3a', moss = '#587a3d', cel
   const wob = fbm(n, seed + 2, 6, 2);                                           // the gap is not a clean line: it wobbles
   const e0 = new Float32Array(n * n);
   for (let i = 0; i < n * n; i++) e0[i] = (V.f2[i] - V.f1[i]) / 2 - gapPx * K * (0.6 + 1.0 * wob[i]);
-  const edge = blur(e0, n, Math.max(1, Math.round(3 * K)));                     // blurred: the stones' corners are round
+  const edge = blur(e0, n, Math.max(1, Math.floor(3 * K + 0.01)));             // blurred: the stones' corners are round
   const body = new Float32Array(n * n), height = new Float32Array(n * n);
   const R0 = (n / cells) * 0.5;
   for (let i = 0; i < n * n; i++) {
@@ -222,7 +222,7 @@ export function strata(n, { seed = 11, R, bands = 6, moss = null, blocks = 3, cr
   cv.modulate(ao);
   cv.tint(joint, crack, crackDepth + 0.1);
   specks(cv, rng, 560, [226, 220, 238], [30, 26, 40], (x, y) => 1 - joint[y * n + x], K);
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < cnt(6, n); i++) {
     const x0 = rng.next() * n, y0 = rng.next() * n, pts = [[x0, y0]];
     let a = Math.PI / 2 + (rng.next() - 0.5) * 1.2;
     for (let s = 1; s <= 7; s++) { a += (rng.next() - 0.5) * 0.9; pts.push([pts[s - 1][0] + Math.cos(a) * 6 * K, pts[s - 1][1] + Math.sin(a) * 6 * K]); }
@@ -230,7 +230,7 @@ export function strata(n, { seed = 11, R, bands = 6, moss = null, blocks = 3, cr
   }
   if (ember) {                                                                      // a hairline of fire in some fissures (Emberfall)
     const e1 = col(ember);
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < cnt(4, n); i++) {
       const x0 = rng.next() * n, y0 = rng.next() * n, pts = [[x0, y0]];
       let a = Math.PI / 2 + (rng.next() - 0.5) * 0.8;
       for (let s = 1; s <= 8; s++) { a += (rng.next() - 0.5) * 0.7; pts.push([pts[s - 1][0] + Math.cos(a) * 5 * K, pts[s - 1][1] + Math.sin(a) * 5 * K]); }

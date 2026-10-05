@@ -1,5 +1,5 @@
 // HD painters for the things that are made and carried: a crate, a chest, a vase, and the village's window, door and banner. Each is painted at the size it has (w x h) in floating point, with the colours of its pixel twin.
-import { Canvas, RNG, clamp, mix, smoothstep, ramp, col, fbmWH, grain, noise } from './kit.js';
+import { Canvas, RNG, clamp, mix, smoothstep, ramp, col, fbmWH, grain, noise, cnt } from './kit.js';
 import { leaf } from './plants.js';
 
 const h01 = (i, s) => { let h = Math.imul(i + 1, 374761393) ^ Math.imul(s + 7, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
@@ -167,7 +167,7 @@ export function vase(w, h, { seed = 8201, R } = {}) {
 export function windowTex(w, h, { seed = 8301, W, G } = {}) {
   const n = w, K = n / 128;
   const rng = new RNG(seed);
-  const WR = ramp(W), GR = ramp(G), cv = new Canvas(w, [0, 0, 0], { h });
+  const WR = ramp(W), GR = ramp(G), cv = new Canvas(w, [0, 0, 0], { h, ref: 128 });
   const gl = fbmWH(w, h, seed + 1, 3, 3), gr = fbmWH(w, h, seed + 2, 3, 3, 0.55, 30);
   const fr = 12 * K, mu = 7 * K, height = new Float32Array(w * h), tmp = [0, 0, 0];
   cv.fillWith((x, y, out) => {

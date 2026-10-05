@@ -13,7 +13,22 @@ import * as S from './sprites.js';
 import * as Q from './props.js';
 import * as M from './magic.js';
 
+/**
+ * The look's settings. `on`: the textures that have a painter are painted at all (off: the pixel textures are enlarged and filtered, as before the HD ones were made). `size`: the side, in pixels, of a square HD texture
+ * (256 by default; 128 for a device that would be slow at painting: a quarter of the work, and still four times the detail of the pixel textures). The sprites keep their own sizes.
+ */
+export const HD = { on: true, size: 256 };
 export const HD_SIZE = 256;
+
+/** the settings the page asks for: ?hd=0 (the pixel textures enlarged), ?hd=128 or ?hd=256 (the size); with no answer, a device with few cores or little memory paints at 128 */
+export function configureHD(params, nav = typeof navigator !== 'undefined' ? navigator : null) {
+  const q = params && typeof params.get === 'function' ? params.get('hd') : null;
+  HD.on = true; HD.size = 256;
+  if (q === '0' || q === 'off') HD.on = false;
+  else if (q === '128' || q === '256') HD.size = +q;
+  else if (nav && ((nav.hardwareConcurrency && nav.hardwareConcurrency <= 4) || (nav.deviceMemory && nav.deviceMemory <= 2))) HD.size = 128;
+  return HD;
+}
 
 /** how many HD textures have been painted so far and how long it took (ms): the cost of the look, read by the tools and the debug readout */
 export const HD_STATS = { made: 0, ms: 0 };
@@ -53,84 +68,84 @@ const TIDE = ['#22384a', '#34545e', '#4c747c', '#6a9498', '#8eb4b0', '#b4d0c8'];
 /** name -> (the pixel twin) => Canvas */
 export const PAINT = {
   // ---- meadows
-  grass_a: (o) => T.turf(HD_SIZE, { seed: 1101, R: T.HD_RAMPS.grassSun, mean: meanOf(o) }),
-  grass_b: (o) => T.turf(HD_SIZE, { seed: 1202, R: T.HD_RAMPS.grassLush, patchCells: 4, clover: true, mean: meanOf(o) }),
-  grass_flowers: (o) => T.turf(HD_SIZE, { seed: 1101, R: T.HD_RAMPS.grassSun, mean: meanOf(o), flowers: { count: 6, kinds: [['#f4f0e8', '#ffc03c'], ['#e86a68', '#fff6c0'], ['#ffc03c', '#c05a14'], ['#5a8cf0', '#fff6c0']] } }),
-  skyturf: (o) => T.turf(HD_SIZE, { seed: 1801, R: rampFrom(o, 6), contrast: 1.7, mean: meanOf(o) }),
-  tideturf: (o) => T.turf(HD_SIZE, { seed: 2301, R: rampFrom(o, 6), contrast: 1.7, mean: meanOf(o) }),
-  moss: (o) => P.moss(HD_SIZE, { seed: 1301, R: RAMPS.moss, mean: meanOf(o) }),
+  grass_a: (o, d) => T.turf(d.n, { seed: 1101, R: T.HD_RAMPS.grassSun, mean: meanOf(o) }),
+  grass_b: (o, d) => T.turf(d.n, { seed: 1202, R: T.HD_RAMPS.grassLush, patchCells: 4, clover: true, mean: meanOf(o) }),
+  grass_flowers: (o, d) => T.turf(d.n, { seed: 1101, R: T.HD_RAMPS.grassSun, mean: meanOf(o), flowers: { count: 6, kinds: [['#f4f0e8', '#ffc03c'], ['#e86a68', '#fff6c0'], ['#ffc03c', '#c05a14'], ['#5a8cf0', '#fff6c0']] } }),
+  skyturf: (o, d) => T.turf(d.n, { seed: 1801, R: rampFrom(o, 6), contrast: 1.7, mean: meanOf(o) }),
+  tideturf: (o, d) => T.turf(d.n, { seed: 2301, R: rampFrom(o, 6), contrast: 1.7, mean: meanOf(o) }),
+  moss: (o, d) => P.moss(d.n, { seed: 1301, R: RAMPS.moss, mean: meanOf(o) }),
   // ---- earth, sand, snow, ash
-  dirt: (o) => G.soil(HD_SIZE, { seed: 31, R: RAMPS.dirt, pebbleRamp: RAMPS.pathStone, mean: meanOf(o) }),
-  path_snow: (o) => G.soil(HD_SIZE, { seed: 32, R: rampFrom(o, 6), pebbles: 4, ruts: 1, flecksN: 90, light: [255, 255, 255], dark: [60, 80, 130], crackColor: [70, 90, 140], mean: meanOf(o) }),
-  path_ash: (o) => G.soil(HD_SIZE, { seed: 33, R: rampFrom(o, 6), pebbleRamp: RAMPS.pathStone, ruts: 1, mean: meanOf(o) }),
-  path_sky: (o) => G.soil(HD_SIZE, { seed: 34, R: rampFrom(o, 6), pebbleRamp: RAMPS.pathStone, pebbles: 8, ruts: 1, mean: meanOf(o) }),
-  path_tide: (o) => G.soil(HD_SIZE, { seed: 35, R: rampFrom(o, 6), pebbleRamp: ['#8aa0a0', '#b4c4bc', '#e0e4dc'], pebbles: 6, ruts: 1, flecksN: 200, mean: meanOf(o) }),
-  sea_floor: (o) => G.soil(HD_SIZE, { seed: 36, R: rampFrom(o, 6), pebbleRamp: ['#2a5a5c', '#4a8a86', '#8ac0b4'], pebbles: 22, pebbleSize: [2.5, 6], crackColor: [8, 28, 34], cracks: 6, mean: meanOf(o) }),
-  sand: (o) => G.dunes(HD_SIZE, { seed: 41, R: RAMPS.sand, ripples: 6, mean: meanOf(o) }),
-  sand_tide: (o) => G.dunes(HD_SIZE, { seed: 42, R: rampFrom(o, 6), ripples: 7, shells: 3, mean: meanOf(o) }),
-  sand_wet: (o) => G.dunes(HD_SIZE, { seed: 43, R: rampFrom(o, 6), ripples: 9, sheen: 0.16, sheenPow: 2.5, glints: 30, mean: meanOf(o) }),
-  snow: (o) => G.drifts(HD_SIZE, { seed: 51, R: rampFrom(o, 6), hollow: '#9ab0dc', hollowAmount: 0.35, contrast: 0.6, mean: meanOf(o) }),
-  snow_petals: (o) => G.drifts(HD_SIZE, { seed: 52, R: rampFrom(o, 6), hollow: '#9ab0dc', hollowAmount: 0.35, contrast: 0.6, petals: '#e8607e', mean: meanOf(o) }),
-  ash: (o) => G.drifts(HD_SIZE, { seed: 53, R: rampFrom(o, 6), hollow: '#3a3030', hollowAmount: 0.45, clinker: 34, embers: 7, glints: 0, rippleAmount: 0, contrast: 1.5, clump: 0.2, grit: 0.07, mean: meanOf(o) }),
-  far_rock: (o) => G.haze(HD_SIZE, { seed: 61, R: rampFrom(o, 4), mean: meanOf(o) }),
-  far_frost: (o) => G.haze(HD_SIZE, { seed: 62, R: rampFrom(o, 4), mean: meanOf(o) }),
-  far_ember: (o) => G.haze(HD_SIZE, { seed: 63, R: rampFrom(o, 4), mean: meanOf(o) }),
-  far_sky: (o) => G.haze(HD_SIZE, { seed: 64, R: rampFrom(o, 4), mean: meanOf(o) }),
-  far_tide: (o) => G.haze(HD_SIZE, { seed: 65, R: rampFrom(o, 4), mean: meanOf(o) }),
+  dirt: (o, d) => G.soil(d.n, { seed: 31, R: RAMPS.dirt, pebbleRamp: RAMPS.pathStone, mean: meanOf(o) }),
+  path_snow: (o, d) => G.soil(d.n, { seed: 32, R: rampFrom(o, 6), pebbles: 4, ruts: 1, flecksN: 90, light: [255, 255, 255], dark: [60, 80, 130], crackColor: [70, 90, 140], mean: meanOf(o) }),
+  path_ash: (o, d) => G.soil(d.n, { seed: 33, R: rampFrom(o, 6), pebbleRamp: RAMPS.pathStone, ruts: 1, mean: meanOf(o) }),
+  path_sky: (o, d) => G.soil(d.n, { seed: 34, R: rampFrom(o, 6), pebbleRamp: RAMPS.pathStone, pebbles: 8, ruts: 1, mean: meanOf(o) }),
+  path_tide: (o, d) => G.soil(d.n, { seed: 35, R: rampFrom(o, 6), pebbleRamp: ['#8aa0a0', '#b4c4bc', '#e0e4dc'], pebbles: 6, ruts: 1, flecksN: 200, mean: meanOf(o) }),
+  sea_floor: (o, d) => G.soil(d.n, { seed: 36, R: rampFrom(o, 6), pebbleRamp: ['#2a5a5c', '#4a8a86', '#8ac0b4'], pebbles: 22, pebbleSize: [2.5, 6], crackColor: [8, 28, 34], cracks: 6, mean: meanOf(o) }),
+  sand: (o, d) => G.dunes(d.n, { seed: 41, R: RAMPS.sand, ripples: 6, mean: meanOf(o) }),
+  sand_tide: (o, d) => G.dunes(d.n, { seed: 42, R: rampFrom(o, 6), ripples: 7, shells: 3, mean: meanOf(o) }),
+  sand_wet: (o, d) => G.dunes(d.n, { seed: 43, R: rampFrom(o, 6), ripples: 9, sheen: 0.16, sheenPow: 2.5, glints: 30, mean: meanOf(o) }),
+  snow: (o, d) => G.drifts(d.n, { seed: 51, R: rampFrom(o, 6), hollow: '#9ab0dc', hollowAmount: 0.35, contrast: 0.6, mean: meanOf(o) }),
+  snow_petals: (o, d) => G.drifts(d.n, { seed: 52, R: rampFrom(o, 6), hollow: '#9ab0dc', hollowAmount: 0.35, contrast: 0.6, petals: '#e8607e', mean: meanOf(o) }),
+  ash: (o, d) => G.drifts(d.n, { seed: 53, R: rampFrom(o, 6), hollow: '#3a3030', hollowAmount: 0.45, clinker: 34, embers: 7, glints: 0, rippleAmount: 0, contrast: 1.5, clump: 0.2, grit: 0.07, mean: meanOf(o) }),
+  far_rock: (o, d) => G.haze(d.n, { seed: 61, R: rampFrom(o, 4), mean: meanOf(o) }),
+  far_frost: (o, d) => G.haze(d.n, { seed: 62, R: rampFrom(o, 4), mean: meanOf(o) }),
+  far_ember: (o, d) => G.haze(d.n, { seed: 63, R: rampFrom(o, 4), mean: meanOf(o) }),
+  far_sky: (o, d) => G.haze(d.n, { seed: 64, R: rampFrom(o, 4), mean: meanOf(o) }),
+  far_tide: (o, d) => G.haze(d.n, { seed: 65, R: rampFrom(o, 4), mean: meanOf(o) }),
   // ---- cobbles, pebbles, slabs
-  cobble: (o) => T.cobbles(HD_SIZE, { seed: 5, R: RAMPS.pathStone, gap: '#3c384a', moss: '#587a3d', cells: 5, mean: meanOf(o) }),
-  cobble_frost: (o) => T.cobbles(HD_SIZE, { seed: 6, R: FROST, gap: '#b4c6de', moss: '#f4f8ff', mossAmount: 0.6, cells: 5, mean: meanOf(o) }),
-  cobble_ember: (o) => T.cobbles(HD_SIZE, { seed: 7, R: BASALT, gap: '#1a1010', moss: '#2a2020', mossAmount: 0, cells: 5, glow: '#e8541a', gapPx: 2.6, toneLo: 0.3, toneHi: 0.9, mean: meanOf(o) }),
-  cobble_sky: (o) => T.cobbles(HD_SIZE, { seed: 8, R: MARBLE, gap: '#6a6488', moss: '#8ad4ec', mossAmount: 0.4, cells: 5, mean: meanOf(o) }),
-  cobble_tide: (o) => T.cobbles(HD_SIZE, { seed: 9, R: TIDE, gap: '#1a3038', moss: '#3a7a62', mossAmount: 0.5, cells: 5, gloss: 0.25, mean: meanOf(o) }),
-  shore_pebbles: (o) => T.cobbles(HD_SIZE, { seed: 10, R: ['#4a4658', '#65627a', '#847f96', '#6a86a8', '#8a6a48', '#b8925a'], gap: '#2a2838', mossAmount: 0, cells: 9, gapPx: 1.8, relief: 0.9, rim: 10, gloss: 0.4, crackFrac: 0, mean: meanOf(o) }),
-  cinder: (o) => T.cobbles(HD_SIZE, { seed: 12, R: BASALT, gap: '#0c0808', mossAmount: 0, cells: 4, glow: '#d8481a', gapPx: 2.4, relief: 0.8, rim: 14, toneLo: 0.18, toneHi: 0.55, mean: meanOf(o) }),
-  ice: (o) => T.cobbles(HD_SIZE, { seed: 13, R: rampFrom(o, 6), gap: '#2a62ac', moss: '#eef8ff', mossAmount: 0.3, cells: 3, rows: 3, stagger: 0, jitter: 0.6, relief: 1.1, rim: 22, gloss: 0.5, crackFrac: 0.4, mean: meanOf(o) }),
-  flagstone: (o) => T.masonry(HD_SIZE, { seed: 14, R: RAMPS.pathStone, mortar: '#3a3648', cols: 2, rows: 2, bond: 0, gap: 4.2, bevel: 1.5, wear: 0.9, tint: 8, mean: meanOf(o) }),
+  cobble: (o, d) => T.cobbles(d.n, { seed: 5, R: RAMPS.pathStone, gap: '#3c384a', moss: '#587a3d', cells: 5, mean: meanOf(o) }),
+  cobble_frost: (o, d) => T.cobbles(d.n, { seed: 6, R: FROST, gap: '#b4c6de', moss: '#f4f8ff', mossAmount: 0.6, cells: 5, mean: meanOf(o) }),
+  cobble_ember: (o, d) => T.cobbles(d.n, { seed: 7, R: BASALT, gap: '#1a1010', moss: '#2a2020', mossAmount: 0, cells: 5, glow: '#e8541a', gapPx: 2.6, toneLo: 0.3, toneHi: 0.9, mean: meanOf(o) }),
+  cobble_sky: (o, d) => T.cobbles(d.n, { seed: 8, R: MARBLE, gap: '#6a6488', moss: '#8ad4ec', mossAmount: 0.4, cells: 5, mean: meanOf(o) }),
+  cobble_tide: (o, d) => T.cobbles(d.n, { seed: 9, R: TIDE, gap: '#1a3038', moss: '#3a7a62', mossAmount: 0.5, cells: 5, gloss: 0.25, mean: meanOf(o) }),
+  shore_pebbles: (o, d) => T.cobbles(d.n, { seed: 10, R: ['#4a4658', '#65627a', '#847f96', '#6a86a8', '#8a6a48', '#b8925a'], gap: '#2a2838', mossAmount: 0, cells: 9, gapPx: 1.8, relief: 0.9, rim: 10, gloss: 0.4, crackFrac: 0, mean: meanOf(o) }),
+  cinder: (o, d) => T.cobbles(d.n, { seed: 12, R: BASALT, gap: '#0c0808', mossAmount: 0, cells: 4, glow: '#d8481a', gapPx: 2.4, relief: 0.8, rim: 14, toneLo: 0.18, toneHi: 0.55, mean: meanOf(o) }),
+  ice: (o, d) => T.cobbles(d.n, { seed: 13, R: rampFrom(o, 6), gap: '#2a62ac', moss: '#eef8ff', mossAmount: 0.3, cells: 3, rows: 3, stagger: 0, jitter: 0.6, relief: 1.1, rim: 22, gloss: 0.5, crackFrac: 0.4, mean: meanOf(o) }),
+  flagstone: (o, d) => T.masonry(d.n, { seed: 14, R: RAMPS.pathStone, mortar: '#3a3648', cols: 2, rows: 2, bond: 0, gap: 4.2, bevel: 1.5, wear: 0.9, tint: 8, mean: meanOf(o) }),
   // ---- rock walls
-  cliff: (o) => T.strata(HD_SIZE, { seed: 11, R: RAMPS.cliff, moss: RAMPS.moss, mean: meanOf(o) }),
-  cliff_bare: (o) => T.strata(HD_SIZE, { seed: 11, R: RAMPS.cliff, mean: meanOf(o) }),
-  cliff_warm: (o) => T.strata(HD_SIZE, { seed: 15, R: RAMPS.cliffWarm, moss: RAMPS.moss, mean: meanOf(o) }),
-  cliff_warm_bare: (o) => T.strata(HD_SIZE, { seed: 15, R: RAMPS.cliffWarm, mean: meanOf(o) }),
-  cliff_frost: (o) => T.strata(HD_SIZE, { seed: 16, R: FROST, snow: '#f2f8ff', mean: meanOf(o) }),
-  cliff_basalt: (o) => T.strata(HD_SIZE, { seed: 17, R: BASALT, snow: '#8c8480', ember: '#ff7a1c', mean: meanOf(o) }),
-  cliff_basalt_bare: (o) => T.strata(HD_SIZE, { seed: 17, R: BASALT, ember: '#ff7a1c', mean: meanOf(o) }),
-  cliff_marble: (o) => T.strata(HD_SIZE, { seed: 18, R: MARBLE, bands: 5, veins: { color: '#6a7cae', count: 9, width: 3, alpha: 0.55 }, mean: meanOf(o) }),
-  cliff_tide: (o) => T.strata(HD_SIZE, { seed: 19, R: TIDE, salt: 700, mean: meanOf(o) }),
+  cliff: (o, d) => T.strata(d.n, { seed: 11, R: RAMPS.cliff, moss: RAMPS.moss, mean: meanOf(o) }),
+  cliff_bare: (o, d) => T.strata(d.n, { seed: 11, R: RAMPS.cliff, mean: meanOf(o) }),
+  cliff_warm: (o, d) => T.strata(d.n, { seed: 15, R: RAMPS.cliffWarm, moss: RAMPS.moss, mean: meanOf(o) }),
+  cliff_warm_bare: (o, d) => T.strata(d.n, { seed: 15, R: RAMPS.cliffWarm, mean: meanOf(o) }),
+  cliff_frost: (o, d) => T.strata(d.n, { seed: 16, R: FROST, snow: '#f2f8ff', mean: meanOf(o) }),
+  cliff_basalt: (o, d) => T.strata(d.n, { seed: 17, R: BASALT, snow: '#8c8480', ember: '#ff7a1c', mean: meanOf(o) }),
+  cliff_basalt_bare: (o, d) => T.strata(d.n, { seed: 17, R: BASALT, ember: '#ff7a1c', mean: meanOf(o) }),
+  cliff_marble: (o, d) => T.strata(d.n, { seed: 18, R: MARBLE, bands: 5, veins: { color: '#6a7cae', count: 9, width: 3, alpha: 0.55 }, mean: meanOf(o) }),
+  cliff_tide: (o, d) => T.strata(d.n, { seed: 19, R: TIDE, salt: 700, mean: meanOf(o) }),
   // ---- masonry
-  brick: (o) => T.masonry(HD_SIZE, { seed: 21, R: RAMPS.pathStone, mortar: '#3a3648', cols: 4, rows: 8, mean: meanOf(o) }),
-  brick_warm: (o) => T.masonry(HD_SIZE, { seed: 22, R: RAMPS.brick, mortar: '#e0d4b4', cols: 4, rows: 8, tint: 16, mean: meanOf(o) }),
-  brick_mossy: (o) => T.masonry(HD_SIZE, { seed: 23, R: RAMPS.pathStone, mortar: '#3a3648', cols: 4, rows: 8, moss: '#6aa040', mossAmount: 0.55, wear: 0.8, mean: meanOf(o) }),
-  tower_stone: (o) => T.masonry(HD_SIZE, { seed: 24, R: SLATE, mortar: '#161a2c', cols: 4, rows: 8, tint: 8, mean: meanOf(o) }),
+  brick: (o, d) => T.masonry(d.n, { seed: 21, R: RAMPS.pathStone, mortar: '#3a3648', cols: 4, rows: 8, mean: meanOf(o) }),
+  brick_warm: (o, d) => T.masonry(d.n, { seed: 22, R: RAMPS.brick, mortar: '#e0d4b4', cols: 4, rows: 8, tint: 16, mean: meanOf(o) }),
+  brick_mossy: (o, d) => T.masonry(d.n, { seed: 23, R: RAMPS.pathStone, mortar: '#3a3648', cols: 4, rows: 8, moss: '#6aa040', mossAmount: 0.55, wear: 0.8, mean: meanOf(o) }),
+  tower_stone: (o, d) => T.masonry(d.n, { seed: 24, R: SLATE, mortar: '#161a2c', cols: 4, rows: 8, tint: 8, mean: meanOf(o) }),
   // ---- what is built of wood, plaster, thatch, tile and metal
-  plaster: (o) => B.stucco(HD_SIZE, { seed: 121, R: RAMPS.plaster, mean: meanOf(o) }),
-  timber: (o) => B.timber(HD_SIZE, { seed: 111, W: RAMPS.wood, P: RAMPS.plaster, mean: meanOf(o) }),
-  wood_beam: (o) => B.beam(HD_SIZE, { seed: 131, R: RAMPS.wood, mean: meanOf(o) }),
-  wood_plank: (o) => B.planks(HD_SIZE, { seed: 71, R: RAMPS.wood, mean: meanOf(o) }),
-  roof_red: (o) => B.shingles(HD_SIZE, { seed: 81, R: RAMPS.roofRed, mean: meanOf(o) }),
-  roof_teal: (o) => B.shingles(HD_SIZE, { seed: 82, R: RAMPS.roofTeal, mean: meanOf(o) }),
-  thatch: (o) => B.thatch(HD_SIZE, { seed: 91, R: RAMPS.thatch, mean: meanOf(o) }),
-  metal_brass: (o) => B.plate(HD_SIZE, { seed: 101, R: RAMPS.brass, mean: meanOf(o) }),
-  metal_iron: (o) => B.plate(HD_SIZE, { seed: 102, R: RAMPS.metal, mean: meanOf(o) }),
+  plaster: (o, d) => B.stucco(d.n, { seed: 121, R: RAMPS.plaster, mean: meanOf(o) }),
+  timber: (o, d) => B.timber(d.n, { seed: 111, W: RAMPS.wood, P: RAMPS.plaster, mean: meanOf(o) }),
+  wood_beam: (o, d) => B.beam(d.n, { seed: 131, R: RAMPS.wood, mean: meanOf(o) }),
+  wood_plank: (o, d) => B.planks(d.n, { seed: 71, R: RAMPS.wood, mean: meanOf(o) }),
+  roof_red: (o, d) => B.shingles(d.n, { seed: 81, R: RAMPS.roofRed, mean: meanOf(o) }),
+  roof_teal: (o, d) => B.shingles(d.n, { seed: 82, R: RAMPS.roofTeal, mean: meanOf(o) }),
+  thatch: (o, d) => B.thatch(d.n, { seed: 91, R: RAMPS.thatch, mean: meanOf(o) }),
+  metal_brass: (o, d) => B.plate(d.n, { seed: 101, R: RAMPS.brass, mean: meanOf(o) }),
+  metal_iron: (o, d) => B.plate(d.n, { seed: 102, R: RAMPS.metal, mean: meanOf(o) }),
   // ---- trees
-  leaves_green: (o) => P.canopy(HD_SIZE, { seed: 4101, R: RAMPS.leaf, mean: meanOf(o) }),
-  leaves_teal: (o) => P.canopy(HD_SIZE, { seed: 4102, R: RAMPS.leafTeal, mean: meanOf(o) }),
-  leaves_autumn: (o) => P.canopy(HD_SIZE, { seed: 4103, R: RAMPS.leafAutumn, mean: meanOf(o) }),
-  leaves_blossom: (o) => P.canopy(HD_SIZE, { seed: 4104, R: rampFrom(o, 6), mean: meanOf(o) }),
-  leaves_frost: (o) => P.canopy(HD_SIZE, { seed: 4105, R: rampFrom(o, 6), mean: meanOf(o) }),
-  bark: (o) => P.bark(HD_SIZE, { seed: 4601, R: RAMPS.bark, moss: '#587a3d', mossAmount: 0.55, mean: meanOf(o) }),
-  bark_pale: (o) => P.bark(HD_SIZE, { seed: 4602, R: RAMPS.barkPale, furrows: 6, depth: 0.5, dashes: 120, dashColor: [58, 48, 42], contrast: 0.7, mean: meanOf(o) }),
-  pine: (o) => P.fir(HD_SIZE, { seed: 4501, P: { shade: '#16482e', back: '#1c7048', mid: '#2c9058', light: '#48b070', tip: '#80d090' }, mean: meanOf(o) }),
-  pine_snow: (o) => P.fir(HD_SIZE, { seed: 4502, P: { shade: '#14403c', back: '#1c5a54', mid: '#2e7864', light: '#9cc4d4', tip: '#e6f2fa' }, mean: meanOf(o) }),
-  pine_char: (o) => P.fir(HD_SIZE, { seed: 4503, P: { shade: '#140e0c', back: '#241812', mid: '#3a2a20', light: '#5c4030', tip: '#e8661c' }, mean: meanOf(o) }),
-  pine_sky: (o) => P.fir(HD_SIZE, { seed: 4504, P: { shade: '#1c4048', back: '#2c6462', mid: '#4a9084', light: '#86c4b0', tip: '#d4f0e4' }, mean: meanOf(o) }),
+  leaves_green: (o, d) => P.canopy(d.n, { seed: 4101, R: RAMPS.leaf, mean: meanOf(o) }),
+  leaves_teal: (o, d) => P.canopy(d.n, { seed: 4102, R: RAMPS.leafTeal, mean: meanOf(o) }),
+  leaves_autumn: (o, d) => P.canopy(d.n, { seed: 4103, R: RAMPS.leafAutumn, mean: meanOf(o) }),
+  leaves_blossom: (o, d) => P.canopy(d.n, { seed: 4104, R: rampFrom(o, 6), mean: meanOf(o) }),
+  leaves_frost: (o, d) => P.canopy(d.n, { seed: 4105, R: rampFrom(o, 6), mean: meanOf(o) }),
+  bark: (o, d) => P.bark(d.n, { seed: 4601, R: RAMPS.bark, moss: '#587a3d', mossAmount: 0.55, mean: meanOf(o) }),
+  bark_pale: (o, d) => P.bark(d.n, { seed: 4602, R: RAMPS.barkPale, furrows: 6, depth: 0.5, dashes: 120, dashColor: [58, 48, 42], contrast: 0.7, mean: meanOf(o) }),
+  pine: (o, d) => P.fir(d.n, { seed: 4501, P: { shade: '#16482e', back: '#1c7048', mid: '#2c9058', light: '#48b070', tip: '#80d090' }, mean: meanOf(o) }),
+  pine_snow: (o, d) => P.fir(d.n, { seed: 4502, P: { shade: '#14403c', back: '#1c5a54', mid: '#2e7864', light: '#9cc4d4', tip: '#e6f2fa' }, mean: meanOf(o) }),
+  pine_char: (o, d) => P.fir(d.n, { seed: 4503, P: { shade: '#140e0c', back: '#241812', mid: '#3a2a20', light: '#5c4030', tip: '#e8661c' }, mean: meanOf(o) }),
+  pine_sky: (o, d) => P.fir(d.n, { seed: 4504, P: { shade: '#1c4048', back: '#2c6462', mid: '#4a9084', light: '#86c4b0', tip: '#d4f0e4' }, mean: meanOf(o) }),
   // ---- water, lava, cloud, glass
-  water: (o) => W.water(HD_SIZE, { seed: 201, R: RAMPS.water, mean: meanOf(o) }),
-  water_tide: (o) => W.water(HD_SIZE, { seed: 202, R: ['#082830', '#0e4a52', '#176e72', '#2a9690', '#6cc4b4', '#c8f0e4'], glintColor: [220, 255, 244], mean: meanOf(o) }),
-  waterfall: (o) => W.fall(HD_SIZE, { seed: 251, R: rampFrom(o, 6), mean: meanOf(o) }),
-  lava: (o) => W.lava(HD_SIZE, { seed: 211, mean: meanOf(o), meanAmount: 0 }),
-  cloud_sea: (o) => W.billows(HD_SIZE, { seed: 221, R: rampFrom(o, 6), mean: meanOf(o) }),
-  glass: (o) => W.pane(HD_SIZE, { seed: 241, R: rampFrom(o, 6), mean: meanOf(o) }),
+  water: (o, d) => W.water(d.n, { seed: 201, R: RAMPS.water, mean: meanOf(o) }),
+  water_tide: (o, d) => W.water(d.n, { seed: 202, R: ['#082830', '#0e4a52', '#176e72', '#2a9690', '#6cc4b4', '#c8f0e4'], glintColor: [220, 255, 244], mean: meanOf(o) }),
+  waterfall: (o, d) => W.fall(d.n, { seed: 251, R: rampFrom(o, 6), mean: meanOf(o) }),
+  lava: (o, d) => W.lava(d.n, { seed: 211, mean: meanOf(o), meanAmount: 0 }),
+  cloud_sea: (o, d) => W.billows(d.n, { seed: 221, R: rampFrom(o, 6), mean: meanOf(o) }),
+  glass: (o, d) => W.pane(d.n, { seed: 241, R: rampFrom(o, 6), mean: meanOf(o) }),
   // ---- sprites (cut out of a card: painted at their own size, with a plane of coverage)
   tuft: (o, d) => S.tuft(d.w, d.h, { R: RAMPS.grass }),
   flower_pink: (o, d) => S.flowerPink(d.w, d.h, { R: RAMPS.grass }),
@@ -155,7 +170,7 @@ export const PAINT = {
   crystal_ember: (o, d) => M.crystal(d.w, d.h, { seed: 9003, R: ['#3a0a0a', '#7a1a10', '#c4401a', '#f07a22', '#ffc060', '#fff0c0'] }),
   lantern_glass_off: (o, d) => M.lanternGlass(d.w, d.h, { seed: 9101, on: false, B: RAMPS.brass, V: RAMPS.crystalViolet, A: RAMPS.amber }),
   lantern_glass_on: (o, d) => M.lanternGlass(d.w, d.h, { seed: 9102, on: true, B: RAMPS.brass, V: RAMPS.crystalViolet, A: RAMPS.amber }),
-  barrier: (o, d) => M.barrier(HD_SIZE, { seed: 9201, R: RAMPS.crystalViolet }),
+  barrier: (o, d) => M.barrier(d.n, { seed: 9201, R: RAMPS.crystalViolet }),
   portal_swirl: (o, d) => M.swirl(d.w, { seed: 9301, R: RAMPS.crystalViolet }),
   beam: (o, d) => M.beam(d.w, d.h, { seed: 9401 }),
   sun_glow: (o, d) => M.glow(d.w),
@@ -164,27 +179,28 @@ export const PAINT = {
   moon: (o, d) => M.moon(d.w, d.h, { seed: 9701, R: ['#6a6684', '#9894b4', '#c4c0d8', '#e8e4f2', '#ffffff'] }),
   sun_disc: (o, d) => M.sunDisc(d.w, d.h, { seed: 9801, R: ['#e06a10', '#f0901c', '#ffc03c', '#ffe27a', '#fff6c0', '#ffffff'] }),
   cloud: (o, d) => M.cloud(d.w, d.h, { seed: 9901 }),
-  foam: (o, d) => M.foam(HD_SIZE, { seed: 9951 }),
-  whirl: (o, d) => M.whirl(HD_SIZE, { seed: 9961 }),
-  portal: (o, d) => M.portalTile(HD_SIZE, { seed: 9971, R: RAMPS.crystalViolet }),
+  foam: (o, d) => M.foam(d.n, { seed: 9951 }),
+  whirl: (o, d) => M.whirl(d.n, { seed: 9961 }),
+  portal: (o, d) => M.portalTile(d.n, { seed: 9971, R: RAMPS.crystalViolet }),
   mushroom_cap: (o, d) => P.mushroomCap(d.w, d.h, { T: RAMPS.leafTeal, V: RAMPS.crystalViolet }),
   mushroom_stem: (o, d) => P.mushroomStem(d.w, d.h, {}),
 };
 
 /** the size (px, the longer side) of the textures that are not painted at HD_SIZE; the shape is the twin's */
-const SIZE = { tuft: 128, flower_pink: 128, flower_yellow: 128, flower_blue: 128, flower_ember: 128, flower_sky: 128, fern: 128, lilypad: 128, reeds: 256, vine: 256, window: 128, crystal_violet: 128, crystal_cyan: 128, crystal_ember: 128, lantern_glass_off: 128, lantern_glass_on: 128, sun_glow: 128, moon: 128, sun_disc: 128, mushroom_stem: 128 };
+export const SIZE = { tuft: 128, flower_pink: 128, flower_yellow: 128, flower_blue: 128, flower_ember: 128, flower_sky: 128, fern: 128, lilypad: 128, reeds: 256, vine: 256, window: 128, crystal_violet: 128, crystal_cyan: 128, crystal_ember: 128, lantern_glass_off: 128, lantern_glass_on: 128, sun_glow: 128, moon: 128, sun_disc: 128, mushroom_stem: 128 };
 /** the sprites: cut out by their coverage, and mipmapped (as a tile is) so that they do not shimmer at a distance */
-const SPRITES = new Set(['tuft', 'flower_pink', 'flower_yellow', 'flower_blue', 'flower_ember', 'flower_sky', 'reeds', 'fern', 'lilypad', 'vine', 'moon', 'sun_disc', 'cloud', 'foam']);
+export const SPRITES = new Set(['tuft', 'flower_pink', 'flower_yellow', 'flower_blue', 'flower_ember', 'flower_sky', 'reeds', 'fern', 'lilypad', 'vine', 'moon', 'sun_disc', 'cloud', 'foam']);
 
 /** give the textures that have a painter their `hd` (see above); `all` is what generateWorldTextures() builds */
 export function attachHD(all) {
+  if (!HD.on) return all;
   for (const name of Object.keys(PAINT)) {
     const e = all[name];
     if (!e || !e.pix) continue;
     let made = null;
-    const size = SIZE[name] || HD_SIZE, k = size / Math.max(e.pix.w, e.pix.h), dims = { w: Math.round(e.pix.w * k), h: Math.round(e.pix.h * k) };      // (a texture that is not square is painted square and squeezed to its shape)
     const make = () => {
       const t0 = now();
+      const size = SIZE[name] || HD.size, k = size / Math.max(e.pix.w, e.pix.h), dims = { w: Math.round(e.pix.w * k), h: Math.round(e.pix.h * k), n: HD.size };      // (a texture that is not square is painted square and squeezed to its shape)
       made = PAINT[name](e.pix, dims).toPix(dims.w, dims.h);
       HD_STATS.made++; HD_STATS.ms += now() - t0;
       return made;

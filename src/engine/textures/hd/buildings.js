@@ -1,11 +1,11 @@
 // HD painters for what is built: planks, roof shingles, thatch, metal plates, a half-timbered panel and stucco. (Masonry is in terrain.js.)
-import { Canvas, RNG, clamp, mix, smoothstep, wrapN, ramp, col, fbm, grain } from './kit.js';
+import { Canvas, RNG, clamp, mix, smoothstep, wrapN, ramp, col, fbm, grain, cnt } from './kit.js';
 import { soil } from './ground.js';
 
 const h01 = (i, s) => { let h = Math.imul(i + 1, 374761393) ^ Math.imul(s + 7, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 
 function dots(cv, rng, count, c, a, rmin, rmax, squash = 1) {
-  for (let i = 0; i < count; i++) { const r = rmin + rng.next() * (rmax - rmin); cv.soft(rng.next() * cv.n, rng.next() * cv.n, r, c, a, r * squash * (0.7 + rng.next() * 0.5)); }
+  for (let i = 0; i < cnt(count, cv.n); i++) { const r = rmin + rng.next() * (rmax - rmin); cv.soft(rng.next() * cv.n, rng.next() * cv.n, r, c, a, r * squash * (0.7 + rng.next() * 0.5)); }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------
@@ -38,7 +38,7 @@ export function planks(n, { seed = 71, R, rows = 4, knots = 4, nails = true, gap
     height[k] = smoothstep(0, 4 * K, d) * 0.5 + (streak[k] - 0.5) * 0.06;
   });
   cv.shade(height, 2.2);
-  for (let i = 0; i < knots; i++) {
+  for (let i = 0; i < cnt(knots, n); i++) {
     const x = rng.next() * n, y = rng.next() * n, r = (4 + rng.next() * 4) * K;
     cv.soft(x, y, r * 1.5, RR(0.1, tmp), 0.35, r * 0.9);
     for (let q = 3; q >= 0; q--) cv.soft(x, y, r * (0.5 + 0.2 * q), RR(0.12 + 0.1 * q, [0, 0, 0]), 0.7, r * (0.3 + 0.14 * q));
@@ -116,7 +116,7 @@ export function thatch(n, { seed = 91, R, courses = 3, mean = null } = {}) {
   // each course: a bundle of straws hanging from its cord, ragged at the foot, drawn from the top course down
   for (let c = 0; c < courses; c++) {
     const top = c * ch;
-    for (let i = 0; i < 520; i++) {
+    for (let i = 0; i < cnt(520, n); i++) {
       const x = rng.next() * n, len = (ch * (0.7 + rng.next() * 0.55)), lean = (rng.next() - 0.5) * 0.22;
       const y0 = top + rng.next() * 6 * K, t = clamp(0.35 + 0.5 * rng.next() + (dap[wrapN(Math.floor(y0), n) * n + Math.floor(x)] - 0.5) * 0.2);
       const pts = [[x, y0], [x + lean * len * 0.5, y0 + len * 0.5], [x + lean * len, y0 + len]];
@@ -156,7 +156,7 @@ export function plate(n, { seed = 101, R, rivets = true, brace = true, mean = nu
     const x = rx * n, y = ry * n, r = 9 * K;
     cv.soft(x + 2 * K, y + 2.5 * K, r * 1.25, [10, 8, 12], 0.45); cv.soft(x, y, r, RR(0.3, [0, 0, 0]), 1); cv.soft(x - r * 0.15, y - r * 0.2, r * 0.8, RR(0.6, [0, 0, 0]), 1); cv.soft(x - r * 0.3, y - r * 0.38, r * 0.35, RR(1, [0, 0, 0]), 0.95);
   }
-  for (let i = 0; i < 14; i++) { const x = rng.next() * n, y = rng.next() * n, a = rng.next() * 6.28, l = (6 + rng.next() * 14) * K; cv.stroke([[x, y], [x + Math.cos(a) * l, y + Math.sin(a) * l]], 1.1 * K, 0.6 * K, RR(0.9, [0, 0, 0]), RR(0.9, [0, 0, 0]), 0.3); }
+  for (let i = 0; i < cnt(14, n); i++) { const x = rng.next() * n, y = rng.next() * n, a = rng.next() * 6.28, l = (6 + rng.next() * 14) * K; cv.stroke([[x, y], [x + Math.cos(a) * l, y + Math.sin(a) * l]], 1.1 * K, 0.6 * K, RR(0.9, [0, 0, 0]), RR(0.9, [0, 0, 0]), 0.3); }
   cv.modulate(grain(n, seed + 9, n / 2, 0.03));
   if (mean) cv.matchMean(mean, 0.9);
   return cv;
@@ -195,7 +195,7 @@ export function timber(n, { seed = 111, W, P, mean = null } = {}) {
   for (let i = 0; i < n * n; i++) ao[i] = wood[i] ? 0 : -0.55 * wd[i];
   cv.modulate(ao);
   dots(cv, rng, 160, [255, 250, 232], 0.3, 0.7 * K, 1.4 * K); dots(cv, rng, 100, [60, 50, 40], 0.3, 0.7 * K, 1.4 * K);
-  for (let i = 0; i < 4; i++) {                                                                  // cracks in the plaster
+  for (let i = 0; i < cnt(4, n); i++) {                                                                  // cracks in the plaster
     const pts = [[post + rng.next() * (n - 2 * post), post + rng.next() * (n - 2 * post)]];
     let a = rng.next() * 6.28;
     for (let s = 1; s <= 6; s++) { a += (rng.next() - 0.5) * 1.2; pts.push([pts[s - 1][0] + Math.cos(a) * 6 * K, pts[s - 1][1] + Math.sin(a) * 6 * K]); }

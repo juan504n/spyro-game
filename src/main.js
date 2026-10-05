@@ -1,11 +1,12 @@
 import { Gfx } from './engine/gfx.js';
 import { U } from './engine/materials.js';
 import { installErrorLog } from './engine/errlog.js';
-import { HD_STATS } from './engine/textures/hd/index.js';
+import { HD, HD_STATS, configureHD } from './engine/textures/hd/index.js';
 
 installErrorLog();      // (debug mode shows the last errors: catch them from the very start, including the ones while the world builds)
 
 const params = new URLSearchParams(location.search);
+configureHD(params);        // (?hd=0: the pixel textures enlarged, ?hd=128: smaller HD textures; a slow device is given 128 without being asked: see engine/textures/hd/index.js)
 const canvas = document.getElementById('screen');
 
 /** A visible message instead of a silent black page (no WebGL2, a crash while building the world, ...). */
@@ -79,7 +80,7 @@ async function boot() {
 
   window.__gv = {
     gfx, scene,
-    hd: HD_STATS,                                       // (how many HD textures have been painted, and how long it took: see engine/textures/hd/index.js)
+    hd: { settings: HD, stats: HD_STATS },              // (the HD textures: their settings, how many have been painted and how long it took: see engine/textures/hd/index.js)
     snapshot() {
       const f = gfx.readInternal();
       let bin = '';

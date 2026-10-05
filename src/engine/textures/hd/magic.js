@@ -1,6 +1,6 @@
 // HD painters for the things that glow and the things in the sky: crystals, lantern glass, the barrier, the portal's swirl, a beam of light, a glow, the rings of runes round a goal, a moon, a sun and a cloud.
 // Most of them are drawn on black or over the sky (they are added to what is behind them, or cut out of a card), so a painter here owns its own edge.
-import { Canvas, RNG, clamp, mix, smoothstep, ramp, col, fbmWH, voronoi, grain } from './kit.js';
+import { Canvas, RNG, clamp, mix, smoothstep, ramp, col, fbmWH, voronoi, grain, cnt } from './kit.js';
 
 /** a circle (or an arc, from a0 to a1 in radians) as a polyline stroke */
 function ring(cv, cx, cy, r, width, c0, c1, a = 1, a0 = 0, a1 = Math.PI * 2, steps = 0) {
@@ -15,7 +15,7 @@ function ring(cv, cx, cy, r, width, c0, c1, a = 1, a0 = 0, a1 = Math.PI * 2, ste
 // ---------------------------------------------------------------------------------------------------------------------------------------------
 export function crystal(w, h, { seed = 9001, R, base = [3, 4, 2, 3, 1] } = {}) {
   const K = w / 128;
-  const RR = ramp(R), cv = new Canvas(w, [0, 0, 0], { h });
+  const RR = ramp(R), cv = new Canvas(w, [0, 0, 0], { h, ref: 128 });          // (written for 128 px: the size a crystal has)
   const xs = [0, 0.25, 0.44, 0.63, 0.81, 1].map((v) => v * w);
   const f = fbmWH(w, h, seed + 1, 5, 3, 0.5, 5), g = fbmWH(w, h, seed + 2, 24, 2, 0.5, 6), height = new Float32Array(w * h);
   const n = R.length - 1;
@@ -53,7 +53,7 @@ export function crystal(w, h, { seed = 9001, R, base = [3, 4, 2, 3, 1] } = {}) {
 export function lanternGlass(w, h, { seed = 9101, on = false, B, V, A } = {}) {
   const K = w / 128;
   const rng = new RNG(seed);
-  const BR = ramp(B), VR = ramp(V), AR = ramp(A), cv = new Canvas(w, [0, 0, 0], { h });
+  const BR = ramp(B), VR = ramp(V), AR = ramp(A), cv = new Canvas(w, [0, 0, 0], { h, ref: 128 });
   const panes = [[16, 40], [48, 80], [88, 112]].map(([a, b]) => [a * K, b * K]), y0 = 24 * K, y1 = 104 * K;
   const fr = fbmWH(w, h, seed + 1, 8, 3, 0.5, 8), brush = fbmWH(w, h, seed + 2, 3, 2, 0.5, 30), height = new Float32Array(w * h);
   cv.fillWith((x, y, out) => {
@@ -94,7 +94,7 @@ export function barrier(n, { seed = 9201, R } = {}) {
     const edge = Math.exp(-d / (2.6 * K)), halo = Math.exp(-d / (11 * K));
     RR(clamp(0.16 + (f[k] - 0.5) * 0.22 + (g[k] - 0.5) * 0.08 + 0.2 * (1 - smoothstep(0, 56 * K, vor.f1[k])) + halo * 0.26 + edge * 0.5), out);
   });
-  for (let i = 0; i < 16; i++) { const x = rng.next() * n, y = rng.next() * n; cv.soft(x, y, 7 * K, [240, 230, 255], 0.3); cv.soft(x, y, 2 * K, [255, 255, 255], 0.9); }
+  for (let i = 0; i < cnt(16, n); i++) { const x = rng.next() * n, y = rng.next() * n; cv.soft(x, y, 7 * K, [240, 230, 255], 0.3); cv.soft(x, y, 2 * K, [255, 255, 255], 0.9); }
   return cv;
 }
 
@@ -279,14 +279,14 @@ export function foam(n, { seed = 9951 } = {}) {
   const rng = new RNG(seed);
   const cv = new Canvas(n, [255, 255, 255], { alpha: true, wrap: true });
   const ringc = [240, 248, 255], lit = [255, 255, 255];
-  for (let i = 0; i < 46; i++) {
+  for (let i = 0; i < cnt(46, n); i++) {
     const x = rng.next() * n, y = rng.next() * n, r = (4 + Math.pow(rng.next(), 1.6) * 22) * K;
     cv.soft(x, y, r * 0.98, [220, 236, 252], 0.18);                                                           // the film
     ring(cv, x, y, r, Math.max(2 * K, r * 0.14), ringc, ringc, 0.95);
     ring(cv, x, y, r, Math.max(1.4 * K, r * 0.09), lit, lit, 1, Math.PI * 0.95, Math.PI * 1.65);              // the lit rim, upper left
     cv.soft(x - r * 0.42, y - r * 0.46, Math.max(1.6 * K, r * 0.14), [255, 255, 255], 1);
   }
-  for (let i = 0; i < 40; i++) cv.soft(rng.next() * n, rng.next() * n, (1.4 + rng.next() * 2) * K, [255, 255, 255], 1);
+  for (let i = 0; i < cnt(40, n); i++) cv.soft(rng.next() * n, rng.next() * n, (1.4 + rng.next() * 2) * K, [255, 255, 255], 1);
   return cv;
 }
 
@@ -297,7 +297,7 @@ export function whirl(n, { seed = 9961 } = {}) {
   const K = n / 256;
   const rng = new RNG(seed);
   const cv = new Canvas(n, [0, 0, 0]);
-  for (let i = 0; i < 22; i++) {
+  for (let i = 0; i < cnt(22, n); i++) {
     const x = rng.next() * n, y = rng.next() * n, len = (50 + rng.next() * 90) * K, a = 0.5 + (rng.next() - 0.5) * 0.18, wd = (1.6 + rng.next() * 2.6) * K, br = 0.45 + rng.next() * 0.55;
     const pts = [[x, y], [x + Math.cos(a) * len * 0.5, y + Math.sin(a) * len * 0.5 + 2 * K], [x + Math.cos(a) * len, y + Math.sin(a) * len]];
     cv.stroke(pts, wd * 3.2, wd * 0.4, [40, 90, 140], [40, 90, 140], 0.35 * br);

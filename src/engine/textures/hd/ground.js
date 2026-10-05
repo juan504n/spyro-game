@@ -1,5 +1,5 @@
 // HD painters for the loose ground: earth and ash paths, sand, snow, haze for far rock. Colours come from a ramp (`R`, dark to light), which the registry takes from the pixel twin, so each realm keeps its own.
-import { Canvas, RNG, clamp, mix, smoothstep, wrapN, ramp, col, fbm, blur, grain } from './kit.js';
+import { Canvas, RNG, clamp, mix, smoothstep, wrapN, ramp, col, fbm, blur, grain, cnt } from './kit.js';
 
 /** a stone on the ground: a shadow, a body shaded from the upper left, a bright spot and a dark underside */
 function pebble(cv, x, y, r, base, light, dark, squash = 0.8) {
@@ -10,7 +10,9 @@ function pebble(cv, x, y, r, base, light, dark, squash = 0.8) {
 }
 
 function flecks(cv, rng, count, c, a, rmin = 0.7, rmax = 1.5) {
-  for (let i = 0; i < count; i++) { const r = rmin + rng.next() * (rmax - rmin); cv.soft(rng.next() * cv.n, rng.next() * cv.n, r, c, a, r * (0.6 + rng.next() * 0.6)); }
+  const K = cv.n / 256, total = cnt(count, cv.n);                              // (a count for 256 px; the size of a fleck is in pixels and scales too)
+  rmin *= K; rmax *= K;
+  for (let i = 0; i < total; i++) { const r = rmin + rng.next() * (rmax - rmin); cv.soft(rng.next() * cv.n, rng.next() * cv.n, r, c, a, r * (0.6 + rng.next() * 0.6)); }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------
@@ -34,13 +36,13 @@ export function soil(n, { seed = 31, R, mottle = 4, pebbles = 12, pebbleSize = [
     RR(clamp(t), out);
   });
   const pr = pebbleRamp ? ramp(pebbleRamp) : RR, tmp = [0, 0, 0], tmp2 = [0, 0, 0], tmp3 = [0, 0, 0];
-  for (let i = 0; i < pebbles; i++) {
+  for (let i = 0; i < cnt(pebbles, n); i++) {
     const r = (pebbleSize[0] + rng.next() * (pebbleSize[1] - pebbleSize[0])) * K, t = 0.45 + rng.next() * 0.4;
     pebble(cv, rng.next() * n, rng.next() * n, r, pr(t, [0, 0, 0]), pr(Math.min(1, t + 0.28), [0, 0, 0]), pr(Math.max(0, t - 0.35), [0, 0, 0]), 0.65 + rng.next() * 0.3);
   }
   flecks(cv, rng, Math.round(flecksN), light, 0.55);
   flecks(cv, rng, Math.round(flecksN * 0.6), dark, 0.4);
-  for (let i = 0; i < cracks; i++) {
+  for (let i = 0; i < cnt(cracks, n); i++) {
     const pts = [[rng.next() * n, rng.next() * n]];
     let a = rng.next() * 6.28;
     for (let s = 1; s <= 6; s++) { a += (rng.next() - 0.5) * 1.2; pts.push([pts[s - 1][0] + Math.cos(a) * 6 * K, pts[s - 1][1] + Math.sin(a) * 6 * K]); }
@@ -79,21 +81,21 @@ export function dunes(n, { seed = 41, R, ripples = 7, sheen = 0, sheenPow = 6, g
   const light = [255, 250, 232], dark = [60, 48, 30];
   flecks(cv, rng, 120, light, 0.4);
   flecks(cv, rng, 60, dark, 0.3);
-  for (let i = 0; i < glints; i++) {
+  for (let i = 0; i < cnt(glints, n); i++) {
     const x = rng.next() * n, y = rng.next() * n;
     cv.soft(x, y, 1.6 * K, [255, 255, 250], 1);
     cv.soft(x, y, 4.5 * K, [255, 255, 240], 0.5, 0.9 * K);
     cv.soft(x, y, 0.9 * K, [255, 255, 240], 0.5, 4.5 * K);
   }
   const tmp = [0, 0, 0];
-  for (let i = 0; i < shells; i++) {
+  for (let i = 0; i < cnt(shells, n); i++) {
     const x = rng.next() * n, y = rng.next() * n, r = (3 + rng.next() * 2.4) * K;
     cv.soft(x + 1.5 * K, y + 2 * K, r * 1.1, [30, 24, 16], 0.3, r * 0.8);
     cv.soft(x, y, r, RR(0.85, tmp), 1, r * 0.85);
     cv.soft(x - r * 0.25, y - r * 0.3, r * 0.5, [255, 250, 240], 0.9, r * 0.4);
     cv.stroke([[x - r * 0.6, y], [x, y - r * 0.2], [x + r * 0.6, y]], 1 * K, 0.6 * K, RR(0.3, [0, 0, 0]), RR(0.3, [0, 0, 0]), 0.5);
   }
-  for (let i = 0; i < pebbles; i++) {
+  for (let i = 0; i < cnt(pebbles, n); i++) {
     const r = (2.5 + rng.next() * 4) * K;
     pebble(cv, rng.next() * n, rng.next() * n, r, RR(0.4, [0, 0, 0]), RR(0.8, [0, 0, 0]), RR(0.05, [0, 0, 0]));
   }
@@ -123,19 +125,19 @@ export function drifts(n, { seed = 51, R, hollow = null, hollowAmount = 0.5, rip
   cv.fillWith((x, y, out) => { const k = y * n + x; RR(clamp(0.58 + ((big[k] - 0.5) * 0.6 + (mid[k] - 0.5) * 0.3) * contrast), out); });
   cv.shade(height, 3.0);
   if (hollow) cv.tint(hollowM, col(hollow), hollowAmount);
-  for (let i = 0; i < clinker; i++) {
+  for (let i = 0; i < cnt(clinker, n); i++) {
     const x = rng.next() * n, y = rng.next() * n, r = (1.5 + rng.next() * 3.5) * K;
     pebble(cv, x, y, r, clinkerColor, [140, 124, 120], [14, 10, 12], 0.7);
   }
-  for (let i = 0; i < embers; i++) {
+  for (let i = 0; i < cnt(embers, n); i++) {
     const x = rng.next() * n, y = rng.next() * n;
     cv.soft(x, y, 5 * K, [255, 120, 30], 0.35); cv.soft(x, y, 1.8 * K, [255, 220, 120], 0.95);
   }
   if (petals) {
     const pc = col(petals);
-    for (let i = 0; i < 16; i++) { const x = rng.next() * n, y = rng.next() * n; cv.soft(x, y, 3.2 * K, pc, 0.95, 1.8 * K); cv.soft(x - K, y - 0.6 * K, 1.4 * K, [255, 238, 244], 0.7, 0.8 * K); }
+    for (let i = 0; i < cnt(16, n); i++) { const x = rng.next() * n, y = rng.next() * n; cv.soft(x, y, 3.2 * K, pc, 0.95, 1.8 * K); cv.soft(x - K, y - 0.6 * K, 1.4 * K, [255, 238, 244], 0.7, 0.8 * K); }
   }
-  for (let i = 0; i < glints; i++) {
+  for (let i = 0; i < cnt(glints, n); i++) {
     const x = rng.next() * n, y = rng.next() * n;
     cv.soft(x, y, 1.4 * K, [255, 255, 255], 1);
     cv.soft(x, y, 4 * K, [255, 255, 255], 0.45, 0.8 * K);

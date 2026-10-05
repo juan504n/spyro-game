@@ -1,5 +1,5 @@
 // HD painters for liquids and the things that look like them: water (ripples, caustics, glints), a waterfall, lava (plates of crust over glowing cracks), a sea of cloud and a pane of glass.
-import { Canvas, RNG, clamp, mix, smoothstep, ramp, col, fbm, blur, grain, voronoi } from './kit.js';
+import { Canvas, RNG, clamp, mix, smoothstep, ramp, col, fbm, blur, grain, voronoi, cnt } from './kit.js';
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------
 // Water: swells, long wavelets that catch the light, a web of caustic lines, and glints.
@@ -21,7 +21,7 @@ export function water(n, { seed = 201, R, caustic = 0.34, streaks = 0.6, glints 
     height[k] = swell[k] * 1.1 + wave[k] * 0.45;
   });
   cv.shade(height, 1.1);
-  for (let i = 0; i < glints; i++) {                                              // four-pointed glints
+  for (let i = 0; i < cnt(glints, n); i++) {                                              // four-pointed glints
     const x = rng.next() * n, y = rng.next() * n, s = 0.7 + rng.next() * 0.6;
     cv.soft(x, y, 1.6 * K * s, glintColor, 1);
     cv.soft(x, y, 5.5 * K * s, glintColor, 0.5, 0.9 * K);
@@ -82,7 +82,7 @@ export function lava(n, { seed = 211, cells = 5, crust = CRUST, glow = GLOW, mea
     height[k] = smoothstep(0, 7 * K, d) * 0.8 + (grit[k] - 0.5) * 0.14 - (1 - smoothstep(0, 1.6 * K, ds)) * 0.15;
   });
   cv.shade(height, 1.2);
-  for (let i = 0; i < 26; i++) {                                                  // flecks of crust in the cracks and sparks on the plates
+  for (let i = 0; i < cnt(26, n); i++) {                                                  // flecks of crust in the cracks and sparks on the plates
     const x = rng.next() * n, y = rng.next() * n;
     if (rng.next() < 0.45) cv.soft(x, y, (1 + rng.next() * 1.4) * K, [255, 200, 100], 0.65);
     else cv.soft(x, y, (1.5 + rng.next() * 2) * K, [20, 8, 6], 0.5, (1 + rng.next()) * K);
@@ -109,7 +109,7 @@ export function billows(n, { seed = 221, R, mean = null, contrast = 1 } = {}) {
     RR(clamp(0.08 + h * 0.85 * contrast + (wisp[k] - 0.5) * 0.12), out);
   });
   cv.shade(height, 1.9);
-  for (let i = 0; i < 20; i++) cv.soft(rng.next() * n, rng.next() * n, (6 + rng.next() * 12) * K, [255, 255, 255], 0.16, (2 + rng.next() * 3) * K);       // a few streaks of light
+  for (let i = 0; i < cnt(20, n); i++) cv.soft(rng.next() * n, rng.next() * n, (6 + rng.next() * 12) * K, [255, 255, 255], 0.16, (2 + rng.next() * 3) * K);       // a few streaks of light
   cv.modulate(grain(n, seed + 9, n / 2, 0.015));
   if (mean) cv.matchMean(mean, 0.95);
   return cv;
@@ -149,7 +149,7 @@ export function pane(n, { seed = 241, R, frame = '#1c4a50', mean = null } = {}) 
       if (cov > 0) cv.blend(x, y, [255, 255, 255], cov * a);
     }
   }
-  for (let i = 0; i < 12; i++) cv.soft(fw + rng.next() * (n - 2 * fw), fw + rng.next() * (n - 2 * fw), (1 + rng.next() * 1.5) * K, [255, 255, 255], 0.55);
+  for (let i = 0; i < cnt(12, n); i++) cv.soft(fw + rng.next() * (n - 2 * fw), fw + rng.next() * (n - 2 * fw), (1 + rng.next() * 1.5) * K, [255, 255, 255], 0.55);
   cv.modulate(grain(n, seed + 9, n / 2, 0.015));
   if (mean) cv.matchMean(mean, 0.92);
   return cv;

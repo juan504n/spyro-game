@@ -19,6 +19,9 @@ export const mix = (a, b, t) => a + (b - a) * t;
 export const smoothstep = (a, b, x) => { if (a === b) return x < a ? 0 : 1; const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 export const wrapN = (v, n) => ((v % n) + n) % n;
 
+/** a count of things (flecks, leaves, pebbles) written for a 256 px canvas, for one of n px: the number scales with the area, so a painting at 128 is the same picture in miniature */
+export const cnt = (c, n) => Math.max(1, Math.round(c * (n / 256) * (n / 256)));
+
 /** colour at t (0..1) along a list of colours (hex strings or [r,g,b]); `.at(t, out)` fills out[0..2] without allocating */
 export function ramp(list) {
   const cols = list.map((c) => { const v = rgb(c); return [v[0], v[1], v[2]]; });
@@ -174,10 +177,12 @@ let scratchCov = new Float32Array(1 << 14), scratchT = new Float32Array(1 << 14)
 export class Canvas {
   /**
    * A canvas of w x h pixels (h defaults to w) of floating point RGB, filled with `fill`. `n` is the width (the painters of square textures use it for both).
+   * `ref` is the size (of the longer side) the painter's numbers were written for: 256 for a tile that is painted at HD.size, the size of the card for a sprite.
    * { alpha: true } adds a plane of coverage (0 = nothing painted yet), for a sprite: blend() then composes over what is there, and toPix() makes an RGBA image. { wrap: true } on such a canvas is a tile with holes in it (foam).
    */
-  constructor(w, fill = [128, 128, 128], { h = w, alpha = false, wrap = !alpha } = {}) {
+  constructor(w, fill = [128, 128, 128], { h = w, alpha = false, wrap = !alpha, ref = 256 } = {}) {
     this.n = w; this.w = w; this.h = h;
+    this.k = Math.max(w, h) / ref;                                   // (how big the canvas is against the size its painter was written for: shade() is by the slope from one pixel to the next, which grows as the pixels get bigger)
     this.wrap = wrap;                                                // (a tile wraps: what is drawn past an edge comes back on the other side. A sprite does not)
     this.px = new Float32Array(w * h * 3);
     for (let i = 0; i < w * h; i++) { this.px[i * 3] = fill[0]; this.px[i * 3 + 1] = fill[1]; this.px[i * 3 + 2] = fill[2]; }
@@ -311,18 +316,26 @@ export class Canvas {
       for (let x = 0; x < w; x++) {
         const gx = height[row + wrapN(x + 1, w)] - height[row + wrapN(x - 1, w)];
         const gy = height[yd + x] - height[yu + x];
-        s[row + x] = clamp(-(gx * 0.7071 + gy * 0.7071) * 0.5, -1, 1);     // light from the upper left: a slope that rises to the left or up is lit
+        s[row + x] = clamp(-(gx * 0.7071 + gy * 0.7071) * 0.5 * this.k, -1, 1);     // light from the upper left: a slope that rises to the left or up is lit (by the slope per pixel of the size the painter was written for)
       }
     }
     if (apply) this.modulate(s, strength);
     return s;
   }
 
-  /** scale the canvas so that its mean colour is `target` ([r, g, b]) by `amount` (0..1): the colours of the pixel twin are kept, the detail is the painter's */
+  /**
+   * scale the canvas so that its mean colour is `target` ([r, g, b]) by `amount` (0..1): the colours of the pixel twin are kept, the detail is the painter's.
+   * What cannot be shown (a channel over 255) is taken into account: the gain is found for the mean of what is clamped, so a bright texture comes out as bright as it can.
+   */
   matchMean(target, amount = 1) {
-    const m = this.mean(), n = this.w * this.h;
-    const g = [0, 1, 2].map((c) => mix(1, target[c] / Math.max(1, m[c]), amount));
-    for (let i = 0; i < n; i++) { this.px[i * 3] *= g[0]; this.px[i * 3 + 1] *= g[1]; this.px[i * 3 + 2] *= g[2]; }
+    const n = this.w * this.h, m0 = this.mean(), want = [0, 1, 2].map((c) => mix(m0[c], target[c], amount));
+    for (let iter = 0; iter < 5; iter++) {
+      const m = [0, 0, 0];
+      for (let i = 0; i < n; i++) { m[0] += Math.min(255, this.px[i * 3]); m[1] += Math.min(255, this.px[i * 3 + 1]); m[2] += Math.min(255, this.px[i * 3 + 2]); }
+      const g = [0, 1, 2].map((c) => (want[c] * n) / Math.max(1, m[c]));
+      if (g.every((v) => Math.abs(v - 1) < 0.003)) break;
+      for (let i = 0; i < n; i++) { this.px[i * 3] *= g[0]; this.px[i * 3 + 1] *= g[1]; this.px[i * 3 + 2] *= g[2]; }
+    }
     return this;
   }
 

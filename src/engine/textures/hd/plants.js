@@ -1,11 +1,11 @@
 // HD painters for plants: leaf canopies, fir boughs and bark. Colours come from a ramp (`R`, dark to light) or a palette, which the registry takes from the pixel twin, so each realm keeps its own trees.
-import { Canvas, RNG, clamp, mix, smoothstep, wrapN, ramp, col, fbm, fbmWH, blur, grain, voronoi } from './kit.js';
+import { Canvas, RNG, clamp, mix, smoothstep, wrapN, ramp, col, fbm, fbmWH, blur, grain, voronoi, cnt } from './kit.js';
 
 /**
  * A leaf, drawn straight into the canvas: a lens shape with a mid-rib, lit on the side that faces the upper left.
  * (x, y) is the stalk end, `ang` the way it points (radians, y down), `lo`/`hi` the colours of its shaded and lit side.
  */
-export function leaf(cv, x, y, ang, len, wid, lo, hi, a = 1, rib = 0.35) {
+export function leaf(cv, x, y, ang, len, wid, lo, hi, a = 1, rib = 0.35, K = 1) {
   const ca = Math.cos(ang), sa = Math.sin(ang);
   const ex = x + ca * len, ey = y + sa * len, pad = wid * 0.5 + 1.5;
   const x0 = Math.floor(Math.min(x, ex) - pad), x1 = Math.ceil(Math.max(x, ex) + pad), y0 = Math.floor(Math.min(y, ey) - pad), y1 = Math.ceil(Math.max(y, ey) + pad);
@@ -23,8 +23,8 @@ export function leaf(cv, x, y, ang, len, wid, lo, hi, a = 1, rib = 0.35) {
       const cov = edge > 0.6 ? 1 : (edge + 0.6) / 1.2;
       const side = half > 0.2 ? clamp((v * lit) / half, -1, 1) : 0;               // -1 (shade) .. 1 (light)
       let t = 0.5 + side * 0.4 + (1 - s) * 0.08;
-      if (av < 0.55) t -= rib * 0.5 * (1 - s * 0.6);                              // the mid-rib
-      if (edge < 2.4) t += side > 0 ? 0.08 : -0.3 * (1 - edge / 2.4);             // a lit rim, and a dark edge on the shaded side
+      if (av < 0.55 * K) t -= rib * 0.5 * (1 - s * 0.6);                          // the mid-rib
+      if (edge < 2.4 * K) t += side > 0 ? 0.08 : -0.3 * (1 - edge / (2.4 * K));   // a lit rim, and a dark edge on the shaded side
       t = t < 0 ? 0 : t > 1 ? 1 : t;
       tmp[0] = lo[0] + (hi[0] - lo[0]) * t; tmp[1] = lo[1] + (hi[1] - lo[1]) * t; tmp[2] = lo[2] + (hi[2] - lo[2]) * t;
       cv.blend(px, py, tmp, cov * a);
@@ -41,7 +41,7 @@ export function canopy(n, { seed = 4101, R, lumps = 5, leafLen = 20, leafWid = 1
   const RR = ramp(R);
   const cv = new Canvas(n);
   const H = fbm(n, seed + 1, lumps, 3, 0.5), G = fbm(n, seed + 2, lumps * 3, 2, 0.5);
-  const Hs = blur(H, n, 3);
+  const Hs = blur(H, n, Math.max(1, Math.round(3 * K)));
   cv.fillWith((x, y, out) => RR(0.04 + 0.12 * Hs[y * n + x], out));
   const layers = [
     { count: 520, tone: 0.18, spread: 0.5, size: 1.3 },
@@ -50,19 +50,19 @@ export function canopy(n, { seed = 4101, R, lumps = 5, leafLen = 20, leafWid = 1
   ];
   const lo = [0, 0, 0], hi = [0, 0, 0];
   for (const L of layers) {
-    const cnt = Math.round(L.count * density);
-    for (let i = 0; i < cnt; i++) {
+    const num = cnt(L.count * density, n);
+    for (let i = 0; i < num; i++) {
       const x = rng.next() * n, y = rng.next() * n, k = Math.floor(y) * n + Math.floor(x);
       const t = clamp(L.tone + (Hs[k] - 0.5) * L.spread * contrast + (G[k] - 0.5) * 0.12 + (rng.next() - 0.5) * 0.16);
       RR(clamp(t - 0.2), lo); RR(clamp(t + 0.18), hi);
-      leaf(cv, x, y, rng.next() * Math.PI * 2, leafLen * L.size * K * (0.8 + rng.next() * 0.45), leafWid * L.size * K * (0.8 + rng.next() * 0.4), lo.slice(), hi.slice(), 0.97);
+      leaf(cv, x, y, rng.next() * Math.PI * 2, leafLen * L.size * K * (0.8 + rng.next() * 0.45), leafWid * L.size * K * (0.8 + rng.next() * 0.4), lo.slice(), hi.slice(), 0.97, 0.35, K);
     }
   }
   cv.shade(Hs.map((v) => v * 5), 1.1 * contrast);                                // the lumps
   // the tops of the lumps catch the light
   if (spark) {
     const top = [0, 0, 0]; RR(1, top);
-    for (let i = 0; i < 90; i++) { const x = rng.next() * n, y = rng.next() * n, k = Math.floor(y) * n + Math.floor(x); if (Hs[k] > 0.5) cv.soft(x, y, (2 + rng.next() * 2.4) * K, top, spark * (0.5 + rng.next() * 0.5), (1.2 + rng.next()) * K); }
+    for (let i = 0; i < cnt(90, n); i++) { const x = rng.next() * n, y = rng.next() * n, k = Math.floor(y) * n + Math.floor(x); if (Hs[k] > 0.5) cv.soft(x, y, (2 + rng.next() * 2.4) * K, top, spark * (0.5 + rng.next() * 0.5), (1.2 + rng.next()) * K); }
   }
   if (flecks) {                                                                  // blossom, fruit, berries: dots of another colour with a lit side
     const fc = col(flecks.color), fl = col(flecks.light || '#ffffff');
@@ -141,7 +141,7 @@ export function bark(n, { seed = 4601, R, moss = null, mossAmount = 0.5, furrows
   cv.shade(height, 1.6);
   if (moss) cv.tint(mossM, col(moss), mossAmount);
   if (dashes) {                                                                  // lenticels: short dark dashes across the bark
-    for (let i = 0; i < dashes; i++) {
+    for (let i = 0; i < cnt(dashes, n); i++) {
       const x = rng.next() * n, y = rng.next() * n, l = (7 + rng.next() * 20) * K;
       cv.stroke([[x, y], [x + l * 0.5, y + (rng.next() - 0.5) * 1.5 * K], [x + l, y]], (1.8 + rng.next() * 1.6) * K, 0.8 * K, dashColor, dashColor, 0.45 + rng.next() * 0.35);
     }
@@ -160,28 +160,28 @@ export function moss(n, { seed = 1301, R, count = 190, size = [12, 26], fuzz = 2
   const RR = ramp(R);
   const cv = new Canvas(n);
   const f = fbm(n, seed + 1, 4, 3, 0.5), g = fbm(n, seed + 2, 24, 2, 0.5);
-  cv.fillWith((x, y, out) => { const k = y * n + x; RR(clamp(0.14 + ((f[k] - 0.5) * 0.3 + (g[k] - 0.5) * 0.14) * contrast), out); });
+  cv.fillWith((x, y, out) => { const k = y * n + x; RR(clamp(0.26 + ((f[k] - 0.5) * 0.3 + (g[k] - 0.5) * 0.14) * contrast), out); });
   const pads = [];
-  for (let i = 0; i < count; i++) pads.push({ x: rng.next() * n, y: rng.next() * n, r: (size[0] + rng.next() * (size[1] - size[0])) * K, t: 0.3 + rng.next() * 0.3 });
+  for (let i = 0; i < cnt(count, n); i++) pads.push({ x: rng.next() * n, y: rng.next() * n, r: (size[0] + rng.next() * (size[1] - size[0])) * K, t: 0.36 + rng.next() * 0.26 });
   pads.sort((a, b) => a.y - b.y);
   const c0 = [0, 0, 0], c1 = [0, 0, 0], c2 = [0, 0, 0];
   for (const p of pads) {
     const r = p.r, t = clamp(p.t + (f[(Math.floor(p.y) % n) * n + (Math.floor(p.x) % n)] - 0.5) * 0.3 * contrast);
     cv.soft(p.x + r * 0.3, p.y + r * 0.5, r * 1.25, [6, 12, 8], 0.42, r * 0.95);
-    cv.soft(p.x, p.y, r, RR(clamp(t - 0.28), c0), 1, r * 0.88);
+    cv.soft(p.x, p.y, r, RR(clamp(t - 0.22), c0), 1, r * 0.88);
     cv.soft(p.x - r * 0.08, p.y - r * 0.12, r * 0.88, RR(t, c1), 0.98, r * 0.76);
-    cv.soft(p.x - r * 0.3, p.y - r * 0.36, r * 0.52, RR(clamp(t + 0.18), c2), 0.7, r * 0.38);
-    for (let q = 0; q < fuzz; q++) {                                               // fuzz: tips of moss on the cushion, lit on the upper left
+    cv.soft(p.x - r * 0.3, p.y - r * 0.36, r * 0.52, RR(clamp(t + 0.12), c2), 0.6, r * 0.38);
+    for (let q = 0; q < Math.max(4, Math.round(fuzz * K * K)); q++) {                // fuzz: tips of moss on the cushion, lit on the upper left
       const a = rng.next() * 6.283, d = Math.sqrt(rng.next()) * r * 0.78, x = p.x + Math.cos(a) * d - r * 0.06, y = p.y + Math.sin(a) * d * 0.85 - r * 0.1;
       const lit = clamp(0.5 - (Math.cos(a) + Math.sin(a)) * 0.35 * (d / r) + (rng.next() - 0.5) * 0.3);
-      cv.soft(x, y, (0.9 + rng.next() * 0.9) * K, RR(clamp(t + 0.06 + lit * 0.22), [0, 0, 0]), 0.75);
+      cv.soft(x, y, (0.9 + rng.next() * 0.9) * K, RR(clamp(t + 0.03 + lit * 0.14), [0, 0, 0]), 0.7);
     }
   }
-  for (let i = 0; i < 3; i++) {                                                    // a twig or two and some pale wet glints
+  for (let i = 0; i < cnt(3, n); i++) {                                                    // a twig or two and some pale wet glints
     const x = rng.next() * n, y = rng.next() * n;
     cv.stroke([[x, y], [x + 14 * K, y + 5 * K], [x + 26 * K, y + 7 * K]], 2.4 * K, 1.4 * K, [58, 40, 26], [88, 62, 40], 0.9);
   }
-  for (let i = 0; i < 24; i++) cv.soft(rng.next() * n, rng.next() * n, 1.2 * K, [214, 236, 200], 0.5);
+  for (let i = 0; i < cnt(24, n); i++) cv.soft(rng.next() * n, rng.next() * n, 1.2 * K, [214, 236, 200], 0.5);
   cv.modulate(grain(n, seed + 9, n / 2, 0.035));
   if (mean) cv.matchMean(mean, 0.92);
   return cv;
@@ -227,7 +227,7 @@ export function mushroomCap(w, h, { seed = 4801, T, V } = {}) {
 export function mushroomStem(w, h, { seed = 4901 } = {}) {
   const K = w / 128;
   const rng = new RNG(seed);
-  const cv = new Canvas(w, [0, 0, 0], { h });
+  const cv = new Canvas(w, [0, 0, 0], { h, ref: 128 });
   const fib = fbmWH(w, h, seed + 1, 22, 3, 0.55, 2), fib2 = fbmWH(w, h, seed + 2, 8, 2, 0.5, 2), dirt = fbmWH(w, h, seed + 3, 10, 3, 0.55, 5);
   const base = ramp(['#9a8c78', '#c8bc9e', '#dccfb2', '#f0e6cc', '#fff8e6']), soil = ramp(['#4a3a2e', '#6a5a4a', '#8a7a6a', '#b8a890']), height = new Float32Array(w * h);
   cv.fillWith((x, y, out) => {
