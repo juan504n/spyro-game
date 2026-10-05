@@ -13,7 +13,7 @@ const hyp = Math.hypot;
 export const lcg = (seed) => { let s = (seed * 2654435761) >>> 0 || 1; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); };
 
 /** A Snuffer of the old kind, as far as a test of the others needs one: it chases at 5.4 m/s and swings. */
-function minionStep(m, dt, ctx) {
+export function minionStep(m, dt, ctx) {
   const h = ctx.hero, dx = h.x - m.x, dz = h.z - m.z, d = hyp(dx, dz) || 1;
   m.t += dt;
   if (m.state === 'chase') {
