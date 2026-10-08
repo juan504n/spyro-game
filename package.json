@@ -10,6 +10,8 @@
     "preview": "vite preview",
     "build:single": "node tools/build-single.mjs",
     "lint:props": "node tools/prop-lint.mjs",
+    "vendor:emulatorjs": "node tools/vendor-emulatorjs.mjs",
+    "test:open-spyro": "node tools/open-spyro-test.mjs",
     "qa": "node tools/prop-lint.mjs && node tools/debuginfo-test.mjs && node tools/bot.mjs && node tools/playthrough.mjs"
   },
   "dependencies": {
