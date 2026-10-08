@@ -127,6 +127,21 @@ throw him out of the observatory and the Great Beacon's room again: a place insi
 props, rock and colliders, out of the water and off a slope he would slide down, 6 m from the Snuffers and from a door that is awake, in no pocket, and in the walkable country with the realm's gate open); `tools/travel-test.mjs`
 goes to every one of them through the real menu pages, then does it with the mouse and with taps on a phone held either way.
 
+### The original, too: open-spyro in the browser
+
+[`docs/open-spyro/`](docs/open-spyro/) is a separate page that plays *Spyro the Dragon* itself, as rebuilt by
+[open-spyro](https://github.com/theMagicalKarp/open-spyro), the byte-for-byte decompilation of the PS1 game. That build
+produces a PlayStation disc, so the page runs it in a PlayStation emulator compiled to WebAssembly
+([EmulatorJS](https://emulatorjs.org) with the PCSX-ReARMed core, vendored in `docs/open-spyro/emulatorjs/` so nothing comes
+from a CDN). You drop the disc image on it: open-spyro's `build/SpyrotheDragon.bin` from `make iso`, or a rip of your own
+NTSC-U disc. The file stays in the browser. Before booting, the page reads the disc's file system and checks whether its
+`SCUS_942.28` is byte-identical to retail, which is open-spyro's core invariant. No game data ships with the page.
+
+```bash
+npm run vendor:emulatorjs   # re-vendor EmulatorJS + the PCSX-ReARMed core from npm (pinned 4.2.3)
+npm run test:open-spyro     # builds a tiny PS1 test disc and boots it through the page in Chromium
+```
+
 ## The realm
 
 Gloaming Vale is a valley that has been stuck in twilight ever since the Snuffers stole the sunrise. Elder Wick, the last

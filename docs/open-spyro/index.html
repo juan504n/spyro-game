@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0b14">
+<title>open-spyro in the browser</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0d0b14; --panel: #17142a; --panel-2: #201c38; --line: #2f2950;
+    --text: #ece6f6; --muted: #a79fc0; --gold: #f2b84b; --violet: #9b82f5; --ok: #7fd49a; --warn: #f0a35e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color: var(--gold); }
+  code, kbd { font: 0.88em ui-monospace, SFMono-Regular, Menlo, monospace; }
+  code { background: var(--panel-2); padding: 0.1em 0.35em; border-radius: 4px; }
+  kbd { display: inline-block; min-width: 1.6em; text-align: center; background: var(--panel-2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 0.35em; }
+  pre { background: var(--panel-2); border-radius: 8px; padding: 12px 14px; overflow-x: auto; margin: 8px 0 0; }
+  pre code { background: none; padding: 0; }
+  main { max-width: 780px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { font-size: clamp(1.6rem, 5vw, 2.3rem); line-height: 1.15; margin: 0 0 6px; letter-spacing: -0.01em; }
+  h1 span { color: var(--gold); }
+  h2 { font-size: 1.05rem; margin: 0 0 10px; color: var(--gold); }
+  .lede { color: var(--muted); margin: 0 0 24px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+  #drop { display: block; border: 2px dashed var(--line); border-radius: 12px; padding: 26px 16px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+  #drop:hover, #drop.over { border-color: var(--violet); background: var(--panel-2); }
+  #drop strong { display: block; font-size: 1.1rem; margin-bottom: 4px; }
+  #drop small { color: var(--muted); }
+  #drop input { display: none; }
+  #disc { margin-top: 14px; display: none; }
+  #disc .name { font-weight: 600; word-break: break-all; }
+  #verdict { margin: 6px 0 0; color: var(--muted); font-size: 0.95rem; }
+  #verdict.ok { color: var(--ok); }
+  #verdict.warn { color: var(--warn); }
+  #verdict code { word-break: break-all; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-top: 14px; }
+  label.check { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 0.95rem; cursor: pointer; }
+  button { font: inherit; border: 0; border-radius: 10px; padding: 10px 20px; cursor: pointer; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); }
+  button.primary { background: var(--gold); color: #241a06; border-color: var(--gold); font-weight: 700; }
+  button:disabled { opacity: 0.45; cursor: default; }
+  button.link { background: none; border: 0; padding: 0; color: var(--gold); text-decoration: underline; }
+  #remembered { display: none; }
+  #remembered .name { font-weight: 600; word-break: break-all; }
+  details summary { cursor: pointer; color: var(--muted); }
+  details[open] summary { margin-bottom: 10px; }
+  .bios input { color: var(--muted); max-width: 100%; }
+  .hint { color: var(--muted); font-size: 0.92rem; margin: 6px 0 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+  td { padding: 5px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+  tr:first-child td { border-top: 0; }
+  td:first-child { color: var(--muted); width: 38%; }
+  ol { padding-left: 1.3em; margin: 0; }
+  ol li { margin-bottom: 6px; }
+  footer { color: var(--muted); font-size: 0.85rem; }
+  footer p { margin: 6px 0; }
+
+  /* The player, once a disc is booted: the whole window, the 4:3 picture letterboxed inside it. */
+  body.playing main { display: none; }
+  #stage { display: none; position: fixed; inset: 0; background: #000; }
+  body.playing #stage { display: block; }
+  #game { position: absolute; inset: 0; }
+  #back { position: absolute; top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); z-index: 10; padding: 6px 12px; font-size: 0.85rem; background: rgba(23, 20, 42, 0.8); opacity: 0.55; }
+  #back:hover, #back:focus-visible { opacity: 1; }
+</style>
+</head>
+<body>
+<main>
+  <h1><span>open-spyro</span> in the browser</h1>
+  <p class="lede">
+    <a href="https://github.com/theMagicalKarp/open-spyro">open-spyro</a> is a byte-for-byte decompilation of
+    <em>Spyro the Dragon</em> (PS1, NTSC-U, <code>SCUS_942.28</code>): its build is a PlayStation disc. This page boots
+    that disc in a PlayStation emulator compiled to WebAssembly (<a href="https://emulatorjs.org">EmulatorJS</a> with
+    the PCSX-ReARMed core), right here in the tab. The disc never leaves your computer; nothing is uploaded.
+  </p>
+
+  <section>
+    <h2>1 · Your disc</h2>
+    <label id="drop">
+      <strong>Drop the disc image here, or click to choose it</strong>
+      <small><code>.bin</code> (with or without its <code>.cue</code>), <code>.iso</code>, <code>.img</code>, <code>.chd</code>, <code>.pbp</code>, or a <code>.zip</code> / <code>.7z</code> of them</small>
+      <input id="file" type="file" multiple accept=".bin,.cue,.iso,.img,.chd,.pbp,.m3u,.zip,.7z">
+    </label>
+    <div id="disc">
+      <div class="name" id="disc-name"></div>
+      <p id="verdict"></p>
+    </div>
+    <div id="remembered">
+      <div class="row" style="margin-top:14px">
+        <span>Last disc on this device: <span class="name" id="remembered-name"></span></span>
+        <button id="play-remembered" class="primary">Play it</button>
+        <button id="forget" class="link">Forget it</button>
+      </div>
+    </div>
+    <div class="row">
+      <button id="play" class="primary" disabled>Play</button>
+      <label class="check"><input type="checkbox" id="remember" checked> Remember this disc on this device</label>
+    </div>
+    <details class="bios" style="margin-top:14px">
+      <summary>BIOS (optional)</summary>
+      <input id="bios" type="file" accept=".bin,.rom">
+      <p class="hint">Without one, PCSX-ReARMed's built-in high-level BIOS is used, which runs Spyro fine. A real dump
+      (e.g. <code>SCPH1001.BIN</code>) adds the PlayStation boot animation and the console's memory card manager.</p>
+    </details>
+  </section>
+
+  <section>
+    <h2>Where the disc comes from</h2>
+    <ol>
+      <li>Rip your own <em>Spyro the Dragon</em> (NTSC-U) disc to <code>.bin</code>/<code>.cue</code>. It boots here as is.</li>
+      <li>Or rebuild it from the decompilation. With Docker and <a href="https://docs.astral.sh/uv/">uv</a> installed, put that rip in open-spyro's <code>iso/</code> folder and run:
+<pre><code>git clone https://github.com/theMagicalKarp/open-spyro && cd open-spyro
+make setup setup-iso   # matching toolchain + disc tools
+make extract split     # unpack your disc, disassemble it
+make check iso         # build, verify byte-identical, repack</code></pre>
+        then drop <code>build/SpyrotheDragon.bin</code> (or the <code>.bin</code> and <code>.cue</code> together) on this page. Change a function in <code>src/</code>, rebuild, drop it again: the line under the file name says whether the executable is still byte-identical to retail.</li>
+    </ol>
+    <p class="hint">No game data comes with this page or with open-spyro. If a large <code>.bin</code> runs the tab out of memory, convert it with <code>chdman createcd -i SpyrotheDragon.cue -o spyro.chd</code>: about half the size, and it boots the same.</p>
+  </section>
+
+  <section>
+    <h2>Controls</h2>
+    <table>
+      <tr><td>Move</td><td><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd></td></tr>
+      <tr><td>Jump / glide (✕)</td><td><kbd>X</kbd></td></tr>
+      <tr><td>Charge (□)</td><td><kbd>S</kbd></td></tr>
+      <tr><td>Flame (○)</td><td><kbd>Z</kbd></td></tr>
+      <tr><td>Look around (△)</td><td><kbd>A</kbd></td></tr>
+      <tr><td>L1 · R1 · L2 · R2 (camera, sidestep)</td><td><kbd>Q</kbd> · <kbd>E</kbd> · <kbd>Tab</kbd> · <kbd>R</kbd></td></tr>
+      <tr><td>Start · Select</td><td><kbd>Enter</kbd> · <kbd>V</kbd></td></tr>
+    </table>
+    <p class="hint">A gamepad works as a DualShock. Every key can be changed under the controls icon in the player's bottom bar, which also has
+    save states and full screen. On phones and tablets an on-screen pad appears. Memory card saves are kept in this browser.</p>
+  </section>
+
+  <footer>
+    <p>Spyro the Dragon is a trademark of its owners; this page and open-spyro are unofficial fan projects and ship none of the game's data.
+    EmulatorJS and PCSX-ReARMed are GPL-3.0 software, served unmodified from <code>emulatorjs/</code>
+    (<a href="emulatorjs/LICENSE">licence</a>).</p>
+    <p><a href="../">Gloaming Vale</a>, this repository's own Spyro-style game, runs in the browser too.</p>
+  </footer>
+</main>
+
+<div id="stage">
+  <div id="game"></div>
+  <button id="back" title="Stop the emulator and choose another disc">← Change disc</button>
+</div>
+
+<script type="module" src="player.js"></script>
+</body>
+</html>
