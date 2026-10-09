@@ -24,21 +24,28 @@ export const OPEN = {
 // The logo
 // ---------------------------------------------------------------------------------------------------------------------------------------------
 
-/** a ring of chrome seen at a slant: light on the top left, dark underneath, a bright rim, as the metal ring behind the logo of the old title screens (here, a made-up one) */
-function chromeRing(w, h, thick) {
+/**
+ * The plate of the logo: a ring of chrome (light on the upper left, dark underneath, a bright rim) round a SOLID dark plate that the letters stand on, as the metal-rimmed plaque behind the
+ * logo of the old title screens (here, a made-up one). The shape is a squircle (a superellipse), not an ellipse, so that the corners of a wide word lie on the plate and not over the rim.
+ * `thick` is the width of the ring in pixels.
+ */
+function chromePlate(w, h, thick) {
   const p = new Pix(w, h);
-  const cx = w / 2, cy = h / 2, rx = w / 2 - 1, ry = h / 2 - 1;
+  const cx = w / 2, cy = h / 2, P = 3.4;
   const bands = ['#2a2640', '#5a5878', '#9a98b8', '#d8d8ec', '#ffffff', '#c4c4dc', '#7c7a9c', '#403c5c'];
+  const plate = ['#2c1666', '#241258', '#1c0c46', '#140836'];                          // (solid violet, a little lighter at the top)
+  const norm = (dx, dy, rx, ry) => (Math.abs(dx / rx) ** P + Math.abs(dy / ry) ** P) ** (1 / P);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      const dx = (x + 0.5 - cx) / rx, dy = (y + 0.5 - cy) / ry, d = Math.hypot(dx, dy);
-      const inner = 1 - thick / ry;
-      if (d > 1 || d < inner) continue;
+      const dx = x + 0.5 - cx, dy = y + 0.5 - cy;
+      const d = norm(dx, dy, w / 2 - 1, h / 2 - 1);
+      if (d > 1) continue;
+      const di = norm(dx, dy, w / 2 - 1 - thick, h / 2 - 1 - thick);
+      if (di <= 1) { p.set(x, y, ditherPick(plate, clamp((y / h) * 1.15 - 0.05), x, y)); continue; }
       // across the band (0 outside .. 1 inside) and round the ring: the highlight sits on the upper left
-      const across = (1 - d) / (1 - inner), ang = Math.atan2(dy, dx);
-      const light = 0.5 + 0.5 * Math.cos(ang + 2.4);
-      const t = clamp(0.1 + 0.45 * Math.sin(across * Math.PI) + 0.45 * light * Math.sin(across * Math.PI) ** 0.7 - 0.12 * (1 - across));
-      p.set(x, y, ditherPick(bands.map((c) => c), t, x, y));
+      const across = clamp((1 - d) / (1 - norm(dx, dy, w / 2 - 1, h / 2 - 1) + (di - d) + 1e-6)), ang = Math.atan2(dy, dx);
+      const light = 0.5 + 0.5 * Math.cos(ang + 2.4), s = Math.sin(across * Math.PI);
+      p.set(x, y, ditherPick(bands, clamp(0.1 + 0.45 * s + 0.45 * light * s ** 0.7 - 0.12 * (1 - across)), x, y));
     }
   }
   return p;
@@ -64,11 +71,11 @@ function drip(pix, color, seed) {
 /** every picture of the title screen, made once */
 export function makeTitleArt() {
   // SPYRO: fat purple letters, light on top and deep violet at the bottom, with a thick gold outline and a dark shadow under it
-  const spyro = makeLogo(['SPYRO'], { scale: [6], colors: ['#f0dcff', '#b878f4', '#7a34d0', '#4a1a98'], outline: '#ffc93a', shadow: '#1a0c2c', outlineWidth: 4, shadowOffset: 3, letterSpacing: 2, wobble: 1, bevel: 1 });
+  const spyro = makeLogo(['SPYRO'], { scale: [6], colors: ['#f0dcff', '#b878f4', '#7a34d0', '#4a1a98'], outline: '#ffc93a', shadow: '#1a0c2c', outlineWidth: 4, shadowOffset: 3, letterSpacing: 0.5, wobble: 1, bevel: 1 });
   // the name of the realm, in the warm colours of the old second line: orange letters, a green outline, and drips
   const valeFlat = makeLogo(['GLOAMING VALE'], { scale: [3], colors: ['#ffe27a', '#ffa21c', '#f06a14'], outline: '#2c7a26', shadow: '#10200c', outlineWidth: 2, shadowOffset: 2, letterSpacing: 1, wobble: 1 });
   const vale = drip(valeFlat, '#f08a1c', 7);
-  const ring = chromeRing(Math.round(spyro.w * 1.2), Math.round(spyro.h * 1.75), 8);
+  const ring = chromePlate(Math.round(spyro.w * 1.3), Math.round(spyro.h * 1.8), 7);
   return { spyro, vale, ring };
 }
 

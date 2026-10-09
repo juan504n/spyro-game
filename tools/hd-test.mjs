@@ -214,6 +214,19 @@ const sha = (data) => crypto.createHash('sha1').update(data).digest('hex').slice
   let green = 0;
   for (let k = 0; k < 256 * 256; k++) if (rock.px[k * 3 + 1] > rock.px[k * 3] + 25 && rock.px[k * 3 + 1] > rock.px[k * 3 + 2] + 25) green++;
   check('crag: no green lip on the rock', green === 0, `(${green} green pixels)`);
+  // round thirty-six: the pixel twins of the rock (the PS1 look) are the same kind of rock: no rows of blocks and no lip, in every realm's colours
+  {
+    const T = generateWorldTextures();
+    for (const name of ['cliff', 'cliff_warm', 'cliff_bare', 'cliff_warm_bare', 'cliff_frost', 'cliff_basalt', 'cliff_marble', 'cliff_tide']) {
+      const px = T[name].pix; let rowStep = 0, prev = null, lipPx = 0;
+      for (let y = 0; y < 32; y++) {
+        let sum = 0;
+        for (let x = 0; x < 32; x++) { const o = (y * 32 + x) * 4; sum += 0.3 * px.data[o] + 0.59 * px.data[o + 1] + 0.11 * px.data[o + 2]; if (px.data[o + 1] > px.data[o] + 25 && px.data[o + 1] > px.data[o + 2] + 25 && name !== 'cliff_tide') lipPx++; }
+        if (prev !== null) rowStep += Math.abs(sum / 32 - prev); prev = sum / 32;
+      }
+      check(`pixel ${name}: rock without rows (the mean of a row changes by under 12 from row to row) and without a green lip`, rowStep / 31 < 12 && lipPx === 0, `(${(rowStep / 31).toFixed(1)} a row, ${lipPx} green pixels)`);
+    }
+  }
   const gm = PAINT.grass_a(generateWorldTextures().grass_a.pix, { n: 256, w: 256, h: 256 }).mean();
   check('the one grass averages #3d8732 (61, 135, 50) to within 4 levels, in its smooth painting', Math.abs(gm[0] - 61) < 4 && Math.abs(gm[1] - 135) < 4 && Math.abs(gm[2] - 50) < 4, `(${gm.map((v) => v.toFixed(1)).join(', ')})`);
   // rampFrom: a ramp of the colours a texture uses

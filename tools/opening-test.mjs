@@ -80,10 +80,29 @@ const STEP = 1 / 30, END = OPEN.pressAt + 4;
 {
   const art = makeTitleArt();
   check('the logo fits the narrowest frame the HUD has (320 px wide) with its ring, and is not taller than a third of it', art.ring.w <= 320 && art.vale.w <= 320 && art.spyro.h + art.vale.h < 110, `(ring ${art.ring.w}, line two ${art.vale.w}, ${art.spyro.h}+${art.vale.h} tall)`);
+  // round thirty-six: the letters are close (the gold outlines of neighbours all but touch) and stand on a solid plate
+  const gaps = (() => {                                                           // columns of SPYRO with no lit pixel at all, between the first and the last lit column
+    const cols = []; for (let x = 0; x < art.spyro.w; x++) { let any = false; for (let y = 0; y < art.spyro.h; y++) if (art.spyro.data[(y * art.spyro.w + x) * 4 + 3] >= 128) { any = true; break; } cols.push(any); }
+    const first = cols.indexOf(true), last = cols.lastIndexOf(true); let widest = 0, run = 0;
+    for (let x = first; x <= last; x++) { if (!cols[x]) { run++; widest = Math.max(widest, run); } else run = 0; }
+    return widest;
+  })();
+  check('the letters of SPYRO are close: no gap between neighbours wider than 3 px (it was 10)', gaps <= 3, `(widest empty strip ${gaps} px, word ${art.spyro.w} px wide)`);
+  const plate = (() => {                                                          // every pixel of the ring's inner plate is opaque: sample the middle band of the ring picture
+    let holes = 0, n = 0; const R = art.ring, y0 = Math.round(R.h * 0.3), y1 = Math.round(R.h * 0.7), x0 = Math.round(R.w * 0.12), x1 = Math.round(R.w * 0.88);
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { n++; if (R.data[(y * R.w + x) * 4 + 3] < 128) holes++; }
+    return { holes, n };
+  })();
+  check('a solid plate stands behind the letters (no hole in the middle of the ring)', plate.holes === 0, `(${plate.holes} of ${plate.n} pixels empty)`);
+  check('... and the whole word lies on it: the corners of SPYRO are inside the plate', (() => {
+    const R = art.ring, ox = (R.w - art.spyro.w) >> 1, oy = (R.h - art.spyro.h) >> 1; let out = 0;
+    for (let y = 0; y < art.spyro.h; y++) for (let x = 0; x < art.spyro.w; x++) if (art.spyro.data[(y * art.spyro.w + x) * 4 + 3] >= 128 && R.data[((y + oy) * R.w + x + ox) * 4 + 3] < 128) out++;
+    return out === 0;
+  })());
   const lit = (p) => { let n = 0; for (let i = 3; i < p.data.length; i += 4) if (p.data[i] >= 128) n++; return n; };
   const frame = (t) => { const p = new Pix(320, 240); drawLogo(p, art, t, 26); return lit(p); };
   const f0 = frame(OPEN.logoAt - 0.1), fMid = frame(OPEN.logoAt + OPEN.logoDur * 0.5), f1 = frame(OPEN.subAt - 0.05), f2 = frame(OPEN.subAt + 0.8);
-  check('the logo is not there before it drops, is there while it drops, and the second line comes after it', f0 === 0 && fMid > 1000 && f1 > fMid * 0.9 && f2 > f1 + 1500, `(${f0}, ${fMid}, ${f1}, ${f2} pixels)`);
+  check('the logo is not there before it drops, is there while it drops, and the second line comes after it', f0 === 0 && fMid > 1000 && f1 > fMid * 0.9 && f2 > f1 + 600, `(${f0}, ${fMid}, ${f1}, ${f2} pixels)`);
   const settled = new Pix(320, 240); const r = drawLogo(settled, art, OPEN.pressAt, 26);
   check('settled, the logo lies inside the frame, in its upper half (the end of line two is above line 130)', r.bottom < 130 && r.bottom > 60, `(ends at line ${r.bottom})`);
   const pressed = (t) => { const p = new Pix(320, 240); drawPressStart(p, 'press start', t, 200); return lit(p); };

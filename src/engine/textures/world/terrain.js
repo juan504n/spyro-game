@@ -375,86 +375,43 @@ function paintSnow(seed, petals) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Cliff faces: tall faceted rock, strata bands, cracks, moss along the top edge
-// (the tile wraps, so a few moss specks also sit on the bottom rows)
+// Cliff faces: a face of natural rock, the pixel twin of the HD `crag` (hd/terrain.js): ridges and gullies running down the face, lit from the upper left so that broad planes catch the light and
+// others fall into shade, a few chunky steps of the ramp and no rows, no joints and no moss lip (the old strata read as ten bands of bricks up a mountain). The tile wraps both ways.
 // ---------------------------------------------------------------------------------------------
-function paintCliff(seed, P, mossy) {
-  const W = 32;
-  const R = P.ramp;
-  const c = new Canvas(W, W, true, R[3]);
-  const rng = new RNG(seed);
-  // strata: broad tonal bands whose boundaries wobble (the wobble wraps in x)
-  const bandH = [8, 6, 7, 5, 6];
-  const bandTone = [4, 3, 4, 2, 3];
-  const wob = field(W, 1, seed + 5, 4, 1, 1, false);
-  const edge = [];
-  let acc = 0;
-  for (const h of bandH) { edge.push(acc); acc += h; }
-  const wv = (x) => Math.round((wob[x] - 0.5) * 4);
-  for (let x = 0; x < W; x++) {
-    for (let b = 0; b < bandH.length; b++) {
-      const y0 = edge[b] + wv(x), y1 = (b + 1 < bandH.length ? edge[b + 1] : W) + wv(x);
-      for (let y = y0; y < y1; y++) c.dot(x, y, R[bandTone[b]]);
-    }
-  }
-  // chunky outcrops bulging out of the face: cast shadow, shaded boulder, lit top
-  for (const [x, y] of poisson(rng, W, W, 5, 9).sort((a, b) => a[1] - b[1])) {
-    const rx = rng.float(4.2, 6), ry = rng.float(2.4, 3.3);
-    c.ellipse(x + 0.5, y + 2, rx + 0.5, ry, R[2]);
-    c.blob(x, y, rx, ry, R[2], R[4], R[5]);
-    c.dot(Math.floor(x - rx * 0.4), Math.floor(y - ry * 0.5), R[5]);
-  }
-  // vertical weathering streaks: a few 2px-wide runs, one ramp step darker or lighter (chunky, not speckle)
-  const idxOf = rampIndexer(R);
-  for (let i = 0; i < 6; i++) {
-    const x = rng.int(0, W), y = rng.int(0, W), len = rng.int(8, 15);
-    const dark = rng.chance(0.6);
-    for (let j = 0; j < len; j++) {
-      for (let k = 0; k < 2; k++) {
-        const idx = idxOf(c.get(x + k, y + j, true));
-        if (idx >= 0) c.dot(x + k, y + j, R[clamp(idx + (dark ? -1 : 1), 0, 5)]);
-      }
-    }
-  }
-  // ledges: a continuous dark undercut with a lit lip just below it - bold terraces that survive minification
-  edge.forEach((y0) => {
+function paintCliff(seed, P) {
+  const W = 32, R = P.ramp, c = new Canvas(W, W, true, R[3]);
+  const ridge = (v) => 1 - Math.abs(2 * v - 1);
+  const f1 = field(W, W, seed + 2, 4, 1, 2, false), f2 = field(W, W, seed + 3, 8, 2, 2, false), f3 = field(W, W, seed + 4, 14, 3, 1, false), mottle = field(W, W, seed + 5, 3, 3, 2, false);
+  const H = new Float32Array(W * W);
+  for (let i = 0; i < W * W; i++) H[i] = ridge(f1[i]) * 0.55 + ridge(f2[i]) * 0.33 + ridge(f3[i]) * 0.12;
+  const at = (x, y) => H[((y + W) % W) * W + ((x + W) % W)];
+  const tones = [R[1], R[2], R[3], R[4], R[5]];
+  for (let y = 0; y < W; y++) {
     for (let x = 0; x < W; x++) {
-      c.dot(x, y0 + wv(x) - 1, R[1]);
-      c.dot(x, y0 + wv(x), R[5]);
+      const lit = (at(x - 1, y) - at(x + 1, y) + at(x, y - 1) - at(x, y + 1)) * 0.5;            // (a slope that rises to the left or up is in the light)
+      const t = clamp(0.5 + lit * 2.6 + (H[y * W + x] - 0.5) * 0.3 + (mottle[y * W + x] - 0.5) * 0.25, 0, 1);
+      c.set(x, y, bandPick(tones, t, x, y, 0.3, 0));
     }
-  });
-  // vertical fissures with a lit right-hand lip
+  }
+  // a few vertical fissures with a lit lip on the right, as before
+  const rng = new RNG(seed + 6);
   for (let i = 0; i < 2; i++) {
     const p = walk(rng, rng.int(0, W), rng.int(0, W), rng.int(10, 15), [rng.float(-0.2, 0.2), 1], 0.5);
     polyline(c, p, R[0]);
-    for (const [x, y] of p) if (rng.chance(0.6)) c.dot(x + 1, y, R[5]);
-  }
-  if (mossy) {
-    // A moss ledge that straddles the wrap seam: a lit cap on the last two rows, drips hanging from row 0.
-    // Tiled vertically it reads as a continuous mossy shelf, not a cut.
-    const MC = P.lip || [M[1], M[2], M[3], M[4]];                 // (a level of ice and snow has a lip of snow: P.lip)
-    const n = field(W, 1, seed + 9, 8, 1, 1, false);
-    for (let x = 0; x < W; x++) {
-      const hgt = Math.round(1 + n[x] * 3.4);
-      c.dot(x, 30, MC[3]);
-      c.dot(x, 31, MC[2]);
-      if (n[x] < 0.4) c.dot(x, 29, MC[1]);
-      for (let y = 0; y < hgt; y++) c.dot(x, y, MC[y === 0 ? 2 : y === hgt - 1 ? 1 : 2]);
-      if (n[x] > 0.6) c.dot(x, hgt, MC[0]);
-    }
+    for (const [x, y] of p) if (rng.chance(0.6)) c.dot(x + 1, y, R[4]);
   }
   return c;
 }
 
-function cliffLav() { return paintCliff(1901, { ramp: [CL[0], CL[1], CL[2], CL[3], CL[4], CL[5]] }, true); }
-function cliffWarm() { return paintCliff(1951, { ramp: [CW[0], CW[1], CW[2], CW[3], CW[4], '#dcc4a0'] }, true); }
+function cliffLav() { return paintCliff(1901, { ramp: [CL[0], CL[1], CL[2], CL[3], CL[4], CL[5]] }); }
+function cliffWarm() { return paintCliff(1951, { ramp: [CW[0], CW[1], CW[2], CW[3], CW[4], '#dcc4a0'] }); }
 // the tall mountains of the homeworld: the same strata, ledges and fissures with no moss lip along every band (a lip repeating every 4 m up a 60 m wall reads as stripes)
 // the rock of Frostbloom Hollow: blue-grey strata under a lip of snow
 const FR = ['#222c46', '#34425f', '#4c5f82', '#6c82a6', '#94aac8', '#c8d8ee'];
-function cliffFrost() { return paintCliff(2301, { ramp: FR, lip: ['#8aa6d0', '#b4cae8', '#dceafa', '#ffffff'] }, true); }
+function cliffFrost() { return paintCliff(2301, { ramp: FR }); }
 
-function cliffBare() { return paintCliff(2011, { ramp: [CL[0], CL[1], CL[2], CL[3], CL[4], CL[5]] }, false); }
-function cliffWarmBare() { return paintCliff(2051, { ramp: [CW[0], CW[1], CW[2], CW[3], CW[4], '#dcc4a0'] }, false); }
+function cliffBare() { return paintCliff(2011, { ramp: [CL[0], CL[1], CL[2], CL[3], CL[4], CL[5]] }); }
+function cliffWarmBare() { return paintCliff(2051, { ramp: [CW[0], CW[1], CW[2], CW[3], CW[4], '#dcc4a0'] }); }
 
 // ---------------------------------------------------------------------------------------------
 // Far rock: 3 close colours, big soft patches, no fine detail so distant mountains read smooth
@@ -598,7 +555,7 @@ function paintCinder(seed) {
 
 const BA = ['#0e0b0a', '#1a1411', '#2a211c', '#40322a', '#5a4638', '#86705c'];
 function cliffBasalt(mossy = true) {
-  const c = paintCliff(mossy ? 2701 : 2711, { ramp: BA, lip: ['#6a6258', '#8c8276', '#b0a698', '#d6cdbd'] }, mossy);
+  const c = paintCliff(mossy ? 2701 : 2711, { ramp: BA });
   const rng = new RNG(mossy ? 2702 : 2712);
   for (let i = 0; i < 2; i++) {
     const p = walk(rng, rng.int(0, 32), rng.int(0, 32), rng.int(9, 14), [rng.float(-0.2, 0.2), 1], 0.5);
@@ -616,16 +573,7 @@ const SKT = ['#2e4a30', '#486a3c', '#6c8c50', '#94b068', '#bed48a', '#e8efb4'];
 function skyturf() { return paintGrass(3101, SKT, { cells: 4, tufts: 40 }).c; }
 
 const MB = ['#4a4c68', '#6c6e8c', '#9498b0', '#bcbcc8', '#dcd6d0', '#f6f0e4'];
-function cliffMarble() {
-  const c = paintCliff(3201, { ramp: MB }, false);
-  const rng = new RNG(3202);
-  // fine veins of blue-grey running across the strata
-  for (let i = 0; i < 4; i++) {
-    const p = walk(rng, rng.int(0, 32), rng.int(0, 32), rng.int(10, 16), [1, rng.float(-0.35, 0.35)], 0.35);
-    polyline(c, p, '#7c8cb4');
-  }
-  return c;
-}
+function cliffMarble() { return paintCliff(3201, { ramp: MB }); }
 
 // ---------------------------------------------------------------------------------------------
 // Tideglass Reach: the ground of a coast. The sand of the flats - dry and pale, rippled by the water that has left it, and wet, dark and shining under the tide's reach - the sea floor, dune turf in
@@ -664,7 +612,7 @@ const TT = ['#1a463c', '#2a6650', '#42866a', '#68a888', '#98caa2', '#cdeabe'];  
 function tideTurf() { return paintGrass(4101, TT, { cells: 4, tufts: 40 }).c; }
 const CTS = ['#182a32', '#28424c', '#3e5e66', '#5c8084', '#84a4a0', '#bccfc4'];       // slate-teal strata
 function cliffTide() {
-  const c = paintCliff(4201, { ramp: CTS }, false);
+  const c = paintCliff(4201, { ramp: CTS });
   const rng = new RNG(4202);
   // salt: pale flecks and a bloom where the wet has dried
   for (const [x, y] of poisson(rng, 32, 32, 9, 4)) { c.dot(x, y, '#dceee0'); if (rng.chance(0.4)) c.dot(x + 1, y, '#b4d0c4'); }
