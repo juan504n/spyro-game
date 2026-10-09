@@ -172,11 +172,17 @@ function readGfxSafe() {
 // 60 fps is a patch to the game's code, so first make sure the code on this disc is the code it
 // was made for. -> null when it can be applied, or why not.
 async function check60(files) {
-  const image = files.find((f) => RAW.includes(ext(f.name)));
-  if (!image) return '60 fps needs the disc as .bin (or .iso), so the page can check the game\'s code before patching it. Untick 60 fps to play this image.';
-  const info = await inspectDisc(image);
+  // Find the disc by what is in the files, not by their names: the data track is the one with an
+  // ISO 9660 file system (largest first; a .cue or a memory card has none).
+  let info = null;
+  for (const f of [...files].sort((a, b) => b.size - a.size)) {
+    const seen = await inspectDisc(f);
+    if (seen.readable) { info = seen; break; }
+  }
+  const names = files.map((f) => `<code>${html(f.name || '(no name)')}</code> (${mb(f.size)})`).join(', ');
+  if (!info) return `60 fps checks the game's code before patching it, but no PlayStation disc image could be read in ${names}. Compressed images (.chd, .pbp, archives) cannot be checked: use the .bin. Untick 60 fps to play this image.`;
   if (patchFits(FPS60, info.exe)) return null;
-  return `The 60 fps patch is made for <code>${RETAIL_EXE}</code> as it is on the retail disc, and this disc's game code differs where it patches, so it is not applied. Untick 60 fps to play.`;
+  return `The 60 fps patch is made for <code>${RETAIL_EXE}</code> as it is on the retail disc, and the game code in ${names} differs where it patches (this disc boots <code>${html(info.boot)}</code>), so it is not applied. Untick 60 fps to play.`;
 }
 
 async function boot(files) {
