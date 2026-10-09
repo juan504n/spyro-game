@@ -1,9 +1,10 @@
-// Vendors EmulatorJS and its PlayStation core (PCSX-ReARMed) into docs/open-spyro/emulatorjs/,
+// Vendors EmulatorJS and its two PlayStation cores into docs/open-spyro/emulatorjs/: PCSX-ReARMed
+// (fast, no BIOS needed) and Beetle PSX HW (mednafen_psx_hw: HD internal resolution, PGXP; needs a BIOS),
 // so the open-spyro player page works from GitHub Pages (or any static server) with no CDN.
 //   node tools/vendor-emulatorjs.mjs [version]     (default: the pinned version below)
 // The npm packages ship the unminified sources; this joins them into the emulator.min.js /
 // emulator.min.css that data/loader.js asks for, and keeps only the files the player uses:
-// the two single-threaded cores (WebGL2 and legacy), the core report, the archive extractors
+// each core's two single-threaded builds (WebGL2 and legacy) and report, the archive extractors
 // (the cores themselves are 7z archives) and the UI translations.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -26,7 +27,7 @@ function unpack(pkg) {
 }
 
 const ejs = unpack('@emulatorjs/emulatorjs');
-const core = unpack('@emulatorjs/core-pcsx_rearmed');
+const cores = ['pcsx_rearmed', 'mednafen_psx_hw'].map((name) => ({ name, dir: unpack(`@emulatorjs/core-${name}`) }));
 const data = path.join(ejs, 'data');
 
 fs.rmSync(out, { recursive: true, force: true });
@@ -43,12 +44,14 @@ fs.writeFileSync(path.join(out, 'emulator.min.css'), css.code);
 for (const f of ['loader.js', 'version.json']) fs.copyFileSync(path.join(data, f), path.join(out, f));
 fs.cpSync(path.join(data, 'compression'), path.join(out, 'compression'), { recursive: true, filter: (p) => !p.endsWith('README.md') });
 fs.cpSync(path.join(data, 'localization'), path.join(out, 'localization'), { recursive: true, filter: (p) => !p.endsWith('README.md') });
-for (const f of ['pcsx_rearmed-wasm.data', 'pcsx_rearmed-legacy-wasm.data']) fs.copyFileSync(path.join(core, f), path.join(out, 'cores', f));
-fs.copyFileSync(path.join(core, 'reports/pcsx_rearmed.json'), path.join(out, 'cores/reports/pcsx_rearmed.json'));
+for (const { name, dir } of cores) {
+  for (const f of [`${name}-wasm.data`, `${name}-legacy-wasm.data`]) fs.copyFileSync(path.join(dir, f), path.join(out, 'cores', f));
+  fs.copyFileSync(path.join(dir, `reports/${name}.json`), path.join(out, `cores/reports/${name}.json`));
+}
 fs.copyFileSync(path.join(ejs, 'LICENSE'), path.join(out, 'LICENSE'));
 
 fs.rmSync(tmp, { recursive: true, force: true });
 let bytes = 0;
 const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).forEach((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : (bytes += fs.statSync(path.join(d, e.name)).size)));
 walk(out);
-console.log(`vendored EmulatorJS ${VERSION} + pcsx_rearmed into ${path.relative(root, out)} (${(bytes / 1048576).toFixed(1)} MB)`);
+console.log(`vendored EmulatorJS ${VERSION} + pcsx_rearmed + mednafen_psx_hw into ${path.relative(root, out)} (${(bytes / 1048576).toFixed(1)} MB)`);

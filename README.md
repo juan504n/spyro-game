@@ -137,9 +137,14 @@ from a CDN). You drop the disc image on it: open-spyro's `build/SpyrotheDragon.b
 NTSC-U disc. The file stays in the browser. Before booting, the page reads the disc's file system and checks whether its
 `SCUS_942.28` is byte-identical to retail, which is open-spyro's core invariant. No game data ships with the page.
 
+Two looks: *Standard* (PCSX-ReARMed, the native 320×240 picture, no BIOS needed) and *HD* (Beetle PSX's software renderer
+at 2×, 4× or 8× internal resolution, optional 16:9 widescreen hack; it needs a dump of the console's BIOS, which the page
+keeps in the browser). Both can add a smoothing or CRT filter and overclock the emulated CPU against slowdown. Beetle's
+OpenGL renderer does not start in this EmulatorJS build, so HD renders on the CPU.
+
 ```bash
-npm run vendor:emulatorjs   # re-vendor EmulatorJS + the PCSX-ReARMed core from npm (pinned 4.2.3)
-npm run test:open-spyro     # builds a tiny PS1 test disc and boots it through the page in Chromium
+npm run vendor:emulatorjs   # re-vendor EmulatorJS + the PCSX-ReARMed and Beetle PSX cores from npm (pinned 4.2.3)
+npm run test:open-spyro     # builds a tiny PS1 test disc (and stand-in BIOS) and boots them through the page in Chromium
 ```
 
 ## The realm
