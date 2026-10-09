@@ -12,9 +12,10 @@ import { Menu, touchClear } from './menu.js';
 import { CAM_MODES } from './camera.js';
 import { Hud } from './hud.js';
 import { DebugHud } from './debug.js';
-import { titleShot, introShot, finaleShot, gateShot } from './cinematics.js';
+import { introShot, finaleShot, gateShot, makeOpening } from './cinematics.js';
+import { makeTitleArt, drawLogo, drawPressStart, drawDusk, ditherOut, OPEN } from './titlescreen.js';
 import { SPEECH, creditsLines, lineHeight, endingShot } from './ending.js';
-import { makeLogo, drawPanel } from '../engine/textures/ui.js';
+import { drawPanel } from '../engine/textures/ui.js';
 import { drawText } from '../engine/textures/font.js';
 import { U, setTextureHD } from '../engine/materials.js';
 import { HD } from '../engine/textures/hd/index.js';
@@ -65,7 +66,9 @@ class App {
     this.t = 0;
     this.game = null;
     this.audio = null;
-    this.logo = null;
+    this.art = null;                         // the title screen's pictures (titlescreen.js)
+    this.openT = 0;                          // seconds into the title's opening: Spyro flies in, lands, the logo drops (cinematics.js makeOpening)
+    this.opening = null;
     this.audioReady = false;
     this.results = null;
     this.deferReady = true;
@@ -85,7 +88,7 @@ class App {
     const first = REALMS[q.get('world')] ? q.get('world') : 'gloaming';          // (?world=home, ?world=frostbloom ...: any world of the game by its id)
     const game = await this._build(first, null);
     this._adopt(game);
-    try { this.logo = makeLogo(['GLOAMING', 'VALE'], { scale: [4, 4], top: '#fff4b0', bottom: '#f0901c', wobble: 1 }); } catch (e) { console.warn('logo failed', e); }
+    try { this.art = makeTitleArt(); } catch (e) { console.warn('title art failed', e); }
     window.__app = this;
 
     if (q.has('day') && game.realm.day === null) { game.day = game.dayTarget = parseFloat(q.get('day')); }
@@ -178,19 +181,36 @@ class App {
 
   // ---- states ------------------------------------------------------------------------------------------------------------
   enterTitle() {
-    const g = this.game;
+    const g = this.game, p = g.player;
     this.state = 'title';
     g.mode = 'title';                 // (the results timer and hint zones only run in 'play')
     g.hud.visible = false;
-    g.player.locked = true;
-    g.cam.playCinematic(titleShot(g), 1e9);
+    p.locked = true;
+    // The opening: the picture of the first start (the dusk and its five lanterns) gives way, in a dither, to the Vale at dusk, and Spyro glides in from the far end of the sky and lands in front of the
+    // camera. The hero is played by a script for as long as the title lasts (and put back where the game placed him when it ends: startIntro).
+    this.spawnPose = { x: p.x, y: p.y, z: p.z, yaw: p.yaw };
+    this.opening = makeOpening(g);
+    this.openT = 0;
+    p.script = (pl, dt) => this.opening.flight(pl, this.openT, dt);
+    g.cam.playCinematic((t) => this.opening.shot(this.openT), 1e9);
     g.dayTarget = 0;
+    g.fade.a = 1; g.fadeTo(0, 1.3);
+  }
+
+  /** the title is over: the hero is his own again and stands where the game placed him */
+  _endOpening() {
+    const p = this.game.player, sp = this.spawnPose;
+    if (!p.script) return;
+    p.script = null;
+    if (sp) p.place(sp.x, sp.y, sp.z, sp.yaw);
+    this.opening = null;
   }
 
   startIntro() {
     const g = this.game;
     this.unlockAudio();
     this.audio?.sfx('ui_start', { vol: 0.9 });
+    this._endOpening();
     this.state = 'intro';
     g.mode = 'intro';
     this.introT = 0;
@@ -816,7 +836,7 @@ class App {
     const gfx = this.gfx;
     if (this.state === 'loading') {
       this._syncTouchUI();
-      Hud.drawLoading(gfx.hud, this.load.frac, this.load.label);
+      drawDusk(gfx.hud, this.load.frac, this.t);          // (the first start: a dusk and five lanterns that light as the world is built, not a bar on black)
       return;
     }
     if (this.state === 'traveling') { this._updateTravel(dt); return; }
@@ -841,14 +861,19 @@ class App {
 
     switch (this.state) {
       case 'title': {
+        if (!this.openHold) this.openT += Math.min(dt, 0.1);          // (openHold: a tool holds the opening at a moment to look at it)
         this._drawTitle();
-        const go = this.t >= (this.startOkAt || 0);
-        if (go && (snap.confirm || snap.jump || snap.flame || (input.lastDevice === 'touch' && input.takeAnyKey()))) this.startIntro();
+        const go = this.t >= (this.startOkAt || 0), pressed = snap.confirm || snap.jump || snap.flame || (input.lastDevice === 'touch' && input.takeAnyKey());
+        if (go && pressed) {
+          if (this.openT >= OPEN.pressAt) this.startIntro();
+          else { this.openT = OPEN.pressAt; this.startOkAt = this.t + 0.35; }        // (a press before "press start" comes up brings it up: the flight is skipped, the game does not start)
+        }
         else if (snap.pause) { this.menu.open(this.titlePage()); this.state = 'title-options'; }
         else if (!go) input.takeAnyKey();
         break;
       }
       case 'title-options': {
+        if (!this.openHold) this.openT += Math.min(dt, 0.1);          // (openHold: a tool holds the opening at a moment to look at it)
         this.menu.update(dt, input, snap);
         input.takeAnyKey();                                               // (taps on the menu's rows are not "tap to start": the title must not see them once the menu closes)
         if (this.state !== 'title-options') break;                        // (PLAY was picked: the intro has begun)
@@ -898,23 +923,21 @@ class App {
   }
 
   _drawTitle(dim = false) {
-    const pix = this.gfx.hud, W = pix.w, H = pix.h;
+    const pix = this.gfx.hud, W = pix.w, H = pix.h, art = this.art, t = this.openT;
     const touch = !!this.game.input.touch || this.game.input.lastDevice === 'touch';
     const pad = this.game.input.lastDevice === 'pad';
-    // (on a touch screen the MENU button sits at the top centre: the logo starts below it)
-    const top = touch ? Math.max(Math.round(H * 0.08), touchClear(this.gfx.frameCss())) : Math.round(H * 0.08);
-    if (this.logo) {
-      const bob = Math.round(Math.sin(this.t * 1.6) * 1.5);
-      pix.blit(this.logo, (W - this.logo.w) >> 1, top + bob);
-    }
-    drawText(pix, 'SPYRO', W >> 1, top - 2, { style: 'grad', scale: 1, align: 'center', colors: ['#f4eeff', '#b98cff', '#7c3ec8'], outlineColor: INK });
-    drawText(pix, 'A LANTERN KEEPERS DLC REALM', W >> 1, top + (this.logo ? this.logo.h + 2 : 60), { style: 'grad', align: 'center', colors: LILAC, outlineColor: INK });
-    if (!dim && Math.floor(this.t * 2) % 2 === 0) {
-      drawText(pix, touch ? 'TAP TO START' : pad ? 'PRESS A' : 'PRESS ENTER', W >> 1, Math.round(H * 0.74), { style: 'grad', scale: 2, align: 'center', colors: GOLD, outlineColor: INK });
-      if (!touch && !pad) drawText(pix, 'OR CLICK', W >> 1, Math.round(H * 0.74) + 24, { style: 'outline', align: 'center', color: '#c8bce8', outlineColor: INK });
-    }
+    // the picture of the first start dissolves into the Vale (a dither wipe over the first 0.7 s, while the 3D fades up from black)
+    if (t < 0.7) { drawDusk(pix, 1, this.t); ditherOut(pix, t / 0.7); }
+    if (!art) return;
+    // (the ring behind the logo is taller than the letters: it needs room above them, and on a touch screen the MENU button sits at the top centre)
+    const room = Math.round((art.ring.h - art.spyro.h) / 2) + 3;
+    const top = touch ? Math.max(room, touchClear(this.gfx.frameCss()) + 2) : room;       // (on a touch screen the letters start below the button; the ring may pass behind it)
+    const bob = t > OPEN.logoAt + OPEN.logoDur ? Math.round(Math.sin(this.t * 1.6) * 1) : 0;
+    const { bottom } = drawLogo(pix, art, t, top, bob);
+    if (t > OPEN.subAt + 0.6) drawText(pix, 'A LANTERN KEEPERS DLC REALM', W >> 1, bottom + 3, { style: 'grad', align: 'center', colors: LILAC, outlineColor: INK });
     if (dim) return;                                       // (a menu is open over the title: its own footer lives down here)
-    drawText(pix, touch ? 'TAP MENU FOR OPTIONS' : pad ? 'START: MENU' : 'ESC: MENU', W >> 1, H - 12, { style: 'outline', align: 'center', color: '#c8bce8', outlineColor: INK });
+    drawPressStart(pix, touch ? 'tap to start' : pad ? 'press a' : 'press start', t, H - 38);
+    if (t > OPEN.subAt) drawText(pix, touch ? 'TAP MENU FOR OPTIONS' : pad ? 'START: MENU' : 'ENTER OR CLICK     ESC: MENU', W >> 1, H - 12, { style: 'outline', align: 'center', color: '#c8bce8', outlineColor: INK });
   }
 
   _drawIntro() {

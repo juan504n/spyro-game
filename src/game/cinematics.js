@@ -1,5 +1,6 @@
 // Camera rails: Catmull-Rom paths for the title orbit, the intro fly-through and the sunrise finale.
 import { LEVEL } from './level.js';
+import { OPEN } from './titlescreen.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const ease = (t) => t * t * (3 - 2 * t);
@@ -96,4 +97,55 @@ export function gateShot(b) {
       fov: lerp(56, 62, u) + up * 8,
     };
   };
+}
+
+/**
+ * The opening of the title screen (OPEN in titlescreen.js has its timing): Spyro glides in from far over the Vale at dusk, flares and lands on the village plaza, turns his face to
+ * the camera and cheers; the camera starts high and wide to find him as a dot in the sky and ends low and close, with the Hearth Beacon and the houses behind him.
+ * Both are plain functions of the clock `t` (seconds into the opening), so the opening can be jumped to any moment (the skip, the screenshots).
+ * Returns { flight(player, t, dt), shot(t), land }: `flight` sets the hero's place, yaw and pose, `shot` is a camera shot.
+ */
+export function makeOpening(game, fly = OPEN.fly) {
+  const c01 = (v) => clamp(v, 0, 1), c11 = (v) => clamp(v, -1, 1);
+  const h = (x, z) => game.grid.heightAt(x, z);
+  const LAND = [0.5, h(0.5, 144) + 0.02, 144];
+  const route = [
+    [-28, h(-28, 50) + 48, 50], [-11, h(-11, 92) + 34, 92], [7, h(7, 118) + 19, 118], [5, h(5, 133) + 8.5, 133], LAND,
+  ];
+  // The route is walked by its length, not by the spline's own parameter (which would be fast on the long first stretch and slow on the short ones): he comes in at about 22 m/s and eases down to
+  // a walking pace over the last metres (the flare). `arc` maps a length fraction back to the spline's parameter.
+  const N = 200, lens = [0];
+  for (let i = 1; i <= N; i++) { const a = splineAt(route, (i - 1) / N), b = splineAt(route, i / N); lens.push(lens[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2])); }
+  const total = lens[N];
+  const arc = (f) => { const want = f * total; let i = 1; while (i < N && lens[i] < want) i++; const k = (want - lens[i - 1]) / ((lens[i] - lens[i - 1]) || 1); return (i - 1 + k) / N; };
+  const along = (t) => { const k = c01(t / fly); return arc(1 - (1 - k) ** 1.4); };
+  const at = (t) => splineAt(route, along(t));
+  const yawAt = (t) => {
+    const a = at(Math.max(0, t - 0.05)), b = at(Math.min(fly, t + 0.05));
+    const head = Math.atan2(b[0] - a[0], b[2] - a[2]);
+    return lerp(head, 0, ease(c01((t - fly + 1.6) / 1.6)));          // (and faces the camera, to the south, as he lands)
+  };
+  const cam0 = [-1.5, h(-1.5, 166) + 10, 166], cam1 = [0.6, h(0.6, 151.5) + 2.5, 151.5];
+  const flight = (pl, t, dt) => {
+    const p = t < fly ? at(t) : LAND;
+    pl.x = p[0]; pl.y = p[1]; pl.z = p[2]; pl.yaw = yawAt(t);
+    pl.grounded = t >= fly;
+    const turn = c11(-(yawAt(t + 0.1) - yawAt(t - 0.1)) * 2.5, -1, 1);
+    const after = t - fly;
+    const cheer = c01((t - OPEN.cheerAt) / 0.25) * (1 - c01((t - OPEN.cheerAt - OPEN.cheerDur) / 0.35));
+    const pose = t < fly
+      ? { grounded: false, glide: true, vy: -2.2 + 1.6 * ease(c01((t - fly + 1.2) / 1.2)), speed: 14, turn, t }
+      : { grounded: true, speed: Math.max(0, 4 * (1 - after / 0.5)), land: c01(1 - after / 0.5), cheer, turn: 0, t };
+    pl.model.update(dt, pose);              // (the model keeps its own clock, so it is told the step's dt)
+  };
+  const shot = (t) => {
+    const k = ease(c01(t / fly));
+    const hero = t < fly ? at(t) : LAND;
+    const sway = Math.sin(t * 0.35) * 0.7 * c01((t - fly) / 2);
+    const pos = [lerp(cam0[0], cam1[0], k) + sway, lerp(cam0[1], cam1[1], k), lerp(cam0[2], cam1[2], k)];
+    const settle = ease(c01((t - fly + 0.6) / 1.4));
+    const look = [lerp(hero[0], LAND[0], settle), lerp(hero[1] + 0.8, LAND[1] + 2.15, settle), lerp(hero[2], LAND[2], settle)];
+    return { pos, look, fov: lerp(54, 42, k) };
+  };
+  return { flight, shot, land: LAND, fly };
 }

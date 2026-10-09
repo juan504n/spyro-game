@@ -41,6 +41,7 @@ export class Player {
     this.landPulse = 0;
     this.dead = false; this.deadT = 0;
     this.locked = false;            // cutscenes / dialogue: no control
+    this.script = null;             // a function (player, dt) that plays the hero instead of the controller (the title screen's fly-in), or null
     this.cheer = false;
     this.inWater = false; this.waterT = 0;
     this.safe = { x: 0, y: 0, z: 0, yaw: Math.PI };
@@ -105,6 +106,7 @@ export class Player {
   update(dt, input, camYaw) {
     this.time += dt;
     this.px = this.x; this.py = this.y; this.pz = this.z; this.pyaw = this.yaw;
+    if (this.script) { this.script(this, dt); return; }        // (a cutscene plays the hero: it sets his place, his heading and his pose itself, see cinematics.js `makeOpening`)
     const col = this.game.collision;
 
     if (this.carry) { this._carried(dt); return; }

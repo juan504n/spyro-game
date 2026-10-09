@@ -506,6 +506,15 @@ so Emberfall is still ash and basalt and Tideglass still teal. Every painting wr
 </p>
 <p align="center"><sub>Top: Heron Point, from the camera of a player's screenshot; bottom: the ledge above the Dawn Gate's forecourt. Left: before; right: after (software-rendered; the pictures are taken a few seconds after a warp).</sub></p>
 
+* **The rock is rock, and the grass is one grass.** The cliffs and mountains were rows of bricks, each row topped by a strip of moss: ten bands of bricks up a 60 m wall. They are now a face of natural rock (`crag`, `src/engine/textures/hd/terrain.js`): ridges and gullies running down the face, broad planes in light and in shade, no joints, no lip, a smooth shaded mass from far away and rock up close, in every realm's own colours. The ground had three greens (a sunlit one, a teal one in patches and a painted flower meadow, plus moss), and each border between two of them was a staircase of squares; all gentle ground is now **one grass, whose average colour is #3d8732**, and the variety is a smooth swell of light and shade and a drift from yellow green to blue green in the vertex colours. The pixel (PS1) look keeps its old banded rock. See `docs/DESIGN.md` (Round thirty-five).
+
+* **The opening.** The first start used to be a bar on black. It is now a **dusk over jagged mountains with five lanterns that light as the world is built**, which gives way, in a dither, to the Vale at dusk, where **Spyro glides in from the far end of the sky, flares and lands on the village plaza** in front of the camera, while a chunky purple logo with a gold outline drops in over a ring of chrome, its second line (GLOAMING VALE, orange with drips) slides up under it, he cheers, and a small *press start* blinks at the foot. Inspired by how the old PS1 games open (a title that is a place with something happening in it), and drawn entirely in code. A press during the flight skips to the end of it; the next one starts the game; `?skip` goes straight into play as before. `node tools/opening-test.mjs` holds the flight, the camera and the pictures to numbers (the camera is never inside a tree, the hero never faster than a glider, the lanterns light in order). One honest limit: the world is built in 3 s in blocks that stall the browser for up to 2 s, so the dusk picture is still, not animated, while it is built; the animation starts when the build is done.
+
+<p align="center">
+  <img src="docs/shots/51-title.jpg" width="100%" alt="The opening, in four frames: the dusk with five lanterns lighting as the world is built; Spyro a dot in the sky over the Vale; the logo dropping in as he lands on the plaza; and the settled title with press start">
+</p>
+<p align="center"><sub>Left to right: the first start (the HUD's own pixels, three of five lanterns lit); Spyro gliding in; the landing, with the logo dropping; the settled title (software-rendered, the smooth look).</sub></p>
+
 | | PS1 look | smooth look, HD on (default) | smooth look, HD off |
 | --- | --- | --- | --- |
 | a world texture | the pixels, point sampled | the 256 px painting, mipmapped, anisotropic ×4 | the pixels, enlarged 8× by a smoothing filter |
@@ -665,6 +674,7 @@ node tools/music-check.mjs    # the songs, in Node: every world has one, every s
 node tools/music-sheet.mjs <id>   # a song read back without listening: its score as a piano roll, the rendered loop as a spectrogram, the level of every bar and of every part, the key and the tempo the audio has, the pulse of the bar (`--wav` also writes the loops)
 node tools/voice-sheet.mjs    # the sample bank measured: every voice at a few pitches (the pitch it really has, level, brightness, ring, cost), `--png dir` a spectrogram of each
 node tools/music-test.mjs     # the songs in the running game (needs the dev server): each world's song made behind its loading bar and playing, kept and freed as designed, the ambience following the score, a hop within a world leaving the music alone
+node tools/opening-test.mjs  # the title's opening: the hero's flight (over the ground, glider speed, lands facing the camera), the camera (never in a solid, keeps him in frame), the logo, press start, the dusk's lanterns
 node tools/audio-smoke.mjs    # the WebAudio wrapper in headless Chromium: every public method, the lazy sounds, the songs (made on demand, the dawn after the dusk and in step with it, freed two worlds on, nothing left running), the crossfade, the muffle
 node tools/build-single.mjs   # esbuild -> one HTML file
 ```
