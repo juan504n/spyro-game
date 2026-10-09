@@ -127,6 +127,32 @@ throw him out of the observatory and the Great Beacon's room again: a place insi
 props, rock and colliders, out of the water and off a slope he would slide down, 6 m from the Snuffers and from a door that is awake, in no pocket, and in the walkable country with the realm's gate open); `tools/travel-test.mjs`
 goes to every one of them through the real menu pages, then does it with the mouse and with taps on a phone held either way.
 
+### The original, too: open-spyro in the browser
+
+[`docs/open-spyro/`](docs/open-spyro/) is a separate page that plays *Spyro the Dragon* itself, as rebuilt by
+[open-spyro](https://github.com/theMagicalKarp/open-spyro), the byte-for-byte decompilation of the PS1 game. That build
+produces a PlayStation disc, so the page runs it in a PlayStation emulator compiled to WebAssembly
+([EmulatorJS](https://emulatorjs.org) with the PCSX-ReARMed core, vendored in `docs/open-spyro/emulatorjs/` so nothing comes
+from a CDN). You drop the disc image on it: open-spyro's `build/SpyrotheDragon.bin` from `make iso`, or a rip of your own
+NTSC-U disc. The file stays in the browser. Before booting, the page reads the disc's file system and checks whether its
+`SCUS_942.28` is byte-identical to retail, which is open-spyro's core invariant. No game data ships with the page.
+
+Two looks: *Standard* (PCSX-ReARMed, the native 320×240 picture, no BIOS needed) and *HD* (Beetle PSX's software renderer
+at 2×, 4× or 8× internal resolution, optional 16:9 widescreen hack; it needs a dump of the console's BIOS, which the page
+keeps in the browser). Both can add a smoothing or CRT filter and overclock the emulated CPU against slowdown. Beetle's
+OpenGL renderer does not start in this EmulatorJS build, so HD renders on the CPU.
+
+**60 fps (experimental).** Spyro's gameplay already advances in 1/60 s ticks: the main loop sets `g_nFrameStep` to the vblanks
+since the last frame (clamped to 2..4) and Spyro, the camera, actors and the level overlays step by it; only the drawing waits for
+every second vblank. [`docs/open-spyro/patches.js`](docs/open-spyro/patches.js) lowers that clamp to 1 (`main`, 0x80012224) and
+makes `GamestateDraw` pace to one vblank (0x8001F0C4, 0x8001F0F8), applied as cheat codes, and only after checking that the
+disc's executable holds the original instructions there. Addresses and reasoning come from open-spyro's disassembly.
+
+```bash
+npm run vendor:emulatorjs   # re-vendor EmulatorJS + the PCSX-ReARMed and Beetle PSX cores from npm (pinned 4.2.3)
+npm run test:open-spyro     # builds a tiny PS1 test disc (and stand-in BIOS) and boots them through the page in Chromium
+```
+
 ## The realm
 
 Gloaming Vale is a valley that has been stuck in twilight ever since the Snuffers stole the sunrise. Elder Wick, the last
