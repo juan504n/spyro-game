@@ -164,8 +164,9 @@ if (wanted('title')) {
 
   // NO (Enter on the cursor's first place): nothing happens, and the menu is back on the places
   s = await pick(t, 'NO');
-  let st = await ev(() => ({ same: window.__keep === __game, moved: Math.hypot(__game.player.x - window.__pos0[0], __game.player.z - window.__pos0[1]) }));
-  check('NO: back on the page of places, and he has gone nowhere (the title waits)', s.title === 'THE HEIGHTS' && s.state === 'title-options' && !s.travel && st.same && st.moved < 0.01, `(${s.title}, ${s.state}, ${st.moved.toFixed(2)} m)`);
+  let st = await ev(() => ({ same: window.__keep === __game, scripted: !!__game.player.script, moved: Math.hypot(__game.player.x - window.__pos0[0], __game.player.z - window.__pos0[1]) }));
+  // (the hero of the title is Spyro flying in, played by the opening's script: he moves; what must not change is the world, and that no trip began)
+  check('NO: back on the page of places, and no trip has begun (the title waits: the same world, the opening still playing)', s.title === 'THE HEIGHTS' && s.state === 'title-options' && !s.travel && st.same && st.scripted, `(${s.title}, ${s.state}, ${st.moved.toFixed(2)} m)`);
   // Enter alone on ARE YOU SURE? is NO, too (the cursor starts there): a stray press cannot send him away
   await pick(t, 'HERON POINT');
   await key('Enter');

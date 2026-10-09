@@ -263,7 +263,9 @@ if (!only || only === 'portrait') {
     await t.page.evaluate(() => __frame(4));
     const gt = await geom(t.page), ut = await ui(t.page);
     check('portrait title: the MENU button is under the picture and the thumb controls are not shown', ut.menuShown && !ut.padsShown && gt.rect.top >= gt.f.top + gt.f.height + 20 && ut.rect.left >= 0 && ut.rect.right <= ut.vw && ut.rect.bottom <= ut.vh, `(at ${Math.round(ut.rect.x)},${Math.round(ut.rect.y)})`);
-    check('... and the title\'s logo starts 8% down the picture, as on any screen', await t.page.evaluate(() => { const hud = __app.gfx.hud, w = hud.w; for (let y = 0; y < hud.h; y++) for (let x = 0; x < w; x++) if (hud.data[(y * w + x) * 4 + 3]) return y >= 8 && y <= Math.round(hud.h * 0.08) + 4; return false; }), '');
+    // (the opening is held at its end: the ring behind the logo is the first thing drawn, a few lines from the top, whatever the screen; the dusk's dissolve is over)
+    await t.page.evaluate(() => { __app.openHold = true; __app.openT = 10; __frame(2); });
+    check('... and the title\'s logo (its ring) starts near the top of the picture, as on any screen', await t.page.evaluate(() => { const hud = __app.gfx.hud, w = hud.w; for (let y = 0; y < hud.h; y++) for (let x = 0; x < w; x++) if (hud.data[(y * w + x) * 4 + 3]) return y >= 1 && y <= 14; return false; }), '');
     await shot(t.page, 'title-portrait');
     await t.ctx.close();
   }
@@ -441,6 +443,10 @@ if (!only || only === 'desktop') {
   const s1 = await page.evaluate(() => __app.state);
   await page.evaluate(() => __frame(30));
   check('desktop: Esc again closes it and the title waits for a start (the closing does not start it)', s1 === 'title' && (await page.evaluate(() => __app.state)) === 'title');
+  // (round thirty-four: a press while Spyro is still flying in skips to the end of the opening; the next one starts the game)
+  await page.keyboard.down('Enter'); await page.evaluate(() => __frame(2)); await page.keyboard.up('Enter'); await page.evaluate(() => __frame(30));
+  const sk = await page.evaluate(() => ({ state: __app.state, t: __app.openT }));
+  check('desktop: Enter during the opening skips to its end (press start), it does not start the game', sk.state === 'title' && sk.t >= 8.8, `(${sk.state}, ${sk.t.toFixed(1)} s in)`);
   await page.keyboard.down('Enter'); await page.evaluate(() => __frame(2)); await page.keyboard.up('Enter'); await page.evaluate(() => __frame(30));
   check('desktop: Enter starts the game from the title', (await page.evaluate(() => __app.state)) === 'intro');
   await ctx.close();

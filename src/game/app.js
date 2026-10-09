@@ -189,10 +189,10 @@ class App {
     // The opening: the picture of the first start (the dusk and its five lanterns) gives way, in a dither, to the Vale at dusk, and Spyro glides in from the far end of the sky and lands in front of the
     // camera. The hero is played by a script for as long as the title lasts (and put back where the game placed him when it ends: startIntro).
     this.spawnPose = { x: p.x, y: p.y, z: p.z, yaw: p.yaw };
-    this.opening = makeOpening(g);
+    const op = this.opening = makeOpening(g);
     this.openT = 0;
-    p.script = (pl, dt) => this.opening.flight(pl, this.openT, dt);
-    g.cam.playCinematic((t) => this.opening.shot(this.openT), 1e9);
+    p.script = (pl, dt) => op.flight(pl, this.openT, dt);
+    g.cam.playCinematic(() => op.shot(this.openT), 1e9);          // (it holds `op`: the opening may end under it, by a trip from the TRAVEL menu, while the camera still plays until the arrival)
     g.dayTarget = 0;
     g.fade.a = 1; g.fadeTo(0, 1.3);
   }
@@ -419,6 +419,7 @@ class App {
   travelTo(id, { from = this.game.realm.id, color = [1, 1, 1], at = null } = {}) {
     if (this.state === 'traveling' || !REALMS[id]) return;
     const g = this.game;
+    this._endOpening();                    // (a trip from the title's TRAVEL menu: the hero is his own again, put where the game placed him, before the way out)
     this.menu.closeAll();
     g.input.menuOpen = false;
     g.paused = false;
