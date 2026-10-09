@@ -12,43 +12,70 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inspectDisc, cueFor, RETAIL_EXE } from '../docs/open-spyro/disc.js';
+import { FPS60, patchFits } from '../docs/open-spyro/patches.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'open-spyro-test-'));
 let failures = 0;
 const check = (ok, what) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if (!ok) failures++; };
 
-// ---- MIPS code that fills the 320x240 screen with one colour, then spins at the end ----
+// ---- MIPS code that fills the 320x240 screen with one colour, over and over ----
+// The colour says whether the 60 fps patch reached RAM: green when the halfword at 0x80012224 (the
+// first word the patch changes) reads 1, gold otherwise. The executable below carries the original
+// instructions at the three patched addresses, as the retail one does, so the page's check passes.
 const COLOUR = [0xf2, 0xb8, 0x4b];
+const PATCHED = [0x4b, 0xd4, 0x7a];
 function fillScreen(base) {
-  const lui = (rt, imm) => (0x0f << 26) | (rt << 16) | imm;
-  const ori = (rt, rs, imm) => (0x0d << 26) | (rs << 21) | (rt << 16) | imm;
-  const sw = (rt, off, b) => (0x2b << 26) | (b << 21) | (rt << 16) | off;
-  const T0 = 8, T1 = 9;
-  const code = [lui(T0, 0x1f80), ori(T0, T0, 0x1810)]; // t0 = GP0; GP1 is t0 + 4
-  const put = (port, word) => code.push(lui(T1, word >>> 16), ori(T1, T1, word & 0xffff), sw(T1, port, T0));
+  const code = [];
+  const labels = {}, fixups = [];
+  const op = (o, rs, rt, imm) => (o << 26) | (rs << 21) | (rt << 16) | (imm & 0xffff);
+  const lui = (rt, imm) => code.push(op(0x0f, 0, rt, imm));
+  const ori = (rt, rs, imm) => code.push(op(0x0d, rs, rt, imm));
+  const addiu = (rt, rs, imm) => code.push(op(0x09, rs, rt, imm));
+  const sw = (rt, off, b) => code.push(op(0x2b, b, rt, off));
+  const lhu = (rt, off, b) => code.push(op(0x25, b, rt, off));
+  const bne = (rs, rt, label) => { fixups.push([code.length, label, 'b']); code.push(op(0x05, rs, rt, 0)); };
+  const j = (label) => { fixups.push([code.length, label, 'j']); code.push(0x02 << 26); };
+  const nop = () => code.push(0);
+  const at = (label) => { labels[label] = code.length; };
+  const T0 = 8, T1 = 9, T2 = 10, T3 = 11, T4 = 12, T5 = 13;
+  const put = (port, word) => { lui(T1, word >>> 16); ori(T1, T1, word & 0xffff); sw(T1, port, T0); };
+  const fill = ([r, g, b]) => { put(0, (0x02 << 24) | (b << 16) | (g << 8) | r); put(0, 0); put(0, (240 << 16) | 320); };
+  lui(T0, 0x1f80); ori(T0, T0, 0x1810); // t0 = GP0; GP1 is t0 + 4
   for (const w of [0x00000000, 0x03000000, 0x08000001, 0x05000000, 0x06c60260, 0x07040010]) put(4, w); // GP1: reset, display on, 320x240, area, ranges
   for (const w of [0xe1000400, 0xe3000000, 0xe403bd3f, 0xe5000000]) put(0, w); // GP0: draw mode, drawing area 0,0-319,239, offset
-  put(0, (0x02 << 24) | (COLOUR[2] << 16) | (COLOUR[1] << 8) | COLOUR[0]); // GP0: fill rectangle…
-  put(0, 0x00000000); // …at 0,0
-  put(0, (240 << 16) | 320); // …320x240
-  const loop = base + code.length * 4;
-  code.push((0x02 << 26) | ((loop >>> 2) & 0x3ffffff), 0); // j loop; nop
+  at('loop');
+  lui(T3, 0x8001); lhu(T2, 0x2224, T3); nop(); addiu(T4, 0, 1);
+  bne(T2, T4, 'gold'); nop();
+  fill(PATCHED); j('wait'); nop();
+  at('gold');
+  fill(COLOUR);
+  at('wait');
+  lui(T5, 0x0004);
+  at('spin');
+  addiu(T5, T5, -1); bne(T5, 0, 'spin'); nop();
+  j('loop'); nop();
+  for (const [i, label, kind] of fixups) {
+    if (kind === 'b') code[i] |= (labels[label] - i - 1) & 0xffff;
+    else code[i] |= ((base + labels[label] * 4) >>> 2) & 0x3ffffff;
+  }
   const out = Buffer.alloc(code.length * 4);
   code.forEach((w, i) => out.writeUInt32LE(w >>> 0, i * 4));
   return out;
 }
 
-// A PS-EXE running that code, loaded at 0x80010000.
+// A PS-EXE running that code, loaded at 0x80010000 and long enough to hold the patch's three words.
 function psExe() {
-  const exe = Buffer.alloc(2048 + 2048);
+  const text = 0x10000; // 0x80010000..0x80020000
+  const exe = Buffer.alloc(2048 + text);
   exe.write('PS-X EXE', 0, 'latin1');
   exe.writeUInt32LE(0x80010000, 0x10); // pc
   exe.writeUInt32LE(0x80010000, 0x18); // load address
-  exe.writeUInt32LE(2048, 0x1c); // text size
+  exe.writeUInt32LE(text, 0x1c); // text size
   exe.writeUInt32LE(0x801ffff0, 0x30); // stack
   exe.write('Sony Computer Entertainment Inc. for North America area', 0x4c, 'latin1');
   fillScreen(0x80010000).copy(exe, 2048);
+  for (const [addr, word] of FPS60.original) exe.writeUInt32LE(word, 2048 + addr - 0x80010000);
   return exe;
 }
 
@@ -147,6 +174,10 @@ fs.writeFileSync(path.join(tmp, 'TestDisc.cue'), 'FILE "TestDisc.bin" BINARY\r\n
 fs.writeFileSync(path.join(tmp, 'Multi (Track 1).bin'), bin);
 fs.writeFileSync(path.join(tmp, 'Multi (Track 2).bin'), Buffer.alloc(150 * 2352));
 fs.writeFileSync(path.join(tmp, 'scph-test.bin'), standInBios());
+{ // the same disc with one patched word changed: the 60 fps patch must not apply
+  const other = Buffer.from(exe); other.writeUInt32LE(0x24110003, 2048 + 0x2224);
+  fs.writeFileSync(path.join(tmp, 'Other.bin'), raw2352(iso([{ name: 'SYSTEM.CNF', data: cnf }, { name: RETAIL_EXE, data: other }])));
+}
 fs.writeFileSync(path.join(tmp, 'Multi.cue'), 'FILE "Multi (Track 1).bin" BINARY\r\n  TRACK 01 MODE2/2352\r\n    INDEX 01 00:00:00\r\nFILE "Multi (Track 2).bin" BINARY\r\n  TRACK 02 AUDIO\r\n    INDEX 00 00:00:00\r\n    INDEX 01 00:02:00\r\n');
 
 // ---- the inspector, in Node ----
@@ -156,6 +187,9 @@ for (const [label, data] of [['raw 2352', bin], ['iso 2048', image]]) {
   check(info.readable && info.boot === RETAIL_EXE && info.sha1 === sha1 && !info.retail && info.label === 'OPENSPYROTEST', `inspector reads the ${label} image (boot ${info.boot}, sha1 ${info.sha1?.slice(0, 8)}, label ${info.label})`);
 }
 check(!(await inspectDisc(new Blob([Buffer.alloc(100000)]))).readable, 'inspector rejects a blank file');
+check(patchFits(FPS60, (await inspectDisc(new Blob([bin]))).exe), 'the 60 fps patch fits an executable with the original instructions');
+const changed = Buffer.from(exe); changed.writeUInt32LE(0x24110003, 2048 + 0x2224);
+check(!patchFits(FPS60, changed), 'the 60 fps patch refuses an executable whose code differs there');
 const cue = await (await cueFor(new File([bin], 'TestDisc.bin'))).text();
 check(/FILE "TestDisc\.bin" BINARY/.test(cue) && /TRACK 01 MODE2\/2352/.test(cue), 'a lone .bin gets a MODE2/2352 .cue');
 check(/TRACK 01 MODE1\/2048/.test(await (await cueFor(new File([image], 'TestDisc.iso'))).text()), 'a 2048-byte .iso gets a MODE1/2048 .cue');
@@ -176,7 +210,7 @@ const url = `http://127.0.0.1:${port}/open-spyro/`; // a secure context, as http
 
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--host-resolver-rules=MAP open-spyro.test 127.0.0.1'] });
 
-async function run(files, label, { expectRemembered = false, context = null, gfx = null, bios = false, size = [320, 240] } = {}) {
+async function run(files, label, { expectRemembered = false, context = null, gfx = null, bios = false, size = [320, 240], colour = COLOUR } = {}) {
   const ctx = context || (await browser.newContext({ viewport: { width: 960, height: 720 } }));
   const page = await ctx.newPage();
   const problems = [];
@@ -190,6 +224,7 @@ async function run(files, label, { expectRemembered = false, context = null, gfx
     if (gfx.scale) await page.selectOption('#scale', gfx.scale);
     if (gfx.filter) await page.selectOption('#filter', gfx.filter);
     if (gfx.overclock) await page.check('#overclock');
+    if (gfx.fps60) await page.check('#fps60');
   }
   if (bios) {
     if (gfx?.look === 'hd') check(await page.isVisible('#need-bios'), `${label}: HD asks for a BIOS before it can play`);
@@ -216,8 +251,8 @@ async function run(files, label, { expectRemembered = false, context = null, gfx
     c.drawImage(bmp, 0, 0);
     return { w: bmp.width, h: bmp.height, rgb: [...c.getImageData(bmp.width >> 1, bmp.height >> 1, 1, 1).data.slice(0, 3)] };
   });
-  const near = px.rgb.every((v, i) => Math.abs(v - COLOUR[i]) <= 8); // 15-bit colour rounds the low bits
-  check(near && px.w === size[0] && px.h === size[1], `${label}: it boots and paints the screen (${px.w}x${px.h}, expected ${size.join('x')}; centre rgb ${px.rgb.join(',')})`);
+  const near = px.rgb.every((v, i) => Math.abs(v - colour[i]) <= 8); // 15-bit colour rounds the low bits
+  check(near && px.w === size[0] && px.h === size[1], `${label}: it boots and paints the screen ${colour === PATCHED ? 'green (patch in RAM)' : 'gold'} (${px.w}x${px.h}, expected ${size.join('x')}; centre rgb ${px.rgb.join(',')})`);
   await page.screenshot({ path: path.join(tmp, `${label.replace(/\W+/g, '-')}.png`) });
   check(problems.length === 0, `${label}: no page errors${problems.length ? ': ' + problems.join(' | ').slice(0, 300) : ''}`);
   await page.close();
@@ -232,6 +267,21 @@ await (await run(['TestDisc.bin'], 'standard + smooth filter + overclock', { gfx
 // HD: Beetle PSX boots the stand-in BIOS, which paints the screen; the emulator renders it at 2x and 4x.
 await (await run(['TestDisc.bin'], 'HD 2x', { gfx: { look: 'hd', scale: '2x' }, bios: true, size: [640, 480] })).close();
 await (await run(['TestDisc.bin', 'TestDisc.cue'], 'HD 4x + CRT + overclock', { gfx: { look: 'hd', scale: '4x', filter: 'crt', overclock: true }, bios: true, size: [1280, 960] })).close();
+// 60 fps: the patch is checked against the disc, then reaches RAM in both cores (the screen turns green).
+await (await run(['TestDisc.bin'], 'standard + 60 fps', { gfx: { look: 'standard', fps60: true }, colour: PATCHED })).close();
+await (await run(['TestDisc.bin', 'TestDisc.cue'], 'HD 2x + 60 fps', { gfx: { look: 'hd', scale: '2x', fps60: true }, bios: true, size: [640, 480], colour: PATCHED })).close();
+// …and refused, with the reason on the page, when the executable's code is not what it patches.
+{
+  const page = await browser.newPage();
+  await page.goto(url);
+  await page.check('#fps60');
+  await page.setInputFiles('#file', path.join(tmp, 'Other.bin'));
+  await page.waitForFunction(() => !/Reading/.test(document.getElementById('verdict').textContent), null, { timeout: 30000 });
+  await page.click('#play');
+  await page.waitForSelector('#fps-note', { state: 'visible', timeout: 10000 });
+  check(/differs/.test(await page.textContent('#fps-note')) && !(await page.evaluate(() => document.body.classList.contains('playing'))), '60 fps refuses a disc whose code differs, and says why');
+  await page.close();
+}
 
 // Over plain http (not a secure context) the page cannot hash, and says so instead.
 {

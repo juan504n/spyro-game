@@ -147,10 +147,17 @@
         </label>
         <label class="check"><input type="checkbox" id="overclock"> Reduce slowdown (overclock the PlayStation's CPU)</label>
       </div>
+      <div class="row">
+        <label class="check"><input type="checkbox" id="fps60"> <span><strong>60 fps</strong> (experimental: patches the game to draw every frame)</span></label>
+      </div>
     </form>
-    <p class="hint"><strong>About frame rate:</strong> <em>Spyro the Dragon</em> itself runs at up to 30 frames a second, and dips below that
-    in busy scenes on a real PlayStation too. The overclock lets the game keep its 30 when the screen is busy (if it misbehaves, turn it off).
-    Going past 30 would mean changing the game's own code; no emulator setting does it.</p>
+    <p class="hint warn" id="fps-note" hidden></p>
+    <p class="hint"><strong>About frame rate:</strong> <em>Spyro the Dragon</em> draws at most 30 frames a second, but its gameplay runs in
+    1/60 s steps and only the drawing waits for every second screen refresh. The <strong>60 fps</strong> option changes that wait (three
+    numbers in the game's code, checked against your disc first), so play stays at the right speed while the picture updates twice as often.
+    It overclocks the emulated PlayStation to keep up and needs a fast computer, more so in HD (try 2× first); where it cannot keep up the
+    game falls back to 30 by itself. Menus and cutscenes stay at 30, and a few sparkle effects animate faster. More than 60 is not possible:
+    the PlayStation only sends 60 pictures a second to the TV.</p>
     <div class="bios">
       <div class="row">
         <span>BIOS: <span class="name" id="bios-name">none</span></span>

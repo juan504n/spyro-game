@@ -142,6 +142,12 @@ at 2×, 4× or 8× internal resolution, optional 16:9 widescreen hack; it needs 
 keeps in the browser). Both can add a smoothing or CRT filter and overclock the emulated CPU against slowdown. Beetle's
 OpenGL renderer does not start in this EmulatorJS build, so HD renders on the CPU.
 
+**60 fps (experimental).** Spyro's gameplay already advances in 1/60 s ticks: the main loop sets `g_nFrameStep` to the vblanks
+since the last frame (clamped to 2..4) and Spyro, the camera, actors and the level overlays step by it; only the drawing waits for
+every second vblank. [`docs/open-spyro/patches.js`](docs/open-spyro/patches.js) lowers that clamp to 1 (`main`, 0x80012224) and
+makes `GamestateDraw` pace to one vblank (0x8001F0C4, 0x8001F0F8), applied as cheat codes, and only after checking that the
+disc's executable holds the original instructions there. Addresses and reasoning come from open-spyro's disassembly.
+
 ```bash
 npm run vendor:emulatorjs   # re-vendor EmulatorJS + the PCSX-ReARMed and Beetle PSX cores from npm (pinned 4.2.3)
 npm run test:open-spyro     # builds a tiny PS1 test disc (and stand-in BIOS) and boots them through the page in Chromium

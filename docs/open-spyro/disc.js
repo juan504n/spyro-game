@@ -59,7 +59,7 @@ async function sha1Hex(data) {
   return [...digest].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// -> { readable: false } or { readable: true, label, boot, sha1 (null if it could not be hashed), retail }
+// -> { readable: false } or { readable: true, label, boot, sha1 (null if it could not be hashed), exe (its bytes), retail }
 export async function inspectDisc(file) {
   try {
     const layout = await sectorLayout(file);
@@ -75,8 +75,9 @@ export async function inspectDisc(file) {
       if (m) boot = m[1].toUpperCase();
     }
     const exe = boot.includes('\\') ? null : root.find((e) => e.name === boot && !e.dir);
-    const sha1 = exe ? await sha1Hex(await readExtent(file, layout, exe.lba, exe.size)) : null;
-    return { readable: true, label, boot, sha1, retail: boot === RETAIL_EXE && sha1 === RETAIL_SHA1 };
+    const exeBytes = exe ? await readExtent(file, layout, exe.lba, exe.size) : null;
+    const sha1 = exeBytes ? await sha1Hex(exeBytes) : null;
+    return { readable: true, label, boot, sha1, exe: exeBytes, retail: boot === RETAIL_EXE && sha1 === RETAIL_SHA1 };
   } catch (err) {
     return { readable: false, error: String(err) };
   }
