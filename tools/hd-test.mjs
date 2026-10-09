@@ -11,6 +11,8 @@ import crypto from 'node:crypto';
 import { ramp, noise, fbm, fbmWH, voronoi, blur, Canvas, grain, smoothstep, wrapN, clamp, cnt } from '../src/engine/textures/hd/kit.js';
 import { generateWorldTextures } from '../src/engine/textures/world.js';
 import { dunes } from '../src/engine/textures/hd/ground.js';
+import { crag } from '../src/engine/textures/hd/terrain.js';
+import { RAMPS } from '../src/engine/textures/palette.js';
 import { PAINT, HD, HD_STATS, SIZE, configureHD, rampFrom, withoutHD, attachHD } from '../src/engine/textures/hd/index.js';
 import { Pix, RNG } from '../src/engine/textures/pix.js';
 import { setTextureSmoothing, setTextureHD, texFromPix } from '../src/engine/materials.js';
@@ -200,6 +202,20 @@ const sha = (data) => crypto.createHash('sha1').update(data).digest('hex').slice
   const grey = ['#808080', '#a0a0a0', '#c0c0c0'], reds = (cv, from = 0) => { let k = 0; for (let i = from; i < cv.w * cv.h; i++) if (cv.px[i * 3] - cv.px[i * 3 + 1] > 60) k++; return k; };
   const bare = dunes(256, { seed: 5, R: grey, pebbles: 0 }), few = dunes(256, { seed: 5, R: grey, pebbles: 12, pebbleRamp: ['#ff0000', '#ff0000'], pebbleSize: [2, 3] }), big = dunes(256, { seed: 5, R: grey, pebbles: 12, pebbleRamp: ['#ff0000', '#ff0000'], pebbleSize: [6, 8] });
   check('dunes: pebbles are drawn from their own ramp and in the size asked for (none without them: no stone of the ramp\'s colour; bigger stones cover more)', reds(bare) === 0 && reds(few) > 40 && reds(big) > reds(few) * 3, `(${reds(bare)}, ${reds(few)}, ${reds(big)} red pixels)`);
+  // round thirty-five: the rock is a face of natural rock (no rows of blocks, no lip of moss), and the one grass has the colour asked for
+  const rock = crag(256, { seed: 81, R: RAMPS.cliff });
+  const lum = (cv, x, y) => { const k = y * 256 + x; return 0.3 * cv.px[k * 3] + 0.59 * cv.px[k * 3 + 1] + 0.11 * cv.px[k * 3 + 2]; };
+  let across = 0, down = 0, inside = 0, rowEdge = 0, rowMean = [];
+  for (let y = 0; y < 256; y++) { across += Math.abs(lum(rock, 0, y) - lum(rock, 255, y)); let r = 0; for (let x = 1; x < 256; x++) { inside += Math.abs(lum(rock, x, y) - lum(rock, x - 1, y)); r += lum(rock, x, y); } rowMean.push(r / 255); }
+  for (let x = 0; x < 256; x++) down += Math.abs(lum(rock, x, 0) - lum(rock, x, 255));
+  for (let y = 1; y < 256; y++) rowEdge += Math.abs(rowMean[y] - rowMean[y - 1]);
+  check('crag: a tile that wraps (the step across either seam is no bigger than a step inside)', across / 256 < (inside / (256 * 255)) * 2.5 && down / 256 < (inside / (256 * 255)) * 2.5, `(${(across / 256).toFixed(2)} / ${(down / 256).toFixed(2)} across the seams, ${(inside / (256 * 255)).toFixed(2)} per pixel inside)`);
+  check('crag: no bands: the mean of a row hardly changes from row to row (strata had rows of blocks and a moss lip: 10 to 40 a row at the joints)', rowEdge / 255 < 3, `(${(rowEdge / 255).toFixed(2)} a row)`);
+  let green = 0;
+  for (let k = 0; k < 256 * 256; k++) if (rock.px[k * 3 + 1] > rock.px[k * 3] + 25 && rock.px[k * 3 + 1] > rock.px[k * 3 + 2] + 25) green++;
+  check('crag: no green lip on the rock', green === 0, `(${green} green pixels)`);
+  const gm = PAINT.grass_a(generateWorldTextures().grass_a.pix, { n: 256, w: 256, h: 256 }).mean();
+  check('the one grass averages #3d8732 (61, 135, 50) to within 4 levels, in its smooth painting', Math.abs(gm[0] - 61) < 4 && Math.abs(gm[1] - 135) < 4 && Math.abs(gm[2] - 50) < 4, `(${gm.map((v) => v.toFixed(1)).join(', ')})`);
   // rampFrom: a ramp of the colours a texture uses
   const tp = new Pix(4, 4); for (let i = 0; i < 16; i++) { tp.data[i * 4] = i < 8 ? 10 : 200; tp.data[i * 4 + 1] = i < 8 ? 10 : 200; tp.data[i * 4 + 2] = i < 8 ? 10 : 200; tp.data[i * 4 + 3] = 255; }
   const rf = rampFrom(tp, 3);

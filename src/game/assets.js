@@ -5,7 +5,7 @@ import { Pix } from '../engine/textures/pix.js';
 import { makeMaterial, texFromPix } from '../engine/materials.js';
 
 const FALLBACK = {
-  grass_a: '#58ad45', grass_b: '#2a7d59', grass_flowers: '#58ad45', moss: '#587a3d', dirt: '#7a5834', sand: '#dcc48c',
+  grass_a: '#3d8732', grass_b: '#3d8732', grass_flowers: '#3d8732', moss: '#587a3d', dirt: '#7a5834', sand: '#dcc48c',
   shore_pebbles: '#847f96', cobble: '#a39eb0', flagstone: '#a39eb0', ice: '#9ad0ea', cliff: '#5f5a72', cliff_warm: '#8a6a5c', cliff_bare: '#5f5a72', cliff_warm_bare: '#8a6a5c', far_rock: '#5f5a72',
   rune_ring: '#4a4658', brick: '#847f96', brick_warm: '#b98a6c', brick_mossy: '#7f9e4c', plaster: '#dccfb2', timber: '#dccfb2',
   wood_plank: '#8c6236', wood_beam: '#6b4526', roof_red: '#c45a3c', roof_teal: '#2e8088', thatch: '#b8943e', tower_stone: '#454158',

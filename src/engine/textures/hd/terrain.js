@@ -4,7 +4,7 @@ import { RAMPS } from '../palette.js';
 import { Canvas, RNG, clamp, mix, smoothstep, wrapN, ramp, col, fbm, voronoi, blur, grain, warp, cnt } from './kit.js';
 
 export const HD_RAMPS = {
-  grassSun: [RAMPS.grass[1], RAMPS.grass[2], RAMPS.grass[3], RAMPS.grass[4], RAMPS.grass[5], '#c4f088'],
+  grassSun: [...RAMPS.meadow, '#9bd468'],
   grassLush: [RAMPS.grassTeal[0], RAMPS.grassTeal[1], RAMPS.grassTeal[2], '#4faf70', '#7cd08c', '#b0eeb4'],
 };
 
@@ -270,6 +270,43 @@ export function strata(n, { seed = 11, R, bands = 6, moss = null, blocks = 3, cr
     }
   }
   if (salt) specks(cv, rng, salt, [248, 252, 250], [248, 252, 250], null, K);
+  cv.modulate(grain(n, seed + 8, n / 2, 0.04));
+  if (mean) cv.matchMean(mean, 0.9);
+  return cv;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+// Crag: a face of natural rock, for the mountains and the cliffs: ridges and gullies that run down the face, lit from one side so that broad planes catch the light and others fall in shade (the
+// mountains of the old title screens are drawn so), weathering in streaks, soft shadow in the creases and a fine grain. No rows, no joints, no lip of moss: seen from far it is a smooth shaded
+// mass, and close up it is rock. One tile is 6 m.
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+export function crag(n, { seed = 81, R, hue = [0, 0, 0], mean = null, rough = 1, relief = 3.4, warm = false } = {}) {
+  const K = n / 256;
+  const RR = ramp(R);
+  const cv = new Canvas(n);
+  const W = warp(n, seed + 1, 2, 22 * K);
+  const f1 = fbm(n, seed + 2, 4, 2, 0.5, 1), f2 = fbm(n, seed + 3, 9, 2, 0.5, 2), f3 = fbm(n, seed + 7, 22, 2, 0.5, 5);
+  const streak = fbm(n, seed + 4, 14, 3, 0.55, 2), mottle = fbm(n, seed + 5, 4, 3, 0.55), fine = fbm(n, seed + 6, 36, 3, 0.6);
+  const at = (f, x, y, k) => f[wrapN(Math.round(y + W.dy[k]), n) * n + wrapN(Math.round(x + W.dx[k]), n)];
+  const ridged = (v) => 1 - Math.abs(2 * v - 1);
+  const height = new Float32Array(n * n), deep = new Float32Array(n * n);
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      const k = y * n + x;
+      const r1 = ridged(at(f1, x, y, k)), r2 = ridged(at(f2, x, y, k)), r3 = ridged(at(f3, x, y, k));
+      const hgt = r1 * 0.55 + r2 * 0.3 + r3 * 0.12 + (streak[k] - 0.5) * 0.08 + (fine[k] - 0.5) * 0.05 * rough;
+      height[k] = hgt;
+      deep[k] = 1 - smoothstep(0.1, 0.5, hgt);                                        // (the gullies)
+    }
+  }
+  cv.fillWith((x, y, out) => {
+    const k = y * n + x;
+    RR(clamp(0.54 + (height[k] - 0.5) * 0.3 + (mottle[k] - 0.5) * 0.14 + (streak[k] - 0.5) * 0.12 + (fine[k] - 0.5) * 0.1 * rough - 0.06 * deep[k]), out);
+    out[0] += hue[0]; out[1] += hue[1]; out[2] += hue[2];
+  });
+  cv.shade(blur(height, n, Math.max(1, Math.round(1.5 * K))), relief);
+  const crack = warm ? [44, 28, 34] : [30, 26, 44];
+  cv.tint(deep, crack, 0.1);
   cv.modulate(grain(n, seed + 8, n / 2, 0.04));
   if (mean) cv.matchMean(mean, 0.9);
   return cv;

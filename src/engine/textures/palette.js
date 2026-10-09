@@ -6,6 +6,7 @@
 export const RAMPS = {
   // terrain
   grass:      ['#1f4d2b', '#2f6e35', '#3f8f3c', '#58ad45', '#7cc84f', '#a6e06a'],
+  meadow:     ['#1b471f', '#265e27', '#327a2c', '#3d8832', '#529e3b', '#71b74a'],      // (the meadow of the Vale: ONE grass, whose average is #3d8732)
   grassTeal:  ['#123f3a', '#1c5c4a', '#2a7d59', '#3f9c66', '#63b878', '#8fd493'],
   moss:       ['#24402b', '#3a5c33', '#587a3d', '#7f9e4c', '#a6c05a'],
   dirt:       ['#3b2a1e', '#5a4028', '#7a5834', '#9a7444', '#b8925a', '#d2ae76'],

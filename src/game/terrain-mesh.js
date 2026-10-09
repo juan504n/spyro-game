@@ -64,7 +64,6 @@ export function terrainPicker(grid) {
   const V = L.valley;
   const vrAt = (x, z) => Math.hypot((x - V.x) / V.rx, (z - V.z) / V.rz);
   const lake = L.lake;
-  const flowerAt = (x, z) => fbm(nFlower, x * 0.04 + 3, z * 0.04, 2);
   const land = L.landing;
   const pickRule = (x, z, h, slope, nx, nz, i, j, pd, surface, underRoad, rd, rs, hTop) => {
     const dL = Math.hypot((x - lake.x) / lake.rx, (z - lake.z) / lake.rz);
@@ -90,7 +89,7 @@ export function terrainPicker(grid) {
     if (rs !== undefined && rd < RIVER_ZONE) {
       if (hTop < rs + 0.05) return ['sand', 'river bed'];                                            // (all of it under the water)
       if (hTop < rs + 0.6 && slope < 1.1) return ['sand', 'river shore'];   // (a thin band along the water's edge, not the whole bank: one ground, like the lake's)
-      if (slope > 0.45 && slope < 1.35) return ['grass_b', 'river bank, slope > 0.45'];                 // (only a wall that is all but vertical stays rock)
+      if (slope > 0.45 && slope < 1.35) return ['grass_a', 'river bank, slope > 0.45'];                 // (only a wall that is all but vertical stays rock)
     }
     // (the Dawn Gate's surroundings are all one rock: the red cascade rock used to start ten metres from its pillars, and a
     // random mix of rock and grass on the steep flanks of its forecourt looked torn)
@@ -113,13 +112,11 @@ export function terrainPicker(grid) {
     if (L.village && Math.hypot(x - L.village.x, z - (L.village.z - 4)) < 9.5) return ['flagstone', 'village plaza'];
     if (surface === 'flagstone' && pd < 1.2) return ['flagstone', 'paved forecourt'];                // a paved forecourt is paved right through (the cells are coarser than the paving)
     const K = L.hollow;
-    if (K && Math.hypot(x - K.x, z - K.z) < K.r * 0.9) return ['moss', 'crystal hollow'];
+    if (K && Math.hypot(x - K.x, z - K.z) < K.r * 0.9) return ['grass_a', 'crystal hollow'];
     if (tidy) return ['grass_a', 'the pier\'s landing lawn: one calm grass'];
-    if (dL < 1.5 && h < 1.5) return [fbm(nBank, x * 0.13 + 40, z * 0.13 + 9, 2) > 0.54 ? 'moss' : 'grass_b', 'lake margin'];       // (moss lies in patches in the damp grass: it was a coin toss per cell, a checkerboard of two greens)
-    const f = flowerAt(x, z);
-    if (f > 0.6 && r < 0.9) return ['grass_flowers', 'flower noise'];
-    const p = fbm(nPatch, x * 0.05 + 40, z * 0.05, 2);
-    if (p > 0.58 && !L.noGrassPatches) return ['grass_b', 'grass patch noise'];            // (a level can have no patches of the second green: in the homeworld's daybreak they read as blots)
+    if (dL < 1.5 && h < 1.5) return ['grass_a', 'lake margin'];       // (one grass: a second green, or moss, laid in patches reads as squares of turf, a checkerboard; the damp is the vertex tint's, see tintFn)
+    // (ONE grass on all gentle ground. There used to be a second, teal one in patches and a third with flowers painted in: the rules choose a texture for a whole triangle, so every border between
+    // two grasses was a staircase of squares, however the noise was shaped. The variety is smooth now, the per-vertex tint of tintFn; the flowers are props that stand on the ground)
     return ['grass_a', 'default grass'];
   };
 
@@ -226,7 +223,11 @@ export function buildTerrainMeshes(grid, lighting, assets) {
     const a = fbm(nTint, x * 0.09, z * 0.09, 2);
     const rimK = 1 - 0.3 * smooth(0.9, 1.08, vrAt(x, z));
     const b = fbm(nPatch, x * 0.03 + 9, z * 0.03, 2);
-    let r = 0.93 + 0.14 * a, g = 0.95 + 0.10 * a + 0.05 * (b - 0.5), bl = 0.93 + 0.12 * (1 - a);
+    // the ground is one texture, so its variety lives here, and it is smooth: a broad swell of light and shade (about 60 m across: sunlit rises, deeper hollows), with a drift between a warm
+    // yellow green and a cool blue green at about twice that, as the meadows of the old games are drawn (there, too, the vertex colour does it all)
+    const big = fbm(nPatch, x * 0.017 + 31, z * 0.017 + 5, 3), drift = fbm(nBank, x * 0.011 + 3, z * 0.011 + 71, 2);
+    const v = 0.8 + 0.4 * big, warmK = drift - 0.5;
+    let r = (0.93 + 0.14 * a + 0.2 * warmK) * v, g = (0.95 + 0.10 * a + 0.05 * (b - 0.5) + 0.04 * warmK) * v, bl = (0.93 + 0.12 * (1 - a) - 0.24 * warmK) * v;
     r *= rimK; g *= rimK; bl *= rimK;
     if (y < WATER_LEVEL) {
       const d = clamp((WATER_LEVEL - y) / 4.5);

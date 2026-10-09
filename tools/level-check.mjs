@@ -167,9 +167,9 @@ const check = (name, ok, detail) => { checks.push(ok); console.log(ok ? 'PASS' :
     else if (a !== b) { band.changed++; if (calm.has(a)) band.calmer++; }
   }
   check(`the pier landing is one calm lawn: only grass, sand and the roads' own dirt and paving within ${NEED} m of its foot`, land.r >= NEED && [...inZone].every((t) => calm.has(t)), `(${inZone.size} textures: ${[...inZone].sort().join(', ')}; it was a mosaic of ${wasInZone.size}: ${[...wasInZone].sort().join(', ')})`);
-  check('... it really was a mosaic before (the check sees the problem)', wasInZone.size >= 6, `(${wasInZone.size} textures)`);
+  check('... and nothing is left for the zone to calm: without it the same ground is just as calm (round thirty-five made all gentle ground one grass; the zone stays as a guard)', [...wasInZone].every((t) => calm.has(t)), `(${wasInZone.size} textures without the zone: ${[...wasInZone].sort().join(', ')})`);
   check('... nothing beyond the lawn and its fade changed', outside > 5000 && moved === 0, `(${outside} points checked beyond ${land.r + land.fade} m, ${moved} moved)`);
-  check('... inside the fade cells only ever change to the calm textures, and some do', band.changed > 50 && band.calmer === band.changed, `(${band.changed} cells changed, ${band.calmer} to grass, sand, dirt or paving)`);
+  check('... inside the fade cells only ever change to the calm textures', band.calmer === band.changed, `(${band.changed} cells changed, ${band.calmer} to grass, sand, dirt or paving)`);
   const lawn = pick.at(land.x - 12, land.z + 12);
   check('... the debug readout names the rule behind it', lawn.tex === 'grass_a' && /landing lawn/.test(lawn.why || ''), `(${lawn.tex}: ${lawn.why})`);
 }
@@ -194,10 +194,13 @@ const check = (name, ok, detail) => { checks.push(ok); console.log(ok ? 'PASS' :
   const shore = count('lake shore'), riverShore = count('river shore');
   check('the lake\'s shore is one ground: sand, with no scatter of pebbles', Object.keys(shore).join() === 'sand' && shore.sand > 150, `(${JSON.stringify(shore)})`);
   check('... and the river\'s edge too', Object.keys(riverShore).join() === 'sand' && riverShore.sand > 5, `(${JSON.stringify(riverShore)})`);
-  const margin = disagree(real, 'lake margin');
-  const toss = (a) => { let h = Math.imul((a % n) + 1, 374761393) ^ Math.imul(Math.floor(a / n) + 7, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296 < 0.5 ? 'moss' : 'grass_b'; };       // (the old rule's coin: a hash of the cell)
-  const coin = disagree(real, 'lake margin', toss);
-  check('the lake margin\'s moss lies in patches: neighbouring cells agree (a coin toss would disagree about half the time)', margin.pairs > 25 && margin.share < 0.3 && coin.share > 0.4, `(${(100 * margin.share).toFixed(0)}% of ${margin.pairs} pairs disagree; a coin toss over the same cells ${(100 * coin.share).toFixed(0)}%)`);
+  // (round thirty-five: ALL the gentle ground is one grass. The margin's moss in patches, the second teal green and the painted flower meadow went: the rules choose a texture for a whole triangle, so each
+  // border between two grasses was a staircase of squares, "like Minecraft". The variety is the vertex tint's now, which is smooth.)
+  const grassTex = new Set();
+  real.why.forEach((w, k) => { if ((w === 'lake margin' || w === 'default grass' || w === 'river bank, slope > 0.45' || w === 'crystal hollow') && real.tex[k]) grassTex.add(real.tex[k]); });
+  check('all the gentle ground is ONE grass: the lake margin, the river banks, the hollow and the default ground are grass_a, no second green, no moss, no painted flowers', [...grassTex].join() === 'grass_a', `(${[...grassTex].join(', ')})`);
+  const everyTex = new Set(real.tex.filter(Boolean));
+  check('... and no terrain triangle anywhere is grass_b, grass_flowers or moss', !['grass_b', 'grass_flowers', 'moss'].some((t) => everyTex.has(t)), `(textures in the Vale: ${[...everyTex].sort().join(', ')})`);
   // a realm with a frozen lake names snow for its lake's edge: it lies in banks, not cell by cell
   const frozen = cells(terrainPicker(Object.create(grid, { level: { value: { ...L, lakeTextures: { floor: 'ice', shore: 'ice', pebbles: 'snow' } } } })));
   const fz = (() => { const by = {}; frozen.why.forEach((w, k) => { if (w === 'lake shore' && frozen.tex[k]) by[frozen.tex[k]] = (by[frozen.tex[k]] || 0) + 1; }); return by; })();

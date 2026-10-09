@@ -328,7 +328,7 @@ export function floatingIsland(kit, { x, z, rot = 0, scale = 1, y, r: R, crystal
         else { tri3(r0[i], r0[i2], r1[i2]); tri3(r0[i], r1[i2], r1[i]); }
       }
     };
-    const lipB = kit.b('grass_b'), dirt = kit.b('dirt'), cliff = kit.b(stoneTex(warm));
+    const lipB = kit.b('grass_a'), dirt = kit.b('dirt'), cliff = kit.b(stoneTex(warm));
     band(lipB, ringPts[0], ringPts[1], shade(-1, [0.5, 0.62, 0.5], 0, [0.95, 1.05, 0.9], 0.05), 5, true, 0.1);
     band(dirt, ringPts[1], ringPts[2], shade(-4, [0.62, 0.56, 0.54], -0.5, [0.98, 0.9, 0.84], 0.05), 4, false, 0.18);
     const stonePal = warm ? [[0.66, 0.56, 0.56], [1.12, 1.0, 0.92]] : [[0.6, 0.58, 0.74], [1.08, 1.02, 1.04]];

@@ -53,7 +53,7 @@ function paintGrass(seed, R, opts = {}) {
   return { c, rng, pts };
 }
 
-const GA = [G[1], G[2], G[3], G[4], G[5], '#c4f088']; // sunlit ramp: lifted one step
+const GA = RAMPS.meadow; // the meadow's ramp: the one grass of the Vale, averaging #3d8732
 const GB = [GT[0], GT[1], GT[2], '#4faf70', '#7cd08c', '#b0eeb4']; // lush teal ramp
 
 function grassA() { return paintGrass(1101, GA).c; }
