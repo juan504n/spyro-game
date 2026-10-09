@@ -46,7 +46,22 @@
   #remembered .name { font-weight: 600; word-break: break-all; }
   details summary { cursor: pointer; color: var(--muted); }
   details[open] summary { margin-bottom: 10px; }
-  .bios input { color: var(--muted); max-width: 100%; }
+  .bios { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 4px; }
+  .bios .name { font-weight: 600; word-break: break-all; }
+  label.button { display: inline-block; border-radius: 10px; padding: 8px 16px; cursor: pointer; background: var(--panel-2); border: 1px solid var(--line); }
+  label.button input { display: none; }
+  .looks { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+  label.look { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 12px; padding: 12px; cursor: pointer; }
+  label.look:has(input:checked) { border-color: var(--gold); background: var(--panel-2); }
+  label.look input { margin-top: 4px; accent-color: var(--gold); }
+  label.look strong { display: block; }
+  label.look small { color: var(--muted); font-size: 0.9rem; }
+  fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+  fieldset:disabled { opacity: 0.45; }
+  label.field { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 0.9rem; min-width: 0; max-width: 100%; }
+  select { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; max-width: 100%; }
+  input[type="checkbox"] { accent-color: var(--gold); }
+  .hint.warn { color: var(--warn); }
   .hint { color: var(--muted); font-size: 0.92rem; margin: 6px 0 0; }
   table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
   td { padding: 5px 8px; border-top: 1px solid var(--line); vertical-align: top; }
@@ -72,8 +87,8 @@
   <p class="lede">
     <a href="https://github.com/theMagicalKarp/open-spyro">open-spyro</a> is a byte-for-byte decompilation of
     <em>Spyro the Dragon</em> (PS1, NTSC-U, <code>SCUS_942.28</code>): its build is a PlayStation disc. This page boots
-    that disc in a PlayStation emulator compiled to WebAssembly (<a href="https://emulatorjs.org">EmulatorJS</a> with
-    the PCSX-ReARMed core), right here in the tab. The disc never leaves your computer; nothing is uploaded.
+    that disc in a PlayStation emulator compiled to WebAssembly (<a href="https://emulatorjs.org">EmulatorJS</a>, with
+    the PCSX-ReARMed core, or Beetle PSX for HD), right here in the tab. The disc never leaves your computer; nothing is uploaded.
   </p>
 
   <section>
@@ -98,12 +113,53 @@
       <button id="play" class="primary" disabled>Play</button>
       <label class="check"><input type="checkbox" id="remember" checked> Remember this disc on this device</label>
     </div>
-    <details class="bios" style="margin-top:14px">
-      <summary>BIOS (optional)</summary>
-      <input id="bios" type="file" accept=".bin,.rom">
-      <p class="hint">Without one, PCSX-ReARMed's built-in high-level BIOS is used, which runs Spyro fine. A real dump
-      (e.g. <code>SCPH1001.BIN</code>) adds the PlayStation boot animation and the console's memory card manager.</p>
-    </details>
+    <p class="hint warn" id="need-bios" hidden>HD needs a BIOS: add one under <em>2 · Graphics</em>, or switch back to Standard.</p>
+  </section>
+
+  <section>
+    <h2>2 · Graphics</h2>
+    <form id="graphics" onsubmit="return false">
+      <div class="looks">
+        <label class="look"><input type="radio" name="look" value="standard" checked>
+          <span><strong>Standard</strong><small>The original 320×240 picture. Light on the computer, no BIOS needed.</small></span></label>
+        <label class="look"><input type="radio" name="look" value="hd">
+          <span><strong>HD</strong><small>Rendered at 2, 4 or 8 times the resolution: sharp edges and crisp distant scenery. Needs a BIOS and a fast computer (start at 2×; if it stays smooth, try 4×).</small></span></label>
+      </div>
+      <fieldset id="hd-options" disabled>
+        <div class="row">
+          <label class="field">Resolution
+            <select id="scale">
+              <option value="2x">2× · 640×480</option>
+              <option value="4x">4× · 1280×960 (sharpest)</option>
+              <option value="8x">8× · 2560×1920 (very heavy)</option>
+            </select>
+          </label>
+          <label class="check"><input type="checkbox" id="widescreen"> Widescreen 16:9 (a hack: things can pop in at the sides)</label>
+        </div>
+      </fieldset>
+      <div class="row">
+        <label class="field">Screen filter
+          <select id="filter">
+            <option value="none">Sharp pixels</option>
+            <option value="smooth">Smooth edges (ScaleHQ)</option>
+            <option value="crt">CRT television</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="overclock"> Reduce slowdown (overclock the PlayStation's CPU)</label>
+      </div>
+    </form>
+    <p class="hint"><strong>About frame rate:</strong> <em>Spyro the Dragon</em> itself runs at up to 30 frames a second, and dips below that
+    in busy scenes on a real PlayStation too. The overclock lets the game keep its 30 when the screen is busy (if it misbehaves, turn it off).
+    Going past 30 would mean changing the game's own code; no emulator setting does it.</p>
+    <div class="bios">
+      <div class="row">
+        <span>BIOS: <span class="name" id="bios-name">none</span></span>
+        <label class="button">Choose BIOS file<input id="bios" type="file" accept=".bin,.rom"></label>
+        <button id="forget-bios" class="link" hidden>Forget it</button>
+      </div>
+      <p class="hint">The PlayStation's own startup chip, dumped from a console you own (512 KB, e.g. <code>SCPH1001.BIN</code> or <code>SCPH5501.BIN</code>).
+      Required for HD. In Standard it is optional and adds the PlayStation boot animation. It is kept in this browser, never uploaded.</p>
+    </div>
   </section>
 
   <section>
@@ -117,7 +173,7 @@ make extract split     # unpack your disc, disassemble it
 make check iso         # build, verify byte-identical, repack</code></pre>
         then drop <code>build/SpyrotheDragon.bin</code> (or the <code>.bin</code> and <code>.cue</code> together) on this page. Change a function in <code>src/</code>, rebuild, drop it again: the line under the file name says whether the executable is still byte-identical to retail.</li>
     </ol>
-    <p class="hint">No game data comes with this page or with open-spyro. If a large <code>.bin</code> runs the tab out of memory, convert it with <code>chdman createcd -i SpyrotheDragon.cue -o spyro.chd</code>: about half the size, and it boots the same.</p>
+    <p class="hint">No game data comes with this page or with open-spyro. If a large <code>.bin</code> runs the tab out of memory, convert it with <code>chdman createcd -i SpyrotheDragon.cue -o spyro.chd</code>: about half the size, and it boots the same in HD.</p>
   </section>
 
   <section>
@@ -137,7 +193,7 @@ make check iso         # build, verify byte-identical, repack</code></pre>
 
   <footer>
     <p>Spyro the Dragon is a trademark of its owners; this page and open-spyro are unofficial fan projects and ship none of the game's data.
-    EmulatorJS and PCSX-ReARMed are GPL-3.0 software, served unmodified from <code>emulatorjs/</code>
+    EmulatorJS, PCSX-ReARMed and Beetle PSX are GPL software, served unmodified from <code>emulatorjs/</code>
     (<a href="emulatorjs/LICENSE">licence</a>).</p>
     <p><a href="../">Gloaming Vale</a>, this repository's own Spyro-style game, runs in the browser too.</p>
   </footer>
