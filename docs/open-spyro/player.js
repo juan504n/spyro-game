@@ -6,6 +6,7 @@
 //             a real dump of the console's BIOS is required. (Its OpenGL renderer does not start in
 //             this EmulatorJS build; the software one upscales just as well, on the CPU.)
 import { inspectDisc, cueFor, RETAIL_EXE, RETAIL_SHA1 } from './disc.js';
+import { FPS60, patchFits } from './patches.js';
 
 const $ = (id) => document.getElementById(id);
 const ext = (name) => name.split('.').pop().toLowerCase();
@@ -19,17 +20,19 @@ let bios = null; // File
 
 // ---- graphics settings (this page's own; written into EmulatorJS's settings before each boot) ----
 const GFX_KEY = 'open-spyro-graphics';
-const GFX_DEFAULT = { look: 'standard', scale: '2x', widescreen: false, filter: 'none', overclock: false };
+const GFX_DEFAULT = { look: 'standard', scale: '2x', widescreen: false, filter: 'none', overclock: false, fps60: false };
 function loadGfx() {
   try { return { ...GFX_DEFAULT, ...JSON.parse(localStorage.getItem(GFX_KEY) || '{}') }; } catch { return { ...GFX_DEFAULT }; }
 }
+let ownOverclock = false; // the box's own setting, kept while 60 fps holds it ticked
 function readGfx() {
   return {
     look: document.querySelector('input[name="look"]:checked').value,
     scale: $('scale').value,
     widescreen: $('widescreen').checked,
     filter: $('filter').value,
-    overclock: $('overclock').checked,
+    overclock: $('overclock').disabled ? ownOverclock : $('overclock').checked,
+    fps60: $('fps60').checked,
   };
 }
 function showGfx(g) {
@@ -37,7 +40,10 @@ function showGfx(g) {
   $('scale').value = g.scale;
   $('widescreen').checked = g.widescreen;
   $('filter').value = g.filter;
-  $('overclock').checked = g.overclock;
+  ownOverclock = g.overclock;
+  $('fps60').checked = g.fps60;
+  $('overclock').checked = g.overclock || g.fps60; // drawing twice as often needs the headroom
+  $('overclock').disabled = g.fps60;
   $('hd-options').disabled = g.look !== 'hd';
   refreshPlay();
 }
@@ -55,13 +61,16 @@ function coreSettings(g) {
       beetle_psx_hw_dither_mode: 'disabled', // the PS1's dither pattern is meant for 240 lines, not 960
       beetle_psx_hw_widescreen_hack: g.widescreen ? 'enabled' : 'disabled',
       beetle_psx_hw_widescreen_hack_aspect_ratio: '16:9',
-      beetle_psx_hw_cpu_freq_scale: g.overclock ? '200%' : '100%',
+      beetle_psx_hw_cpu_freq_scale: g.overclock || g.fps60 ? '200%' : '100%',
+      // At 60 fps the emulated GPU and GTE have half the time per frame too.
+      beetle_psx_hw_gpu_overclock: g.fps60 ? '2x' : '1x(native)',
+      beetle_psx_hw_gte_overclock: g.fps60 ? 'enabled' : 'disabled',
     };
   }
   return {
     retroarch_core: 'pcsx_rearmed',
     shader,
-    pcsx_rearmed_psxclock: g.overclock ? '100' : 'auto',
+    pcsx_rearmed_psxclock: g.overclock || g.fps60 ? '100' : 'auto',
   };
 }
 
@@ -70,6 +79,8 @@ function writeCoreSettings(g) {
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch { /* start afresh */ }
   saved.settings = { ...(saved.settings || {}), ...coreSettings(g) };
+  // EmulatorJS remembers ticked cheats; the page alone decides whether the 60 fps patch is on.
+  if (Array.isArray(saved.cheats)) saved.cheats = saved.cheats.filter((c) => c.code !== FPS60.code);
   try { localStorage.setItem(key, JSON.stringify(saved)); } catch { /* storage off: the core keeps its defaults */ }
 }
 
@@ -158,9 +169,29 @@ function readGfxSafe() {
 }
 
 // ---- booting ----
+// 60 fps is a patch to the game's code, so first make sure the code on this disc is the code it
+// was made for. -> null when it can be applied, or why not.
+async function check60(files) {
+  const image = files.find((f) => RAW.includes(ext(f.name)));
+  if (!image) return '60 fps needs the disc as .bin (or .iso), so the page can check the game\'s code before patching it. Untick 60 fps to play this image.';
+  const info = await inspectDisc(image);
+  if (patchFits(FPS60, info.exe)) return null;
+  return `The 60 fps patch is made for <code>${RETAIL_EXE}</code> as it is on the retail disc, and this disc's game code differs where it patches, so it is not applied. Untick 60 fps to play.`;
+}
+
 async function boot(files) {
   $('play').disabled = $('play-remembered').disabled = true;
   const g = readGfx();
+  if (g.fps60) {
+    const why = await check60(files);
+    if (why) {
+      $('fps-note').innerHTML = why;
+      $('fps-note').hidden = false;
+      $('fps-note').scrollIntoView({ block: 'center' });
+      refreshPlay();
+      return;
+    }
+  }
   writeCoreSettings(g);
   // Raw images boot through a .cue (the disc's own, or one written for it); the .bin tracks it names
   // go into the emulator's file system beside it. Compressed images and archives go in as they are.
@@ -185,7 +216,16 @@ async function boot(files) {
     EJS_color: '#f2b84b',
     EJS_backgroundColor: '#000',
     EJS_threads: false,
-    EJS_onGameStart: () => { document.body.dataset.started = '1'; },
+    EJS_cheats: g.fps60 ? [[FPS60.name, FPS60.code]] : [],
+    EJS_onGameStart: () => {
+      if (g.fps60) {
+        // EmulatorJS lists config cheats unticked; tick ours once its cheat list is built.
+        const emu = window.EJS_emulator;
+        const cheat = emu.cheats.find((c) => c.code === FPS60.code);
+        if (cheat) { cheat.checked = true; emu.updateCheatUI(); }
+      }
+      document.body.dataset.started = '1';
+    },
   });
   document.body.classList.add('playing');
   const loader = document.createElement('script');
@@ -200,6 +240,7 @@ for (const t of ['dragleave', 'drop']) window.addEventListener(t, (e) => { e.pre
 window.addEventListener('drop', (e) => choose(e.dataTransfer.files));
 
 $('graphics').addEventListener('change', () => {
+  $('fps-note').hidden = true;
   const g = readGfx();
   try { localStorage.setItem(GFX_KEY, JSON.stringify(g)); } catch { /* not remembered */ }
   showGfx(g);
