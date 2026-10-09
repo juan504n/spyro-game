@@ -515,6 +515,8 @@ so Emberfall is still ash and basalt and Tideglass still teal. Every painting wr
 </p>
 <p align="center"><sub>Left to right: the first start (the HUD's own pixels, three of five lanterns lit); Spyro gliding in; the landing, with the logo dropping; the settled title (software-rendered, the smooth look).</sub></p>
 
+* **Snuffers are bodies.** The hooded Smokecaller and every other Snuffer used to be walked through like air unless they hurt on touch. A living one now keeps the hero out of its circle (his position is pushed, nothing bounces), while a ram and a breath still reach it from where he stops; he can still jump over it. Elder Wick, the scarecrows and the props were always solid. `tools/foe-body-test.mjs` holds it, kind by kind.
+
 | | PS1 look | smooth look, HD on (default) | smooth look, HD off |
 | --- | --- | --- | --- |
 | a world texture | the pixels, point sampled | the 256 px painting, mipmapped, anisotropic ×4 | the pixels, enlarged 8× by a smoothing filter |
@@ -675,6 +677,7 @@ node tools/music-sheet.mjs <id>   # a song read back without listening: its scor
 node tools/voice-sheet.mjs    # the sample bank measured: every voice at a few pitches (the pitch it really has, level, brightness, ring, cost), `--png dir` a spectrogram of each
 node tools/music-test.mjs     # the songs in the running game (needs the dev server): each world's song made behind its loading bar and playing, kept and freed as designed, the ambience following the score, a hop within a world leaving the music alone
 node tools/opening-test.mjs  # the title's opening: the hero's flight (over the ground, glider speed, lands facing the camera), the camera (never in a solid, keeps him in frame), the logo, press start, the dusk's lanterns
+node tools/foe-body-test.mjs  # every living Snuffer is a body: the hero cannot walk through one (needs the dev server), and a ram and a breath still reach it
 node tools/audio-smoke.mjs    # the WebAudio wrapper in headless Chromium: every public method, the lazy sounds, the songs (made on demand, the dawn after the dusk and in step with it, freed two worlds on, nothing left running), the crossfade, the muffle
 node tools/build-single.mjs   # esbuild -> one HTML file
 ```

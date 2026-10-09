@@ -60,6 +60,20 @@ export class EnemySystem {
     return e;
   }
 
+  /**
+   * A living Snuffer is a body: the hero is pushed out of the circle of its radius and his own (his position only: no contact event, so a ram or a breath still lands - both reach farther than that circle
+   * does, `chargeHits` and `flameHits` - and nothing bounces). Not when he is over its head (he can jump on and over it), under it (a Moth high up), or when it is under the ground (a Dustmole
+   * asleep in its mound) or being carried off. The caller, the pup and the slinger used to be walked through like air: only the plain kinds hurt on touch.
+   */
+  _body(e, p) {
+    if (p.dead || p.carry || e.untargetable && e.under > 0.5 || e.state === 'dead') return;
+    const dx = p.x - e.x, dz = p.z - e.z, rr = e.r + p.r, d2 = dx * dx + dz * dz;
+    if (d2 >= rr * rr || p.y > e.y + e.h * 0.85 || p.y + p.h < e.y + 0.2) return;
+    const d = Math.sqrt(d2);
+    const nx = d > 1e-3 ? dx / d : -Math.sin(p.yaw), nz = d > 1e-3 ? dz / d : -Math.cos(p.yaw);        // (dead centre: out the way he came)
+    p.x = e.x + nx * rr; p.z = e.z + nz * rr;
+  }
+
   /** The old Snuffers' step: out of props, never off a ledge, never into water. */
   _move(e, vx, vz, dt) {
     const col = this.game.collision;
@@ -169,6 +183,7 @@ export class EnemySystem {
         continue;
       }
 
+      this._body(e, p);                                  // (the hero cannot stand inside it: the Smokecaller, the Fusepup, every Snuffer has a body)
       if (e.B) { this._updateFoe(e, dt, game, p); continue; }
 
       // ---- hits from the player ------------------------------------------------------------------------------
