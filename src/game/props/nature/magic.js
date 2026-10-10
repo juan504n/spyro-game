@@ -101,7 +101,7 @@ export function standingStones(kit, { x, z, rot = 0, scale = 1, y, r: ringR, cou
   const rng = kit.rng(x, z, 131);
   kit.at(x, z, { rot, scale, y }, () => {
     const stone = kit.b('cliff');
-    const runes = kit.b('rune_ring');
+    const runes = kit.b('rune_ring', { mode: 'add', decal: true });
     const rt = (kit.skin && kit.skin.palettes && kit.skin.palettes.rune) || [1, 1, 1];           // (a realm's skin may tint the runes: Emberfall Crags' are fire, not the Lantern Keepers' violet)
     const a0 = rng.float(0, TAU);
     // ground height under prop-local (lx, lz), relative to the prop's origin, in prop units

@@ -216,7 +216,7 @@ export function towerObservatory(kit, p) {
     const N = 12, rr = -PI / N, APO = Math.cos(PI / N);
     const R = obsR;
     const dph = OBS.dph * DEG, phi0 = OBS.phi0 * DEG;
-    const stone = kit.b('tower_stone'), br = kit.b('brick'), glowB = kit.b(null), rune = kit.b('rune_ring');
+    const stone = kit.b('tower_stone'), br = kit.b('brick'), glowB = kit.b(null), rune = kit.b('rune_ring', { mode: 'add', decal: true });
     const VIOLET = [0.66, 0.46, 1.0];
     const stoneCol = vgrad(0, [1.0, 1.0, 1.15], 40, [1.3, 1.3, 1.5]);
 

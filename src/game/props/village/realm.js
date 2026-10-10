@@ -64,7 +64,7 @@ export function realmDoor(kit, p) {
       bn.quad([cx - sg * hw, 1.5, zz], [cx + sg * hw, 1.5, zz], [cx + sg * hw, 5.3, zz], [cx - sg * hw, 5.3, zz], { uv: [0, 0, 1, 1], emissive: 0.5, color: tone });
     }
     // rune plaques on the pillars (front and back)
-    const rb = kit.b('rune_ring');
+    const rb = kit.b('rune_ring', { mode: 'add', decal: true });
     for (const sg of [1, -1]) for (const sx of [-1, 1]) {
       const s = 0.55, cx = sx * (a + W) / 2, zz = sg * (D + 0.05), py = 6.2;
       const a0 = [cx - sg * s, py - s, zz], b0 = [cx + sg * s, py - s, zz];

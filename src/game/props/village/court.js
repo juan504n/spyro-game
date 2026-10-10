@@ -12,7 +12,7 @@ const FACES = ['+z', '-z', '+x', '-x', '+y'];
 export function courtPillar(kit, p) {
   const { x, z, rot = 0, scale = 1, y, h = 9, r = 0.9 } = p;
   kit.at(x, z, { rot, scale, y }, () => {
-    const st = kit.b('tower_stone'), br = kit.b('brick'), rb = kit.b('rune_ring'), gl = kit.b(null);
+    const st = kit.b('tower_stone'), br = kit.b('brick'), rb = kit.b('rune_ring', { mode: 'add', decal: true }), gl = kit.b(null);
     const so = { tile: 3.2, emissive: 0.26 }, tint = vgrad(0, [0.95, 0.95, 1.05], h, [1.2, 1.2, 1.35]), bt = [0.86, 0.84, 0.96];
     br.box(0, 0.3, 0, 3.0, 0.8, 3.0, { tile: 3.2, color: vgrad(-0.1, [0.62, 0.6, 0.7], 0.7, bt), emissive: 0.2, faces: FACES });
     br.box(0, 0.95, 0, 2.3, 0.5, 2.3, { tile: 3.2, color: bt, emissive: 0.2, faces: FACES });

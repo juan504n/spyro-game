@@ -62,7 +62,7 @@ export function archGate(kit, p) {
       kit.xf.pop();
     }
     // rune plaques on the pillars (emissive)
-    const rb = kit.b('rune_ring');
+    const rb = kit.b('rune_ring', { mode: 'add', decal: true });
     for (const sg of [1, -1]) for (const sx of [-1, 1]) for (const py of [2.3, 6.0]) {
       const s = 0.85, cx = sx * 3.8, zz = sg * (D + 0.05);
       const a0 = [cx - sg * s, py - s, zz], b0 = [cx + sg * s, py - s, zz];
@@ -135,7 +135,7 @@ export function gatePillars(kit, p) {
       // capital
       br.box(cx, yCap + 0.35, 0, 4.7, 0.7, 4.7, { tile: 3.2, color: [1.0, 0.98, 1.1], emissive: 0.22, faces: ['+z', '-z', '+x', '-x', '-y'] });
       // rune plaques (front and back) - emissive
-      const rb = kit.b('rune_ring');
+      const rb = kit.b('rune_ring', { mode: 'add', decal: true });
       for (const sg of [1, -1]) for (const py of [3.6, 6.4, 9.2]) {
         const yy = py, t = (yy - 1.2) / (yCap - 1.2), hh = lerp(2.0, 1.7, t);
         const s = 0.85, zz = sg * (hh + 0.05);
@@ -167,7 +167,7 @@ export function gatePillars(kit, p) {
     br.box(0, yTop + 0.25, 0, 2 * (LW + 0.35), 0.5, 2 * (LD + 0.35), { tile: 3.2, color: [1.0, 0.98, 1.1], emissive: 0.22, faces: ['+z', '-z', '+x', '-x', '-y'] });
     kit.b('flagstone').box(0, yTop + 0.25, 0, 2 * (LW + 0.35), 0.5, 2 * (LD + 0.35), { tile: 3.2, color: [1.0, 0.98, 1.1], emissive: 0.22, faces: ['+y'] });
     // big rune glyphs on the lintel (front + back)
-    const rb2 = kit.b('rune_ring');
+    const rb2 = kit.b('rune_ring', { mode: 'add', decal: true });
     for (const sg of [1, -1]) for (const [cx2, s] of [[0, 1.05], [-4.6, 0.75], [4.6, 0.75]]) {
       const yy = (yLin + yTop) / 2, zz = sg * (LD + 0.05);
       const a0 = [cx2 - sg * s, yy - s, zz], b0 = [cx2 + sg * s, yy - s, zz];
