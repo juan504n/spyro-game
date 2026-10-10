@@ -243,7 +243,7 @@ export function buildTerrainMeshes(grid, lighting, assets) {
     let r = (0.93 + 0.14 * a + 0.2 * warmK) * v, g = (0.95 + 0.10 * a + 0.05 * (b - 0.5) + 0.04 * warmK) * v, bl = (0.93 + 0.12 * (1 - a) - 0.24 * warmK) * v;
     r *= rimK; g *= rimK; bl *= rimK;
     // (a finer mottling, 6 m and 2.5 m across: a wide flat of one ground is lit in broad facets, one flat shade per triangle, and read as slabs; this breaks the plates up without making a pattern)
-    const mot = 1 + 0.16 * (fbm(nTint, x * 0.17 + 40, z * 0.17 + 13, 2) - 0.5) + 0.1 * (fbm(nPatch, x * 0.41 + 3, z * 0.41 + 77, 2) - 0.5);
+    const mot = 1 + 0.3 * (fbm(nTint, x * 0.17 + 40, z * 0.17 + 13, 2) - 0.5) + 0.2 * (fbm(nPatch, x * 0.41 + 3, z * 0.41 + 77, 2) - 0.5);
     r *= mot; g *= mot; bl *= mot;
     if (y < WATER_LEVEL) {
       const d = clamp((WATER_LEVEL - y) / 4.5);
@@ -350,7 +350,7 @@ export function buildTerrainMeshes(grid, lighting, assets) {
         for (const name of names) {
           if (name === t.tex) continue;
           const f = wf.get(name);
-          const al = t.idx.map(([a, b]) => { const k = b * s + a; const w = total[k] > 0 ? f[k] / total[k] : 0; return w < 0.03 ? 0 : clamp(w * 1.15); });
+          const al = t.idx.map(([a, b]) => { const k = b * s + a; const w = total[k] > 0 ? f[k] / total[k] : 0; return w < 0.02 ? 0 : clamp(w); });         // (exactly the weight: where two neighbours meet, each shows the other at the very share the other shows it, so the edge between them is continuous)
           if (al[0] === 0 && al[1] === 0 && al[2] === 0) continue;
           let [va, vb, vc] = t.p, [ia, ib, ic] = t.idx, aa = al;
           const ux = vb[0] - va[0], uz = vb[2] - va[2], vx = vc[0] - va[0], vz = vc[2] - va[2];
