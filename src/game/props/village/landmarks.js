@@ -76,10 +76,13 @@ export function archGate(kit, p) {
     }
     // dais (spawn platform)
     const dz0 = -2.2, dz1 = 7.0, dh = 0.32, dw = 6.4;
-    kit.b('flagstone').quad([-dw, dh, dz1], [dw, dh, dz1], [dw, dh, dz0], [-dw, dh, dz0], { tile: 3.2, color: [1.02, 1.0, 1.1], emissive: 0.22 });
+    // (the dais has its front corners cut: a plain rectangle was the slab with straight corners that every critic called a block laid on the ground)
+    const cc = 1.9;
+    kit.b('flagstone').quad([-dw, dh, dz1 - cc], [dw, dh, dz1 - cc], [dw, dh, dz0], [-dw, dh, dz0], { tile: 3.2, color: [1.02, 1.0, 1.1], emissive: 0.22 });
+    kit.b('flagstone').quad([-dw + cc, dh, dz1], [dw - cc, dh, dz1], [dw, dh, dz1 - cc], [-dw, dh, dz1 - cc], { tile: 3.2, color: [1.02, 1.0, 1.1], emissive: 0.22 });
     for (const [O, U, N] of [
-      [[-dw, base, dz1], [2 * dw, 0, 0], 'front'], [[dw, base, dz0], [-2 * dw, 0, 0], 'back'],
-      [[dw, base, dz1], [0, 0, -(dz1 - dz0)], 'right'], [[-dw, base, dz0], [0, 0, dz1 - dz0], 'left'],
+      [[-dw + cc, base, dz1], [2 * dw - 2 * cc, 0, 0], 'front'], [[dw - cc, base, dz1], [cc, 0, -cc], 'cr'], [[dw, base, dz0], [-2 * dw, 0, 0], 'back'],
+      [[dw, base, dz1 - cc], [0, 0, -(dz1 - cc - dz0)], 'right'], [[-dw, base, dz0], [0, 0, dz1 - cc - dz0], 'left'], [[-dw, base, dz1 - cc], [cc, 0, cc], 'cl'],
     ]) grid(kit.b('brick'), O, U, [0, dh - base, 0], 3, 1, { tile: 3.2, color: vgrad(base, [0.6, 0.58, 0.68], dh, [0.98, 0.96, 1.06]), emissive: 0.2 });
     // spawn rune plate
     const rh = 2.1, rz = 4.3, ry = dh + 0.1;

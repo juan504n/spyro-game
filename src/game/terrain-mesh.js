@@ -245,10 +245,14 @@ export function buildTerrainMeshes(grid, lighting, assets) {
     // (a finer mottling, 6 m and 2.5 m across: a wide flat of one ground is lit in broad facets, one flat shade per triangle, and read as slabs; this breaks the plates up without making a pattern)
     const mot = 1 + 0.3 * (fbm(nTint, x * 0.17 + 40, z * 0.17 + 13, 2) - 0.5) + 0.2 * (fbm(nPatch, x * 0.41 + 3, z * 0.41 + 77, 2) - 0.5);
     r *= mot; g *= mot; bl *= mot;
-    if (y < WATER_LEVEL) {
-      const d = clamp((WATER_LEVEL - y) / 4.5);
-      const k = 1 - 0.3 * d;
-      r *= 0.36 * k; g *= 0.86 * k; bl *= 1.05 * k;
+    {
+      // (the absorption of the water fades in across the shore, 0.9 m of height, not in one step at the waterline: a hard step between two corners of a 2.4 m triangle is a staircase of tone along every beach)
+      const wet = smooth(WATER_LEVEL + 0.45, WATER_LEVEL - 0.45, y);
+      if (wet > 0) {
+        const d = clamp((WATER_LEVEL - y) / 4.5);
+        const k = 1 - 0.3 * d;
+        r *= 1 + (0.36 * k - 1) * wet; g *= 1 + (0.86 * k - 1) * wet; bl *= 1 + (1.05 * k - 1) * wet;
+      }
     }
     return [r, g, bl];
   };
@@ -270,6 +274,8 @@ export function buildTerrainMeshes(grid, lighting, assets) {
     const c = tintFn(x, y, z), k = 1 + 0.5 * (fbm(nRock, (x + z) * 0.05 + 11, y * 0.08 + 3, 3) - 0.5), h = 1 + 0.25 * (fbm(nBank, x * 0.11 + 7, z * 0.11 + y * 0.1, 2) - 0.5);
     return [c[0] * k * h, c[1] * k * h, c[2] * k * (1 + (h - 1) * 0.5)];
   };
+  // (rock is laid on a larger tile than the ground: 9 m, not 6: its streaks are a wallpaper at six, the same stripe every six metres up a wall)
+  const ROCK_TILE = 9, uvScale = (name, uv) => (name.startsWith('cliff') || name.startsWith('far_') ? [uv[0] * GROUND_TILE / ROCK_TILE, uv[1] * GROUND_TILE / ROCK_TILE] : uv);
   const optsFor = (name) => (name.startsWith('cliff') || name.startsWith('far_') ? { aoFn, color: rockTint } : opts);
   const isSoft = (name) => true;                        // (rock too: its border with the grass was the worst staircase of all)
   const softTris = [];            // (whole triangles of a blendable ground: the blend pass below)
@@ -282,7 +288,7 @@ export function buildTerrainMeshes(grid, lighting, assets) {
     const fn = [na, nb, nc];
     const faceN = [fn[0][0] + fn[1][0] + fn[2][0], fn[0][1] + fn[1][1] + fn[2][1], fn[0][2] + fn[1][2] + fn[2][2]];
     const mode = uvProjection(name, slope, faceN, triangleNormal(va, vb, vc));
-    b.tri(va, vb, vc, projectUV(va, mode), projectUV(vb, mode), projectUV(vc, mode), optsFor(name), fn);
+    b.tri(va, vb, vc, uvScale(name, projectUV(va, mode)), uvScale(name, projectUV(vb, mode)), uvScale(name, projectUV(vc, mode)), optsFor(name), fn);
   };
   const emit = (name, slope, va, vb, vc, ia, ib, ic) => emitN(name, slope, va, vb, vc, NV(...ia), NV(...ib), NV(...ic));
 
@@ -364,7 +370,7 @@ export function buildTerrainMeshes(grid, lighting, assets) {
           const fn = [NV(...ia), NV(...ib), NV(...ic)];
           const faceN = [fn[0][0] + fn[1][0] + fn[2][0], fn[0][1] + fn[1][1] + fn[2][1], fn[0][2] + fn[1][2] + fn[2][2]];
           const mode = uvProjection(name, t.slope, faceN, triangleNormal(va, vb, vc));
-          getBlend(name).tri(va, vb, vc, projectUV(va, mode), projectUV(vb, mode), projectUV(vc, mode), { ...optsFor(name), alphas: aa }, fn);
+          getBlend(name).tri(va, vb, vc, uvScale(name, projectUV(va, mode)), uvScale(name, projectUV(vb, mode)), uvScale(name, projectUV(vc, mode)), { ...optsFor(name), alphas: aa }, fn);
         }
       }
     }

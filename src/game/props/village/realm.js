@@ -78,10 +78,13 @@ export function realmDoor(kit, p) {
     }
     // the dais: flagstone, a brick plinth round it, a rune plate in front of the opening
     const dz0 = -1.4, dz1 = 6.0, dh = 0.3, dw = 5.4;
-    kit.b('flagstone').quad([-dw, dh, dz1], [dw, dh, dz1], [dw, dh, dz0], [-dw, dh, dz0], { tile: 3.2, color: [1.02, 1.0, 1.1], emissive: 0.22 });
+    // (the dais has its front corners cut: a plain rectangle was the slab with straight corners that every critic called a block laid on the ground)
+    const cc = 1.9;
+    kit.b('flagstone').quad([-dw, dh, dz1 - cc], [dw, dh, dz1 - cc], [dw, dh, dz0], [-dw, dh, dz0], { tile: 3.2, color: [1.02, 1.0, 1.1], emissive: 0.22 });
+    kit.b('flagstone').quad([-dw + cc, dh, dz1], [dw - cc, dh, dz1], [dw, dh, dz1 - cc], [-dw, dh, dz1 - cc], { tile: 3.2, color: [1.02, 1.0, 1.1], emissive: 0.22 });
     for (const [O, U] of [
-      [[-dw, base, dz1], [2 * dw, 0, 0]], [[dw, base, dz0], [-2 * dw, 0, 0]],
-      [[dw, base, dz1], [0, 0, -(dz1 - dz0)]], [[-dw, base, dz0], [0, 0, dz1 - dz0]],
+      [[-dw + cc, base, dz1], [2 * dw - 2 * cc, 0, 0]], [[dw - cc, base, dz1], [cc, 0, -cc]], [[dw, base, dz0], [-2 * dw, 0, 0]],
+      [[dw, base, dz1 - cc], [0, 0, -(dz1 - cc - dz0)]], [[-dw, base, dz0], [0, 0, dz1 - cc - dz0]], [[-dw, base, dz1 - cc], [cc, 0, cc]],
     ]) grid(kit.b('brick'), O, U, [0, dh - base, 0], 3, 1, { tile: 3.2, color: vgrad(base, [0.6, 0.58, 0.68], dh, [0.98, 0.96, 1.06]), emissive: 0.2 });
     const rh = 1.8, rz = 3.5;
     kit.xf.push().translate(0, 0, rz);
