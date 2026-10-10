@@ -42,6 +42,7 @@ const game = { grid, collision, gameplay: gp, level: LEVEL, player };
   const meshes = buildTerrainMeshes(grid, lighting, { mat: (n) => ({ name: n }) }).group.children;
   const tris = [];      // every triangle of every terrain mesh, projected to the ground plane
   for (const m of meshes) {
+    if (!m.name.startsWith('terrain:')) continue;        // (the soft blend's overlays lie over these: terrain-blend:*)
     const P = m.geometry.getAttribute('position').array;
     for (let i = 0; i < P.length; i += 9) tris.push({ tex: m.name.slice('terrain:'.length), ax: P[i], az: P[i + 2], bx: P[i + 3], bz: P[i + 5], cx: P[i + 6], cz: P[i + 8], y: (P[i + 1] + P[i + 4] + P[i + 7]) / 3 });
   }
@@ -71,7 +72,7 @@ const game = { grid, collision, gameplay: gp, level: LEVEL, player };
     if (g.tex !== hits[0].tex) { wrong++; if (wrong < 4) console.log('  mismatch at', x.toFixed(2), z.toFixed(2), 'readout', g.tex, 'mesh', hits[0].tex); }
   }
   check('the readout names the texture of the terrain triangle under the point', tested > 1200 && wrong === 0, `(${tested} points, ${wrong} wrong, ${ambiguous} on an edge, ${none} outside the mesh)`);
-  check('... and it did so across the realm (many textures and many rules were exercised)', Object.keys(seen).length >= 8 && Object.keys(why).length >= 10, `(${Object.keys(seen).length} textures: ${Object.keys(seen).join(' ')}; ${Object.keys(why).length} rules)`);
+  check('... and it did so across the realm (many textures and many rules were exercised: the road textures are ribbons now, not terrain, so there are fewer ground textures)', Object.keys(seen).length >= 6 && Object.keys(why).length >= 10, `(${Object.keys(seen).length} textures: ${Object.keys(seen).join(' ')}; ${Object.keys(why).length} rules)`);
 }
 
 // ---- the road drawn over the ground ---------------------------------------------------------------------------------------------------------

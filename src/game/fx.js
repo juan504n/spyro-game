@@ -83,15 +83,25 @@ class BillboardBuffer {
 }
 
 /** Flat quads draped on the terrain (blob shadows, light pools, ripples). */
+const DECAL_N = 8;                            // (a decal is a grid of DECAL_N x DECAL_N cells draped on the ground, vertex by vertex: it was ONE quad with its four corners on the ground, and over a slope or a bump it sank into the hill along straight edges (a lamp's pool, cut off in a hard-edged rectangle))
 class DecalBuffer {
   constructor(atlas, grid, { max, mode }) {
     this.atlas = atlas; this.grid = grid; this.max = max; this.list = [];
+    const N = DECAL_N, V = (N + 1) * (N + 1);
+    this.V = V;
     const g = this.geo = new THREE.BufferGeometry();
-    this.pos = new Float32Array(max * 4 * 3);
-    this.uv = new Float32Array(max * 4 * 2);
-    this.col = new Uint8Array(max * 4 * 4);
-    const idx = new Uint16Array(max * 6);
-    for (let i = 0; i < max; i++) idx.set([i * 4, i * 4 + 2, i * 4 + 1, i * 4, i * 4 + 3, i * 4 + 2], i * 6);
+    this.pos = new Float32Array(max * V * 3);
+    this.uv = new Float32Array(max * V * 2);
+    this.col = new Uint8Array(max * V * 4);
+    const idx = new Uint16Array(max * N * N * 6);
+    let w = 0;
+    for (let i = 0; i < max; i++) {
+      const o = i * V;
+      for (let j = 0; j < N; j++) for (let k = 0; k < N; k++) {
+        const A = o + j * (N + 1) + k, B = A + 1, D = A + (N + 1), C = D + 1;
+        idx[w++] = A; idx[w++] = C; idx[w++] = B; idx[w++] = A; idx[w++] = D; idx[w++] = C;
+      }
+    }
     const dyn = (arr, n, norm = false) => { const a = new THREE.BufferAttribute(arr, n, norm); a.setUsage(THREE.DynamicDrawUsage); return a; };
     g.setAttribute('position', dyn(this.pos, 3));
     g.setAttribute('uv', dyn(this.uv, 2));
@@ -111,7 +121,7 @@ class DecalBuffer {
   }
 
   update() {
-    const g = this.grid, atlas = this.atlas;
+    const g = this.grid, atlas = this.atlas, N = DECAL_N, V = this.V;
     let n = 0;
     const list = this.list;
     for (let i = list.length - 1; i >= 0; i--) if (list[i].dead) list.splice(i, 1);
@@ -119,21 +129,24 @@ class DecalBuffer {
       if (!d.visible || d.alpha <= 0.003 || n >= this.max) continue;
       const rc = atlas.rects[d.id];
       const c = Math.cos(d.rot) * d.r, s = Math.sin(d.rot) * d.r;
-      const corners = [[-c + s, -s - c], [c + s, s - c], [c - s, s + c], [-c - s, -s + c]];
       const ca = Math.min(255, d.color[0] * 0.5 * 255), cb = Math.min(255, d.color[1] * 0.5 * 255), cc = Math.min(255, d.color[2] * 0.5 * 255), cd = Math.min(255, d.alpha * 255);
-      for (let v = 0; v < 4; v++) {
-        const vi = n * 4 + v;
-        const x = d.x + corners[v][0], z = d.z + corners[v][1];
-        this.pos[vi * 3] = x; this.pos[vi * 3 + 1] = (d.y !== null ? d.y : g.heightAt(x, z)) + d.lift; this.pos[vi * 3 + 2] = z;
-        const u = v === 1 || v === 2 ? rc[2] : rc[0], w = v >= 2 ? rc[3] : rc[1];
-        this.uv[vi * 2] = u; this.uv[vi * 2 + 1] = w;
-        this.col[vi * 4] = ca; this.col[vi * 4 + 1] = cb; this.col[vi * 4 + 2] = cc; this.col[vi * 4 + 3] = cd;
+      // (a decal that was given a height of its own lies at that height above the ground at its middle: it follows the ground from there; one far above or below the ground (on a slab, a bridge) stays flat)
+      const hMid = g.heightAt(d.x, d.z), follow = d.y === null || Math.abs(d.y - hMid) < 1.5, off = (d.y === null ? 0 : d.y - hMid) + d.lift;
+      for (let j = 0; j <= N; j++) {
+        const pz = (j / N) * 2 - 1;
+        for (let k = 0; k <= N; k++) {
+          const px = (k / N) * 2 - 1, vi = n * V + j * (N + 1) + k;
+          const x = d.x + px * c - pz * s, z = d.z + px * s + pz * c;
+          this.pos[vi * 3] = x; this.pos[vi * 3 + 1] = follow ? g.heightAt(x, z) + off : d.y + d.lift; this.pos[vi * 3 + 2] = z;
+          this.uv[vi * 2] = rc[0] + (rc[2] - rc[0]) * (k / N); this.uv[vi * 2 + 1] = rc[1] + (rc[3] - rc[1]) * (j / N);
+          this.col[vi * 4] = ca; this.col[vi * 4 + 1] = cb; this.col[vi * 4 + 2] = cc; this.col[vi * 4 + 3] = cd;
+        }
       }
       n++;
     }
     const geo = this.geo;
     geo.attributes.position.needsUpdate = true; geo.attributes.uv.needsUpdate = true; geo.attributes.aCol.needsUpdate = true;
-    geo.setDrawRange(0, n * 6);
+    geo.setDrawRange(0, n * N * N * 6);
     this.mesh.visible = n > 0;
   }
 }

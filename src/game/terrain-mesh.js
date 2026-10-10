@@ -265,6 +265,12 @@ export function buildTerrainMeshes(grid, lighting, assets) {
 
   const NV = (i, j) => grid.vertexNormal(i, j);
   const opts = { aoFn, color: tintFn };
+  // Rock is a wall of one 6 m tile repeated, and its small motif shows as wallpaper: the tint of a rock face varies on a larger scale (about 20 m across and 12 m tall) to break the repeat
+  const rockTint = (x, y, z) => {
+    const c = tintFn(x, y, z), k = 1 + 0.5 * (fbm(nRock, (x + z) * 0.05 + 11, y * 0.08 + 3, 3) - 0.5), h = 1 + 0.25 * (fbm(nBank, x * 0.11 + 7, z * 0.11 + y * 0.1, 2) - 0.5);
+    return [c[0] * k * h, c[1] * k * h, c[2] * k * (1 + (h - 1) * 0.5)];
+  };
+  const optsFor = (name) => (name.startsWith('cliff') || name.startsWith('far_') ? { aoFn, color: rockTint } : opts);
   const isSoft = (name) => true;                        // (rock too: its border with the grass was the worst staircase of all)
   const softTris = [];            // (whole triangles of a blendable ground: the blend pass below)
 
@@ -276,7 +282,7 @@ export function buildTerrainMeshes(grid, lighting, assets) {
     const fn = [na, nb, nc];
     const faceN = [fn[0][0] + fn[1][0] + fn[2][0], fn[0][1] + fn[1][1] + fn[2][1], fn[0][2] + fn[1][2] + fn[2][2]];
     const mode = uvProjection(name, slope, faceN, triangleNormal(va, vb, vc));
-    b.tri(va, vb, vc, projectUV(va, mode), projectUV(vb, mode), projectUV(vc, mode), opts, fn);
+    b.tri(va, vb, vc, projectUV(va, mode), projectUV(vb, mode), projectUV(vc, mode), optsFor(name), fn);
   };
   const emit = (name, slope, va, vb, vc, ia, ib, ic) => emitN(name, slope, va, vb, vc, NV(...ia), NV(...ib), NV(...ic));
 
@@ -358,7 +364,7 @@ export function buildTerrainMeshes(grid, lighting, assets) {
           const fn = [NV(...ia), NV(...ib), NV(...ic)];
           const faceN = [fn[0][0] + fn[1][0] + fn[2][0], fn[0][1] + fn[1][1] + fn[2][1], fn[0][2] + fn[1][2] + fn[2][2]];
           const mode = uvProjection(name, t.slope, faceN, triangleNormal(va, vb, vc));
-          getBlend(name).tri(va, vb, vc, projectUV(va, mode), projectUV(vb, mode), projectUV(vc, mode), { ...opts, alphas: aa }, fn);
+          getBlend(name).tri(va, vb, vc, projectUV(va, mode), projectUV(vb, mode), projectUV(vc, mode), { ...optsFor(name), alphas: aa }, fn);
         }
       }
     }
