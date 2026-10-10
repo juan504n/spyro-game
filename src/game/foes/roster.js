@@ -16,6 +16,7 @@ export const ROSTERS = {
   emberfall: ['mole', 'pup', 'hog', 'brute'],
   skyweaver: ['moth', 'caller', 'gale'],
   tideglass: ['urchin', 'crab', 'drifter'],
+  // <roster-entries>  (tools/new-realm.mjs adds the empty roster of a new realm above this line: its own kinds are for its maker to design, and until it has them the realm's foes are not held to a roster)
 };
 /** the rosters that are not one world's: a stronghold where the Snuffers come together */
 export const SHARED_ROSTERS = { guardian: ['basic', 'bell', 'thorn'] };

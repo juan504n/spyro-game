@@ -345,7 +345,8 @@ export function checkRealm(which, { log = () => {} } = {}) {
     const R = rosterOf(realm.id) || [];
     const called = (gp.trials || []).flatMap((t) => (t.waves || []).flat());
     const alien = [...new Set([...gp.enemies.map((e) => e.variant), ...called])].filter((k) => !R.includes(k));
-    rule('enemies.roster', `every foe in the world is one of its roster (${R.join(', ') || 'none'}): no kind of foe lives in two worlds`, alien.length === 0, alien.length ? `(foreign: ${alien.join(', ')})` : `(${gp.enemies.length} placed, ${called.length} called by sieges)`, { hard: true });
+    if (!R.length) skip('enemies.roster', 'the world has no roster yet (foes/roster.js: a new realm designs foes of its own and names them there): its foes are not held to one');
+    else rule('enemies.roster', `every foe in the world is one of its roster (${R.join(', ') || 'none'}): no kind of foe lives in two worlds`, alien.length === 0, alien.length ? `(foreign: ${alien.join(', ')})` : `(${gp.enemies.length} placed, ${called.length} called by sieges)`, { hard: true });
     rule('enemies.cast', `a realm has a cast: at least ${Math.min(3, R.length)} of the kinds of its roster stand in it (${R.join(', ')})`, kinds.size >= Math.min(3, R.length), `(${kinds.size} kinds: ${[...kinds].join(', ')}; the roster has ${R.length})`);
     // a Ramhog is a line to step off: it stands where the hero has room on both sides of its line (most of a ring of 6 m round it is ground he can stand on)
     const hogs = gp.enemies.filter((e) => e.variant === 'hog');

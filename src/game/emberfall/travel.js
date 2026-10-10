@@ -16,9 +16,9 @@ export const TRAVEL_PLACES = {
     {
       name: 'THE TRIALS',
       places: [
-        { id: 'grove-wisps', name: 'THE WISPS', x: -124, z: -41, yaw: 0 },
+        { id: 'gate-wisps', name: 'THE WISPS', x: -146, z: 44, yaw: 0 },
         { id: 'anvil-rings', name: 'THE RINGS', x: -46, z: -30, yaw: 0 },
-        { id: 'smelter-mirrors', name: 'THE MIRRORS', x: 81.36, z: 11.34, yaw: 0.21 },
+        { id: 'smelter-mirrors', name: 'THE MIRRORS', x: 83.14, z: 12.79, yaw: 0.08 },
         { id: 'heart-plates', name: 'THE PLATES', x: 142, z: -174, yaw: 0, opens: true },
       ],
     },
@@ -41,7 +41,7 @@ export const TRAVEL_PLACES = {
         { id: 'shelf', name: 'THE ANVIL PLATEAU', x: 56.03, z: -22.52, yaw: 2.62 },
         { id: 'forecourt', name: 'THE MAW', x: 78, z: 20, yaw: 1.57 },
         { id: 'gorge', name: 'THE CINDER GORGE', x: 153.98, z: -82.01, yaw: -1.89, opens: true },
-        { id: 'caldera', name: 'THE CALDERA', x: 151.15, z: -143.23, yaw: -3.01, opens: true },
+        { id: 'caldera', name: 'THE CALDERA', x: 153, z: -146, yaw: -2.66, opens: true },
       ],
     },
     {

@@ -14,14 +14,6 @@ export const TRAVEL_PLACES = {
       ],
     },
     {
-      name: 'THE TRIALS',
-      places: [
-        { id: 'court-circuit', name: 'THE CIRCUIT', x: -92.99, z: -116.73, yaw: 1.62 },
-        { id: 'weeping-plates', name: 'THE PLATES', x: 88, z: -86, yaw: 0 },
-        { id: 'light-bells', name: 'THE BELLS', x: 140, z: -140, yaw: 0, opens: true },
-      ],
-    },
-    {
       name: 'THE COUNTRY',
       places: [
         { id: 'start', name: 'THE START', x: -193, z: 22, yaw: 1.57 },

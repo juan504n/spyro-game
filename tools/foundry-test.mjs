@@ -65,20 +65,16 @@ try {
   check('... with a noise seed of its own', !/seed: 9001/.test(brief));
   check('... and the realm passes the checker (its to-dos waived)', /all rules hold/.test(g.stdout), (g.stdout.match(/^(FAIL|WAIVE).*/gm) || []).join(' | ').slice(0, 300));
 
-  // the rules bite: the same realm with a poorer cast is refused (a rule that nothing can fail is not a rule)
+  // the rules bite: a realm whose foes are not of its roster is refused (a rule that nothing can fail is not a rule); a new realm begins with an empty roster (nothing is held to it until it has foes of its own)
   {
-    const lay = path.join(tmp, 'src/game/scratchvale/layout.js'), orig = fs.readFileSync(lay, 'utf8');
-    const NEW = /'(slinger|hog|mole|warden|pup|moth|caller|thief|rime)'(?=[,\]])/g;
-    const kinds = [...new Set([...orig.matchAll(NEW)].map((m) => m[1]))];
-    const refused = (keep) => {
-      fs.writeFileSync(lay, orig.replace(NEW, (m, k) => (keep.includes(k) ? m : "'basic'")));
-      const r = run(['tools/realm-check.mjs', 'scratchvale']);
-      fs.writeFileSync(lay, orig);
-      return /^FAIL enemies\.cast/m.test(r.stdout);
-    };
-    check('the checker refuses a realm whose Snuffers are of the three kinds of old (enemies.cast)', kinds.length >= 3 && refused([]), `(the realm has ${kinds.join(', ')})`);
-    check('... and one that has two of the new foes (a cast is three)', refused(kinds.slice(0, 2)));
-    check('... and takes the realm back with its cast', !refused(kinds));
+    const rosterFile = path.join(tmp, 'src/game/foes/roster.js'), orig = fs.readFileSync(rosterFile, 'utf8');
+    check('the generator gave the new realm an empty roster in foes/roster.js', /scratchvale: \[\],/.test(orig));
+    const lay = fs.readFileSync(path.join(tmp, 'src/game/scratchvale/layout.js'), 'utf8');
+    const kinds = [...new Set([...lay.matchAll(/'(basic|bell|thorn|slinger|hog|mole|warden|pup|moth|caller|thief|rime)'(?=[,\]])/g)].map((m) => m[1]))];
+    const verdict = (list) => { fs.writeFileSync(rosterFile, orig.replace('scratchvale: [],', `scratchvale: [${list.map((k) => `'${k}'`).join(', ')}],`)); const r = run(['tools/realm-check.mjs', 'scratchvale']); fs.writeFileSync(rosterFile, orig); return r.stdout; };
+    check('with an empty roster its foes are not held to one (the rule is skipped, not failed)', !/^FAIL enemies\.roster/m.test(verdict([])) && /SKIP enemies\.roster/m.test(verdict([])));
+    check('the checker refuses a realm whose foes are not of its roster (enemies.roster)', kinds.length >= 3 && /^FAIL enemies\.roster/m.test(verdict(['moth'])), `(the realm has ${kinds.join(', ')})`);
+    check('... and takes the realm back with its cast named (a cast is three of its roster)', !/^FAIL enemies\.(roster|cast)/m.test(verdict(kinds)));
   }
 
   // the trial rules bite too: the same realm with its asks alike, or with a trial where it cannot be done, is refused by the rule that holds it, and for the reason (trials.mix, trials.fair)

@@ -14,18 +14,10 @@ export const TRAVEL_PLACES = {
       ],
     },
     {
-      name: 'THE TRIALS',
-      places: [
-        { id: 'field-circuit', name: 'THE CIRCUIT', x: -2.06, z: 53.96, yaw: -0.46 },
-        { id: 'spire-wisps', name: 'THE WISPS', x: 95, z: 8, yaw: 0 },
-        { id: 'loom-bells', name: 'THE BELLS', x: 98, z: -150, yaw: 0 },
-      ],
-    },
-    {
       name: 'THE COUNTRY',
       places: [
         { id: 'start', name: 'THE START', x: -191, z: 151, yaw: 1.57 },
-        { id: 'lowfield', name: 'THE LOWFIELD', x: -1.82, z: 58.38, yaw: 2.35 },
+        { id: 'lowfield', name: 'THE LOWFIELD', x: -2.05, z: 57.23, yaw: 2.08 },
         { id: 'kite', name: 'THE KITE ISLE', x: 6, z: 8, yaw: 1.57 },
         { id: 'orchard', name: 'THE ORCHARD TERRACE', x: 83.85, z: 20.05, yaw: 2.03 },
         { id: 'spire1', name: 'THE FIRST SPIRE', x: 101.32, z: -33.18, yaw: 0.8 },

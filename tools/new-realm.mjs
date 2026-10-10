@@ -88,6 +88,8 @@ process.exitCode = failed.length + own ? 1 : 0;
   for (const [f, text] of Object.entries(files)) fs.writeFileSync(path.join(dir, f), text);
   fs.writeFileSync(path.join(root, `tools/${id}-check.mjs`), check);
   fs.writeFileSync(realmsFile, realms.replace('// <realm-imports>', `${ident}// <realm-imports>`).replace('  // <realm-entries>', `  ${key}: ${IDENT},\n  // <realm-entries>`));
+  const rosterFile = path.join(root, 'src/game/foes/roster.js');
+  if (fs.existsSync(rosterFile)) { const rs = fs.readFileSync(rosterFile, 'utf8'); if (rs.includes('  // <roster-entries>')) fs.writeFileSync(rosterFile, rs.replace('  // <roster-entries>', `  ${key}: [],                                    // (the foes of ${id}: none of its own yet: design them, then name them here; foes/roster.js says why)\n  // <roster-entries>`)); }
   let woke = null;
   if (opts.wakeDoor) {
     const homeFile = path.join(root, 'src/game/home/level.js'), home = fs.readFileSync(homeFile, 'utf8');
