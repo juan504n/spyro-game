@@ -66,7 +66,7 @@ export class EnemySystem {
    * asleep in its mound) or being carried off. The caller, the pup and the slinger used to be walked through like air: only the plain kinds hurt on touch.
    */
   _body(e, p) {
-    if (this.bodyless || p.dead || p.carry || e.untargetable && e.under > 0.5 || e.state === 'dead') return;          // (`bodyless`: a test that walks the way and leaves the Snuffers out of it, tools/bot-inject.js god())
+    if (this.bodyless || p.invulnT > 0 || p.dead || p.carry || e.untargetable && e.under > 0.5 || e.state === 'dead') return;          // (`invulnT`: a hero in the grace of an arrival or a blow is not pushed about by a foe that rushes at him; `bodyless`: a test that walks the way and leaves the Snuffers out of it, tools/bot-inject.js god())
     const dx = p.x - e.x, dz = p.z - e.z, rr = e.r + p.r, d2 = dx * dx + dz * dz;
     if (d2 >= rr * rr || p.y > e.y + e.h * 0.85 || p.y + p.h < e.y + 0.2) return;
     const d = Math.sqrt(d2);

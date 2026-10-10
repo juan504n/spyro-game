@@ -75,7 +75,7 @@ for (const id of WORLDS) {
 
   // a respawn: at the checkpoint the world began with, and at the checkpoint of every goal but the last (the last one is the finale)
   await check(`${id}: a respawn at his checkpoint`, async () => {
-    await ev(() => { const g = window.__game; g.player.place(g.player.x + 3, g.player.y, g.player.z + 3, 0); g.player.kill(); });
+    await ev(() => { const g = window.__game; for (const e of g.enemies.list.slice()) g.enemies._remove(e, g.enemies.list.indexOf(e)); g.player.place(g.player.x + 3, g.player.y, g.player.z + 3, 0); g.player.kill(); });          // (the foes are sent away first, as below: a Gale Spirit on the spire he was last put on blows him a step off the spot he is put at, and this is about where he is put)
     await ff(5);
     const r = await standing(ev), c = await ev(() => { const g = window.__game; return [g.checkpoint.x, 0, g.checkpoint.z]; });
     return { ok: standOk(r) && dist(r.at, c) < 0.6, ...r, checkpoint: c };
