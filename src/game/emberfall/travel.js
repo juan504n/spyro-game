@@ -7,9 +7,9 @@ export const TRAVEL_PLACES = {
       name: 'THE GOALS',
       places: [
         { id: 'gate', name: 'FORGE STONE', x: -149.86, z: 29.06, yaw: 1.84 },
-        { id: 'grove', name: 'GROVE STONE', x: -125.94, z: -52.5, yaw: 2.64 },
+        { id: 'grove', name: 'GROVE STONE', x: -124.45, z: -52.03, yaw: 3.03 },
         { id: 'anvil', name: 'ANVIL STONE', x: -10.74, z: -10.11, yaw: 1.84, shelf: true },
-        { id: 'smelter', name: 'SMELTER STONE', x: 154.58, z: 29.74, yaw: 2.78, opens: true },
+        { id: 'smelter', name: 'SMELTER STONE', x: 141.04, z: 20.33, yaw: 1.21, opens: true },
         { id: 'heart', name: 'HEARTFORGE', x: 146.62, z: -167.86, yaw: 2.14, opens: true },
       ],
     },
@@ -28,7 +28,7 @@ export const TRAVEL_PLACES = {
         { id: 'start', name: 'THE START', x: -175, z: 36, yaw: 1.57 },
         { id: 'flats', name: 'THE CINDER FLATS', x: -126.87, z: 31.79, yaw: 1.75 },
         { id: 'grove-part', name: 'THE CINDER GROVE', x: -125.89, z: -21.55, yaw: 3.1 },
-        { id: 'stair', name: 'THE BASALT STAIR', x: -82.96, z: 7.68, yaw: -3.02 },
+        { id: 'stair', name: 'THE BASALT STAIR', x: -81.46, z: 7.68, yaw: -2.65 },
         { id: 'rim', name: 'THE BASALT RIM', x: -50.91, z: -62.43, yaw: -2.78 },
         { id: 'northway', name: 'THE NORTH CAUSEWAY', x: 19.64, z: -124.02, yaw: 1.16 },
       ],
@@ -36,9 +36,9 @@ export const TRAVEL_PLACES = {
     {
       name: 'THE COUNTRY (2)',
       places: [
-        { id: 'ashway', name: 'THE ASHWAY', x: -15.73, z: 114.09, yaw: 1.53 },
+        { id: 'ashway', name: 'THE ASHWAY', x: -18.51, z: 115.24, yaw: 1.57 },
         { id: 'lookout', name: 'THE LOOKOUT TRAIL', x: -52.12, z: 133.17, yaw: 0.35 },
-        { id: 'shelf', name: 'THE ANVIL PLATEAU', x: 56.03, z: -22.52, yaw: 2.62 },
+        { id: 'shelf', name: 'THE ANVIL PLATEAU', x: 52.49, z: -14.74, yaw: 2.65 },
         { id: 'forecourt', name: 'THE MAW', x: 78, z: 20, yaw: 1.57 },
         { id: 'gorge', name: 'THE CINDER GORGE', x: 153.98, z: -82.01, yaw: -1.89, opens: true },
         { id: 'caldera', name: 'THE CALDERA', x: 153, z: -146, yaw: -2.66, opens: true },

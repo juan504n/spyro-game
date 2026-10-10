@@ -91,7 +91,7 @@ export class Player {
 
   /** A blast of wind (a Gale Spirit, foes/gust.js): the hero is thrown along (dx, dz) at `power` m/s and cannot steer for half a second (the knockback's friction takes about a third of the speed in metres). Nothing is hurt. */
   shove(dx, dz, power) {
-    if (this.dead || this.carry) return false;
+    if (this.dead || this.carry || this.invulnT > 0) return false;          // (not in the grace of an arrival or a blow: a hero just set down is not blown off)
     this.vx = dx * power; this.vz = dz * power; this.vy = Math.max(this.vy, 3.5);
     this.hurtT = Math.max(this.hurtT, 0.55);
     this.chargeT = 0; this.flameT = 0; this.gliding = false; this.grounded = false;

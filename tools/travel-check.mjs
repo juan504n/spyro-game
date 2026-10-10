@@ -53,7 +53,7 @@ for (const id of Object.keys(REALMS)) {
   check(`${W_}: every place has the floor it says (not a roof, not the air)`, bad.floor.length === 0, say('floor') || `(${places.length} places)`);
   check(`${W_}: ... clear of rock, props and the game's colliders all round him`, bad.clear.length === 0, say('clear'));
   check(`${W_}: ... on ground he does not slide down, and out of the water`, bad.slope.length === 0 && bad.water.length === 0, `${say('slope')} ${say('water')}`.trim());
-  check(`${W_}: ... 6 m from the Snuffers and from every door that is awake`, bad.enemy.length === 0 && bad.door.length === 0, `${say('enemy')} ${say('door')}`.trim());
+  check(`${W_}: ... 10 m from the Snuffers (6 in the Vale, whose places were made first) and 6 m from every door that is awake`, bad.enemy.length === 0 && bad.door.length === 0, `${say('enemy')} ${say('door')}`.trim());
   check(`${W_}: ... inside the world's bounds, named by the debug readout's areas`, bad.bounds.length === 0 && bad.name.length === 0, `${say('bounds')} ${say('name')}`.trim());
   check(`${W_}: ... in no pocket: walkable ground reaches 40 m round him`, bad.pocket.length === 0, say('pocket'));
   if (wBroken) check(`${W_}: ... in the walkable country, from ${id === 'home' ? 'the cove' : 'the start'} (the cracked walls broken${wShut ? ', the gate open' : ''})`, bad.walk.length === 0, say('walk'));

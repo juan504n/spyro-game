@@ -34,7 +34,7 @@ export function makePlaceChecker(W, flood, wBroken = null) {
     if (tight) bad.clear = String(tight);
     if (sup.kind === 'terrain') { grid.normalAt(p.x, p.z, nrm); if (nrm[1] < SLOPE_WALK) bad.slope = 'steep'; if (sup.y < tideHigh(level.tide) + 0.2) bad.water = 'wet'; }          // (in a realm with a tide: not where the sea comes at high tide)
     else if (sup.n && sup.n.ny < SLOPE_WALK) bad.slope = 'steep';
-    for (const e of gp.enemies || []) if (Math.hypot(e.x - p.x, e.z - p.z) < 6) { bad.enemy = 'beside a Snuffer'; break; }
+    for (const e of gp.enemies || []) if (Math.hypot(e.x - p.x, e.z - p.z) < (level.brief ? 10 : 6)) { bad.enemy = 'beside a Snuffer'; break; }
     for (const q of gp.portals || []) if (q.state === 'open' && Math.hypot(q.x - p.x, q.z - p.z) < 6) { bad.door = 'in an awake door\'s light'; break; }
     if (Math.abs(p.x) > lim || Math.abs(p.z) > lim) bad.bounds = 'outside';
     // not in a pocket: walking ground all round him (a flood within 40 m reaches 100 cells or more: the Shrine Isle, the smallest, has 140)

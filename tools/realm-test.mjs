@@ -332,7 +332,7 @@ for (let i = 0; i < goals.length; i++) {
     // (a goal that names its own ignition sound - a Windbell rings - is heard to ring it, and not the lantern's whoomp)
     const heard = await ev(() => window.__sfx || []);
     const soundOk = !goals[i].sfx || (heard.includes(goals[i].sfx) && !heard.includes('lantern_ignite'));
-    return { ok: before === i && r.lit && r.count === i + 1 && Math.abs(r.dayTarget - r.want) < 0.01 && (last ? r.state === 'finale' : r.state === 'play') && soundOk, ...r, ...(goals[i].sfx ? { sound: goals[i].sfx, heard } : {}) };
+    return { ok: (before === i || (last && mission && mission.final && before === i + 1)) && r.lit && r.count === i + 1 && Math.abs(r.dayTarget - r.want) < 0.01 && (last ? r.state === 'finale' : r.state === 'play') && soundOk, ...r, ...(goals[i].sfx ? { sound: goals[i].sfx, heard } : {}) };
   });
   if (info.gate !== null && i + 1 === info.gate) {
     await check('the gate opens', async () => {

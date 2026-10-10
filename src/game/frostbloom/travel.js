@@ -9,7 +9,7 @@ export const TRAVEL_PLACES = {
         { id: 'gate', name: 'GATE BLOOM', x: 12.4, z: 143.66, yaw: 2.73 },
         { id: 'rime', name: 'RIMEWOOD BLOOM', x: -119.5, z: 23.12, yaw: -2.47 },
         { id: 'glass', name: 'GLASSWATER BLOOM', x: 1.89, z: 57, y: 0.45, yaw: 3.13 },
-        { id: 'ice', name: 'ICEFALL BLOOM', x: 151.71, z: -44.72, yaw: 2.53 },
+        { id: 'ice', name: 'ICEFALL BLOOM', x: 153.13, z: -44.09, yaw: 2.92 },
         { id: 'heart', name: 'HEARTBLOOM', x: 0, z: -154, yaw: 3.14, opens: true },
       ],
     },
@@ -18,9 +18,9 @@ export const TRAVEL_PLACES = {
       places: [
         { id: 'start', name: 'THE START', x: 0, z: 172, yaw: 3.14 },
         { id: 'ring', name: 'GLASSWATER', x: 0, z: -20, yaw: 1.3 },
-        { id: 'rimewood', name: 'RIMEWOOD', x: -104.48, z: 39.72, yaw: -2.1 },
-        { id: 'icefall', name: 'THE ICEFALL', x: 115.48, z: 22.47, yaw: 2.1 },
-        { id: 'ridge', name: 'AURORA RIDGE', x: 2.64, z: -66.18, yaw: -1.98 },
+        { id: 'rimewood', name: 'RIMEWOOD', x: -106.2, z: 35.57, yaw: -1.36 },
+        { id: 'icefall', name: 'THE ICEFALL', x: 119.98, z: 22.47, yaw: 2.48 },
+        { id: 'ridge', name: 'AURORA RIDGE', x: -7.75, z: -63.12, yaw: -2.36 },
       ],
     },
     {

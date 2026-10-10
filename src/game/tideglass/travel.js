@@ -8,7 +8,7 @@ export const TRAVEL_PLACES = {
       places: [
         { id: 'quay', name: 'QUAY LENS', x: -181.12, z: 12.5, yaw: 2.25 },
         { id: 'pearl', name: 'PEARL LENS', x: -21.6, z: 30.26, yaw: 1.12 },
-        { id: 'court', name: 'COURT LENS', x: 18.82, z: -21.35, yaw: 0.58 },
+        { id: 'court', name: 'COURT LENS', x: 16.09, z: -25.54, yaw: 0.58 },
         { id: 'weeping', name: 'WEEPING LENS', x: 140.01, z: -4.68, yaw: 1.65 },
         { id: 'light', name: 'TIDEGLASS', x: 136.38, z: -132.3, yaw: 2.01, opens: true },
       ],
@@ -20,7 +20,7 @@ export const TRAVEL_PLACES = {
         { id: 'strand', name: 'THE STRAND', x: -146, z: 28, yaw: 0.98 },
         { id: 'hill', name: 'THE HIGH ROAD', x: -173.76, z: -48.83, yaw: 2.86 },
         { id: 'walk', name: 'THE CLIFFWALK', x: -25.63, z: -115.93, yaw: 1.39 },
-        { id: 'ridge', name: 'THE HEADLAND', x: 143.21, z: -91.21, yaw: 2.51, opens: true },
+        { id: 'ridge', name: 'THE HEADLAND', x: 146.39, z: -88.03, yaw: 2.82, opens: true },
         { id: 'stair', name: 'THE WEEPING STAIR', x: 82.06, z: -33.66, yaw: 2.97 },
       ],
     },
