@@ -221,7 +221,7 @@ export const PLAYS = [
   { id: 'gale-still', say: 'Gale Spirit: a hero who stands in its line is thrown by the blast', kind: 'gale', policy: still, T: 12, at: 10, want: 'said:shove', hears: ['foe_gather', 'foe_gust'], shows: true },
   { id: 'gale-aside', say: 'Gale Spirit: a hero who leaves the line once the blast is fixed is not thrown (it blows at least twice)', kind: 'gale', policy: galeAside, T: 14, at: 10, want: 'sidestepped:gust', tol: 1, hears: ['foe_gather', 'foe_gust'] },
   { id: 'crab-ram', say: 'Shellback: a ram at its face turns it over, and a ram at its belly then wins', kind: 'crab', policy: crabRam, T: 40, at: 12, want: 'flipkill', tol: 2, hears: ['foe_flip'] },
-  { id: 'crab-flank', say: 'Shellback: a hero who goes round it to its soft back wins', kind: 'crab', policy: wardPlay, T: 30, at: 12, want: 'win', tol: 2, hears: ['foe_snap'] },
+  { id: 'crab-flank', say: 'Shellback: a hero who goes round it to its soft back wins', kind: 'crab', policy: wardPlay, T: 30, at: 12, want: 'win', tol: 2 },
   { id: 'crab-flame', say: 'Shellback: fire breathed at its shell rings off it', kind: 'crab', policy: rush({ flame: 5 }), T: 6, at: 12, want: 'nofront', hears: ['armor_clang'] },
   { id: 'crab-still', say: 'Shellback: a hero who stands still is snapped at', kind: 'crab', policy: still, T: 12, at: 6, want: 'hurt', hears: ['foe_snap'] },
   { id: 'drift-jump', say: 'Drifter: a hero who jumps when it comes near and breathes up at it wins', kind: 'drifter', policy: driftPlay, T: 40, at: 12, want: 'win', tol: 2 },

@@ -18,7 +18,7 @@ const R = await page.evaluate(async () => {
   G.systems = G.systems.filter((s) => s !== G.boss);                       // (the Guardian sleeps: a flat floor)
   const fx = 0, fz = 14, fy = G.grid.heightAt(fx, fz);
   const out = { kinds: [] };
-  const stand = (x, z, yaw = Math.PI) => { p.place(x, G.grid.heightAt(x, z) + 0.05, z, yaw); p.locked = false; G.locked = false; G.mode = 'play'; G.hud.talking = false; p.invulnT = 99; };
+  const stand = (x, z, yaw = Math.PI) => { p.place(x, G.grid.heightAt(x, z) + 0.05, z, yaw); p.locked = false; G.locked = false; G.mode = 'play'; G.hud.talking = false; p.invulnT = 0; G.playerHurt = () => false; };          // (not blinking: a hero in his grace is not pushed by a foe; nothing hurts him instead)
   for (const id of kinds.KIND_IDS) {
     const e = E.add({ x: fx, z: fz, variant: id }); e.state = e.B ? e.state : 'idle'; e.untargetable = false; e.under = 0; e.y = fy + (e.K.flies ? 0 : 0);
     const rr = e.r + p.r;
