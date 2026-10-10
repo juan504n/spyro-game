@@ -141,7 +141,7 @@ function layoutGlacier(ctx) {
   gemsAlong(ctx, 'mouth', 5.5, [1, 1, 2], 14);
   for (const s of [20, 30]) { const p = GLACIER.at('mouth', s, s > 24 ? 2.4 : -2.4); ctx.addVase(p.x, p.z, s > 24 ? [1, 2] : [1, 1, 1], h(p.x, p.z)); }
   const guard = GLACIER.at('mouth', 23, 2.2);
-  ctx.addEnemy(guard.x, guard.z, 'basic', 4);
+  ctx.addEnemy(guard.x, guard.z, 'shiver', 4);
 
   // the heart chamber: the daylight of the skylight pours down on the Frostbloom, spires and crystals round its rim, guardians
   const at = (deg, r) => [HEART.x + Math.cos(deg * TAU / 360) * r, HEART.z + Math.sin(deg * TAU / 360) * r];
@@ -152,8 +152,8 @@ function layoutGlacier(ctx) {
   for (const deg of [75, 275]) { const [x, z] = at(deg, 11.8); put('crystal_spire', x, z, { color: 'cyan', h: 7 }, 2.4); }
   for (let i = 0; i < 10; i++) { const [x, z] = at(i * 36 + 18, 9.0); ctx.addGem(x, z, i % 5 === 0 ? 2 : 1); }
   for (const [deg, g] of [[100, [1, 2]], [205, [5]], [330, [1, 1, 2]]]) { const [x, z] = at(deg, 9.6); ctx.addVase(x, z, g, h(x, z)); }
-  ctx.addEnemy(...at(205, 8.6), 'bell', 3);
-  ctx.addEnemy(...at(330, 8.6), 'thorn', 3);
+  ctx.addEnemy(...at(205, 8.6), 'rime', 3);
+  ctx.addEnemy(...at(330, 8.6), 'shiver', 3);
   gp.hints.push({ x: HEART.x, z: HEART.z + 8, r: 13, text: 'THE HEART OF THE GLACIER. THE FROSTBLOOM SLEEPS UNDER THE SKYLIGHT. A CRACKED WALL SHUTS THE WEST PASSAGE', dur: 8 });
   gp.soundSources.push({ name: 'portal_hum', x: HEART.x, y: PLINTH + 2, z: HEART.z, range: 22, vol: 0.35 });
 
@@ -219,15 +219,15 @@ function layoutDanger(ctx) {
   const side = (p, k) => [p.x + p.dz * k, p.z - p.dx * k];
   // [road, how far along it (0..1), kind]
   const marks = [
-    ['trunk', 0.78, 'basic'], ['ring', 0.08, 'basic'],
-    ['ring', 0.22, 'mole'], ['rimeroad', 0.55, 'rime'], ['ring', 0.4, 'bell'], ['iceroad', 0.35, 'rime'], ['iceroad', 0.72, 'bell'],
-    ['ring', 0.62, 'rime'], ['ring', 0.8, 'mole'],
-    ['ridge', 0.1, 'basic'], ['ridge', 0.22, 'thorn'], ['ridge', 0.34, 'rime'], ['ridge', 0.48, 'thorn'], ['ridge', 0.6, 'warden'], ['ridge', 0.72, 'thorn'], ['ridge', 0.86, 'rime'],
+    ['trunk', 0.78, 'shiver'], ['ring', 0.08, 'shiver'],
+    ['ring', 0.22, 'shiver'], ['rimeroad', 0.55, 'rime'], ['ring', 0.4, 'shiver'], ['iceroad', 0.35, 'rime'], ['iceroad', 0.72, 'warden'],
+    ['ring', 0.62, 'rime'], ['ring', 0.8, 'shiver'],
+    ['ridge', 0.1, 'shiver'], ['ridge', 0.22, 'shiver'], ['ridge', 0.34, 'rime'], ['ridge', 0.48, 'warden'], ['ridge', 0.6, 'warden'], ['ridge', 0.72, 'shiver'], ['ridge', 0.86, 'rime'],
   ];
   marks.forEach(([road, t, kind], i) => { const p = ctx.pathPoint(road, t), [x, z] = side(p, i % 2 ? 3.6 : -3.6); ctx.addEnemy(x, z, kind, 4); });
   // the Hollow's guardians: a ring round the Heartbloom (the crater situation wants at least two within 30 m)
-  for (let k = 0; k < 5; k++) { const a = (k / 5) * TAU + 0.6; ctx.addEnemy(HOLLOW.x + Math.cos(a) * 15, HOLLOW.z + Math.sin(a) * 15, ['thorn', 'rime', 'warden', 'rime', 'thorn'][k], 3); }
-  ctx.gp.hints.push({ x: 16, z: 110, r: 10, text: 'ARMOURED SNUFFERS: FIRE BOUNCES OFF BELLS, SPIKES HURT WHEN RAMMED', dur: 7 });
+  for (let k = 0; k < 5; k++) { const a = (k / 5) * TAU + 0.6; ctx.addEnemy(HOLLOW.x + Math.cos(a) * 15, HOLLOW.z + Math.sin(a) * 15, ['shiver', 'rime', 'warden', 'rime', 'shiver'][k], 3); }
+  ctx.gp.hints.push({ x: 16, z: 110, r: 10, text: 'THE COLD ONES: A SHIVERLING CIRCLES YOU AND DASHES. FIRE MELTS THE ICE OF A RIMELING', dur: 7 });
 }
 
 // ---- trees, flowers, rocks: pines under snow, bare trees in blossom ------------------------------------------------------------------------------------------

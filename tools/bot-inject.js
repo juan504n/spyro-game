@@ -143,6 +143,6 @@
     tick(2);
   }
 
-  function god() { install(); G().player.hurt = () => false; return true; }
+  function god() { install(); G().player.hurt = () => false; G().player.shove = () => false; if (G().enemies) G().enemies.bodyless = true; return true; }          // (a walker tests the way, not the Snuffers: the bodies of the living ones, which the hero cannot walk through, are not in his way)
   window.__bot = { goto, walk, follow, place, tick, state, tap, ctl, install, edge, god };
 })();

@@ -22,6 +22,7 @@ export const RULES = {
 
 import { tideProblems } from './tide.js';
 import { trialProblems } from '../trials/place.js';
+import { missionProblems } from '../missions/problems.js';
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const isXZ = (o) => o && isNum(o.x) && isNum(o.z);
@@ -91,6 +92,7 @@ export function defineBrief(b) {
     if (g.sfx !== undefined) need(typeof g.sfx === 'string', `goal '${g.id}': sfx the name of a sound (engine/audio: it is played, with the lantern's beam, when the goal is lit)`);
     if (g.trial !== undefined) for (const m of trialProblems(g, g.trial)) err(m);                  // (an ask that seals the lantern: trials/place.js)
   }
+  if (b.mission !== undefined) for (const m of missionProblems(b.mission, goals)) err(m);                  // (the realm's own errand: missions/, docs/DESIGN.md round thirty-nine)
   const kinds = new Set(goals.map((g) => g.situation));
   need(kinds.size >= RULES.situationsMin(goals.length), `goals: ${kinds.size} different situations among ${goals.length} goals; at least ${RULES.situationsMin(goals.length)} (every goal in a place of its own kind)`);
   if (goals.length) need(['summit', 'crater', 'cave', 'island'].includes(goals[goals.length - 1].situation), 'goals: the last goal is the finale and stands somewhere grand (a summit, a crater, a cave or an island)');

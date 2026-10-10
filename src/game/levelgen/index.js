@@ -13,7 +13,7 @@ import { buildTrial } from '../trials/place.js';
 const VALE_TRIALS = [
   ['isle', { kind: 'bells', at: [-26, 83], yaw: 0 }],
   ['mill', { kind: 'thief', at: [112, 75] }],
-  ['dawn', { kind: 'siege', at: [-16, -66], r: 10, waves: [['basic', 'basic'], ['bell', 'slinger', 'basic'], ['thorn', 'bell', 'pup']] }],
+  ['dawn', { kind: 'siege', at: [-16, -66], r: 10, waves: [['basic', 'basic'], ['bell', 'slinger', 'basic'], ['thorn', 'bell', 'thorn']] }],
 ];
 
 /** Gameplay lists whose records get a `src` (the stage that made them) for the debug readout. */

@@ -43,6 +43,8 @@ const arrived = async (realm) => {
 await load(`?world=${id}`);
 await page.addScriptTag({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), 'lib/trial-driver.js') });         // (the trials that seal the lanterns are played by the real controller: tools/lib/trial-driver.js)
 await ev(() => window.__trialDriver.load());
+await page.addScriptTag({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), 'lib/mission-driver.js') });         // (the realm's own errand - ram a bloom, beat a brute, fly into a bell, carry a pearl - is done by the real controller too: tools/lib/mission-driver.js)
+await ev(() => window.__missionDriver.load());
 const info = await ev(() => {
   const g = window.__game, b = g.level.brief;
   return { realm: g.realm.id, kind: g.realm.kind, goals: g.beacons.list.map((q) => ({ id: q.def.id, name: q.def.name, x: q.x, y: q.y, z: q.z, big: !!q.def.big, sfx: q.def.sfx || null })), gate: b && b.gate ? b.gate.at : null, exit: g.gameplay.portals.find((p) => p.kind === 'lift') };
@@ -308,11 +310,20 @@ for (let i = 0; i < goals.length; i++) {
       if (!played.ok) return { ok: false, reason: `the ${trial.kind} trial was not solved`, trial, played };
       await ff(3.2);
       const after = await ev((n) => { const b = window.__game.beacons.list[n]; return { lit: b.litFlag, sealed: b.sealed, ready: !!b.ready }; }, i);
-      if (after.sealed || (!after.lit && !after.ready)) return { ok: false, reason: 'the trial was solved and its lantern is neither lit nor free of the seal', trial, played, after };
+      const ownsIt = await ev((gid) => !!window.__game.beacons.get(gid).mission, goals[i].id);          // (a goal that is the mission's is lit by the mission, not by the trial that sealed it)
+      if (after.sealed || (!after.lit && !after.ready && !ownsIt)) return { ok: false, reason: 'the trial was solved and its lantern is neither lit nor free of the seal', trial, played, after };
       await light(i);
       await ff(0.6);
     }
     await burn();
+    // a goal that is the mission's takes no flame (the breath above did nothing); the mission's own verb lights it
+    const mission = await ev((gid) => { const b = window.__game.beacons.get(gid); return b.mission ? { kind: b.mission.kind, lit: b.litFlag, final: b.mission.spec.final === gid } : null; }, goals[i].id);
+    if (mission) {
+      if (mission.lit && !mission.final) return { ok: false, reason: `the ${mission.kind} mission's goal took a breath of fire`, mission };           // (a mission's last goal - the Heartbloom - is lit by his arrival with the sprites, whatever he breathes)
+      const played = mission.lit ? { ok: true } : await ev(([gid]) => window.__missionDriver.play(gid, { T: 150 }), [goals[i].id]);
+      if (!played.ok) return { ok: false, reason: `the ${mission.kind} mission was not done`, mission, played };
+      await ff(0.9);
+    }
     const r = await ev((n) => {
       const g = window.__game, b = g.beacons.list[n];
       return { lit: b.litFlag, count: g.stats.beacons, dayTarget: +g.dayTarget.toFixed(3), want: +g.beacons.steps[n + 1].toFixed(3), mode: g.mode, state: window.__app.state, gate: g.objects && g.objects.barrier ? g.objects.barrier.target : null };

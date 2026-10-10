@@ -119,11 +119,12 @@ await page.evaluate(async () => {
         if (rec.killed || foe.state === 'dead') { if (++tail > 30) break; }
       }
       bot.ctl.mx = bot.ctl.my = 0; bot.ctl.jump = bot.ctl.flame = bot.ctl.charge = false;
+      const during = { hurts: rec.hurts };      // (what the play did within its T: the second below is for what is going up in smoke, not for the hero, who stands there: a mole that cracks as the play ends must not count)
       bot.tick(60);                                                               // (a second for what is going up in smoke to have gone)
       rec.playing = false;
       for (const c of posts) G.collision.remove(c);
       const standing = (e) => e.state !== 'dead';
-      return { killed: rec.killed, hurts: rec.hurts, blows: rec.blows.slice(), boomed: rec.boomed || !!foe.exploded, t: +(G.time - t0).toFixed(1), end: foe.state, shell: foe.shell, dismissed: rec.dismissed, called: rec.called.map((m) => !!m.wild), said: { ...rec.said }, peak: +peak.toFixed(2),
+      return { killed: rec.killed, hurts: during.hurts, blows: rec.blows.slice(), boomed: rec.boomed || !!foe.exploded, t: +(G.time - t0).toFixed(1), end: foe.state, shell: foe.shell, dismissed: rec.dismissed, called: rec.called.map((m) => !!m.wild), said: { ...rec.said }, peak: +peak.toFixed(2),
         left: E.list.filter((e) => e !== foe && standing(e)).length, others: rec.others.filter(standing).length, sounds: [...rec.sounds] };
     },
     /** what a keg's blast takes and spares, and who the aim assist sees (the hero stands far off: nothing wakes) */

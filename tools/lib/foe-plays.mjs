@@ -107,6 +107,57 @@ export const mothDodge = (s) => {
   return { dx: 0, dz: 0, mag: 0 };
 };
 
+// ---- round thirty-eight: the foes that are one world's own -------------------------------------------------------------------------------------------
+/** the Shiverling: face it and breathe on it as it rounds him (he turns on the spot at a walking pace: the breath is wide enough to follow a runner) */
+export const shiverFlame = (s) => { const [dx, dz] = dirTo(s.hero, s.foe); return { dx, dz, mag: 0.3, flame: dist(s.hero, s.foe) < 6.2 }; };
+/** ... or step aside as it shivers (the dash is fixed when the shiver ends), and ram it while it is dazed */
+export const shiverAside = (s) => {
+  const e = s.foe, h = s.hero, [dx, dz] = dirTo(h, e);
+  if (e.state === 'shiver' || e.state === 'dash') return { dx: dz, dz: -dx, mag: 1 };
+  if (e.state === 'dazed') return { dx, dz, mag: 1, charge: dist(h, e) < 6 };
+  return { dx: 0, dz: 0, mag: 0 };
+};
+
+/** the Slag Brute: out of the ring while it raises its fists, a ram into the open hatch while it vents (and not again while the hatch is shut), and and he waits for it the rest of the time */
+export const brutePlay = (s) => {
+  const e = s.foe, h = s.hero, d = dist(h, e), [dx, dz] = dirTo(h, e);
+  if (e.state === 'raise') return d < 6.4 ? { dx: -dx, dz: -dz, mag: 1 } : still(s);
+  if (e.state === 'vent') {
+    if (e.shutT > 0) return d < 5 ? { dx: -dx, dz: -dz, mag: 1 } : still(s);
+    return d < 11 ? { dx, dz, mag: 1, charge: Math.floor(s.t * 5) % 2 === 0 } : { dx, dz, mag: 1 };
+  }
+  return still(s);
+};
+/** ... or stand in the ring and jump over the slam (0.55 s into the raise) */
+export const bruteJump = (s) => (s.foe.state === 'raise' && s.foe.st >= 0.55 && s.hero.grounded ? { dx: 0, dz: 0, mag: 0, jump: true } : still(s));
+
+/** the Gale Spirit: stand and let it blow ... */
+/** ... or leave the line of the blast once it is fixed (to the side the hero is already on) */
+export const galeAside = (s) => {
+  const e = s.foe, h = s.hero;
+  if (e.state === 'gather' && e.locked) {
+    const ax = Math.sin(e.aimYaw), az = Math.cos(e.aimYaw), lat = (h.x - e.x) * az - (h.z - e.z) * ax, sd = lat >= 0 ? 1 : -1;
+    return { dx: az * sd, dz: -ax * sd, mag: 1 };
+  }
+  return still(s);
+};
+
+/** the Shellback: ram its face (and again, when it is on its back); a hero lets go of the ram between two (the ram is a new one each time) */
+export const crabRam = (s) => { const [dx, dz] = dirTo(s.hero, s.foe), d = dist(s.hero, s.foe); return { dx, dz, mag: 1, charge: d < 8 && Math.floor(s.t * 4) % 2 === 0 }; };
+
+/** the Drifter: jump when it comes near and breathe up at it from the top of the jump, and jump when its glow is about to peak */
+export const driftPlay = (s) => {
+  const e = s.foe, h = s.hero, [dx, dz] = dirTo(h, e), d = dist(h, e);
+  if (e.state === 'idle' || e.state === 'alert') return still(s);
+  if (e.state === 'glow' && e.st >= 0.4 && h.grounded) return { dx, dz, mag: 0.01, jump: true };
+  if (!h.grounded && h.up > 0.7) return { dx, dz, mag: 0.3, flame: d < 6.4 };
+  if (d < 6 && h.grounded && e.state !== 'glow') return { dx, dz, mag: 0.3, jump: true };
+  return d > 6 ? { dx, dz, mag: 0.5 } : still(s);
+};
+/** ... or only jump when the glow peaks (the ring of static passes under him) */
+export const driftJump = (s) => (s.foe.state === 'glow' && s.foe.st >= 0.4 && s.hero.grounded ? { dx: 0, dz: 0, mag: 0, jump: true } : still(s));
+
+
 /**
  * Each play: id, what it says, the foe, the policy, T (seconds), `at` (how far from the foe the hero begins, on the line through them), and what must come of it (`want`, judged by `judge`; `tol`: how many
  * of the runs may fail it, a policy is not a person; `seeds`: which runs; `others`: Snuffers of the old kinds that stand by it, [{ kind, dx, dz }] from the foe; `posts`: posts that stand in the way,
@@ -157,6 +208,27 @@ export const PLAYS = [
   { id: 'thief-flame', say: 'Pilferling: a hero who runs it down and flames it from 6 m catches it, and it never hurts him', kind: 'thief', policy: rush({ flame: 6 }), T: 25, at: 10, want: 'clear' },
   { id: 'thief-ram', say: 'Pilferling: a hero who runs it down and rams it when he is on its heels (within 1.4 m: it sidesteps a ram that comes from further off, once in 1.5 s, and cannot sidestep this one) catches it, and it never hurts him', kind: 'thief', policy: rush({ ram: 1.4 }), T: 30, at: 10, want: 'clear', tol: 1 },
   { id: 'thief-still', say: 'Pilferling: it does not fight: a hero who stands still is never touched', kind: 'thief', policy: still, T: 12, at: 14, want: 'quiet', hears: ['foe_jeer'] },
+  // ---- round thirty-eight
+  { id: 'shiver-flame', say: 'Shiverling: a hero who turns on it and breathes fire as it rounds him wins', kind: 'shiver', policy: shiverFlame, T: 30, at: 12, want: 'win', tol: 1 },
+  { id: 'shiver-aside', say: 'Shiverling: a hero who steps aside as it shivers is not touched by the dash, and rams it dazed', kind: 'shiver', policy: shiverAside, T: 40, at: 12, want: 'clear', tol: 2, hears: ['foe_shiver', 'foe_rush'], shows: true },
+  { id: 'shiver-still', say: 'Shiverling: a hero who stands still is dashed at', kind: 'shiver', policy: still, T: 14, at: 12, want: 'hurt', hears: ['foe_shiver', 'foe_rush'] },
+  { id: 'shiver-ram', say: 'Shiverling: a ram goes over it while it circles (it is too quick for the horns: nothing falls in the first 2.4 s)', kind: 'shiver', policy: headOn, T: 2.4, at: 12, want: 'nokill' },
+  { id: 'brute-vent', say: 'Slag Brute: a hero who keeps out of the ring of its slam and rams the open hatch wins (three wounds), and is hurt at most once', kind: 'brute', policy: brutePlay, T: 70, at: 12, want: 'win', tol: 2, hears: ['foe_raise', 'foe_slam', 'foe_wound'], shows: true },
+  { id: 'brute-jump', say: 'Slag Brute: a hero who jumps as the fists come down is over the slam and is never hurt (it slams at least twice)', kind: 'brute', policy: bruteJump, T: 14, at: 5, want: 'dodged:bash', tol: 1, hears: ['foe_raise', 'foe_slam'] },
+  { id: 'brute-headon', say: 'Slag Brute: a ram at its front while the hatch is shut rings off and throws the hero back', kind: 'brute', policy: headOn, T: 4, at: 14, want: 'ringed', hears: ['armor_clang'] },
+  { id: 'brute-still', say: 'Slag Brute: a hero who stands still is slammed', kind: 'brute', policy: still, T: 14, at: 5, want: 'hurt', hears: ['foe_raise', 'foe_slam'] },
+  { id: 'gale-flame', say: 'Gale Spirit: a hero who runs it down and breathes on it wins (it keeps 9 m off and is slower than a run)', kind: 'gale', policy: rush({ flame: 6 }), T: 40, at: 14, want: 'win', tol: 1 },
+  { id: 'gale-still', say: 'Gale Spirit: a hero who stands in its line is thrown by the blast', kind: 'gale', policy: still, T: 12, at: 10, want: 'said:shove', hears: ['foe_gather', 'foe_gust'], shows: true },
+  { id: 'gale-aside', say: 'Gale Spirit: a hero who leaves the line once the blast is fixed is not thrown (it blows at least twice)', kind: 'gale', policy: galeAside, T: 14, at: 10, want: 'sidestepped:gust', tol: 1, hears: ['foe_gather', 'foe_gust'] },
+  { id: 'crab-ram', say: 'Shellback: a ram at its face turns it over, and a ram at its belly then wins', kind: 'crab', policy: crabRam, T: 40, at: 12, want: 'flipkill', tol: 2, hears: ['foe_flip'] },
+  { id: 'crab-flank', say: 'Shellback: a hero who goes round it to its soft back wins', kind: 'crab', policy: wardPlay, T: 30, at: 12, want: 'win', tol: 2, hears: ['foe_snap'] },
+  { id: 'crab-flame', say: 'Shellback: fire breathed at its shell rings off it', kind: 'crab', policy: rush({ flame: 5 }), T: 6, at: 12, want: 'nofront', hears: ['armor_clang'] },
+  { id: 'crab-still', say: 'Shellback: a hero who stands still is snapped at', kind: 'crab', policy: still, T: 12, at: 6, want: 'hurt', hears: ['foe_snap'] },
+  { id: 'drift-jump', say: 'Drifter: a hero who jumps when it comes near and breathes up at it wins', kind: 'drifter', policy: driftPlay, T: 40, at: 12, want: 'win', tol: 2 },
+  { id: 'drift-dodge', say: 'Drifter: a hero who jumps as its glow peaks is over the ring of static and is never hurt (it pulses at least twice)', kind: 'drifter', policy: driftJump, T: 16, at: 7, want: 'dodged:pulse', tol: 1, hears: ['foe_glow', 'foe_pulse'], shows: true },
+  { id: 'drift-still', say: 'Drifter: a hero who stands still on the ground is shocked', kind: 'drifter', policy: still, T: 14, at: 6, want: 'hurt', hears: ['foe_glow', 'foe_pulse'] },
+  { id: 'urchin-ram', say: 'Urchin: a hero who rams it is hurt by its spines and it does not fall', kind: 'urchin', policy: rush({ ram: 3 }), T: 8, at: 12, want: 'hurt', hears: ['armor_clang'], sim: false },
+  { id: 'urchin-flame', say: 'Urchin: a hero who breathes fire at it wins', kind: 'urchin', policy: rush({ flame: 5 }), T: 20, at: 12, want: 'win', tol: 1, sim: false },
 ];
 
 /**
@@ -172,6 +244,9 @@ export function judge(want, r) {
   const rams = r.blows.filter((b) => b.attack === 'ram' && b.out === 'ring' && b.after);                          // (only the running game says what became of the hero)
   const thrown = rams.every((b) => !b.after.charging && b.after.back);
   switch (word) {
+    case 'said': return said >= 1 ? null : `${arg} said ${said} times`;
+    case 'sidestepped': return said >= 2 && !(r.said && r.said.shove) ? null : `${arg} ${said} times, thrown ${(r.said && r.said.shove) || 0} times`;
+    case 'flipkill': return r.killed && r.blows.some((b) => b.out === 'flip') && r.blows.some((b) => b.out === 'kill' && (b.state === 'flipped' || b.state === 'right')) && r.hurts <= 2 ? null : `killed ${r.killed}, flips ${r.blows.filter((b) => b.out === 'flip').length}, hurts ${r.hurts}`;
     case 'dodged': return r.hurts === 0 && said >= 2 ? null : `hurts ${r.hurts}, ${arg} ${said} times`;
     case 'clear': return r.killed && r.hurts === 0 ? null : `killed ${r.killed}, hurts ${r.hurts}`;
     case 'win': return r.killed && r.hurts <= 1 ? null : `killed ${r.killed}, hurts ${r.hurts}`;

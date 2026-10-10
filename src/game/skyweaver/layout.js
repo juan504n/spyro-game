@@ -289,9 +289,9 @@ function layoutDanger(ctx) {
   const side = (p, k) => [p.x + p.dz * k, p.z - p.dx * k];
   // [road, how far along it (0..1), kind]
   const marks = [
-    ['field', 0.45, 'basic'], ['field', 0.8, 'basic'],
-    ['orchard', 0.25, 'basic'], ['terrace', 0.35, 'bell'], ['orchard', 0.55, 'moth'], ['terrace', 0.7, 'thorn'], ['orchard', 0.82, 'slinger'],
-    ['loomway', 0.2, 'slinger'], ['loomway', 0.5, 'moth'], ['loomway', 0.5, 'caller'], ['loomway', 0.9, 'moth'],
+    ['field', 0.45, 'moth'], ['field', 0.8, 'moth'],
+    ['orchard', 0.25, 'moth'], ['terrace', 0.35, 'caller'], ['orchard', 0.55, 'moth'], ['terrace', 0.7, 'gale'], ['orchard', 0.82, 'caller'],
+    ['loomway', 0.2, 'gale'], ['loomway', 0.5, 'moth'], ['loomway', 0.5, 'caller'], ['loomway', 0.9, 'gale'],
   ];
   // (a Snuffer stands where nothing else does: the first of the offsets from the road that is clear)
   marks.forEach(([road, t, kind], i) => {
@@ -303,11 +303,11 @@ function layoutDanger(ctx) {
   });
   // the spires: one on each needle, standing guard (the tops are small: they patrol little)
   const at = (id, dx, dz) => [pts(id)[0][0] + dx, pts(id)[0][1] + dz];
-  ctx.addEnemy(...at('spire1', 0.4, 2.4), 'basic', 2);
-  ctx.addEnemy(...at('spire2', 0.8, 1.0), 'slinger', 2);
-  ctx.addEnemy(...at('spire4', 0.6, 1.4), 'thorn', 2);
-  ctx.addEnemy(121, -92, 'bell', 3);
-  ctx.gp.hints.push({ x: 28, z: 52, r: 9, text: 'ARMOURED SNUFFERS: FIRE BOUNCES OFF BELLS, SPIKES HURT WHEN RAMMED', dur: 7 });
+  ctx.addEnemy(...at('spire1', 0.4, 2.4), 'moth', 2);
+  ctx.addEnemy(...at('spire2', 0.8, 1.0), 'gale', 2);
+  ctx.addEnemy(...at('spire4', 0.6, 1.4), 'gale', 2);
+  ctx.addEnemy(121, -92, 'caller', 3);
+  ctx.gp.hints.push({ x: 28, z: 52, r: 9, text: 'THE WIND FOES: A GALE SPIRIT BLOWS YOU OFF AN EDGE, A DUSK MOTH DIVES, A SMOKECALLER CALLS MOTHS', dur: 7 });
 }
 
 // ---- the puffs of cloud on the sea: for scale and for parallax, round the feet of every island and out in the open sea ---------------------------------------------------------------------------

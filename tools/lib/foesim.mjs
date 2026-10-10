@@ -66,6 +66,10 @@ export function simulate({ kind, foe = { x: 0, z: 0, yaw: 0 }, hero: spot = { x:
       events.push(ev);
       if (onEvent) onEvent(ev, data);
       if (type === 'hurt') { if (hero.hurt(data.x, data.z)) hurts++; }
+      if (type === 'shove' && !hero.dead) {                                      // (a Gale Spirit's blast: as Player.shove: thrown, and no steering for half a second; nothing hurts)
+        hero.vx = data.dx * data.power; hero.vz = data.dz * data.power; hero.vy = Math.max(hero.vy, 3.5); hero.grounded = false;
+        hero.hurtT = Math.max(hero.hurtT, 0.55); hero.chargeT = 0; hero.flameT = 0;
+      }
       if (type === 'summon') {
         const m = makeFoe('basic', { x: data.x, z: data.z, y: floorAt(data.x, data.z), wild: true });
         m.state = 'chase'; m.kind = 'basic'; m.minion = true; m.born = now;
@@ -90,6 +94,7 @@ export function simulate({ kind, foe = { x: 0, z: 0, yaw: 0 }, hero: spot = { x:
       if (h.out === 'kill') kill(e, h.attack);
       else if (h.out === 'boom') { explode(e, ctx, true); kill(e, 'boom'); }
       else if (h.out === 'ring' && h.attack === 'ram') { hero.chargeT = 0; hero.chargeCd = 0.5; hero.vx = -hero.dirx * 5; hero.vz = -hero.dirz * 5; }
+      else if (h.out === 'flip' || (h.out === 'wound' && h.attack === 'ram')) { hero.chargeT = 0; hero.chargeCd = 0.5; hero.vx *= 0.3; hero.vz *= 0.3; if (h.out === 'wound') { hero.vx = -hero.dirx * 5; hero.vz = -hero.dirz * 5; } }
     }
   };
   for (; now < T; now += DT) {

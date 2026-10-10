@@ -128,12 +128,14 @@ export const BRIEF = defineBrief({
 
   // ---- the goals: five Windbells, each in a different kind of place -----------------------------------------------------------------------------------
   goals: [
-    { id: 'gate', name: 'GATE BELL', situation: 'landing', x: -164, z: 154, hint: 'BREATHE FIRE AT THE WINDBELL TO RING IT', hintAt: [-170, 150], hintR: 9, ...BELL },
-    { id: 'isle', name: 'ISLE BELL', situation: 'island', x: -73, z: 111.5, hint: 'HOP THE SLABS ACROSS THE CLOUD TO THE ISLET', hintAt: [-132, 133], hintR: 12, ...BELL },
-    { id: 'field', name: 'FIELD BELL', situation: 'glide', x: -33, z: 79, hint: 'GLIDE FROM THE ISLET DOWN TO THE LOWFIELD', hintAt: [-66, 106], hintR: 9, trial: { kind: 'circuit', pylons: [[-6.0, 62.0], [-12.0, 72.4], [-24.0, 72.4], [-30.0, 62.0], [-24.0, 51.6], [-12.0, 51.6]] }, ...BELL },
-    { id: 'spire', name: 'SPIRE BELL', situation: 'lift', x: 114, z: -88, hint: 'A WHIRLWIND CARRIES YOU UP TO THE SPIRES: GLIDE OUT AT THE TOP', hintAt: [104, -4], hintR: 12, trial: { kind: 'wisps', at: [95, 8], r: 4.4 }, ...BELL },
-    { id: 'loom', name: 'LOOM BELL', situation: 'summit', x: 93, z: -129, big: true, hint: 'THE LOOM BELL HANGS AT THE TOP OF THE WORLD. RING IT TO BRING THE WINDS BACK', hintAt: [90, -114], hintR: 14, trial: { kind: 'bells', at: [98, -150], yaw: 0 }, ...BELL },
+    { id: 'gate', name: 'GATE BELL', situation: 'landing', x: -164, z: 154, hint: 'THE WINDBELL TAKES NO FIRE: JUMP INTO IT AND IT RINGS', hintAt: [-170, 150], hintR: 9, ...BELL },
+    { id: 'isle', name: 'ISLE BELL', situation: 'island', x: -73, z: 111.5, hint: 'HOP THE SLABS ACROSS THE CLOUD TO THE ISLET, THEN JUMP INTO THE BELL', hintAt: [-132, 133], hintR: 12, ...BELL },
+    { id: 'field', name: 'FIELD BELL', situation: 'glide', x: -33, z: 79, hint: 'GLIDE FROM THE ISLET DOWN TO THE LOWFIELD AND INTO THE BELL', hintAt: [-66, 106], hintR: 9, ...BELL },
+    { id: 'spire', name: 'SPIRE BELL', situation: 'lift', x: 114, z: -88, hint: 'A WHIRLWIND CARRIES YOU UP TO THE SPIRES: GLIDE OUT AT THE TOP, INTO THE BELL', hintAt: [104, -4], hintR: 12, ...BELL },
+    { id: 'loom', name: 'LOOM BELL', situation: 'summit', x: 93, z: -129, big: true, hint: 'THE LOOM BELL HANGS AT THE TOP OF THE WORLD. FLY INTO IT TO BRING THE WINDS BACK', hintAt: [90, -114], hintR: 14, ...BELL },
   ],
+  // the realm's own errand (missions/chime.js): the windbells ring when the hero flies into them
+  mission: { kind: 'chime', goals: ['gate', 'isle', 'field', 'spire', 'loom'] },
   exit: { name: 'DAWNHAVEN', tag: 'HOMEWORLD OF THE LANTERN KEEPERS', color: [1.0, 0.82, 0.94], target: 'home' },
   secrets: [
     { id: 'vault', name: 'THE WEAVERS\' VAULT' },

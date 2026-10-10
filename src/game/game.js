@@ -24,6 +24,7 @@ import { Ambient } from './systems/ambient.js';
 import { NpcSystem } from './systems/npc.js';
 import { PortalSystem } from './systems/portals.js';
 import { BossSystem } from './systems/boss.js';
+import { makeMission } from './missions/index.js';
 import { realmsDone } from './progress.js';
 import { WATER_LEVEL } from './level.js';
 import { tideLevel, tideLow, tideHigh, drownDepth } from './realm/tide.js';
@@ -137,6 +138,7 @@ export class Game {
       this.beacons = new BeaconSystem(this, gp.beacons || []);
       this.enemies = new EnemySystem(this, gp.enemies || []);
       this.trials = new TrialSystem(this, gp.trials || []);                                         // (the asks that stand in front of a realm's lanterns: systems/trials.js; they need the beacons and the foes)
+      this.mission = gp.mission ? makeMission(this, gp.mission) : null;                          // (the realm's own errand: missions/, docs/DESIGN.md round thirty-nine; it needs the goals, the foes and the trials)
       this.critters = new CritterSystem(this, gp.bunnies || []);
       this.objects = new ObjectSystem(this, { vases: gp.vases, chests: gp.chests, walls: gp.walls, braziers: gp.braziers, portcullis: gp.portcullis, barrier: gp.barrier, mushrooms: gp.mushrooms, sails: gp.sails, islands: gp.islands, whirlwinds: gp.whirlwinds });
       this.ambient = new Ambient(this, this.world.lights || [], this.world.emitters || []);
@@ -144,7 +146,7 @@ export class Game {
       this.portals = new PortalSystem(this, gp.portals || []);
       this.boss = gp.boss ? new BossSystem(this, gp.boss, { freed: !!this.freed }) : null;               // (the Guardian's Court: systems/boss.js)
       // step order: abilities/AI first, then pickups
-      this.systems = [this.sparx, this.beacons, this.trials, this.enemies, this.critters, this.objects, this.gems, this.ambient, this.npcs, this.portals, ...(this.boss ? [this.boss] : [])];
+      this.systems = [this.sparx, this.beacons, this.trials, ...(this.mission ? [this.mission] : []), this.enemies, this.critters, this.objects, this.gems, this.ambient, this.npcs, this.portals, ...(this.boss ? [this.boss] : [])];
       this.on('beacon', (b, n) => this.onBeacon(b, n));
       if (this.restored) this._restore();
       if (this.realm.kind === 'homeworld') this._gateAtBuild();
@@ -162,6 +164,7 @@ export class Game {
   _restore() {
     this.day = this.dayTarget = 1;
     this.trials?.restore();                                // (before the lanterns: they are unsealed, then they burn)
+    this.mission?.restore();
     this.beacons?.restore();
     this.objects?.restore();
     this.portals?.restore();

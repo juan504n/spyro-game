@@ -23,7 +23,7 @@ export const DEFAULTS = {
 };
 
 /** the foes a siege may call (the ones that fight without a place of their own: not the Dusk Moth, which flies, the Smokecaller, which calls more, the Pilferling, which runs, nor the Dustmole, which digs) */
-export const SIEGE_KINDS = ['basic', 'bell', 'thorn', 'rime', 'slinger', 'hog', 'warden', 'pup'];
+export const SIEGE_KINDS = ['basic', 'bell', 'thorn', 'rime', 'slinger', 'hog', 'warden', 'pup', 'shiver', 'urchin', 'crab'];
 
 /** the look of a realm's trials: the textures of its stone and its crystal and the colour of its glow (`brief.theme.trials`), else the Vale's */
 export function lookOf(brief) {

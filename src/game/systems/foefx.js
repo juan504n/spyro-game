@@ -53,6 +53,20 @@ export class FoeFx {
       case 'fuse':
         v.glow = fx.billboard({ pool: 'add', sprite: 'glow', size: 1.4, color: [1, 0.55, 0.15], alpha: 0 });
         break;
+      case 'orbit':                                                    // the lane a Shiverling will dash along (four rings, 2 m apart)
+        v.lane = Array.from({ length: 4 }, () => fx.decal({ pool: 'add', sprite: 'ring', r: 1, color: ICE, alpha: 0, lift: 0.12 }));
+        break;
+      case 'brute':                                                    // the ring of heat its slam will fill
+        v.mark = this._mark();
+        v.mark.ring.color = AMBER;
+        break;
+      case 'gust':                                                     // the cone of streaks on the ground: six rings, growing with the distance
+        v.cone = Array.from({ length: 6 }, () => fx.decal({ pool: 'add', sprite: 'ring', r: 1, color: ICE, alpha: 0, lift: 0.12 }));
+        break;
+      case 'drift':                                                    // the ring of static it will send out
+        v.mark = this._mark();
+        v.mark.ring.color = [0.55, 0.95, 1.0]; v.mark.pad.color = [0.05, 0.25, 0.35];
+        break;
       default: break;
     }
   }
@@ -64,6 +78,7 @@ export class FoeFx {
     const killMark = (m) => { if (m) { kill(m.pad); kill(m.ring); kill(m.ring2); } };
     if (v.slots) for (const s of v.slots) { killMark(s.mark); kill(s.core); kill(s.halo); }
     if (v.lane) v.lane.forEach(kill);
+    if (v.cone) v.cone.forEach(kill);
     killMark(v.mark); kill(v.glow);
     e.vis = null;
   }
@@ -134,6 +149,49 @@ export class FoeFx {
         if (lit && Math.random() < dt * 40) g.fx.spawn({ pool: 'add', sprite: 'spark_small', x: e.x + rnd(-0.1, 0.1), y: e.y + 1.25, z: e.z + rnd(-0.1, 0.1), vx: rnd(-1.5, 1.5), vy: rnd(1.5, 3.5), vz: rnd(-1.5, 1.5), gravity: -6, life: rnd(0.2, 0.45), size: [0.3, 0.05], c0: [1, 0.8, 0.3, 1], c1: [1, 0.4, 0.1, 0] });
         break;
       }
+      case 'orbit': {
+        const show = e.state === 'shiver' ? Math.min(1, e.st / 0.3) : e.state === 'dash' ? 1 : 0;
+        const dx = Math.sin(e.yaw), dz = Math.cos(e.yaw);
+        v.lane.forEach((d, i) => {
+          const dd = 2.2 + i * 2.2;
+          d.x = e.x + dx * dd; d.z = e.z + dz * dd; d.r = (0.7 + i * 0.04) / RING_K;
+          d.alpha = show * 0.75 * (1 - i * 0.12);
+        });
+        if (e.state === 'dash' && Math.random() < dt * 50) g.fx.sparkle(e.x + rnd(-0.3, 0.3), e.y + 0.5, e.z + rnd(-0.3, 0.3), [0.7, 0.92, 1], 0.4);
+        if (e.state === 'orbit' && Math.random() < dt * 14) g.fx.sparkle(e.x + rnd(-0.3, 0.3), e.y + 0.2, e.z + rnd(-0.3, 0.3), [0.8, 0.95, 1], 0.3);
+        break;
+      }
+      case 'brute': {
+        if (e.state === 'raise') {
+          const k = Math.min(1, e.st / 1.0);
+          this._place(v.mark, e.x, e.z, 4.6 * (0.35 + 0.65 * k), 0.3 + 0.7 * k, k > 0.8);
+        } else this._hide(v.mark);
+        if (e.state === 'vent') {
+          if (!e.ventSnd) { e.ventSnd = true; g.audio?.sfx('foe_vent', { vol: 0.9 }); }
+          if (!(e.shutT > 0) && Math.random() < dt * 22) g.fx.spawn({ pool: 'half', frames: ['smoke_0', 'smoke_1'], overLife: true, x: e.x + Math.sin(e.yaw) * 0.8 + rnd(-0.3, 0.3), y: e.y + 2.0, z: e.z + Math.cos(e.yaw) * 0.8 + rnd(-0.3, 0.3), vy: rnd(1.5, 2.8), life: rnd(0.7, 1.2), size: [0.6, 1.8], c0: [1, 0.6, 0.25, 0.85], c1: [0.4, 0.35, 0.35, 0] });
+        } else e.ventSnd = false;
+        break;
+      }
+      case 'gust': {
+        const on = e.state === 'gather';
+        const dx = Math.sin(e.aimYaw || 0), dz = Math.cos(e.aimYaw || 0), k = on ? Math.min(1, e.st / 1.0) : 0;
+        v.cone.forEach((d, i) => {
+          const along = 2.5 + i * 2.4;
+          d.x = e.x + dx * along; d.z = e.z + dz * along; d.r = Math.max(1.2, along * Math.tan(0.38)) / RING_K * 0.8;
+          d.alpha = on ? (0.3 + 0.5 * k) * (e.locked ? 1.2 : 1) * (1 - i * 0.1) : 0;
+          d.color = e.locked ? RED : ICE;
+        });
+        if (on && Math.random() < dt * 40) g.fx.spawn({ pool: 'add', sprite: 'spark_small', x: e.x + rnd(-1, 1), y: e.y + rnd(-0.4, 0.8), z: e.z + rnd(-1, 1), vx: -dx * rnd(2, 6) + 0, vy: 0, vz: -dz * rnd(2, 6), life: 0.4, size: [0.3, 0.05], c0: [0.85, 0.97, 1, 0.9], c1: [0.85, 0.97, 1, 0] });
+        if (e.state === 'kite' && Math.random() < dt * 12) g.fx.sparkle(e.x + rnd(-0.5, 0.5), e.y + rnd(-0.6, 0.6), e.z + rnd(-0.5, 0.5), [0.85, 0.97, 1], 0.35);
+        break;
+      }
+      case 'drift': {
+        if (e.state === 'glow') {
+          const k = Math.min(1, e.st / 0.9);
+          this._place(v.mark, e.x, e.z, 4.4, 0.25 + 0.75 * k, k > 0.7);
+        } else this._hide(v.mark);
+        break;
+      }
       case 'flee':
         if (e.state !== 'idle' && Math.random() < dt * 8) g.fx.sparkle(e.x + rnd(-0.3, 0.3), e.y + 1.0, e.z + rnd(-0.3, 0.3), [1, 0.85, 0.4], 0.45);
         break;
@@ -172,11 +230,14 @@ export class FoeFx {
           case 'wind': sfx('foe_wind', { vol: 0.8 }); break;
           case 'paw': sfx('foe_paw', { vol: 0.9 }); fx.dust(e.x, e.y + 0.1, e.z, 4, 0.8); break;
           case 'crack': sfx('foe_crack', { vol: 0.9 }); break;
-          case 'raise': sfx('foe_raise', { vol: 0.8 }); break;
+          case 'raise': sfx(K.brain === 'shell' ? 'foe_snap' : 'foe_raise', { vol: 0.8 }); break;
           case 'fuse': sfx('foe_fuse', { vol: 0.8 }); break;
           case 'rear': sfx('foe_screech', { vol: 0.8 }); break;
           case 'call': sfx('foe_call', { vol: 0.9 }); break;
           case 'jeer': sfx('foe_jeer', { vol: 0.8 }); break;
+          case 'shiver': sfx('foe_shiver', { vol: 0.9 }); break;
+          case 'gather': sfx('foe_gather', { vol: 0.9 }); break;
+          case 'glow': sfx('foe_glow', { vol: 0.8 }); break;
           default: break;
         }
         break;
@@ -189,7 +250,7 @@ export class FoeFx {
         break;
       }
       case 'lock': if (K.brain === 'charge') fx.glint(e.x + Math.sin(e.yaw) * 0.7, e.y + 0.9, e.z + Math.cos(e.yaw) * 0.7, 0.8); break;
-      case 'rush': sfx('foe_rush', { vol: 0.9 }); break;
+      case 'rush': sfx(K.brain === 'shell' ? 'foe_snap' : 'foe_rush', { vol: 0.9 }); break;
       case 'bonk':
         sfx('foe_bonk', { vol: 1 });
         g.cam.shake(0.3, 0.25);
@@ -202,7 +263,30 @@ export class FoeFx {
         fx.landDust(d.x, d.y, d.z, 1.6);
         fx.shards(d.x, d.y + 0.4, d.z, [DIRT, [0.35, 0.25, 0.16]], 12);
         break;
-      case 'bash': sfx('foe_bash', { vol: 0.9 }); fx.hitSpark(d.x, d.y + 1.2, d.z, 1.0); g.cam.shake(0.2, 0.2); break;
+      case 'bash':
+        if (K.brain === 'brute') {                                      // the slam: a ring runs out over the ground to the radius it hurts
+          sfx('foe_slam', { vol: 1 });
+          g.cam.shake(0.55, 0.4);
+          fx.landDust(d.x, d.y, d.z, 2.4);
+          fx.shards(d.x, d.y + 0.4, d.z, [[0.3, 0.26, 0.28], [0.9, 0.4, 0.1]], 12);
+          this._flash(fx.decal({ pool: 'add', sprite: 'ring', x: d.x, z: d.z, r: 0.5, color: AMBER, alpha: 1, lift: 0.14 }), d.r / RING_K);
+        } else { sfx('foe_bash', { vol: 0.9 }); fx.hitSpark(d.x, d.y + 1.2, d.z, 1.0); g.cam.shake(0.2, 0.2); }
+        break;
+      case 'gust': {                                                    // the blast: streaks of air along the cone, a roar
+        sfx('foe_gust', { vol: 1 });
+        const dx = Math.sin(d.yaw), dz = Math.cos(d.yaw);
+        for (let i = 0; i < 14; i++) { const a = rnd(2, d.range), sp = rnd(-d.half, d.half) * a; fx.spawn({ pool: 'add', sprite: 'spark_small', x: d.x + dx * a + dz * sp, y: d.y + rnd(-1, 0.5), z: d.z + dz * a - dx * sp, vx: dx * rnd(10, 18), vy: 0, vz: dz * rnd(10, 18), life: rnd(0.25, 0.5), size: [0.5, 0.1], c0: [0.9, 0.98, 1, 0.9], c1: [0.9, 0.98, 1, 0] }); }
+        break;
+      }
+      case 'pulse': {                                                   // the ring of static
+        sfx('foe_pulse', { vol: 0.9 });
+        fx.hitSpark(d.x, d.y + 0.5, d.z, 1.2);
+        this._flash(fx.decal({ pool: 'add', sprite: 'ring', x: d.x, z: d.z, r: 0.5, color: [0.55, 0.95, 1.0], alpha: 1, lift: 0.14 }), d.r / RING_K);
+        break;
+      }
+      case 'wound':
+        for (let i = 0; i < 10; i++) fx.spawn({ pool: 'add', sprite: 'spark_small', x: e.x + Math.sin(e.yaw) * 0.9, y: e.y + e.K.cy + 0.5, z: e.z + Math.cos(e.yaw) * 0.9, vx: rnd(-4, 4), vy: rnd(1, 5), vz: rnd(-4, 4), gravity: -12, life: rnd(0.3, 0.6), size: [0.4, 0.08], c0: [1, 0.8, 0.3, 1], c1: [1, 0.3, 0.1, 0] });
+        break;
       case 'boom': {
         sfx('foe_boom', { vol: 1 });
         g.cam.shake(0.55, 0.45);

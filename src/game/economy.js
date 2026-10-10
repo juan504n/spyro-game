@@ -3,4 +3,6 @@ export const ENEMY_DROPS = {
   basic: [1, 1, 2], bell: [5, 2], thorn: [2, 2, 5],
   // (the foes of foes/kinds.js: the ones that ask more of the hero pay more)
   rime: [5, 2], slinger: [2, 1, 1], hog: [5, 2, 2], mole: [2, 2, 2], warden: [5, 5], pup: [2, 2], moth: [2, 2, 2], caller: [5, 5, 2], thief: [5, 5],
+  // (round thirty-eight)
+  shiver: [2, 2], brute: [10, 5, 5, 2], gale: [5, 5, 2], crab: [5, 2, 2], drifter: [5, 2, 2], urchin: [2, 2, 5],
 };

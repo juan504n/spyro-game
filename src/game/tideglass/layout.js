@@ -290,10 +290,10 @@ function layoutDanger(ctx) {
   const side = (p, k) => [p.x + p.dz * k, p.z - p.dx * k];
   // [road, how far along it (0..1), kind]
   const marks = [
-    ['hill', 0.82, 'basic'], ['pearl', 0.55, 'basic'],
-    ['walk', 0.1, 'basic'], ['walk', 0.28, 'mole'], ['walk', 0.46, 'slinger'], ['walk', 0.66, 'thorn'], ['walk', 0.86, 'bell'],
-    ['stair', 0.35, 'basic'], ['stair', 0.72, 'warden'],
-    ['ridge', 0.14, 'warden'], ['ridge', 0.55, 'thorn'], ['ridge', 0.72, 'slinger'], ['ridge', 0.9, 'thorn'],
+    ['hill', 0.82, 'urchin'], ['pearl', 0.55, 'urchin'],
+    ['walk', 0.1, 'urchin'], ['walk', 0.28, 'urchin'], ['walk', 0.46, 'drifter'], ['walk', 0.66, 'crab'], ['walk', 0.86, 'crab'],
+    ['stair', 0.35, 'urchin'], ['stair', 0.72, 'crab'],
+    ['ridge', 0.14, 'crab'], ['ridge', 0.55, 'urchin'], ['ridge', 0.72, 'drifter'], ['ridge', 0.9, 'drifter'],
   ];
   marks.forEach(([road, t, kind], i) => {
     const p = ctx.pathPoint(road, t);
@@ -304,9 +304,9 @@ function layoutDanger(ctx) {
   });
   // the stacks: nothing on the first two (a stack is 8 m across and a hero put there by the TRAVEL menu must not be beside a Snuffer), two thorns guarding the court where the glass ends
   const K = stack('court');
-  ctx.addEnemy(K.x - 4.0, K.z + 2.6, 'caller', 3);
-  ctx.addEnemy(K.x + 4.4, K.z - 2.0, 'thorn', 3);
-  ctx.gp.hints.push({ x: -60, z: -112, r: 9, text: 'ARMOURED SNUFFERS: FIRE BOUNCES OFF BELLS, SPIKES HURT WHEN RAMMED', dur: 7 });
+  ctx.addEnemy(K.x - 4.0, K.z + 2.6, 'drifter', 3);
+  ctx.addEnemy(K.x + 4.4, K.z - 2.0, 'crab', 3);
+  ctx.gp.hints.push({ x: -60, z: -112, r: 9, text: 'THE TIDE FOES: URCHIN SPINES HURT WHEN RAMMED, A SHELLBACK TURNS OVER, A DRIFTER SHOCKS THE GROUND', dur: 7 });
 }
 
 // ---- trees, flowers, rocks on the parts that have no place of their own -----------------------------------------------------------------------------------------------------------------

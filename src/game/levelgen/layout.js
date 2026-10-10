@@ -321,7 +321,7 @@ export function layoutNorth(ctx) {
     put('lamp_post', x, z, { rot: 0 }, 1);
     side = -side;
   }
-  const marks = [[0.12, 'basic'], [0.24, 'basic'], [0.36, 'bell'], [0.47, 'thorn'], [0.58, 'pup'], [0.68, 'bell'], [0.78, 'thorn'], [0.9, 'bell']];
+  const marks = [[0.12, 'basic'], [0.24, 'basic'], [0.36, 'bell'], [0.47, 'thorn'], [0.58, 'slinger'], [0.68, 'bell'], [0.78, 'thorn'], [0.9, 'bell']];
   for (const [t, v] of marks) { const p = ctx.pathPoint('summit', t); ctx.addEnemy(p.x, p.z, v, 4); }
   for (const t of [0.2, 0.42, 0.65, 0.86]) { const p = ctx.pathPoint('summit', t); ctx.addVase(p.x + p.dz * 3.4, p.z - p.dx * 3.4, [2, 5]); }
   const cp = ctx.pathPoint('summit', 0.5);

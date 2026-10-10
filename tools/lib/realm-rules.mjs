@@ -19,7 +19,8 @@ import { terrainPicker } from '../../src/game/terrain-mesh.js';
 import { ROAD_MAX_SLOPE } from '../../src/game/roads.js';
 import { SITUATIONS } from '../../src/game/realm/situations.js';
 import { RULES } from '../../src/game/realm/brief.js';
-import { DANGER as KIND_DANGER, KIND_IDS } from '../../src/game/foes/kinds.js';
+import { DANGER as KIND_DANGER } from '../../src/game/foes/kinds.js';
+import { rosterOf } from '../../src/game/foes/roster.js';
 import { footprint, lookOf } from '../../src/game/trials/place.js';
 import { playTrial } from './trialsim.mjs';
 import { plays as pilots } from './trial-plays.mjs';
@@ -30,8 +31,6 @@ const f1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : String(v));
 const f0 = (v) => (Number.isFinite(v) ? String(Math.round(v)) : String(v));
 /** how much a Snuffer of each kind weighs when the danger of a stretch of the journey is added up (foes/kinds.js) */
 export const DANGER = KIND_DANGER;
-/** the kinds the game has added to the three Snuffers it began with (the foes of round twenty-eight) */
-const NEW_KINDS = new Set(KIND_IDS.filter((k) => !['basic', 'bell', 'thorn'].includes(k)));
 /** props that may stand on a road (at its sides, the doors, the signposts: what is meant to be there) */
 const OK_ON_ROAD = new Set(['arch_gate', 'bridge_stone', 'bridge', 'lamp_post', 'realm_door', 'bunting', 'torch_stand', 'banner_pole', 'fence', 'wall_stone', 'flower_patch', 'tuft_patch', 'fern_patch', 'reeds', 'lilypads', 'stepping_stone', 'pier', 'crystal_cluster', 'crystal_spire', 'light_shaft', 'standing_stones', 'rock_arch', 'bench', 'gate_pillars', 'signpost', 'snow_drift', 'ice_floe', 'ice_fall']);
 
@@ -339,10 +338,15 @@ export function checkRealm(which, { log = () => {} } = {}) {
   if (isRealm) {
     const en = gp.enemies.map((e) => ({ d: near(walk, e.x, e.z, 3, e.y ?? h(e.x, e.z)), w: DANGER[e.variant] ?? 1, v: e.variant })).filter((e) => Number.isFinite(e.d));
     const max = Math.max(1, ...walks.filter(Number.isFinite), ...en.map((e) => e.d)), thirds = [0, 0, 0];
-    for (const e of en) thirds[Math.min(2, Math.floor((e.d / max) * 3))] += e.w;
+    const byThird = [[], [], []];
+    for (const e of en) { const k = Math.min(2, Math.floor((e.d / max) * 3)); thirds[k] += e.w; byThird[k].push(e.v); }
     const kinds = new Set(en.map((e) => e.v));
-    const cast = [...kinds].filter((k) => NEW_KINDS.has(k));
-    rule('enemies.cast', 'a realm has a cast: at least five kinds of Snuffer, at least three of them the foes the game added to the three it began with (the Rimeling, the Slinger, the Ramhog, the Dustmole, the Lidwarden, the Fusepup, the Dusk Moth, the Smokecaller, the Pilferling)', kinds.size >= 5 && cast.length >= 3, `(${kinds.size} kinds: ${[...kinds].join(', ')}; ${cast.length} of the new foes: ${cast.join(', ') || 'none'})`);
+    // each world has foes of its own (foes/roster.js, docs/DESIGN.md round thirty-eight): every foe placed, every foe a siege wave calls and every foe a Smokecaller calls is one of the world's roster, and the world uses its cast
+    const R = rosterOf(realm.id) || [];
+    const called = (gp.trials || []).flatMap((t) => (t.waves || []).flat());
+    const alien = [...new Set([...gp.enemies.map((e) => e.variant), ...called])].filter((k) => !R.includes(k));
+    rule('enemies.roster', `every foe in the world is one of its roster (${R.join(', ') || 'none'}): no kind of foe lives in two worlds`, alien.length === 0, alien.length ? `(foreign: ${alien.join(', ')})` : `(${gp.enemies.length} placed, ${called.length} called by sieges)`, { hard: true });
+    rule('enemies.cast', `a realm has a cast: at least ${Math.min(3, R.length)} of the kinds of its roster stand in it (${R.join(', ')})`, kinds.size >= Math.min(3, R.length), `(${kinds.size} kinds: ${[...kinds].join(', ')}; the roster has ${R.length})`);
     // a Ramhog is a line to step off: it stands where the hero has room on both sides of its line (most of a ring of 6 m round it is ground he can stand on)
     const hogs = gp.enemies.filter((e) => e.variant === 'hog');
     const cramped = hogs.filter((e) => {
@@ -352,7 +356,7 @@ export function checkRealm(which, { log = () => {} } = {}) {
       return ok < 11;
     });
     rule('enemies.room', 'a Ramhog stands where the hero has room to step off its line (11 of 16 points of a ring of 6 m round it are ground he can stand on, within 1.5 m of its height)', cramped.length === 0, cramped.length ? `(cramped: ${cramped.map((e) => `${f1(e.x)},${f1(e.z)}`).join(' ')})` : `(${hogs.length} Ramhogs)`);
-    rule('design.danger', 'danger grows with the journey: the first third of the walk is the quietest, the busiest holds at least twice its danger, and more than one kind of Snuffer appears', en.length >= 8 && thirds[0] <= Math.min(thirds[1], thirds[2]) && Math.max(...thirds) >= thirds[0] * 2 && kinds.size >= 2, `(danger by thirds of the way: ${thirds.join(' / ')}; ${en.length} Snuffers, kinds ${[...kinds].join(', ')})`);
+    rule('design.danger', 'danger grows with the journey: the first third of the walk is the quietest, the busiest holds at least twice its danger, and more than one kind of Snuffer appears', en.length >= 8 && thirds[0] <= Math.min(thirds[1], thirds[2]) && Math.max(...thirds) >= thirds[0] * 2 && kinds.size >= 2, `(danger by thirds of the way: ${thirds.join(' / ')}; ${en.length} Snuffers, kinds ${[...kinds].join(', ')}${process.env.DANGER ? '; ' + byThird.map((t) => t.join(' ')).join(' | ') : ''})`);
   }
 
   // the trials: the asks that stand in front of the lanterns (src/game/trials/, docs/DESIGN.md round twenty-nine): a realm is not the same ask five times, and each ask can be done where it stands
@@ -360,7 +364,13 @@ export function checkRealm(which, { log = () => {} } = {}) {
     const T = gp.trials || [];
     const order = goals.map((g) => { const t = T.find((q) => q.goal === g.id); return t ? t.kind : null; });
     const mix = trialMix(order);
-    rule('trials.mix', 'the asks vary: the first lantern is the plain one (it teaches the lantern), at least three different kinds of trial stand in front of the others (fewer in a realm of fewer goals) and no kind stands twice running', mix.ok, `(${order.map((k) => k || 'plain').join(' > ')}: ${mix.kinds} kinds, ${mix.want} wanted)`);
+    const mine = brief && brief.mission ? new Set([...brief.mission.goals, brief.mission.final].filter(Boolean)) : null;
+    if (mine) {
+      // a world with a mission (missions/, docs/DESIGN.md round thirty-nine): every goal is asked by the mission or by a trial (no goal is lit by the flame), and no kind of trial stands twice running
+      const unasked = goals.filter((g, i) => !mine.has(g.id) && !order[i]).map((g) => g.id);
+      const twice = order.some((k, i) => k && order[i - 1] === k);
+      rule('trials.mix', `the asks vary: every goal is asked by the mission (${brief.mission.kind}) or by a trial, and no kind of trial stands twice running`, unasked.length === 0 && !twice, `(${order.map((k, i) => (mine.has(goals[i].id) ? (k ? `${brief.mission.kind}+${k}` : brief.mission.kind) : k || 'NOTHING')).join(' > ')})`);
+    } else rule('trials.mix', 'the asks vary: the first lantern is the plain one (it teaches the lantern), at least three different kinds of trial stand in front of the others (fewer in a realm of fewer goals) and no kind stands twice running', mix.ok, `(${order.map((k) => k || 'plain').join(' > ')}: ${mix.kinds} kinds, ${mix.want} wanted)`);
     // each trial stands on level, dry, clear ground that the hero can walk to, near enough to its lantern to be found
     const problems = [];
     const ringPts = (cx, cz, r) => { const out = [[cx, cz]]; for (const k of [0.4, 0.75, 1]) for (let a = 0; a < 12; a++) out.push([cx + Math.cos((a / 12) * Math.PI * 2) * r * k, cz + Math.sin((a / 12) * Math.PI * 2) * r * k]); return out; };

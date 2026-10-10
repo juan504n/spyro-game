@@ -6,7 +6,7 @@
 // The others (foes/: the Slinger, the Ramhog, the Dustmole, the Lidwarden, the Fusepup, the Dusk Moth, the Smokecaller, the Pilferling) have a brain of their own, a pure state machine that is
 // stepped with the hero and says what happens as events (foes/index.js); what the hero's attacks do to each is the table of foes/ (hitsOn), and how it shows is systems/foefx.js.
 import { makeModel } from '../models/fallback.js';
-import { KINDS, kindOf, BRAINS, hitsOn, poseOf, stepFoe, explode } from '../foes/index.js';
+import { KINDS, kindOf, BRAINS, hitsOn, poseOf, stepFoe, explode, summonOf } from '../foes/index.js';
 import { FoeFx } from './foefx.js';
 
 const wrap = (a) => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
@@ -66,12 +66,14 @@ export class EnemySystem {
    * asleep in its mound) or being carried off. The caller, the pup and the slinger used to be walked through like air: only the plain kinds hurt on touch.
    */
   _body(e, p) {
-    if (p.dead || p.carry || e.untargetable && e.under > 0.5 || e.state === 'dead') return;
+    if (this.bodyless || p.dead || p.carry || e.untargetable && e.under > 0.5 || e.state === 'dead') return;          // (`bodyless`: a test that walks the way and leaves the Snuffers out of it, tools/bot-inject.js god())
     const dx = p.x - e.x, dz = p.z - e.z, rr = e.r + p.r, d2 = dx * dx + dz * dz;
     if (d2 >= rr * rr || p.y > e.y + e.h * 0.85 || p.y + p.h < e.y + 0.2) return;
     const d = Math.sqrt(d2);
     const nx = d > 1e-3 ? dx / d : -Math.sin(p.yaw), nz = d > 1e-3 ? dz / d : -Math.cos(p.yaw);        // (dead centre: out the way he came)
-    p.x = e.x + nx * rr; p.z = e.z + nz * rr;
+    const x = e.x + nx * rr, z = e.z + nz * rr;
+    if (this.game.collision.blocking(x, p.y + 0.6, z, p.r * 0.6)) return;          // (never into a wall, a gate or a post: a push that would put him beyond a thin one - the Sea Gate - is not made)
+    p.x = x; p.z = z;
   }
 
   /** The old Snuffers' step: out of props, never off a ledge, never into water. */
@@ -322,6 +324,23 @@ export class EnemySystem {
         if (attack === 'ram') { p.vx *= 0.35; p.vz *= 0.35; game.audio?.sfx('charge_hit', { vol: 1 }); }
         break;
       case 'ring': this._ring(e, p, attack); break;
+      case 'wound': {                                                   // a Slag Brute's open hatch takes a blow: sparks, a groan, the hatch shuts for a moment
+        game.fx.hitSpark(e.x + Math.sin(e.yaw) * 0.9, e.y + e.K.cy + 0.5, e.z + Math.cos(e.yaw) * 0.9, 1.6);
+        game.audio?.sfx('foe_wound', { vol: 1 });
+        game.cam.shake(0.3, 0.25);
+        e.hurt = 1;
+        if (attack === 'ram') { p.chargeT = 0; p.chargeCd = 0.5; p.vx = -Math.sin(p.yaw) * 5; p.vz = -Math.cos(p.yaw) * 5; }
+        this.foefx.on(e, 'wound', { n: e.wounds });
+        break;
+      }
+      case 'flip': {                                                    // a Shellback is turned over by the ram (the brain has put it on its back)
+        p.chargeT = 0; p.chargeCd = 0.5; p.vx *= 0.3; p.vz *= 0.3;
+        game.audio?.sfx('foe_flip', { vol: 1 });
+        game.cam.shake(0.3, 0.2);
+        game.fx.landDust(e.x, e.y, e.z, 1.2);
+        e.hurt = 1;
+        break;
+      }
       case 'boom':
         this._cur = e;
         explode(e, this.ctx, true);                                     // (the hero is in the blast if he is near: it hurts him as it hurts the Snuffers round it)
@@ -363,7 +382,7 @@ export class EnemySystem {
       case 'alert': if (e) e.exclaimT = 0.9; break;
       case 'hurt': g.playerHurt(d.x, d.z); return;
       case 'summon': {
-        const m = this.add({ x: d.x, z: d.z, variant: d.kind || 'basic', wild: true });
+        const m = this.add({ x: d.x, z: d.z, variant: summonOf(g.realm && g.realm.id), wild: true });           // (what a caller calls is one of the world's own: foes/roster.js)
         if (e && e.minions) e.minions.push(m);
         break;
       }
@@ -376,6 +395,7 @@ export class EnemySystem {
         if (!d.byHero && e) this.dismiss(e);                              // (a keg that goes off by itself is gone: no gems, not beaten)
         break;
       }
+      case 'shove': g.player.shove(d.dx, d.dz, d.power); break;                    // (a Gale Spirit's blast: the foefx plays its sound when it says 'gust')
       default: break;
     }
     if (e) this.foefx.on(e, type, d);

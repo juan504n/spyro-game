@@ -265,9 +265,9 @@ function layoutSmelter(ctx) {
   const [ax, az] = at(230, 9.6); put('giant_anvil', ax, az, { rot: 0.8, scale: 0.5 }, 5);
   for (let i = 0; i < 10; i++) { const [x, z] = at(i * 36 + 18, 8.6); ctx.addGem(x, z, i % 5 === 0 ? 2 : 1); }
   for (const [deg, g] of [[100, [1, 2]], [200, [5]], [320, [1, 1, 2]]]) { const [x, z] = at(deg, 9.4); ctx.addVase(x, z, g, h(x, z)); }
-  ctx.addEnemy(...at(160, 8.4), 'bell', 3);
-  ctx.addEnemy(...at(345, 8.4), 'thorn', 3);
-  ctx.addEnemy(...at(250, 8.0), 'basic', 3);
+  ctx.addEnemy(...at(160, 8.4), 'pup', 3);
+  ctx.addEnemy(...at(345, 8.4), 'mole', 3);
+  ctx.addEnemy(...at(250, 8.0), 'mole', 3);
   gp.hints.push({ x: FURNACE.x - 8, z: FURNACE.z, r: 13, text: 'THE FURNACE. THE EMBERSTONE BURNS COLD UNDER THE SKYLIGHT. A PASSAGE EAST CLIMBS TO A BALCONY', dur: 8 });
   gp.soundSources.push({ name: 'portal_hum', x: FURNACE.x, y: PLINTH + 2, z: FURNACE.z, range: 22, vol: 0.35 });
 
@@ -275,7 +275,7 @@ function layoutSmelter(ctx) {
   torchesAlong(ctx, 'exit', 11, 6);
   crystalsIn(ctx, 'exit', [[10, -3.0, 5], [22, 3.2, 4], [34, -3.4, 5]]);
   gemsAlong(ctx, 'exit', 5.5, [1, 2, 1], 8);
-  const guard = SMELTER.at('exit', 24, 1.6); ctx.addEnemy(guard.x, guard.z, 'basic', 4);
+  const guard = SMELTER.at('exit', 24, 1.6); ctx.addEnemy(guard.x, guard.z, 'mole', 4);
 
   // the balcony: a passage east of the Furnace that climbs 7 m to a little round room, and the third secret in it
   torchesAlong(ctx, 'balcony', 8, 3);
@@ -325,11 +325,10 @@ function layoutDanger(ctx) {
   const side = (p, k) => [p.x + p.dz * k, p.z - p.dx * k];
   // [road, how far along it (0..1), kind]
   const marks = [
-    ['trunk', 0.8, 'basic'], ['groveroad', 0.5, 'basic'],
-    ['ashway', 0.12, 'basic'], ['ashway', 0.3, 'basic'], ['stair', 0.5, 'basic'], ['stair', 0.85, 'bell'], ['rim', 0.4, 'pup'],
-    ['ashway', 0.55, 'thorn'], ['ashway', 0.8, 'basic'], ['shelf', 0.25, 'bell'], ['shelf', 0.5, 'thorn'], ['shelf', 0.75, 'pup'], ['forecourt', 0.6, 'warden'],
-    ['northway', 0.3, 'hog'], ['northway', 0.6, 'thorn'], ['northway', 0.85, 'pup'],
-    ['gorge', 0.1, 'basic'], ['gorge', 0.22, 'thorn'], ['gorge', 0.34, 'warden'], ['gorge', 0.48, 'thorn'], ['gorge', 0.6, 'pup'], ['gorge', 0.72, 'thorn'], ['gorge', 0.86, 'warden'],
+    ['trunk', 0.8, 'mole'], ['ashway', 0.3, 'mole'], ['stair', 0.5, 'mole'], ['stair', 0.85, 'mole'], ['rim', 0.4, 'mole'],
+    ['ashway', 0.55, 'pup'], ['ashway', 0.8, 'mole'], ['shelf', 0.25, 'pup'], ['shelf', 0.5, 'hog'], ['shelf', 0.75, 'pup'], ['forecourt', 0.6, 'hog'],
+    ['northway', 0.3, 'hog'], ['northway', 0.6, 'pup'], ['northway', 0.85, 'pup'],
+    ['gorge', 0.1, 'mole'], ['gorge', 0.22, 'pup'], ['gorge', 0.34, 'hog'], ['gorge', 0.48, 'pup'], ['gorge', 0.6, 'pup'], ['gorge', 0.72, 'hog'], ['gorge', 0.86, 'brute'],
   ];
   // (a Snuffer stands where nothing else does: the first of the offsets from the road that is clear)
   marks.forEach(([road, t, kind], i) => {
@@ -342,9 +341,9 @@ function layoutDanger(ctx) {
   // the caldera's guardians: a ring round the Heartforge (the crater situation wants at least two within 30 m)
   for (let k = 0; k < 5; k++) {
     const a = (k / 5) * TAU + 0.6;
-    for (const r of [15, 13, 17, 19]) { const x = CALDERA.x + Math.cos(a) * r, z = CALDERA.z + Math.sin(a) * r; if (ctx.ok(x, z, { r: 1.6, path: 0, maxSlope: 0.5 })) { ctx.addEnemy(x, z, ['thorn', 'pup', 'warden', 'hog', 'pup'][k], 3); break; } }
+    for (const r of [15, 13, 17, 19]) { const x = CALDERA.x + Math.cos(a) * r, z = CALDERA.z + Math.sin(a) * r; if (ctx.ok(x, z, { r: 1.6, path: 0, maxSlope: 0.5 })) { ctx.addEnemy(x, z, ['pup', 'pup', 'hog', 'hog', 'pup'][k], 3); break; } }
   }
-  ctx.gp.hints.push({ x: -96, z: 34, r: 10, text: 'ARMOURED SNUFFERS: FIRE BOUNCES OFF BELLS, SPIKES HURT WHEN RAMMED', dur: 7 });
+  ctx.gp.hints.push({ x: -96, z: 34, r: 10, text: 'THE FORGE FOES: A FUSEPUP GOES OFF, A RAMHOG RUNS A LINE, A DUSTMOLE BURSTS UP. THE SLAG BRUTES ARE WORSE', dur: 7 });
 }
 
 // ---- trees, flowers, rocks: dead trees and black spires, a few flame trees ------------------------------------------------------------------------------------

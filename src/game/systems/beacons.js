@@ -83,7 +83,8 @@ export class BeaconSystem {
       b.t += dt;
       if (!b.litFlag) {
         // ignition by fire breath (or a friendly nudge of a charge hit); a lantern that a trial seals (systems/trials.js) takes none until the trial is solved
-        if (p.flameT > 0 && !b.sealed && p.flameHits(b.x, b.y + 2.4 * b.scale, b.z, b.radius, 3.2 * b.scale)) this.ignite(b);
+        // (a goal of a world with a mission takes no flame: `noFire`, missions/base.js: the mission, or the trial that seals it, lights it)
+        if (p.flameT > 0 && !b.sealed && !b.noFire && p.flameHits(b.x, b.y + 2.4 * b.scale, b.z, b.radius, 3.2 * b.scale)) this.ignite(b);
       } else {
         b.lit = Math.min(1, b.lit + dt * 0.85);
       }

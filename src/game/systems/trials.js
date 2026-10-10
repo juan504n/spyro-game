@@ -128,7 +128,8 @@ export class TrialSystem {
     }
     if (b && !b.litFlag) {
       if (quiet) g.beacons.ignite(b);
-      else if (Math.hypot(g.player.x - b.x, g.player.z - b.z) < NEAR) g.after(0.9, () => g.beacons.ignite(b));        // (the seal falls, and then the lantern is lit)
+      else if (b.mission && !b.missionDone) { /* the seal is down; the mission lights the goal when its own condition is met (missions/base.js complete) */ }
+      else if (b.noFire || Math.hypot(g.player.x - b.x, g.player.z - b.z) < NEAR) g.after(0.9, () => g.beacons.ignite(b));        // (the seal falls, and then the lantern is lit: at once wherever he stands when nothing else could light it, no flame lights a goal of a world with a mission)
       else {                                                                        // (a lantern far from the trial: its seal is broken, and it waits for his fire; its column pulses so that it is seen)
         b.ready = true;
         g.after(1.6, () => {

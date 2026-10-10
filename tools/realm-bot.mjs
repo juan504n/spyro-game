@@ -105,6 +105,11 @@ const planLeg = (b, i, id, kind, trialSpec) => {
 goals.forEach((b, i) => {
   const T = trialOf(b.id), sit = brief ? (brief.goals.find((g) => g.id === b.id) || {}).situation : null;
   if (T) { const st = startOf(T); planLeg({ id: b.id, x: st.x, z: st.z, y: W.grid.heightAt(st.x, st.z) }, i, `${b.id}:${T.kind}`, null, T); }
+  // (a goal of a world with a mission that only a trial asks - the court's glass bridges - is lit by its trial the moment the trial is solved, wherever he stands: nothing to walk to, and he is where the trial left him. A glide goal is the exception: the pilot glides off its stack)
+  if (T && brief && brief.mission && ![...brief.mission.goals, brief.mission.final].includes(b.id) && sit !== 'glide' && legs[legs.length - 1].route) { legs.push({ id: b.id, gi: i, goal: [b.x, b.z], route: [[b.x, b.z]], metres: 0 }); return; }
+  // (a delivery: the leg to the pearl that lights this lens comes first - he walks to its bed, at low tide, and takes it - then the leg to the lens with the pearl over his shoulder)
+  const pearl = brief && brief.mission && brief.mission.kind === 'deliver' ? brief.mission.pearls.find((q) => q.goal === b.id) : null;
+  if (pearl) { planLeg({ id: b.id, x: pearl.at[0], z: pearl.at[1], y: W.grid.heightAt(pearl.at[0], pearl.at[1]) }, i, `${b.id}:pearl`, null, null); if (legs[legs.length - 1].route) legs[legs.length - 1].pearl = pearl.at; }
   planLeg(b, i, b.id, sit, null);
 });
 
@@ -135,6 +140,8 @@ await page.waitForFunction(() => window.__ready || window.__error, null, { timeo
 await page.addScriptTag({ path: path.join(here, 'bot-inject.js') });
 await page.addScriptTag({ path: path.join(here, 'lib/trial-driver.js') });
 await page.evaluate(() => window.__trialDriver.load());
+await page.addScriptTag({ path: path.join(here, 'lib/mission-driver.js') });
+await page.evaluate(() => window.__missionDriver.load());
 await page.waitForTimeout(1500);
 await page.evaluate(() => { __bot.god(); __bot.tick(30); });
 
@@ -174,7 +181,7 @@ for (let i = 0; i < legs.length; i++) {
       const drownAt = [];
       // (a realm with a tide: the walk map is the low tide's, so the leg is set out as the water ebbs into the last quarter of its fall, below 0.5 m over its lowest: he lets it rise past the window if he is
       // in it, then waits for it to go down to it - the way a person waits for the sea at the cairns - and the crossing of the sand is done before it turns)
-      if (G.tide) {
+      if (G.tide && !(G.mission && G.mission.carry)) {                // (he carries a pearl: no waiting for the sea with it over his shoulder: he goes at once, the ebb is on)
         while (G.waterY < G.waterLo + 0.9 && waited < 200) { __bot.tick(30); waited += 0.5; }
         while (G.waterY > G.waterLo + 0.5 && waited < 200) { __bot.tick(30); waited += 0.5; }
       }
@@ -187,7 +194,7 @@ for (let i = 0; i < legs.length; i++) {
         const s = __bot.state(), d = Math.hypot(s.x - x, s.z - z);
         return s.grounded && d < 9 && Math.abs(s.y - y) < 3 ? null : { ok: false, reason: `the glide to ${what} did not land there`, at: [s.x, s.y, s.z], metresOff: +d.toFixed(1), seconds: +walked.toFixed(1) };
       };
-      const litBefore = !leg.trial && G.beacons.list[leg.gi].litFlag;
+      const litBefore = !leg.trial && !leg.pearl && G.beacons.list[leg.gi].litFlag;
       if (litBefore && !(leg.glide && leg.glide.exit)) return { ok: true, reason: '', seconds: 0, at: __bot.state(), lit: G.beacons.lit, note: 'its trial lit it as it was solved' };          // (the lantern was near its trial: the trial's end lit it)
       // (a glide goal that its trial lit from the air - the rings are flown to the stack and the pilot lands him on it - has nothing left to walk to or light: he glides off the stack as the leg ends)          // (the lantern was near its trial: the trial's end lit it; and if it was the last the finale has begun)
       if (leg.teleport) __bot.place(leg.teleport[0], leg.teleport[2], 0, leg.teleport[1]);
@@ -220,10 +227,31 @@ for (let i = 0; i < legs.length; i++) {
         notes.push(`${a.kind === 'lift' ? 'glided out' : 'glided'} ${a.gap.toFixed(0)} m to ${a.land.slice(0, 2).map((v) => v.toFixed(0)).join(', ')}`);
       }
       if (!leg.acts && !litBefore) {
-        const s = __bot.walk(leg.route, { tol: TOL, timeout: 20, auto: true });
+        const wroute = leg.pearl ? (() => { let k = leg.route.length; while (k > 1 && Math.hypot(leg.route[k - 1][0] - leg.pearl[0], leg.route[k - 1][1] - leg.pearl[1]) < 14) k--; return leg.route.slice(0, k); })() : leg.route;          // (to a pearl's bed he walks to 14 m short of it, and waits there on the shore)
+        const s = __bot.walk(wroute, { tol: TOL, timeout: 20, auto: true });
         walked += s.t || 0;
         slips.push(...s.slips);
-        if (!s.ok) return { ok: false, reason: `${s.reason} on the way`, at: s.x === undefined ? null : [s.x, s.y, s.z], towards: s.towards, seconds: +walked.toFixed(1), trace: s.trace, slips };
+        const bl = G.beacons.list[leg.gi];
+        if (!s.ok && !(bl.mission && bl.litFlag && G.mode !== 'play')) return { ok: false, reason: `${s.reason} on the way`, at: s.x === undefined ? null : [s.x, s.y, s.z], towards: s.towards, seconds: +walked.toFixed(1), trace: s.trace, slips };          // (the Heartbloom wakes as he comes near with the sprites, and the finale holds him: that is the walk's end)
+      }
+      if (leg.pearl) {                                   // (a stop on the way to a dark lens: the pearl's bed. He steps into the pearl; the sea is out, the walk waited for it)
+        const m = G.mission;
+        {
+          let w = 0;
+          const bed = m.pearls.find((q) => Math.hypot(q.home.x - leg.pearl[0], q.home.z - leg.pearl[1]) < 1).home;
+          if (G.waterY > bed.y - 0.35) {                          // (the sea is in: he waits on the nearest ground the sea does not cover, as a person does, and goes down to the bed when it has gone out)
+            let best = null;
+            for (let dx = -40; dx <= 40; dx += 2) for (let dz = -40; dz <= 40; dz += 2) { const x = bed.x + dx, z = bed.z + dz, y = G.grid.heightAt(x, z), d = Math.hypot(dx, dz); if (y > G.waterHi + 0.3 && (!best || d < best.d)) best = { x, z, d }; }
+            const pp = __bot.state();
+            if (best && Math.hypot(pp.x - bed.x, pp.z - bed.z) > 3) { const rf = __bot.goto(best.x, best.z, { tol: 1.5, timeout: 14, auto: true }); walked += rf.t || 0; }
+          }
+          while (G.waterY > bed.y - 0.35 && w < 120) { __bot.tick(30); w += 0.5; }
+          walked += w;
+        }
+        __bot.goto(leg.pearl[0], leg.pearl[1], { tol: 0.7, timeout: 6, auto: false });
+        __bot.tick(40);
+        if (!m.carry) return { ok: false, reason: 'he stood on the pearl\'s bed and did not take it', seconds: +walked.toFixed(1), at: __bot.state(), waterY: G.waterY };
+        return { ok: true, reason: '', seconds: +walked.toFixed(1), at: __bot.state(), lit: G.beacons.lit, note: 'took the pearl' };
       }
       if (leg.trial) {                                   // (a stop on the way to a sealed lantern: he is where the trial begins; he plays it, the seal breaks, and the lantern is lit if it is near, else freed)
         const res = window.__trialDriver.solve(leg.trial, { place: false, T: 240 });
@@ -246,11 +274,16 @@ for (let i = 0; i < legs.length; i++) {
       const b = G.beacons.list[leg.gi];
       if (!litBefore) {
         __bot.goto(leg.goal[0], leg.goal[1], { tol: 2.6, timeout: 5, auto: false });                // (close enough to be facing it: he has walked the last steps towards it)
+        if (b.mission) {                                  // (a goal that is the mission's takes no flame: he does what the mission asks - ram, fight, fly into the bell, or stand there with the pearl)
+          if (b.mission.kind === 'deliver') { for (let k = 0; k < 6 && !b.litFlag; k++) __bot.tick(30); }
+          else { const mr = window.__missionDriver.play(b.def.id, { T: 150 }); if (!mr.ok) return { ok: false, reason: `the ${b.mission.kind} mission was not done at ${b.def.id}`, seconds: +walked.toFixed(1), at: __bot.state(), ...mr }; }
+          __bot.tick(30);
+        } else
         for (let k = 0; k < 4 && !b.litFlag; k++) { __bot.tap('flame', 36); __bot.tick(20); }
         __bot.tick(30);
         // (the lanterns that open the gate: the barrier is told to open after 1.4 s and eases open; let it)
         if (G.level.goal && G.level.brief && G.level.brief.gate && G.beacons.lit === G.level.brief.gate.at) __bot.tick(60 * 6);
-        if (!b.litFlag) return { ok: false, reason: 'he got there, and breathed fire, and it did not light', seconds: +walked.toFixed(1), at: __bot.state(), lit: G.beacons.lit };
+        if (!b.litFlag) return { ok: false, reason: b.mission ? `he got there and the ${b.mission.kind} mission did not light it` : 'he got there, and breathed fire, and it did not light', seconds: +walked.toFixed(1), at: __bot.state(), lit: G.beacons.lit };
       }
       if (leg.glide && leg.glide.exit) {
         const E = leg.glide.exit;

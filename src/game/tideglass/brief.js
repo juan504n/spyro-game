@@ -169,12 +169,14 @@ export const BRIEF = defineBrief({
 
   // ---- the goals: five Tide Lenses, each in a different kind of place -----------------------------------------------------------------------------------
   goals: [
-    { id: 'quay', name: 'QUAY LENS', situation: 'landing', x: -178, z: 10, hint: 'BREATHE FIRE AT THE LENS TO MAKE IT SHINE. WATCH THE TIDE GAUGE: THE SEA COMES AND GOES', hintAt: [-186, 14], hintR: 9, ...LENS },
-    { id: 'pearl', name: 'PEARL LENS', situation: 'island', x: -18, z: 32, hint: 'THE CAUSEWAY IS BARE AT LOW TIDE. RUN TO PEARL ROCK AND CLIMB', hintAt: [-52, 60], hintR: 12, ...LENS },
+    { id: 'quay', name: 'QUAY LENS', situation: 'landing', x: -178, z: 10, hint: 'THE LENS IS DARK: CARRY A TIDE PEARL TO IT. WATCH THE TIDE GAUGE: THE SEA COMES AND GOES', hintAt: [-186, 14], hintR: 9, ...LENS },
+    { id: 'pearl', name: 'PEARL LENS', situation: 'island', x: -18, z: 32, hint: 'THE CAUSEWAY IS BARE AT LOW TIDE. TAKE A PEARL TO PEARL ROCK AND CLIMB', hintAt: [-52, 60], hintR: 12, ...LENS },
     { id: 'court', name: 'COURT LENS', situation: 'bridge', x: 21, z: -18, hint: 'THE GLASS BRIDGES CARRY YOU OUT OVER THE REACH TO THE GLASS COURT', hintAt: [12, -99], hintR: 12, trial: { kind: 'circuit', pylons: [[-87, -117], [-65, -118], [-43, -118], [-21, -115], [1, -112], [23, -107]] }, ...LENS },
-    { id: 'weeping', name: 'WEEPING LENS', situation: 'cave', x: GROTTO.x, z: GROTTO.z, y: GROTTO.floorY, pad: false, hint: 'THE LENS HANGS IN THE CAVE BEHIND THE FALL. THE SEA FLOODS ITS MOUTH AT HIGH TIDE', hintAt: [98, 14], hintR: 12, trial: { kind: 'plates', at: [88, -86], r: 4.4 }, ...LENS },
-    { id: 'light', name: 'TIDEGLASS', situation: 'summit', x: 140, z: -134, big: true, hint: 'THE TIDEGLASS HANGS BEFORE THE LIGHTHOUSE. LIGHT IT AND THE TIDE IS TRUE AGAIN', hintAt: [150, -118], hintR: 14, trial: { kind: 'bells', at: [140, -140], yaw: 0 }, ...LENS },
+    { id: 'weeping', name: 'WEEPING LENS', situation: 'cave', x: GROTTO.x, z: GROTTO.z, y: GROTTO.floorY, pad: false, hint: 'THE LENS HANGS IN THE CAVE BEHIND THE FALL. THE SEA FLOODS ITS MOUTH AT HIGH TIDE: CARRY A PEARL IN AT LOW TIDE', hintAt: [98, 14], hintR: 12, ...LENS },
+    { id: 'light', name: 'TIDEGLASS', situation: 'summit', x: 140, z: -134, big: true, hint: 'THE TIDEGLASS HANGS BEFORE THE LIGHTHOUSE. CARRY THE LAST PEARL UP TO IT AND THE TIDE IS TRUE AGAIN', hintAt: [150, -118], hintR: 14, ...LENS },
   ],
+  // the realm's own errand (missions/deliver.js): a tide pearl lights a lens; the glass bridges (the circuit) light the court lens
+  mission: { kind: 'deliver', goals: ['quay', 'pearl', 'weeping', 'light'], pearls: [{ goal: 'quay', at: [-123, 23] }, { goal: 'pearl', at: [-60, 60] }, { goal: 'weeping', at: [86, 29] }, { goal: 'light', at: [72, 45] }] },
   exit: { name: 'DAWNHAVEN', tag: 'HOMEWORLD OF THE LANTERN KEEPERS', color: [0.6, 1.0, 0.9], target: 'home' },
   gate: GATE,
   secrets: [

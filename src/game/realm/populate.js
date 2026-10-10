@@ -67,6 +67,11 @@ export function goalsStage(ctx) {
       else for (const q of spec.pylons || []) ctx.occ.add(q.x, q.z, 3);
     }
   }
+  // the realm's own errand (missions/, docs/DESIGN.md round thirty-nine): the data the game builds it from, and what it needs placed with the realm (the Slag Brute that holds each stone)
+  if (brief.mission) {
+    gp.mission = JSON.parse(JSON.stringify(brief.mission));
+    for (const q of brief.mission.brutes || []) { ctx.addEnemy(q.at[0], q.at[1], 'brute', 3); ctx.occ.add(q.at[0], q.at[1], 3); }
+  }
 }
 
 /**

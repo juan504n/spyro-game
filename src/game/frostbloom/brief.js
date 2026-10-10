@@ -108,12 +108,14 @@ export const BRIEF = defineBrief({
 
   // ---- the goals: five Frostblooms, each in a different kind of place -------------------------------------------------------------------------------
   goals: [
-    { id: 'gate', name: 'GATE BLOOM', situation: 'landing', x: 14, z: 140, hint: 'BREATHE FIRE AT THE FROSTBLOOM TO THAW IT', hintAt: [8, 148], hintR: 10, ...BLOOM },
-    { id: 'rime', name: 'RIMEWOOD BLOOM', situation: 'clearing', x: -122, z: 20, hint: 'A FROSTBLOOM SLEEPS IN A CLEARING OF RIMEWOOD', hintAt: [-100, 38], hintR: 14, trial: { kind: 'bells', at: [-134.5, 17], yaw: -Math.PI / 2 }, ...BLOOM },
-    { id: 'glass', name: 'GLASSWATER BLOOM', situation: 'island', x: 2, z: 50, pad: false, hint: 'HOP THE ICE FLOES OUT TO THE ISLET', hintAt: [0, 76], hintR: 12, trial: { kind: 'puck', at: [4, 90], yaw: Math.PI / 2 }, ...BLOOM },
-    { id: 'ice', name: 'ICEFALL BLOOM', situation: 'cave', x: HEART.x, z: HEART.z, pad: false, hint: 'A FROSTBLOOM SLEEPS IN THE ICE BEHIND THE ICEFALL', hintAt: [150, 6], hintR: 14, ...BLOOM },
-    { id: 'heart', name: 'HEARTBLOOM', situation: 'crater', x: HOLLOW.x, z: HOLLOW.z, big: true, hint: 'THE HEARTBLOOM WAITS IN THE HOLLOW. LIGHT IT TO BRING BACK THE SPRING', hintAt: [0, -138], hintR: 14, trial: { kind: 'siege', at: [HOLLOW.x, HOLLOW.z], r: 11, waves: [['rime', 'rime'], ['warden', 'rime'], ['warden', 'rime', 'rime']] }, ...BLOOM },
+    { id: 'gate', name: 'GATE BLOOM', situation: 'landing', x: 14, z: 140, hint: 'A SPRITE SLEEPS IN THE ICE: RAM THE FROSTBLOOM TO FREE IT. FIRE WILL NOT WAKE IT', hintAt: [8, 148], hintR: 10, ...BLOOM },
+    { id: 'rime', name: 'RIMEWOOD BLOOM', situation: 'clearing', x: -122, z: 20, hint: 'A FROSTBLOOM SLEEPS IN A CLEARING OF RIMEWOOD: RAM IT TO FREE THE SPRITE', hintAt: [-100, 38], hintR: 14, ...BLOOM },
+    { id: 'glass', name: 'GLASSWATER BLOOM', situation: 'island', x: 2, z: 50, pad: false, hint: 'HOP THE ICE FLOES OUT TO THE ISLET. THE PUCK SEALS THE BLOOM', hintAt: [0, 76], hintR: 12, trial: { kind: 'puck', at: [4, 90], yaw: Math.PI / 2 }, ...BLOOM },
+    { id: 'ice', name: 'ICEFALL BLOOM', situation: 'cave', x: HEART.x, z: HEART.z, pad: false, hint: 'A FROSTBLOOM SLEEPS IN THE ICE BEHIND THE ICEFALL: RAM IT', hintAt: [150, 6], hintR: 14, ...BLOOM },
+    { id: 'heart', name: 'HEARTBLOOM', situation: 'crater', x: HOLLOW.x, z: HOLLOW.z, big: true, hint: 'THE HEARTBLOOM WAITS IN THE HOLLOW. LEAD THE FOUR SPRITES TO IT AND IT WILL OPEN', hintAt: [0, -138], hintR: 14, ...BLOOM },
   ],
+  // the realm's own errand (missions/rescue.js): a sprite sleeps in the ice of each of four blooms; ram a bloom to free it, lead them all to the Heartbloom
+  mission: { kind: 'rescue', goals: ['gate', 'rime', 'glass', 'ice'], final: 'heart', need: 4 },
   exit: { name: 'DAWNHAVEN', tag: 'HOMEWORLD OF THE LANTERN KEEPERS', color: [0.7, 0.88, 1.0], target: 'home' },
   gate: GATE,
   secrets: [

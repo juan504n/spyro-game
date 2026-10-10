@@ -11,7 +11,7 @@
 //   the rest      the same seed plays the same fight, a Smokecaller never has more than three and takes its Snuffers with it, a keg's blast, a hog that hits a wall is stunned, a thief that is cornered gives up
 import { simulate, HERO, FUSE } from './lib/foesim.mjs';
 import { PLAYS, judge, dirTo, dist, still, rush, lap } from './lib/foe-plays.mjs';
-import { KINDS, FOE_IDS, KIND_IDS, DANGER, BRAINS, makeFoe, stepFoe, struckBy, explode, SLING, CHARGE, BURROW, WARD, SWOOP, CALL, FLEE, hitsOn } from '../src/game/foes/index.js';
+import { KINDS, FOE_IDS, KIND_IDS, DANGER, BRAINS, makeFoe, stepFoe, struckBy, explode, SLING, CHARGE, BURROW, WARD, SWOOP, CALL, FLEE, ORBIT, BRUTE, GUST, SHELL, DRIFT, hitsOn } from '../src/game/foes/index.js';
 import { ENEMY_DROPS } from '../src/game/economy.js';
 import { FoeFx } from '../src/game/systems/foefx.js';
 
@@ -25,7 +25,7 @@ const sum = (a) => a.reduce((x, y) => x + y, 0);
 // ---- the table -----------------------------------------------------------------------------------------------------------------------------------
 {
   check('every kind has its row, a model, a name, drops that the gem budget knows, a danger, and a hint where it teaches something', KIND_IDS.every((k) => KINDS[k].model && KINDS[k].name && ENEMY_DROPS[k] && ENEMY_DROPS[k].length && DANGER[k] !== undefined) && FOE_IDS.every((k) => KINDS[k].hint && KINDS[k].hint.length > 20), KIND_IDS.join(' '));
-  check('there are nine more kinds than the original three (the Rimeling and eight with a brain of their own)', KIND_IDS.length === 12 && FOE_IDS.length === 8, `${KIND_IDS.length} kinds, ${FOE_IDS.length} brains`);
+  check('there are fifteen more kinds than the original three (the Rimeling, the Urchin, and thirteen with a brain of their own)', KIND_IDS.length === 18 && FOE_IDS.length === 13, `${KIND_IDS.length} kinds, ${FOE_IDS.length} brains`);
   check('every brain has what a brain must (init, step, struck, pose) and every kind with a brain has one', FOE_IDS.every((k) => { const B = BRAINS[KINDS[k].brain]; return B && ['init', 'step', 'struck', 'pose'].every((f) => typeof B[f] === 'function'); }));
   check('every foe falls to one hit of the right thing (hp 1), as the Snuffers always did', KIND_IDS.every((k) => KINDS[k].hp === 1));
   check('the foes that ask more of the hero pay more: a Lidwarden, a Ramhog, a Smokecaller pay at least the Bell Snuffer\'s 7; a Pilferling, a prize, pays more than a Thorn Snuffer', ['warden', 'hog', 'caller'].every((k) => sum(ENEMY_DROPS[k]) >= 7) && sum(ENEMY_DROPS.thief) > sum(ENEMY_DROPS.thorn));
@@ -59,6 +59,12 @@ const sum = (a) => a.reduce((x, y) => x + y, 0);
     ['pup', 'run', 'front', 'boom', 'boom'], ['pup', 'idle', 'back', 'boom', 'boom'],
     ['moth', 'circle', 'front', 'kill', 'kill'], ['moth', 'land', 'back', 'kill', 'kill'],
     ['caller', 'kite', 'front', 'kill', 'kill'], ['thief', 'run', 'back', 'kill', 'kill'],
+    // (round thirty-eight)
+    ['shiver', 'orbit', 'front', 'kill', 'ignore'], ['shiver', 'shiver', 'side', 'kill', 'ignore'], ['shiver', 'dash', 'front', 'kill', 'kill'], ['shiver', 'dazed', 'back', 'kill', 'kill'],
+    ['brute', 'advance', 'front', 'ring', 'ring'], ['brute', 'raise', 'back', 'ring', 'ring'], ['brute', 'vent', 'front', 'wound', 'wound'],
+    ['gale', 'kite', 'front', 'kill', 'kill'], ['gale', 'gather', 'back', 'kill', 'kill'],
+    ['crab', 'scuttle', 'front', 'ring', 'flip'], ['crab', 'scuttle', 'back', 'kill', 'kill'], ['crab', 'lunge', 'front', 'ring', 'flip'], ['crab', 'flipped', 'front', 'kill', 'kill'], ['crab', 'right', 'front', 'kill', 'kill'],
+    ['drifter', 'drift', 'front', 'kill', 'kill'], ['drifter', 'glow', 'side', 'kill', 'kill'],
   ];
   const bad = [];
   for (const [kind, state, side, fl, rm] of rows) {
@@ -92,6 +98,10 @@ const gapOf = (r, a, b) => { const ea = r.events.find((e) => e.type === a); if (
     ['warden', 'tell', 'bash', WARD.raise - 0.02, 'the shield is raised before it bashes'],
     ['pup', 'tell', 'boom', FUSE.armed - 0.02, 'a fuse burns before a keg goes off at his feet'],
     ['moth', 'tell', 'hurt', SWOOP.tell, 'a moth rears before it dives'],
+    ['shiver', 'tell', 'hurt', ORBIT.shiver, 'a Shiverling shivers before its dash'],
+    ['brute', 'tell', 'hurt', BRUTE.raise - 0.02, 'a Slag Brute raises its fists before the slam'],
+    ['crab', 'tell', 'hurt', SHELL.tell, 'a Shellback raises its claws before the lunge'],
+    ['drifter', 'tell', 'hurt', DRIFT.tell - 0.02, 'a Drifter glows before its pulse'],
   ];
   for (const [kind, a, b, min, what] of rows) {
     const gaps = [];
@@ -103,6 +113,7 @@ const gapOf = (r, a, b) => { const ea = r.events.find((e) => e.type === a); if (
   }
   // the numbers of the tells, held to what a person can use
   check('the warnings are long enough to act on: a ball 2 s, a paw 0.9 s, a crack 0.8 s, a raised shield 1.1 s, a rear 0.7 s, a fuse 1.2 s before it may go off at the hero', SLING.windup + SLING.flight >= 2 && CHARGE.paw >= 0.9 && BURROW.crack >= 0.8 && WARD.raise >= 1.1 && SWOOP.tell >= 0.7 && FUSE.armed >= 1.2);
+  check('the new warnings are long enough to act on: a shiver 0.6 s, fists raised 1 s, claws up 0.7 s, a glow 0.9 s, a gale gathering 1 s of which the last 0.5 s is fixed (the cone is 6 m wide 8 m out: a runner leaves it in that time)', ORBIT.shiver >= 0.6 && BRUTE.raise >= 1.0 && SHELL.tell >= 0.7 && DRIFT.tell >= 0.9 && GUST.tell >= 1.0 && GUST.lock >= 0.5 && GUST.range * Math.tan(GUST.half) < 6.5);
   check('what is thrown or driven can be avoided: the ring stops following the hero 0.5 s before the ball lands, a hog\'s line is fixed 0.25 s before it sets off, a dive is aimed 0.25 s before it', SLING.lock >= 0.5 && CHARGE.lock >= 0.25 && SWOOP.lock >= 0.25);
   check('what keeps away and what flees is slower than a run, so that it can always be caught or outrun: a Slinger and a Smokecaller back off at under 6 m/s, a Pilferling runs at under 10 m/s (a run is 11.5, a ram 24), a mound follows at 6, a Fusepup runs at under 8, a Lidwarden walks at under 4 and turns at under 1.5 rad/s (a hero circles it at 3 m at 3.6)',
     SLING.panic < HERO.run / 2 && CALL.panic < HERO.run / 2 && FLEE.speed < HERO.run && FLEE.speed * FLEE.boost < HERO.run * 1.05 && BURROW.under < HERO.run && FUSE.speed < HERO.run * 0.7 && WARD.walk < HERO.run / 3 && CHARGE.walk < HERO.run / 3 && WARD.turn * 2.5 < HERO.run / 3.2);
@@ -128,6 +139,10 @@ const gapOf = (r, a, b) => { const ea = r.events.find((e) => e.type === a); if (
     ['warden', 'bash', [still], 1.95, 'a Lidwarden bashes every 2 s at the most (the shield rises for 1.1 s and is down for 0.9)'],
     ['moth', 'dive', [still, lap], 6.5, 'a Dusk Moth dives every 6.5 s at the most (rear, dive, land, rise, and 4 s of circling)'],
     ['caller', 'summon', [still], 7.0, 'a Smokecaller calls every 7 s at the most'],
+    ['shiver', 'rush', [still, lap], 3.0, 'a Shiverling dashes every 3 s at the most (orbit 2.2 s, shiver, dash, daze)'],
+    ['brute', 'bash', [still], 3.8, 'a Slag Brute slams every 3.8 s at the most (raise 1 s, vent 2.8 s)'],
+    ['gale', 'gust', [still, lap], 3.0, 'a Gale Spirit blows every 3 s at the most'],
+    ['drifter', 'pulse', [still, lap], 3.0, 'a Drifter pulses every 3 s at the most'],
   ];
   for (const [kind, type, policies, min, what] of rows) {
     const gaps = policies.flatMap((p) => gapsOf(kind, type, p));

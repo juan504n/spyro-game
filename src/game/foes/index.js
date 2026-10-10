@@ -8,6 +8,8 @@
 //   burst {x,y,z,r}        a mole breaks the ground                  bash {x,y,z}           a Lidwarden's shield comes round boom {x,y,z,r,byHero}  a keg goes off
 //   dive {x,z}             a Dusk Moth drops                         land {x,y,z}           it lands                         summon {x,z,kind}   a Smokecaller calls
 //   hurt {x,z}             the hero is hit (the system calls playerHurt(x, z): it knows his blinking and Sparx's hits)
+//   (round thirty-eight)   tell.what also: shiver gather glow     gust {x,y,z,yaw,range,half}  a Gale Spirit blows     shove {dx,dz,power}  the blast throws the hero     pulse {x,y,z,r}  a Drifter's ring of static
+//                          a Shiverling and a Shellback say 'rush' when they dash and lunge; a Slag Brute's 'tell' raise carries r (the ring it will slam), its 'bash' carries r
 import { sling } from './sling.js';
 import { charge } from './charge.js';
 import { burrow } from './burrow.js';
@@ -16,6 +18,11 @@ import { fuse } from './fuse.js';
 import { swoop } from './swoop.js';
 import { call } from './call.js';
 import { flee } from './flee.js';
+import { orbit } from './orbit.js';
+import { brute } from './brute.js';
+import { gust } from './gust.js';
+import { shell } from './shell.js';
+import { drift } from './drift.js';
 import { kindOf } from './kinds.js';
 import { sideOf } from './core.js';
 
@@ -29,9 +36,15 @@ export { FUSE, explode } from './fuse.js';
 export { SWOOP } from './swoop.js';
 export { CALL } from './call.js';
 export { FLEE } from './flee.js';
+export { ORBIT } from './orbit.js';
+export { BRUTE } from './brute.js';
+export { GUST } from './gust.js';
+export { SHELL } from './shell.js';
+export { DRIFT } from './drift.js';
+export { ROSTERS, rosterOf, foeOf, summonOf } from './roster.js';
 
-/** The brains by name. Each: init(e), step(e, dt, ctx), struck(e, attack, side) -> 'kill' | 'ring' | 'ignore' | 'boom', pose(e), and `front`: the half angle of what it guards. */
-export const BRAINS = { sling, charge, burrow, ward, fuse, swoop, call, flee };
+/** The brains by name. Each: init(e), step(e, dt, ctx), struck(e, attack, side) -> 'kill' | 'ring' | 'ignore' | 'boom' | 'wound' | 'flip', pose(e), and `front`: the half angle of what it guards. */
+export const BRAINS = { sling, charge, burrow, ward, fuse, swoop, call, flee, orbit, brute, gust, shell, drift };
 
 export const hasBrain = (K) => !!BRAINS[K.brain];
 
@@ -47,7 +60,7 @@ export function makeFoe(id, s = {}) {
   return e;
 }
 
-/** What the hero's attack does to foe `e` (`attack`: 'flame' or 'ram'; the hero at (hx, hz)): 'kill' | 'ring' | 'ignore' | 'boom'. */
+/** What the hero's attack does to foe `e` (`attack`: 'flame' or 'ram'; the hero at (hx, hz)): 'kill' | 'ring' | 'ignore' | 'boom' | 'wound' (a Slag Brute's hatch) | 'flip' (a Shellback turned over). */
 export function struckBy(e, attack, hx, hz) {
   const B = BRAINS[e.K.brain];
   return B.struck(e, attack, sideOf(e, hx, hz, B.front ?? 0.96));
