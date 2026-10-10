@@ -23,7 +23,7 @@ const check = (name, ok, detail) => { if (!ok) own++; console.log(ok ? 'PASS' : 
   const { grid, gp, ctx, level, walk, walkShut, h } = env, pick = terrainPicker(grid), goal = (id) => gp.beacons.find((b) => b.id === id);
   // the ground wears the realm's own textures: scorched roads, a lake bed of cinder, the far mountains in their own rock, and nothing of the vale's ground
   const trunk = ctx.pathPoint('trunk', 0.3), ash = ctx.pathPoint('ashway', 0.4);
-  const t = [pick.at(trunk.x, trunk.z).tex, pick.at(ash.x, ash.z).tex, pick.at(FURNACE.x + 4, FURNACE.z + 3).tex];
+  const t = [level.roadTextures.cobble, level.roadTextures.dirt, pick.at(FURNACE.x + 4, FURNACE.z + 3).tex];                 // (the roads are ribbons of their own texture over the ground's own: level.roadTextures)
   check('the roads are scorched (basalt cobbles with embers in the gaps, trodden ash) and the Furnace floor is cinder', t[0] === 'cobble_ember' && t[1] === 'path_ash' && t[2] === 'cinder', `(${t.join(', ')})`);
   let far = 0, vale = 0, total = 0;
   for (let x = -190; x <= 190; x += 8) for (let z = -190; z <= 190; z += 8) { const q = pick.at(x, z).tex; total++; if (q === 'far_ember') far++; if (['far_rock', 'cliff', 'cliff_warm', 'cliff_bare', 'cliff_warm_bare', 'grass_a', 'grass_b', 'grass_flowers', 'moss', 'sand', 'dirt', 'cobble', 'flagstone', 'shore_pebbles', 'snow'].includes(q)) vale++; }

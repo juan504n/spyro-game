@@ -17,7 +17,8 @@ const check = (name, ok, detail) => { if (!ok) own++; console.log(ok ? 'PASS' : 
   const { grid, gp, ctx, level, walk, walkShut } = env, pick = terrainPicker(grid);
   // the ground wears the realm's own textures (level.roadTextures, lakeTextures: terrain-mesh.js and world.js read them)
   const trunk = ctx.pathPoint('trunk', 0.3), ring = ctx.pathPoint('ring', 0.25);
-  const t = [pick.at(trunk.x, trunk.z), pick.at(ring.x, ring.z), pick.at(0, 34), pick.at(HEART.x + 5, HEART.z + 3)];
+  // (roads are ribbons of their own texture laid over the ground (roads.js), whose terrain keeps the ground's own texture beneath: they are read from level.roadTextures)
+  const t = [{ tex: level.roadTextures.cobble }, { tex: level.roadTextures.dirt }, pick.at(0, 34), pick.at(HEART.x + 5, HEART.z + 3)];
   check('the roads are frosted (stone with snow in the gaps, trodden snow), the lake and the caves are ice',
     t[0].tex === 'cobble_frost' && t[1].tex === 'path_snow' && t[2].tex === 'ice' && t[3].tex === 'ice', `(${t.map((q) => q.tex).join(', ')})`);
   // the far mountains wear its own far rock, and nothing of the vale's ground (grass, moss, the plain cliff) is left anywhere

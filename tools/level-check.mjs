@@ -4,7 +4,7 @@ import { buildHeadless } from './headless-world.mjs';
 import { WATER_LEVEL } from '../src/game/level.js';
 import { isleObjects, shortfall } from '../src/game/levelgen/islands.js';
 import { colliderDist } from '../src/game/debuginfo.js';
-import { terrainPicker, uvProjection, projectUV, triangleNormal, rockLimit, GROUND_TILE, UNDER_ROAD, buildTerrainMeshes } from '../src/game/terrain-mesh.js';
+import { terrainPicker, uvProjection, projectUV, triangleNormal, rockLimit, GROUND_TILE, UNDER_ROAD, buildTerrainMeshes, SOFT_ROADS } from '../src/game/terrain-mesh.js';
 import { buildRoads, ROAD_LIFT, ROAD_DECAL, ROAD_MAX_SLOPE } from '../src/game/roads.js';
 import { buildRiverWater } from '../src/game/water.js';
 import { riverWaterLength } from '../src/game/river.js';
@@ -323,7 +323,7 @@ const check = (name, ok, detail) => { checks.push(ok); console.log(ok ? 'PASS' :
       if (!t.p.every((c) => underRibbon(c[0], c[2]))) { strays++; if (!strayAt) strayAt = `${t.p[0][0].toFixed(0)}, ${t.p[0][2].toFixed(0)}`; }
     }
   }
-  check('every terrain triangle that is textured as a road lies entirely under a road ribbon, flat ends and all (no ragged dirt beside one, none past a road\'s end)', roadTris > 100 && strays === 0, `(${roadTris} triangles, ${strays} stray${strays ? ', first at ' + strayAt : ''})`);
+  check('every terrain triangle that is textured as a road lies entirely under a road ribbon (with soft roads, none is: the ground under a ribbon keeps its own texture), flat ends and all (no ragged dirt beside one, none past a road\'s end)', (SOFT_ROADS ? roadTris === 0 : roadTris > 100) && strays === 0, `(${roadTris} triangles, ${strays} stray${strays ? ', first at ' + strayAt : ''})`);
   // what the carve's distance field says on its own (a round cap past every end of a path): the terrain used to take its road texture from it
   let capTris = 0, capStrays = 0;
   for (let j = 0; j < grid.n; j++) for (let i = 0; i < grid.n; i++) {
@@ -514,7 +514,7 @@ const check = (name, ok, detail) => { checks.push(ok); console.log(ok ? 'PASS' :
   // exactly what the picker says: two triangles for each cell, each with its own texture.
   const group = buildTerrainMeshes(grid, lighting, { mat: (nm) => ({ name: nm }) }).group, byTex = {};
   let tris = 0;
-  for (const m of group.children) { const c = m.geometry.getAttribute('position').count / 3; byTex[m.name.slice('terrain:'.length)] = c; tris += c; }
+  for (const m of group.children) { if (!m.name.startsWith('terrain:')) continue; const c = m.geometry.getAttribute('position').count / 3; byTex[m.name.slice('terrain:'.length)] = c; tris += c; }          // (the soft blend's overlays are meshes of their own: terrain-blend:*)
   const picker = terrainPicker(grid), want = {};
   for (let j = 0; j < grid.n; j++) for (let i = 0; i < grid.n; i++) for (const t of picker.tris(i, j)) want[t.tex] = (want[t.tex] || 0) + 1;
   check('the realm\'s terrain mesh is exactly what the rules chose (no triangle is cut: only a level with a steep slope of its own cuts its borders)', grid.level.steepSlope === undefined && tris === grid.n * grid.n * 2 && Object.keys(want).every((k) => want[k] === byTex[k]), `(${tris} triangles for ${grid.n * grid.n} cells)`);

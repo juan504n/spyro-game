@@ -7,7 +7,7 @@ import { makeWalkmap, CELL } from './walkmap.mjs';
 import { DOORS, SECRETS, REGIONS, GARDEN, inFront } from '../src/game/home/level.js';
 import { homeLines } from '../src/game/home/dialogue.js';
 import { TUNNELS, CHAMBERS, RAMP, SUMMIT, tunnelAt, tunnelLength } from '../src/game/home/crag.js';
-import { terrainPicker, uvProjection, triangleNormal, projectUV, GROUND_TILE, buildTerrainMeshes, cutByContour } from '../src/game/terrain-mesh.js';
+import { terrainPicker, uvProjection, triangleNormal, projectUV, GROUND_TILE, buildTerrainMeshes, cutByContour, BLEND_GROUND } from '../src/game/terrain-mesh.js';
 import { WATER_LEVEL } from '../src/game/level.js';
 
 const { grid, lighting, kit, dryCtx: ctx, gp, collision, level: L, world, ms } = buildHeadless('home');
@@ -405,7 +405,11 @@ const near = (f, x, z, r = 2.4, y) => f.distNear(x, z, r, y) < Infinity;
       if (nm.startsWith('cliff') ? sc.some((v) => v < -0.02) : sc.some((v) => v > 0.02)) { across++; if (process.env.DBG) console.log('across', nm, cxp.toFixed(1), czp.toFixed(1), t.why, sc.map((v) => v.toFixed(2)).join(' ')); }
     }
   }
-  check('the border of the rock runs along the contour of the steep slope: no piece of rock or grass lies across it', across === 0 && judged > 20000, `(${across} of ${judged} pieces; the mesh has ${group.children.reduce((a, m) => a + m.geometry.getAttribute('position').count / 3, 0)} triangles for the ${grid.n * grid.n * 2} the rules chose)`);
+  if (BLEND_GROUND) {
+    // (the contour is no longer a hard cut: the border is a soft blend, each side laid over the other by an alpha that fades with distance from the border, see terrain-mesh.js BLEND_GROUND)
+    const blendTris = group.children.filter((m) => m.name.startsWith('terrain-blend:')).reduce((a, m) => a + m.geometry.getAttribute('position').count / 3, 0), rockOver = group.children.filter((m) => /^terrain-blend:cliff/.test(m.name)).length, grassOver = group.children.filter((m) => /^terrain-blend:grass/.test(m.name)).length;
+    check('the border of the rock and the grass is a soft blend: each ground is laid over the other with a fading alpha (no hard cut along the contour)', blendTris > 2000 && rockOver > 0 && grassOver > 0, `(${blendTris} blend triangles, ${rockOver} rock and ${grassOver} grass overlay meshes)`);
+  } else check('the border of the rock runs along the contour of the steep slope: no piece of rock or grass lies across it', across === 0 && judged > 20000, `(${across} of ${judged} pieces; the mesh has ${group.children.reduce((a, m) => a + m.geometry.getAttribute('position').count / 3, 0)} triangles for the ${grid.n * grid.n * 2} the rules chose)`);
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nall homeworld checks passed');

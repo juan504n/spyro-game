@@ -171,6 +171,11 @@ export function runeRing(n, { seed = 9501, R } = {}) {
   cv.soft(cx - 4 * K, cy - 4 * K, 22 * K, RR(0.7, [0, 0, 0]), 1);
   cv.soft(cx - 8 * K, cy - 8 * K, 9 * K, [255, 250, 255], 0.95);
   cv.modulate(grain(n, seed + 9, n / 2, 0.025));
+  // (the plate is a DISC: it is laid with additive light, and the dark square it used to be showed as a slab with straight edges on the ground; black adds nothing)
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const m = 1 - smoothstep(112 * K, 126 * K, Math.hypot(x + 0.5 - cx, y + 0.5 - cy)), i = (y * n + x) * 3;
+    cv.px[i] *= m; cv.px[i + 1] *= m; cv.px[i + 2] *= m;
+  }
   return cv;
 }
 
