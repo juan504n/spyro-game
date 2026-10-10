@@ -232,7 +232,8 @@ export function makeCrag() {
             return Math.min(lerp(RAMP[n.i][3], RAMP[n.i + 1][3], n.u) + 1.1 - n.d, 1.2 - Math.abs(y - lerp(RAMP[n.i][2], RAMP[n.i + 1][2], n.u)), (ny - 0.5) * 3, (sky - 0.7) * 3);
           },
         },
-        { name: 'grass_a', score: ({ ny, sky }) => Math.min((ny - 0.66) * 3, (sky - 0.6) * 3) },        // (the flat start of the ramp was bare rock, projected from above into a smooth grey slab on the lawn)
+        { name: 'grass_a', score: ({ ny, sky }) => Math.min((ny - 0.6) * 3, (sky - 0.12) * 3) },        // (the flat start of the ramp was bare rock, projected from above into a smooth grey slab on the lawn)
+        { name: 'flagstone', score: ({ ny, sky }) => Math.min((ny - 0.8) * 3, (0.12 - sky) * 6) },        // (a flat floor under the mountain's brow is paved: it was bare rock projected from above, a smooth grey slab)
       ],
     },
   });
