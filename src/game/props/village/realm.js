@@ -84,7 +84,9 @@ export function realmDoor(kit, p) {
       [[dw, base, dz1], [0, 0, -(dz1 - dz0)]], [[-dw, base, dz0], [0, 0, dz1 - dz0]],
     ]) grid(kit.b('brick'), O, U, [0, dh - base, 0], 3, 1, { tile: 3.2, color: vgrad(base, [0.6, 0.58, 0.68], dh, [0.98, 0.96, 1.06]), emissive: 0.2 });
     const rh = 1.8, rz = 3.5;
+    kit.xf.push().translate(0, 0, rz);
     kit.b('rune_ring', { mode: 'add', decal: true }).disc(rh * 0.98, 32, { y: dh + 0.06, uvDisc: true, emissive: 1, color: sealed ? [0.5, 0.52, 0.65] : [0.8, 0.76, 0.95] });          // (the ring of runes is light laid on the flagstone: a disc, not a dark square plate)
+    kit.xf.pop();
     // a sleeping door is shut with a slab of dark stone (it fills the opening; its face carries the dormant light)
     if (sealed) {
       const sl = kit.b('tower_stone');
