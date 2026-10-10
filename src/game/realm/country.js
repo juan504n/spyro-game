@@ -15,11 +15,14 @@ export const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return 
  * A ribbon's hold on the ground at (x, z): `w` is 1 on the ribbon (out to its half width) and eases to 0 over `fall` metres beyond it; `h` is the ground height of the ribbon's line at the
  * nearest point (interpolated between its points); `over` is how far outside the ribbon the point lies.
  */
+const edgeNoise = valueNoise(4242);
 export function regionAt(R, x, z) {
   const n = nearOnLine(R.pts, x, z);
   const a = R.pts[n.i], b = R.pts[Math.min(n.i + 1, R.pts.length - 1)];
   const hw = lerp(a[3], b[3], n.u), h = lerp(a[2], b[2], n.u);
-  const over = Math.max(0, n.d - hw);
+  // (a region may name `rough`, metres: its edge wanders by up to that much along a slow noise (6 m across), so a spire is not a cube with straight faces and its walls are not planes)
+  const wob = R.rough ? (fbm(edgeNoise, x * 0.17, z * 0.17, 2) - 0.5) * 2 * R.rough : 0;
+  const over = Math.max(0, n.d - hw + wob);
   return { w: 1 - smooth(0, R.fall, over), h, over };
 }
 

@@ -27,10 +27,10 @@ export const REGIONS = [
   { id: 'lowfield', fall: 7, label: 'THE LOWFIELD', pts: [[-30, 70, 12, 15], [-4, 58, 12, 18], [20, 46, 12, 12]] },
   { id: 'kite', fall: 5, label: 'THE KITE ISLE', pts: [[4, 8, 30, 8], [8, 8, 30, 8]] },
   { id: 'orchard', fall: 7, label: 'THE ORCHARD TERRACE', pts: [[54, 30, 34, 16], [84, 20, 34, 24], [112, 6, 34, 16]] },
-  { id: 'spire1', fall: 4, label: 'THE FIRST SPIRE', pts: [[104, -30, 56, 7], [105, -30, 56, 7]] },
-  { id: 'spire2', fall: 4, label: 'THE SECOND SPIRE', pts: [[138, -52, 59, 6], [139, -52, 59, 6]] },
-  { id: 'spire3', fall: 4, label: 'THE HIGH SPIRE', pts: [[119, -88, 62, 10], [123, -88, 62, 10]] },
-  { id: 'spire4', fall: 4, label: 'THE FOURTH SPIRE', pts: [[84, -66, 59, 6], [85, -66, 59, 6]] },
+  { id: 'spire1', rough: 1.2, fall: 4, label: 'THE FIRST SPIRE', pts: [[104, -30, 56, 7], [105, -30, 56, 7]] },
+  { id: 'spire2', rough: 1.2, fall: 4, label: 'THE SECOND SPIRE', pts: [[138, -52, 59, 6], [139, -52, 59, 6]] },
+  { id: 'spire3', rough: 1.2, fall: 4, label: 'THE HIGH SPIRE', pts: [[119, -88, 62, 10], [123, -88, 62, 10]] },
+  { id: 'spire4', rough: 1.2, fall: 4, label: 'THE FOURTH SPIRE', pts: [[84, -66, 59, 6], [85, -66, 59, 6]] },
   { id: 'loom', fall: 6, label: 'THE LOOM ISLE', pts: [[70, -124, 76, 20], [96, -140, 76, 20]] },
 ];
 

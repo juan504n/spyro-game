@@ -34,7 +34,7 @@ export const SOFT_ROADS = true;
  * Rock blends like the rest (each overlay is laid in the projection its own texture takes on that triangle); a level that names its steep limit has the cut along the contour instead. Turn it off with false (the old, hard borders).
  */
 export const BLEND_GROUND = true;
-export const BLEND_RADIUS = 2;
+export const BLEND_RADIUS = 1;          // (cells: the blur that says how wide a border is; it was 2, and a small flat top (a spire's, 12 m across) was washed out by the rock round it)
 /** paving (a court, a plaza, a quay) is laid FIRM: its weight counts this many times, so a small pad is not washed away by the lawn around it */
 const FIRM = /^(flagstone|cobble)/, FIRM_WEIGHT = 2.6;
 
