@@ -366,29 +366,31 @@ export function createTrialGoal(assets, opts = {}) {
 
 export function createTrialCourt(assets, opts = {}) {
   const look = lookOf(opts), rig = new Rig(assets), anchors = {}, hw = opts.hw ?? 6.5, hl = opts.hl ?? 11, gw = opts.goalHW ?? 2.4;
-  const mLine = rig.glow(null, { double: true }), mRing = rig.glow('rune_ring', { decal: true }), mFloor = rig.half(null, { double: true });
+  const mLine = rig.glow(null, { double: true }), mRing = rig.glow('rune_ring', { decal: true });
   {
-    const y = 0.07, w = 0.22;
+    // The court is told by thin dashed lines and a rune ring, nothing more: it used to have a tinted floor quad and solid white borders and goal-crease slab, a flat rectangle with straight edges
+    // laid on the snow (a block of glass with outlines), however the ground below was drawn. Dashes read as chalk, and there is no surface to have an edge.
+    const y = 0.07, w = 0.09, dash = 1.1, gap = 1.1;
     const b = litBuilder(1, 151);
     const strip = (x0, z0, x1, z1) => {
-      const dx = x1 - x0, dz = z1 - z0, l = Math.hypot(dx, dz) || 1, nx = (-dz / l) * w, nz = (dx / l) * w;
-      b.quad([x0 - nx, y, z0 - nz], [x1 - nx, y, z1 - nz], [x1 + nx, y, z1 + nz], [x0 + nx, y, z0 + nz], { uv: [0, 0, 1, 1], color: [0.5, 0.5, 0.5], double: true });
+      const L = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.round(L / (dash + gap))), step = L / n, d = Math.min(dash, step * 0.55) / L;
+      for (let k = 0; k < n; k++) {
+        const t0 = (k + 0.5) / n - d / 2, t1 = (k + 0.5) / n + d / 2;
+        const ax = x0 + (x1 - x0) * t0, az = z0 + (z1 - z0) * t0, bx = x0 + (x1 - x0) * t1, bz = z0 + (z1 - z0) * t1;
+        const l = Math.hypot(bx - ax, bz - az) || 1, nx = (-(bz - az) / l) * w, nz = ((bx - ax) / l) * w;
+        b.quad([ax - nx, y, az - nz], [bx - nx, y, bz - nz], [bx + nx, y, bz + nz], [ax + nx, y, az + nz], { uv: [0, 0, 1, 1], color: [0.5, 0.5, 0.5], double: true });
+      }
     };
     strip(-hw, -hl, hw, -hl); strip(-hw, hl, hw, hl); strip(-hw, -hl, -hw, hl); strip(hw, -hl, hw, hl);        // the border
     strip(-hw, 0, hw, 0);                                                                                       // the middle line
+    strip(-gw, hl - 1.6, gw, hl - 1.6); strip(-gw, hl - 1.6, -gw, hl); strip(gw, hl - 1.6, gw, hl);            // the goal's crease, in outline
     rig.mesh(b, mLine, null, { name: 'lines' });
-    const f = litBuilder(1, 152);
-    f.quad([-hw, 0.05, -hl], [hw, 0.05, -hl], [hw, 0.05, hl], [-hw, 0.05, hl], { uv: [0, 0, 1, 1], color: [0.5, 0.5, 0.5], double: true });
-    rig.mesh(f, mFloor, null, { name: 'floor', order: 7 });
     const r = litBuilder(1, 153);
     flatDisc(r, 2.2, 0.08, 16);
     rig.mesh(r, mRing, null, { name: 'ring' });
-    const g = litBuilder(1, 154);
-    g.quad([-gw, 0.09, hl - 1.6], [gw, 0.09, hl - 1.6], [gw, 0.09, hl], [-gw, 0.09, hl], { uv: [0, 0, 1, 1], color: [0.5, 0.5, 0.5], double: true });
-    rig.mesh(g, mLine, null, { name: 'crease' });
   }
   const st = { k: 0.4, want: 0.4 };
-  const apply = () => { const day = 1 - 0.3 * U.uDay.value; setAlpha(mLine, (0.3 + 0.5 * st.k) * day); tint(mLine, look.glow); setAlpha(mRing, (0.2 + 0.5 * st.k) * day); tint(mRing, look.glow); setAlpha(mFloor, 0.35 + 0.3 * st.k); tint(mFloor, look.glow, 0.45); };
+  const apply = () => { const day = 1 - 0.3 * U.uDay.value; setAlpha(mLine, (0.25 + 0.45 * st.k) * day); tint(mLine, look.glow); setAlpha(mRing, (0.2 + 0.5 * st.k) * day); tint(mRing, look.glow); };
   apply();
   return { ...done(rig, anchors, { radius: Math.max(hw, hl), height: 0.1, poses: { quiet: {} } }), setLit(k) { st.want = clamp(k); }, update(dt) { st.k = damp(st.k, st.want, 4, dt); apply(); } };
 }

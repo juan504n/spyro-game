@@ -27,6 +27,14 @@ export const RIVER_ZONE = 3.4;
 export const UNDER_ROAD = -0.4;
 /** the ribbons fade out at their edges, so the terrain beneath them wears the ground's own texture (a hard-edged block of road texture under a soft edge would show through) */
 export const SOFT_ROADS = true;
+/**
+ * The ground is chosen one texture per triangle, so every border between two grounds (grass and sand, snow and cobble, ash and cinder) was a stair of 2.4 m teeth: a hard-edged block. Now
+ * every border is laid in a soft blend: each grid vertex knows how much of each ground lies around it (counted over `BLEND_RADIUS` cells and blurred), and a triangle is drawn in its own
+ * texture and, wherever a neighbouring ground reaches its corners, once more in that ground with alpha = that weight at each corner. The blend is as wide as the radius says (about 6 m each way).
+ * Rock blends like the rest (each overlay is laid in the projection its own texture takes on that triangle); a level that names its steep limit has the cut along the contour instead. Turn it off with false (the old, hard borders).
+ */
+export const BLEND_GROUND = true;
+export const BLEND_RADIUS = 2;
 
 /**
  * Between 0.5 and 0.74 (29 and 42 degrees) a hillside is part grass and part rock. Which part used to be a coin toss per cell (a hash of the cell), so a plain 33 degree flank was a
@@ -252,6 +260,8 @@ export function buildTerrainMeshes(grid, lighting, assets) {
 
   const NV = (i, j) => grid.vertexNormal(i, j);
   const opts = { aoFn, color: tintFn };
+  const isSoft = (name) => true;                        // (rock too: its border with the grass was the worst staircase of all)
+  const softTris = [];            // (whole triangles of a blendable ground: the blend pass below)
 
   const emitN = (name, slope, va, vb, vc, na, nb, nc) => {
     // ensure counter-clockwise from above
@@ -297,13 +307,56 @@ export function buildTerrainMeshes(grid, lighting, assets) {
           }
         }
         emit(t.tex, t.slope, t.p[0], t.p[1], t.p[2], t.idx[0], t.idx[1], t.idx[2]);
+        if (BLEND_GROUND && isSoft(t.tex)) softTris.push(t);
+      }
+    }
+  }
+
+  // ---- the blend: how much of each ground lies around every grid vertex, and the triangles that wear the neighbours' grounds in at their corners ------------------------------------------
+  const blendB = new Map();
+  if (BLEND_GROUND && softTris.length) {
+    const acc = new Map();                                                       // texture -> Float32Array(s*s): triangles of that texture touching each vertex
+    const field = (name) => { let f = acc.get(name); if (!f) { f = new Float32Array(s * s); acc.set(name, f); } return f; };
+    for (const t of softTris) { const f = field(t.tex); for (const [a, b] of t.idx) f[b * s + a] += 1; }
+    const box = (f, r) => {                                                      // (separable box blur, twice: a tent)
+      const tmp = new Float32Array(s * s), out = new Float32Array(s * s);
+      for (let pass = 0; pass < 2; pass++) {
+        const src = pass ? out.slice() : f;
+        for (let j = 0; j < s; j++) for (let i = 0; i < s; i++) { let sum = 0; for (let k = -r; k <= r; k++) sum += src[j * s + clamp(i + k, 0, n)]; tmp[j * s + i] = sum / (2 * r + 1); }
+        for (let j = 0; j < s; j++) for (let i = 0; i < s; i++) { let sum = 0; for (let k = -r; k <= r; k++) sum += tmp[clamp(j + k, 0, n) * s + i]; out[j * s + i] = sum / (2 * r + 1); }
+      }
+      return out;
+    };
+    const wf = new Map(), total = new Float32Array(s * s);
+    for (const [name, f] of acc) { const b = box(f, BLEND_RADIUS); wf.set(name, b); for (let k = 0; k < b.length; k++) total[k] += b[k]; }
+    const names = [...wf.keys()];
+    if (names.length > 1) {
+      const getBlend = (name) => {
+        let b = blendB.get(name);
+        if (!b) { b = new Builder({ lighting }); b.defaults.tile = GROUND_TILE; blendB.set(name, b); }
+        return b;
+      };
+      for (const t of softTris) {
+        for (const name of names) {
+          if (name === t.tex) continue;
+          const f = wf.get(name);
+          const al = t.idx.map(([a, b]) => { const k = b * s + a; const w = total[k] > 0 ? f[k] / total[k] : 0; return w < 0.03 ? 0 : clamp(w * 1.15); });
+          if (al[0] === 0 && al[1] === 0 && al[2] === 0) continue;
+          let [va, vb, vc] = t.p, [ia, ib, ic] = t.idx, aa = al;
+          const ux = vb[0] - va[0], uz = vb[2] - va[2], vx = vc[0] - va[0], vz = vc[2] - va[2];
+          if (uz * vx - ux * vz < 0) { [vb, vc] = [vc, vb]; [ib, ic] = [ic, ib]; aa = [al[0], al[2], al[1]]; }
+          const fn = [NV(...ia), NV(...ib), NV(...ic)];
+          const faceN = [fn[0][0] + fn[1][0] + fn[2][0], fn[0][1] + fn[1][1] + fn[2][1], fn[0][2] + fn[1][2] + fn[2][2]];
+          const mode = uvProjection(name, t.slope, faceN, triangleNormal(va, vb, vc));
+          getBlend(name).tri(va, vb, vc, projectUV(va, mode), projectUV(vb, mode), projectUV(vc, mode), { ...opts, alphas: aa }, fn);
+        }
       }
     }
   }
 
   const group = new THREE.Group();
   group.name = 'terrain';
-  const stats = {};
+  const stats = {}, blendStats = {};
   for (const [name, b] of builders) {
     const geo = b.build();
     const mesh = new THREE.Mesh(geo, assets.mat(name));
@@ -313,5 +366,15 @@ export function buildTerrainMeshes(grid, lighting, assets) {
     stats[name] = b.triangleCount;
     b.release();
   }
-  return { group, stats };
+  for (const [name, b] of blendB) {
+    const geo = b.build();
+    const mesh = new THREE.Mesh(geo, assets.mat(name, { decal: 0.5, mode: 'half', alpha: 2, depthWrite: false }));
+    mesh.name = 'terrain-blend:' + name;
+    mesh.matrixAutoUpdate = false;
+    mesh.renderOrder = -1;
+    group.add(mesh);
+    blendStats[name] = b.triangleCount;
+    b.release();
+  }
+  return { group, stats, blendStats };
 }

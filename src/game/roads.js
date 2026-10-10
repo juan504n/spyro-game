@@ -22,6 +22,8 @@ export const ROAD_LIFT = { cobble: 0.06, dirt: 0.04 };
 export const ROAD_DECAL = { cobble: 1.5, dirt: true };
 /** how far in from its edge a road fades into the ground (metres): the road has no hard edge, it melts into the verge (alpha blended: world.js draws the roads 'half') */
 export const SOFT_EDGE = 0.9;
+/** metres over which an open end of a road fades out */
+export const END_FADE = 5;
 const smoothStep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 /** ground steeper than this (radians, about 37 degrees) carries no road... */
 export const ROAD_MAX_SLOPE = 0.64;
@@ -37,7 +39,7 @@ export const ROAD_STYLE = {
  * How far inside the roads a point is: 1 on the middle of a road, 0 at its edge (and outside), the largest value over all the given paths. A spatial hash of the paths' segments keeps it cheap.
  * paths: [{ pts: [[x, y, z]...], width }]
  */
-export function makeRoadField(paths) {
+export function makeRoadField(paths, endFade = 0) {
   const CS = 8, cells = new Map();
   const key = (cx, cz) => cx * 73856093 ^ cz * 19349663;
   paths.forEach((p, pi) => {
@@ -67,11 +69,12 @@ export function makeRoadField(paths) {
         const tr = ((x - a[0]) * vx + (z - a[2]) * vz) / l2, t = tr < 0 ? 0 : tr > 1 ? 1 : tr;
         const d = Math.hypot(x - (a[0] + vx * t), z - (a[2] + vz * t));
         const cur = dist.get(pi);
-        if (!cur || d < cur.d) dist.set(pi, { d, off: (tr < 0 && k === 0) || (tr > 1 && k === p.pts.length - 2) });
+        if (!cur || d < cur.d) dist.set(pi, { d, off: (tr < 0 && k === 0) || (tr > 1 && k === p.pts.length - 2), end: endFade > 0 ? (k === 0 ? tr * Math.sqrt(l2) : Infinity) : Infinity, endB: endFade > 0 && k === p.pts.length - 2 ? (1 - tr) * Math.sqrt(l2) : Infinity });
       }
       for (const [pi, c] of dist) {
         if (c.off) continue;
-        const f = 1 - c.d / (paths[pi].width / 2);
+        let f = 1 - c.d / (paths[pi].width / 2);
+        if (endFade > 0) { const e = Math.min(c.end, c.endB) / endFade; if (e < 1) f *= e * e * (3 - 2 * e); }                  // (a road that ends fades out along its last metres: not a flat cut)
         if (f > best) { best = f; bi = pi; }
       }
     }
@@ -91,7 +94,7 @@ const fieldsOf = (grid) => {
     f = {};
     for (const surface of ['cobble', 'dirt']) {
       const paths = grid.paths.filter((p) => p.surface === surface);
-      f[surface] = { paths, at: makeRoadField(paths), wide: makeRoadField(paths.map((p) => ({ ...p, width: p.width + 2 * UNDER_REACH }))) };
+      f[surface] = { paths, at: makeRoadField(paths), drawn: makeRoadField(paths, END_FADE), wide: makeRoadField(paths.map((p) => ({ ...p, width: p.width + 2 * UNDER_REACH }))) };
     }
     fields.set(grid, f);
   }
@@ -245,7 +248,7 @@ export function buildRoads(grid, lighting) {
   for (const surface of ['cobble', 'dirt']) {
     const b = new Builder({ lighting });
     for (const p of F[surface].paths) {
-      const st = drapeRibbon(b, grid, draper, p.pts, p.width, { ...ROAD_STYLE[surface], lift: ROAD_LIFT[surface], field: F[surface].at, wet });
+      const st = drapeRibbon(b, grid, draper, p.pts, p.width, { ...ROAD_STYLE[surface], lift: ROAD_LIFT[surface], field: F[surface].drawn, wet });
       for (const k of Object.keys(out.stats)) out.stats[k] += st[k];
     }
     if (b.triangleCount) out[surface] = b;

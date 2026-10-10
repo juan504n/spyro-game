@@ -56,7 +56,7 @@ export function* buildWorldSteps(assets, populate, level) {
   t = performance.now();
   const terr = buildTerrainMeshes(grid, lighting, assets);
   world.terrain = terr.group;
-  world.terrainStats = terr.stats;
+  world.terrainStats = terr.stats; world.blendStats = terr.blendStats;
   world.scene.add(terr.group);
   world.timings.terrainMesh = performance.now() - t;
   if (world.massifs.length) {

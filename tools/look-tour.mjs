@@ -22,6 +22,7 @@ await page.goto((process.env.GV_URL || 'http://127.0.0.1:5173/') + `?world=${wor
 await page.waitForFunction(() => window.__ready || window.__error, null, { timeout: 180000 });
 const err = await page.evaluate(() => window.__error);
 if (err) { console.log('BOOT ERROR', String(err).slice(0, 300)); process.exit(1); }
+await page.evaluate(() => { const a = window.__app; if (a && (a.state === 'title' || a.state === 'intro')) a.beginPlay(false); });       // (Gloaming Vale starts on its title screen)
 await page.waitForTimeout(1500);
 
 const views = await page.evaluate(async ({ N, SEED, ONLY }) => {

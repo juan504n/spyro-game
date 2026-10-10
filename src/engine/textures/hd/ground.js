@@ -158,9 +158,9 @@ export function drifts(n, { seed = 51, R, hollow = null, hollowAmount = 0.5, rip
 export function haze(n, { seed = 61, R, mean = null } = {}) {
   const RR = ramp(R);
   const cv = new Canvas(n);
-  const f = fbm(n, seed + 1, 3, 3, 0.55), g = fbm(n, seed + 2, 9, 2, 0.5);
-  cv.fillWith((x, y, out) => { const k = y * n + x; RR(clamp(0.5 + (f[k] - 0.5) * 0.7 + (g[k] - 0.5) * 0.18), out); });
-  cv.modulate(grain(n, seed + 9, n / 2, 0.015));
+  const f = fbm(n, seed + 1, 3, 3, 0.55), g = fbm(n, seed + 2, 9, 2, 0.5), h2 = fbm(n, seed + 4, 22, 3, 0.55);
+  cv.fillWith((x, y, out) => { const k = y * n + x; RR(clamp(0.5 + (f[k] - 0.5) * 0.85 + (g[k] - 0.5) * 0.34 + (h2[k] - 0.5) * 0.12), out); });
+  cv.modulate(grain(n, seed + 9, n / 2, 0.025));
   if (mean) cv.matchMean(mean, 0.95);
   return cv;
 }

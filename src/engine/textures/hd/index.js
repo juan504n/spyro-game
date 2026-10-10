@@ -105,9 +105,11 @@ export const PAINT = {
   cobble_sky: (o, d) => T.cobbles(d.n, { seed: 8, R: MARBLE, gap: '#6a6488', moss: '#8ad4ec', mossAmount: 0.4, cells: 5, mean: meanOf(o) }),
   cobble_tide: (o, d) => T.cobbles(d.n, { seed: 9, R: TIDE, gap: '#1a3038', moss: '#3a7a62', mossAmount: 0.5, cells: 5, gloss: 0.25, mean: meanOf(o) }),
   shore_pebbles: (o, d) => T.cobbles(d.n, { seed: 10, R: ['#4a4658', '#65627a', '#847f96', '#6a86a8', '#8a6a48', '#b8925a'], gap: '#2a2838', mossAmount: 0, cells: 9, gapPx: 1.8, relief: 0.9, rim: 10, gloss: 0.4, crackFrac: 0, mean: meanOf(o) }),
-  cinder: (o, d) => T.cobbles(d.n, { seed: 12, R: BASALT, gap: '#0c0808', mossAmount: 0, cells: 4, glow: '#d8481a', gapPx: 2.4, relief: 0.8, rim: 14, toneLo: 0.18, toneHi: 0.55, mean: meanOf(o) }),
-  ice: (o, d) => T.cobbles(d.n, { seed: 13, R: rampFrom(o, 6), gap: '#2a62ac', moss: '#eef8ff', mossAmount: 0.3, cells: 3, rows: 3, stagger: 0, jitter: 0.6, relief: 1.1, rim: 22, gloss: 0.5, crackFrac: 0.4, mean: meanOf(o) }),
-  flagstone: (o, d) => T.masonry(d.n, { seed: 14, R: RAMPS.pathStone, mortar: '#3a3648', cols: 2, rows: 2, bond: 0, gap: 4.2, bevel: 1.5, wear: 0.9, tint: 8, mean: meanOf(o) }),
+  // (cinder is a crust of cooled slag, not paving: the cobbled version read as a block of pavers laid on the ash)
+  cinder: (o, d) => G.drifts(d.n, { seed: 12, R: BASALT, hollow: '#0c0808', hollowAmount: 0.6, clinker: 46, embers: 16, glints: 0, ripples: 7, rippleAmount: 0.4, contrast: 1.7, clump: 0.3, grit: 0.08, mean: meanOf(o) }),
+  // (ice is a sheet: glossy, a few glints and a deep blue in its hollows; it was a floor of hexagonal plates with dark gaps, which read as paving)
+  ice: (o, d) => G.drifts(d.n, { seed: 13, R: rampFrom(o, 6), hollow: '#2a62ac', hollowAmount: 0.55, ripples: 5, rippleAmount: 0.5, contrast: 1.2, glints: 34, clump: 0, grit: 0.02, mean: meanOf(o) }),
+  flagstone: (o, d) => T.masonry(d.n, { seed: 14, R: RAMPS.pathStone, mortar: '#3a3648', cols: 3, rows: 3, bond: 0, gap: 2.6, bevel: 1, wear: 1, tint: 12, mean: meanOf(o) }),
   // ---- rock walls
   cliff: (o, d) => T.crag(d.n, { seed: 81, R: RAMPS.cliff, mean: meanOf(o) }),
   cliff_bare: (o, d) => T.crag(d.n, { seed: 81, R: RAMPS.cliff, mean: meanOf(o) }),
