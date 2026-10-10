@@ -284,7 +284,7 @@ export function crag(n, { seed = 81, R, hue = [0, 0, 0], mean = null, rough = 1,
   const K = n / 256;
   const RR = ramp(R);
   const cv = new Canvas(n);
-  const W = warp(n, seed + 1, 2, 22 * K);
+  const W = warp(n, seed + 1, 2, 9 * K);
   const f1 = fbm(n, seed + 2, 4, 2, 0.5, 1), f2 = fbm(n, seed + 3, 9, 2, 0.5, 2), f3 = fbm(n, seed + 7, 22, 2, 0.5, 5);
   const streak = fbm(n, seed + 4, 14, 3, 0.55, 2), mottle = fbm(n, seed + 5, 4, 3, 0.55), fine = fbm(n, seed + 6, 36, 3, 0.6);
   const at = (f, x, y, k) => f[wrapN(Math.round(y + W.dy[k]), n) * n + wrapN(Math.round(x + W.dx[k]), n)];
