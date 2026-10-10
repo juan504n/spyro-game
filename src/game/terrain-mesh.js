@@ -35,6 +35,8 @@ export const SOFT_ROADS = true;
  */
 export const BLEND_GROUND = true;
 export const BLEND_RADIUS = 2;
+/** paving (a court, a plaza, a quay) is laid FIRM: its weight counts this many times, so a small pad is not washed away by the lawn around it */
+const FIRM = /^(flagstone|cobble)/, FIRM_WEIGHT = 2.6;
 
 /**
  * Between 0.5 and 0.74 (29 and 42 degrees) a hillside is part grass and part rock. Which part used to be a coin toss per cell (a hash of the cell), so a plain 33 degree flank was a
@@ -299,7 +301,12 @@ export function buildTerrainMeshes(grid, lighting, assets) {
             const rock = t.re(steepL + 0.05);
             if (rock[1].startsWith('steep')) {
               const soft = t.re(Math.min(t.slope, steepL - 0.05));
-              if (up === 3) emit(rock[0], t.slope, t.p[0], t.p[1], t.p[2], t.idx[0], t.idx[1], t.idx[2]);
+              if (BLEND_GROUND) {
+                // (the soft blend makes the border: a triangle is the ground the majority of its corners are, and the neighbours' grounds are laid in over it)
+                const name = up >= 2 || t.slope > steepL + 0.12 ? rock[0] : soft[0];
+                emit(name, t.slope, t.p[0], t.p[1], t.p[2], t.idx[0], t.idx[1], t.idx[2]);
+                softTris.push({ ...t, tex: name });
+              } else if (up === 3) emit(rock[0], t.slope, t.p[0], t.p[1], t.p[2], t.idx[0], t.idx[1], t.idx[2]);
               else if (up === 0) emit(soft[0], t.slope, t.p[0], t.p[1], t.p[2], t.idx[0], t.idx[1], t.idx[2]);
               else emitCut(t, rock[0], soft[0]);
               continue;
@@ -328,7 +335,7 @@ export function buildTerrainMeshes(grid, lighting, assets) {
       return out;
     };
     const wf = new Map(), total = new Float32Array(s * s);
-    for (const [name, f] of acc) { const b = box(f, BLEND_RADIUS); wf.set(name, b); for (let k = 0; k < b.length; k++) total[k] += b[k]; }
+    for (const [name, f] of acc) { const b = box(f, BLEND_RADIUS); if (FIRM.test(name)) for (let k = 0; k < b.length; k++) b[k] *= FIRM_WEIGHT; wf.set(name, b); for (let k = 0; k < b.length; k++) total[k] += b[k]; }
     const names = [...wf.keys()];
     if (names.length > 1) {
       const getBlend = (name) => {
