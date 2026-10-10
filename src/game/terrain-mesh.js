@@ -25,6 +25,8 @@ export const GROUND_TILE = 6;
 export const RIVER_ZONE = 3.4;
 /** a road texture goes on a terrain triangle only when the road ribbon covers all of it (a corner this far inside the ribbon's edge counts: the ribbon is 0.5 m narrower than the carve) */
 export const UNDER_ROAD = -0.4;
+/** the ribbons fade out at their edges, so the terrain beneath them wears the ground's own texture (a hard-edged block of road texture under a soft edge would show through) */
+export const SOFT_ROADS = true;
 
 /**
  * Between 0.5 and 0.74 (29 and 42 degrees) a hillside is part grass and part rock. Which part used to be a coin toss per cell (a hash of the cell), so a plain 33 degree flank was a
@@ -150,6 +152,7 @@ export function terrainPicker(grid) {
       let underRoad = pdTri <= UNDER_ROAD && slope <= ROAD_MAX_SLOPE && (surface === 'dirt' || surface === 'cobble') ? surface : null;     // (a road is not drawn on ground steeper than that: see roads.js)
       // ... and the ribbon is as long as its path: the carve's distance field has a round cap past a road's end, where no ribbon is drawn, and the triangles there came out textured as a road
       // (a patch of dirt of the terrain's own look beyond the end of the ribbon, which has the road's own), so every corner must lie under the flat-ended ribbon too
+      if (SOFT_ROADS) underRoad = null;                                                  // (the roads melt into the ground at their edges (roads.js SOFT_EDGE): the ground under a road is the ground's own texture, not a block of the road's)
       if (underRoad && !(underRoadAt(grid, p0[0], p0[2]) && underRoadAt(grid, p1[0], p1[2]) && underRoadAt(grid, p2[0], p2[2]))) underRoad = null;
       const [tex, why] = pickRule(cx, cz, ch, slope, nx, nz, i, j, pd, surface, underRoad, rd, rs, Math.max(p0[1], p1[1], p2[1]));
       const rec = { p: [p0, p1, p2], idx: [i0, i1, i2], slope, tex, why };

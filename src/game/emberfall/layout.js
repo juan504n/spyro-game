@@ -44,7 +44,7 @@ function layoutForgeGate(ctx) {
     { yaw: 0, y: 2.6, len: 2.2, tint: [0.9, 0.9, 0.9] },                      // east: the Rift
   ] }, 1.5);
   lampsAlong(ctx, 'trunk', 26, 14, 150, 1.8, 'torch_stand');
-  ctx.gp.hints.push({ x: sp.x + 6, z: sp.z, r: 9, text: 'WELCOME TO EMBERFALL CRAGS! THE FORGES ARE COLD. KINDLE THE EMBERSTONES WITH FIRE', dur: 7 });
+  ctx.gp.hints.push({ x: sp.x + 6, z: sp.z, r: 9, text: 'WELCOME TO EMBERFALL CRAGS! THE FORGES ARE COLD. THE SLAG BRUTES HOLD THE STONES: BEAT THEM', dur: 7 });
   gp.hints.push({ x: -100, z: 30, r: 12, text: 'THE STAIR CLIMBS TO THE RIM OF THE RIFT. THE ASHWAY ROUNDS ITS SOUTH END', dur: 7 });
   for (const [x, z, g] of [[-168, 50, [1, 1, 2]], [-150, 20, [2, 5]], [-110, 48, [1, 1, 1]]]) ctx.addVase(x, z, g);
 }

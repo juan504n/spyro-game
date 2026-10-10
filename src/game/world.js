@@ -89,7 +89,7 @@ export function* buildWorldSteps(assets, populate, level) {
   world.roadStats = roads.stats;
   for (const surface of ['cobble', 'dirt']) {
     if (!roads[surface]) continue;
-    const m = new THREE.Mesh(roads[surface].build(), assets.mat((level?.roadTextures && level.roadTextures[surface]) || surface, { decal: ROAD_DECAL[surface] }));      // (a level can name the textures its roads wear: level.roadTextures)
+    const m = new THREE.Mesh(roads[surface].build(), assets.mat((level?.roadTextures && level.roadTextures[surface]) || surface, { decal: ROAD_DECAL[surface], mode: 'half', alpha: 2, depthWrite: false }));      // (a level can name the textures its roads wear: level.roadTextures)
     roads[surface].release();                                          // (the geometry owns typed copies now)
     m.renderOrder = surface === 'cobble' ? 2 : 1;                      // (cobble over dirt where two roads meet)
     world.roads.add(m);

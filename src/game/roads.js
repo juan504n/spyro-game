@@ -20,6 +20,9 @@ import { makeDraper, isConvex, area, simplify } from './drape.js';
 /** how far each kind of road stands off the ground (cobble over dirt where two meet), and how much polygon offset the material gets (see makeMaterial: `decal`) */
 export const ROAD_LIFT = { cobble: 0.06, dirt: 0.04 };
 export const ROAD_DECAL = { cobble: 1.5, dirt: true };
+/** how far in from its edge a road fades into the ground (metres): the road has no hard edge, it melts into the verge (alpha blended: world.js draws the roads 'half') */
+export const SOFT_EDGE = 0.9;
+const smoothStep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 /** ground steeper than this (radians, about 37 degrees) carries no road... */
 export const ROAD_MAX_SLOPE = 0.64;
 /** ... except for a scrap of ribbon smaller than this (m2) on such a triangle, which is drawn all the same: a road ending on a hillside has the corners of its last row lying on steep triangles, and dropping those scraps cut thin
@@ -189,12 +192,13 @@ export function drapeRibbon(b, grid, draper, points, width, o = {}) {
       const a = area(piece);
       if (draper.slope(F) > ROAD_MAX_SLOPE && a >= STEEP_SCRAP) { stat.steep += a; return; }
       const nrm = [0, 0, 0];
+      const fadeIn = Math.min(0.6, Math.max(0.18, SOFT_EDGE / (width / 2)));                // (how far in from its edge a road fades out, as a share of its half width)
       const vs = piece.map((v) => {
         const w = draper.bary(F, v[0], v[1]);
         const n = [0, 0, 0];
         for (let q = 0; q < 3; q++) { const nk = grid.vertexNormal(F[q][3], F[q][4]); n[0] += w[q] * nk[0]; n[1] += w[q] * nk[1]; n[2] += w[q] * nk[2]; }
         const nl = Math.hypot(n[0], n[1], n[2]) || 1;
-        return { x: v[0], z: v[1], y: w[0] * F[0][1] + w[1] * F[1][1] + w[2] * F[2][1] + lift, uv: [v[0] / tile, v[1] / tile], tint: tintAt(v[0], v[1]), n: [n[0] / nl, n[1] / nl, n[2] / nl] };
+        return { x: v[0], z: v[1], y: w[0] * F[0][1] + w[1] * F[1][1] + w[2] * F[2][1] + lift, uv: [v[0] / tile, v[1] / tile], tint: tintAt(v[0], v[1]), alpha: smoothStep(0, fadeIn, field(v[0], v[1])), n: [n[0] / nl, n[1] / nl, n[2] / nl] };
       });
       void nrm;
       const top = Math.max(...vs.map((v) => v.y)) - lift;
@@ -205,7 +209,7 @@ export function drapeRibbon(b, grid, draper, points, width, o = {}) {
         let [p, q, r] = [vs[0], vs[k], vs[k + 1]];
         const ux = q.x - p.x, uz = q.z - p.z, vx = r.x - p.x, vz = r.z - p.z;
         if (uz * vx - ux * vz < 0) [q, r] = [r, q];                                      // (counter-clockwise from above, as the terrain's own triangles)
-        b.tri([p.x, p.y, p.z], [q.x, q.y, q.z], [r.x, r.y, r.z], p.uv, q.uv, r.uv, { tints: [p.tint, q.tint, r.tint], alphas: [1, 1, 1] }, [p.n, q.n, r.n]);
+        b.tri([p.x, p.y, p.z], [q.x, q.y, q.z], [r.x, r.y, r.z], p.uv, q.uv, r.uv, { tints: [p.tint, q.tint, r.tint], alphas: [p.alpha, q.alpha, r.alpha] }, [p.n, q.n, r.n]);
       }
     });
   };

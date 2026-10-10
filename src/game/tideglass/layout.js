@@ -79,7 +79,7 @@ function layoutHarbour(ctx) {
     { yaw: yawTo(1, 0.9), y: 3.4, len: 2.4, tint: [0.6, 0.95, 0.85] },             // south-east: the low road, the flats
     { yaw: yawTo(-0.1, -1), y: 2.4, len: 2.4, tint: [1.0, 0.86, 0.5] },            // north: the high road
   ] }, 1.5);
-  gp.hints.push({ x: sp.x + 6, z: sp.z, r: 9, text: 'WELCOME TO TIDEGLASS REACH! THE TIDE HAS LOST ITS WAY. LIGHT THE FIVE LENSES WITH FIRE', dur: 7 });
+  gp.hints.push({ x: sp.x + 6, z: sp.z, r: 9, text: 'WELCOME TO TIDEGLASS REACH! THE TIDE HAS LOST ITS WAY. BRING TIDE PEARLS TO THE LENSES', dur: 7 });
   gp.hints.push({ x: -184, z: 34, r: 8, text: 'THE TIDE POST: GREEN BAND LOW TIDE, WHITE THE MEAN, RED HIGH TIDE. THE GAUGE ON YOUR SCREEN SAYS THE SAME', dur: 8 });
   gp.hints.push({ x: -160, z: 17, r: 11, text: 'TWO ROADS EAST: THE LOW ROAD ACROSS THE FLATS, BARE AT LOW TIDE, OR THE HIGH ROAD ALONG THE CLIFFS, ALWAYS DRY', dur: 8 });
   // the Salvage Store: a walled court with one doorway, shut with a cracked wall (the first secret)

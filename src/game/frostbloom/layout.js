@@ -40,7 +40,7 @@ function layoutThawGate(ctx) {
     { yaw: -Math.PI / 2, y: 1.8, len: 2.1, tint: [1.0, 0.8, 0.9] },             // north: the lake and the ridge
   ] }, 1.5);
   lampsAlong(ctx, 'trunk', 26, 14, 150);
-  gp.hints.push({ x: sp.x, z: sp.z - 6, r: 9, text: 'WELCOME TO FROSTBLOOM HOLLOW! THE BLOSSOMS ARE ASLEEP IN THE ICE. THAW THEM WITH FIRE', dur: 7 });
+  gp.hints.push({ x: sp.x, z: sp.z - 6, r: 9, text: 'WELCOME TO FROSTBLOOM HOLLOW! THE BLOSSOMS ARE ASLEEP IN THE ICE. FREE THE SPRITES SLEEPING IN THEM: RAM A BLOOM', dur: 7 });
   gp.hints.push({ x: 8, z: 120, r: 11, text: 'WEST LIES RIMEWOOD, EAST THE ICEFALL, AND NORTH THE FROZEN LAKE AND THE RIDGE', dur: 7 });
   ctx.addBunnies(-14, 150, 3, 7); ctx.addBunnies(18, 118, 2, 6);
   for (const [x, z, g] of [[-10, 160, [1, 1, 2]], [16, 150, [2, 5]], [-6, 112, [1, 1, 1]]]) ctx.addVase(x, z, g);

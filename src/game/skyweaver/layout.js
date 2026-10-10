@@ -79,7 +79,7 @@ function layoutGate(ctx) {
   ] }, 1.5);
   put('bench', -146, 133.5, { rot: faceTo(-146, 133.5, -110, 118) }, 1.6);
   put('wind_vane', -176, 131, { rot: 0.5 }, 2);                                       // a vane that has stopped: the wind has not blown since
-  gp.hints.push({ x: sp.x + 6, z: sp.z, r: 9, text: 'WELCOME TO SKYWEAVER SPIRES! THE WINDS HAVE FALLEN SLACK. RING THE WINDBELLS WITH FIRE', dur: 7 });
+  gp.hints.push({ x: sp.x + 6, z: sp.z, r: 9, text: 'WELCOME TO SKYWEAVER SPIRES! THE WINDS HAVE FALLEN SLACK. FLY INTO THE WINDBELLS TO RING THEM', dur: 7 });
   gp.hints.push({ x: -148, z: 140, r: 9, text: 'THE ROAD ENDS AT THE EDGE. THE CLOUDS CANNOT HOLD YOU: HOP THE SLABS', dur: 7 });
   for (const [x, z, gv] of [[-198, 138, [1, 1, 2]], [-186, 164, [1, 1, 2]], [-168, 135, [2, 5]], [-158, 160, [1, 1, 1]]]) ctx.addVase(x, z, gv);
   // the island's own trees and stones: pines on its rim, a few pale birches, rocks
