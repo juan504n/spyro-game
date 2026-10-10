@@ -306,7 +306,7 @@ export function buildTerrainMeshes(grid, lighting, assets) {
               const soft = t.re(Math.min(t.slope, steepL - 0.05));
               if (BLEND_GROUND) {
                 // (the soft blend makes the border: a triangle is the ground the majority of its corners are, and the neighbours' grounds are laid in over it)
-                const name = up >= 2 || t.slope > steepL + 0.12 ? rock[0] : soft[0];
+                const name = (up >= 2 && t.slope > steepL - 0.2) || t.slope > steepL + 0.12 ? rock[0] : soft[0];          // (a flat top near an edge has steep corner slopes (the vertex normals are smoothed over 4 m): its own face decides, or a narrow pillar's whole top came out as rock)
                 emit(name, t.slope, t.p[0], t.p[1], t.p[2], t.idx[0], t.idx[1], t.idx[2]);
                 softTris.push({ ...t, tex: name });
               } else if (up === 3) emit(rock[0], t.slope, t.p[0], t.p[1], t.p[2], t.idx[0], t.idx[1], t.idx[2]);
