@@ -109,7 +109,8 @@ export const PAINT = {
   cinder: (o, d) => G.drifts(d.n, { seed: 12, R: BASALT, hollow: '#0c0808', hollowAmount: 0.6, clinker: 46, embers: 16, glints: 0, ripples: 7, rippleAmount: 0.4, contrast: 1.7, clump: 0.3, grit: 0.08, mean: meanOf(o) }),
   // (ice is a sheet: glossy, a few glints and a deep blue in its hollows; it was a floor of hexagonal plates with dark gaps, which read as paving)
   ice: (o, d) => G.drifts(d.n, { seed: 13, R: rampFrom(o, 6), hollow: '#2a62ac', hollowAmount: 0.7, ripples: 9, rippleAmount: 0.9, contrast: 1.9, glints: 48, clump: 0, grit: 0.02, mean: meanOf(o) }),
-  flagstone: (o, d) => T.masonry(d.n, { seed: 14, R: RAMPS.pathStone, mortar: '#3a3648', cols: 3, rows: 3, bond: 0, gap: 2.6, bevel: 1, wear: 1, tint: 12, mean: meanOf(o) }),
+  // (flagstone is laid in irregular flags, not a square grid with dead-straight joints: a plaza of ruled squares read as a tiled rectangle on the lawn)
+  flagstone: (o, d) => T.cobbles(d.n, { seed: 14, R: RAMPS.pathStone, gap: '#3a3648', moss: '#587a3d', mossAmount: 0.12, cells: 3, rows: 3, stagger: 0.5, jitter: 0.85, relief: 0.7, rim: 8, gapPx: 1.5, gloss: 0.1, crackFrac: 0.2, mean: meanOf(o) }),
   // ---- rock walls
   cliff: (o, d) => T.crag(d.n, { seed: 81, R: RAMPS.cliff, mean: meanOf(o) }),
   cliff_bare: (o, d) => T.crag(d.n, { seed: 81, R: RAMPS.cliff, mean: meanOf(o) }),

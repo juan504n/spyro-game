@@ -156,7 +156,7 @@ export function runeRing(n, { seed = 9501, R } = {}) {
   const rng = new RNG(seed);
   const RR = ramp(R), cv = new Canvas(n, [58, 58, 76]);
   const f = fbmWH(n, n, seed + 1, 5, 3, 0.5), cx = n / 2, cy = n / 2;
-  cv.fillWith((x, y, out) => { const v = 0.5 + (f[y * n + x] - 0.5) * 0.18; const edge = Math.min(x, y, n - 1 - x, n - 1 - y); out[0] = 62 * v * 2 * (0.7 + 0.3 * smoothstep(0, 6 * K, edge)); out[1] = 62 * v * 2 * (0.7 + 0.3 * smoothstep(0, 6 * K, edge)); out[2] = 80 * v * 2 * (0.7 + 0.3 * smoothstep(0, 6 * K, edge)); });
+  cv.fillWith((x, y, out) => { const v = 0.5 + (f[y * n + x] - 0.5) * 0.18; const edge = Math.min(x, y, n - 1 - x, n - 1 - y); out[0] = 62 * v * 0.9 * (0.7 + 0.3 * smoothstep(0, 6 * K, edge)); out[1] = 62 * v * 0.9 * (0.7 + 0.3 * smoothstep(0, 6 * K, edge)); out[2] = 80 * v * 0.9 * (0.7 + 0.3 * smoothstep(0, 6 * K, edge)); });
   const lo = RR(0.35, [0, 0, 0]), mid = RR(0.6, [0, 0, 0]), hi = RR(0.9, [0, 0, 0]);
   cv.soft(cx, cy, 118 * K, RR(0.3, [0, 0, 0]), 0.35);                                                       // the light it throws on the plate
   ring(cv, cx, cy, 104 * K, 14 * K, lo, lo, 1);

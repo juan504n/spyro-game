@@ -106,7 +106,7 @@ export function windmillBody(kit, p) {
       kit.b('brick').cyl(1.0, 0.85, 0.5, 8, { tile: 3.0, smooth: false, caps: 'top', color: [1.0, 0.96, 1.06], emissive: 0.22 });
       kit.xf.pop();
       const s = 1.9;
-      kit.b('rune_ring').quad([bp[0] - s, yD + 0.05, bp[2] + s], [bp[0] + s, yD + 0.05, bp[2] + s], [bp[0] + s, yD + 0.05, bp[2] - s], [bp[0] - s, yD + 0.05, bp[2] - s], { uv: [0, 0, 1, 1], emissive: 0.55, color: [0.9, 0.85, 1.0] });
+      kit.b('rune_ring', { mode: 'add', decal: true }).disc(s * 0.98, 28, { y: yD + 0.07, uvDisc: true, emissive: 0.8, color: [0.7, 0.66, 0.85] });          // (light on the stone: a disc, not a dark square plate)
     }
 
     // ---- exterior wooden stair: r 7.4..9.8, from phi=55deg, 7.5deg per step, 0.5 rise

@@ -390,7 +390,7 @@ export function createTrialCourt(assets, opts = {}) {
     rig.mesh(r, mRing, null, { name: 'ring' });
   }
   const st = { k: 0.4, want: 0.4 };
-  const apply = () => { const day = 1 - 0.3 * U.uDay.value; setAlpha(mLine, (0.25 + 0.45 * st.k) * day); tint(mLine, look.glow); setAlpha(mRing, (0.2 + 0.5 * st.k) * day); tint(mRing, look.glow); };
+  const apply = () => { const day = 1 - 0.3 * U.uDay.value; setAlpha(mLine, (0.1 + 0.2 * st.k) * day); tint(mLine, look.glow); setAlpha(mRing, (0.2 + 0.5 * st.k) * day); tint(mRing, look.glow); };
   apply();
   return { ...done(rig, anchors, { radius: Math.max(hw, hl), height: 0.1, poses: { quiet: {} } }), setLit(k) { st.want = clamp(k); }, update(dt) { st.k = damp(st.k, st.want, 4, dt); apply(); } };
 }
