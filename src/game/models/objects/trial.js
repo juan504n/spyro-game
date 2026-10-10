@@ -381,10 +381,8 @@ export function createTrialCourt(assets, opts = {}) {
         b.quad([ax - nx, y, az - nz], [bx - nx, y, bz - nz], [bx + nx, y, bz + nz], [ax + nx, y, az + nz], { uv: [0, 0, 1, 1], color: [0.5, 0.5, 0.5], double: true });
       }
     };
-    strip(-hw, -hl, hw, -hl); strip(-hw, hl, hw, hl); strip(-hw, -hl, -hw, hl); strip(hw, -hl, hw, hl);        // the border
-    strip(-hw, 0, hw, 0);                                                                                       // the middle line
-    strip(-gw, hl - 1.6, gw, hl - 1.6); strip(-gw, hl - 1.6, -gw, hl); strip(gw, hl - 1.6, gw, hl);            // the goal's crease, in outline
-    rig.mesh(b, mLine, null, { name: 'lines' });
+    // (no chalk on the ground at all, in the end: any line laid on snow or ice read as a white outline; the goal posts, the goalie and the ring say where the court is)
+    void strip;
     const r = litBuilder(1, 153);
     flatDisc(r, 2.2, 0.08, 16);
     rig.mesh(r, mRing, null, { name: 'ring' });

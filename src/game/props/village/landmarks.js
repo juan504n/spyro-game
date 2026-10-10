@@ -83,8 +83,7 @@ export function archGate(kit, p) {
     ]) grid(kit.b('brick'), O, U, [0, dh - base, 0], 3, 1, { tile: 3.2, color: vgrad(base, [0.6, 0.58, 0.68], dh, [0.98, 0.96, 1.06]), emissive: 0.2 });
     // spawn rune plate
     const rh = 2.1, rz = 4.3, ry = dh + 0.1;
-    kit.b('brick').box(0, dh + 0.05, rz, 2 * rh, 0.1, 2 * rh, { tile: 3.2, color: [0.9, 0.88, 1.0], emissive: 0.2 });
-    kit.b('rune_ring', { mode: 'add', decal: true }).disc(rh * 0.98, 32, { y: dh + 0.11, uvDisc: true, emissive: 1, color: [0.8, 0.76, 0.95] });          // (the ring of runes is light laid on the flagstone: a disc, not a dark square plate)
+    kit.b('rune_ring', { mode: 'add', decal: true }).disc(rh * 0.98, 32, { y: dh + 0.06, uvDisc: true, emissive: 1, color: [0.8, 0.76, 0.95] });          // (the ring of runes is light laid on the flagstone: a disc, not a dark square plate)
     // two rune posts framing the spawn area
     for (const sx of [-1, 1]) {
       const px = sx * 5.5, pz = 6.0;
