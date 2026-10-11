@@ -6,10 +6,10 @@ export const TRAVEL_PLACES = {
     {
       name: 'THE GOALS',
       places: [
-        { id: 'quay', name: 'QUAY LENS', x: -181.12, z: 12.5, yaw: 2.25 },
-        { id: 'pearl', name: 'PEARL LENS', x: -21.6, z: 30.26, yaw: 1.12 },
-        { id: 'court', name: 'COURT LENS', x: 16.09, z: -25.54, yaw: 0.58 },
-        { id: 'weeping', name: 'WEEPING LENS', x: 140.01, z: -4.68, yaw: 1.65 },
+        { id: 'quay', name: 'THE HARBOUR QUAY', x: -181.12, z: 12.5, yaw: 2.25 },
+        { id: 'pearl', name: 'PEARL ROCK', x: -21.6, z: 30.26, yaw: 1.12 },
+        { id: 'court', name: 'THE GLASS COURT', x: 16.09, z: -25.54, yaw: 0.58 },
+        { id: 'weeping', name: 'THE WEEPING CAVE', x: 140.01, z: -4.68, yaw: 1.65 },
         { id: 'light', name: 'TIDEGLASS', x: 136.38, z: -132.3, yaw: 2.01, opens: true },
       ],
     },
