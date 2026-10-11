@@ -110,9 +110,9 @@ export class Chase extends Objective {
       }
       // a ram that reaches it, or a run into it - but only where it is cornered: a sprite on the run slips out of a ram (it is a runner, not a target)
       if (!p.dead && this.state === 'corner') {
-        const ram = p.chargeT > 0 && p.chargeHits(this.pos.x, this.pos.y, this.pos.z, CHASE.catchR);
+        const ram = p.chargeT > 0 && p.chargeHits(this.pos.x, this.pos.y - 1.8, this.pos.z, CHASE.catchR);
         if (ram || d < CHASE.touchR) this._caught();
-      } else if (!p.dead && this.state === 'run' && p.chargeT > 0 && p.chargeHits(this.pos.x, this.pos.y, this.pos.z, CHASE.catchR) && !this.told.slip) {
+      } else if (!p.dead && this.state === 'run' && p.chargeT > 0 && p.chargeHits(this.pos.x, this.pos.y - 1.8, this.pos.z, CHASE.catchR) && !this.told.slip) {
         this.told.slip = true;
         game.hud.hint('IT SLIPS OUT OF THE RAM! WAIT FOR IT TO BE CORNERED', 3.5);
       }
