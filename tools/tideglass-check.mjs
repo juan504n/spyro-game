@@ -146,10 +146,9 @@ const f1 = (v) => v.toFixed(1), pct = (a, b) => `${Math.round((a / b) * 100)}%`;
 
   // the lenses are Tide Lenses (the realm's own goal model), the last the big Tideglass, and each rings (its own sound) when it is lit
   {
-    const wrong = BRIEF.goals.filter((g, i) => g.model !== 'tidelens' || !!g.big !== (i === BRIEF.goals.length - 1));
-    check('every goal is a Tide Lens, the last the big Tideglass', wrong.length === 0, wrong.map((g) => g.id).join(' '));
-    const mute = BRIEF.goals.filter((g) => g.sfx !== 'lens_ring');
-    check('... and each rings when it is lit (lens_ring, not the lantern\'s whoomp), and the world hands the sound on to the goal records', mute.length === 0 && gp.beacons.every((b) => b.sfx === 'lens_ring'), mute.map((g) => g.id).join(' '));
+    const last = BRIEF.goals[BRIEF.goals.length - 1];
+    check('the exit is the big Tideglass lens (the other goals are stations: the herd is the task, no lens is lit but the last)', last.id === BRIEF.objective.final && last.model === 'tidelens' && !!last.big, last.id);
+    check('... and it rings when it is lit (lens_ring, not the lantern\'s whoomp), and the world hands the sound on to the goal record', last.sfx === 'lens_ring' && gp.beacons.find((b) => b.id === last.id).sfx === 'lens_ring');
   }
 
   // the Snuffers keep to the dry ground (the tide would drown or carry the ones on the sand): every one stands 1 m or more over the high tide

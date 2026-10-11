@@ -6,10 +6,10 @@ export const TRAVEL_PLACES = {
     {
       name: 'THE GOALS',
       places: [
-        { id: 'gate', name: 'GATE BELL', x: -167.98, z: 153.56, yaw: 1.46 },
-        { id: 'isle', name: 'ISLE BELL', x: -76.79, z: 112.77, yaw: 1.89 },
-        { id: 'field', name: 'FIELD BELL', x: -36.64, z: 80.66, yaw: 2 },
-        { id: 'spire', name: 'SPIRE BELL', x: 115.48, z: -82.7, yaw: -2.87 },
+        { id: 'gate', name: 'THE SKYGATE LAWN', x: -167.98, z: 153.56, yaw: 1.46 },
+        { id: 'isle', name: 'THE CLOUD ISLET', x: -76.79, z: 112.77, yaw: 1.89 },
+        { id: 'field', name: 'THE LOWFIELD', x: -36.64, z: 80.66, yaw: 2 },
+        { id: 'spire', name: 'THE HIGH SPIRE', x: 115.48, z: -82.7, yaw: -2.87 },
         { id: 'loom', name: 'LOOM BELL', x: 89.29, z: -127.5, yaw: 1.96 },
       ],
     },

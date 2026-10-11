@@ -53,7 +53,7 @@ const check = (name, ok, detail) => { if (!ok) own++; console.log(ok ? 'PASS' : 
   // the rings that seal the Anvil Stone: six hoops over the rift along the glide from the rim to the stack; the model of the hero flies them over this ground (the checker's rule holds that five ways of leaping
   // can; here is what is the Anvil's own: that a glide held straight does not, and that a hero who has broken the seal flies on and lands on the stack with the lantern in front of him)
   {
-    const R = gp.trials.find((q) => q.goal === 'anvil'), a = goal('anvil');
+    const R = gp.trials.find((q) => q.goal === 'anvil' || q.station === 'anvil'), a = goal('anvil');
     check('the Anvil Stone is sealed by a course of rings from a pad on the rim to the stack: six hoops of 3.2 m, four of them asked for, the pad on the plateau west of the rift, the lip 6 to 10 m out, the stack where it ends', !!R && R.kind === 'rings' && R.rings.length === 6 && R.want === 4 && R.r === 3.2 && R.x < -40 && R.x > -60 && R.edgePt.d >= 6 && R.edgePt.d <= 10 && Math.hypot(R.land.x - a.x, R.land.z - a.z) < 0.01, R ? `(pad ${R.x},${R.z}, lip ${R.edgePt.d} m out, ${R.rings.length} hoops)` : '(no trial)');
     const fly = (policy, off = 0, T = 16) => playTrial({ spec: R, hero: { x: R.x + Math.cos(R.yaw) * off, z: R.z - Math.sin(R.yaw) * off, yaw: R.yaw }, policy, T, floorAt: h, stopWhenSolved: false });
     const right = fly(pilots.ringsRight()), walkoff = fly(pilots.ringsRight({ walk: true })), straight = fly(pilots.ringsStraight());

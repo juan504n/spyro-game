@@ -6,10 +6,10 @@ export const TRAVEL_PLACES = {
     {
       name: 'THE GOALS',
       places: [
-        { id: 'gate', name: 'FORGE STONE', x: -149.86, z: 29.06, yaw: 1.84 },
-        { id: 'grove', name: 'GROVE STONE', x: -124.45, z: -52.03, yaw: 3.03 },
+        { id: 'gate', name: 'FORGE FLATS', x: -149.86, z: 29.06, yaw: 1.84 },
+        { id: 'grove', name: 'CINDER GROVE', x: -124.45, z: -52.03, yaw: 3.03 },
         { id: 'anvil', name: 'ANVIL STONE', x: -10.74, z: -10.11, yaw: 1.84, shelf: true },
-        { id: 'smelter', name: 'SMELTER STONE', x: 141.04, z: 20.33, yaw: 1.21, opens: true },
+        { id: 'smelter', name: 'THE FURNACE', x: 141.04, z: 20.33, yaw: 1.21, opens: true },
         { id: 'heart', name: 'HEARTFORGE', x: 146.62, z: -167.86, yaw: 2.14, opens: true },
       ],
     },
@@ -19,7 +19,6 @@ export const TRAVEL_PLACES = {
         { id: 'gate-wisps', name: 'THE WISPS', x: -146, z: 44, yaw: 0 },
         { id: 'anvil-rings', name: 'THE RINGS', x: -46, z: -30, yaw: 0 },
         { id: 'smelter-mirrors', name: 'THE MIRRORS', x: 83.14, z: 12.79, yaw: 0.08 },
-        { id: 'heart-plates', name: 'THE PLATES', x: 142, z: -174, yaw: 0, opens: true },
       ],
     },
     {
@@ -41,7 +40,7 @@ export const TRAVEL_PLACES = {
         { id: 'shelf', name: 'THE ANVIL PLATEAU', x: 52.49, z: -14.74, yaw: 2.65 },
         { id: 'forecourt', name: 'THE MAW', x: 78, z: 20, yaw: 1.57 },
         { id: 'gorge', name: 'THE CINDER GORGE', x: 153.98, z: -82.01, yaw: -1.89, opens: true },
-        { id: 'caldera', name: 'THE CALDERA', x: 153, z: -146, yaw: -2.66, opens: true },
+        { id: 'caldera', name: 'THE CALDERA', x: 150, z: -146, yaw: 3.14, opens: true },
       ],
     },
     {

@@ -106,10 +106,9 @@ const f1 = (v) => v.toFixed(1);
 
   // the goals are Windbells (the realm's own goal model), the last one the big Loom Bell, and each rings (its own sound) when it is lit
   {
-    const wrong = BRIEF.goals.filter((g, i) => g.model !== 'windbell' || !!g.big !== (i === BRIEF.goals.length - 1));
-    check('every goal is a Windbell, the last the big Loom Bell', wrong.length === 0, wrong.map((g) => g.id).join(' '));
-    const mute = BRIEF.goals.filter((g) => g.sfx !== 'windbell_ring');
-    check('... and each rings when it is lit (windbell_ring, not the lantern\'s whoomp), and the world hands the sound on to the goal records', mute.length === 0 && gp.beacons.every((b) => b.sfx === 'windbell_ring'), mute.map((g) => g.id).join(' '));
+    const last = BRIEF.goals[BRIEF.goals.length - 1], rest = BRIEF.goals.slice(0, -1);
+    check('the exit is the big Loom Bell (the other goals are stations: the storm is the task, nothing is rung)', last.id === BRIEF.objective.final && last.model === 'windbell' && !!last.big && rest.every((g) => g.model === undefined || g.model === 'windbell'), last.id);
+    check('... and it rings when it is lit (windbell_ring, not the lantern\'s whoomp), and the world hands the sound on to the goal record', last.sfx === 'windbell_ring' && gp.beacons.find((b) => b.id === last.id).sfx === 'windbell_ring');
   }
 
   // the ground the hero stands on is turf on every island, the high ones too (the picker turns ground over 42 m into far rock unless the level says where: rockLine)
