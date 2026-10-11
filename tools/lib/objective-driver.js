@@ -112,11 +112,18 @@
         if (!left.length) return { dx: 0, dz: 0, mag: 0 };
         const pen = { x: O.pen[0], z: O.pen[1] };
         const c = left.sort((a, b) => hyp(b.x - pen.x, b.z - pen.z) - hyp(a.x - pen.x, a.z - pen.z))[0];
-        const [ux, uz] = dirTo(pen, c);                                                            // (from the pen to the crab: the hero stands further out along it)
-        const gx = c.x + ux * 6.5, gz = c.z + uz * 6.5;
-        const far = hyp(h.x - c.x, h.z - c.z);
+        const [ux, uz] = dirTo(pen, c);                                                            // (from the pen to the crab: the hero wants to stand further out along it)
+        const far = hyp(h.x - c.x, h.z - c.z), gg = G();
+        // the place to drive it from: of the points 6 m round it that have ground, the one most behind it (on the far side from the pen), and not far from him
+        let best = null;
+        for (let k = 0; k < 16; k++) {
+          const a = k * Math.PI / 8, qx = c.x + Math.cos(a) * 6, qz = c.z + Math.sin(a) * 6, qy = gg.collision.heightAt(qx, qz);
+          if (Math.abs(qy - c.y) > 2.5 || qy < (gg.waterHi ?? 1.4) + 2) continue;
+          const score = Math.cos(a) * ux + Math.sin(a) * uz - 0.012 * hyp(h.x - qx, h.z - qz);
+          if (!best || score > best.score) best = { x: qx, z: qz, score };
+        }
         const behind = (h.x - c.x) * ux + (h.z - c.z) * uz > 2;
-        const tgt = behind || far > 18 ? { x: pen.x * 0.15 + c.x * 0.85, z: pen.z * 0.15 + c.z * 0.85 } : { x: gx, z: gz };
+        const tgt = behind || far > 18 ? { x: pen.x * 0.15 + c.x * 0.85, z: pen.z * 0.15 + c.z * 0.85 } : best || { x: c.x + ux * 6.5, z: c.z + uz * 6.5 };
         const [dx, dz] = dirTo(h, tgt), want = Math.atan2(dx, dz), g = G();
         // (the headland has a cliff each side: he goes the nearest way to the one he wants that has ground under it, a stride and a half on)
         let ax = 0, az = 0, found = false;
@@ -125,7 +132,12 @@
           const a = want + off;
           if (solid(a, 1.4) && solid(a, 2.8)) { ax = Math.sin(a); az = Math.cos(a); found = true; break; }
         }
+        if (!found && h.grounded) {                                                             // (boxed in by a drop: back to the high ground, towards the pen)
+          const hp = Math.atan2(pen.x - h.x, pen.z - h.z);
+          for (const off of [0, 0.5, -0.5, 1.0, -1.0, 1.6, -1.6, 2.4, -2.4, 3.1]) { const a = hp + off; if (solid(a, 1.4) && solid(a, 2.8)) { ax = Math.sin(a); az = Math.cos(a); found = true; break; } }
+        }
         if (!found && !h.grounded) { ax = dx; az = dz; }                                       // (in the air: no choice)
+        window.__hd = { found, want: +want.toFixed(2), tgt: [Math.round(tgt.x), Math.round(tgt.z)], far: Math.round(far), behind };
         return { dx: ax, dz: az, mag: !found && h.grounded ? 0 : behind && far < 7 ? 0.45 : 1 };
       }, () => O.done, o.T ?? 400);
       return { ok: O.done, ...r, penned: O.penned };

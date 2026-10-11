@@ -6,7 +6,7 @@
 // elder    Elder Wick, the lantern keeper
 // sparx    the dragonfly companion and health meter (gold / blue / green)
 // ramhog   the boar with a brow of bone (foes/charge.js); dustmole  the mole that lives in soft ground (foes/burrow.js); duskmoth  the moth that hangs over the hero (foes/swoop.js)
-// shiverling shellback drifter urchin slagbrute galespirit  the foes that are one world's own (foes/roster.js); bloomsprite tidepearl  what the realms' missions are about (missions/)
+// shiverling shellback drifter urchin slagbrute galespirit  the foes that are one world's own (foes/roster.js); bloomsprite  the runaway sprite of Frostbloom's chase (objectives/chase.js)
 // butterfly  the blue butterflies (ambient ones and the healing ones), looks azure | cyan | violet | sky | pearl | shiny
 import { createSpyro } from './creatures/spyro.js';
 import { createSnuffer } from './creatures/snuffer.js';
@@ -24,7 +24,6 @@ import { createShellback } from './creatures/shellback.js';
 import { createDrifter } from './creatures/drifter.js';
 import { createUrchin } from './creatures/urchin.js';
 import { createBloomsprite } from './creatures/bloomsprite.js';
-import { createTidepearl } from './creatures/tidepearl.js';
 
 export const CREATURES = {
   spyro: {
@@ -100,12 +99,7 @@ export const CREATURES = {
   bloomsprite: {
     create: createBloomsprite,
     size: 0.9,
-    note: 'A sprite of Frostbloom (the mission frees them). See the file for the pose.',
-  },
-  tidepearl: {
-    create: createTidepearl,
-    size: 0.8,
-    note: 'A pearl of the tide (the Tideglass mission carries them). See the file for the pose.',
+    note: 'The runaway sprite of Frostbloom's chase. See the file for the pose.',
   },
   elder: {
     create: createElder,

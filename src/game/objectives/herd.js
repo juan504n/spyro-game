@@ -25,7 +25,7 @@ export class Herd extends Objective {
       this.group.add(model.root);
       const lamp = g.fx.billboard({ pool: 'add', sprite: 'glow', size: 1.8, color: [1.0, 0.82, 0.45], alpha: 0.8 });
       const y = g.collision.heightAt(q[0], q[1]);
-      return { model, lamp, x: q[0], z: q[1], y, yaw: Math.random() * 6.28, vx: 0, vz: 0, penned: false, wa: Math.random() * 6.28, speed: 0, i };
+      return { model, lamp, x: q[0], z: q[1], y, yaw: Math.random() * 6.28, vx: 0, vz: 0, hx: q[0], hz: q[1], penned: false, wa: Math.random() * 6.28, speed: 0, i };
     });
     this.ring = g.fx.decal({ pool: 'add', sprite: 'ring', x: this.pen[0], z: this.pen[1], r: this.penR / RING_K, color: [1.0, 0.82, 0.45], alpha: 0.5, lift: 0.14 });
     this.ring.y = g.collision.heightAt(this.pen[0], this.pen[1]) + 0.12;
@@ -65,9 +65,12 @@ export class Herd extends Objective {
         const ax = (1 - w) * (Math.sin(away) + H.penPull * Math.sin(toPen)) + w * Math.sin(toPen), az = (1 - w) * (Math.cos(away) + H.penPull * Math.cos(toPen)) + w * Math.cos(toPen);
         want = Math.atan2(ax, az);
         speed = H.vMin + (H.vMax - H.vMin) * (1 - d / H.fleeR);
+        c.hx = c.x; c.hz = c.z;
       } else {
         c.wa += (Math.random() - 0.5) * dt * 2;
-        want = c.wa; speed = d < H.calm ? 0.5 : 0.9;                          // (it noses about)
+        const dh = Math.hypot(c.hx - c.x, c.hz - c.z);
+        if (dh > 5) c.wa += wrapA(Math.atan2(c.hx - c.x, c.hz - c.z) - c.wa) * Math.min(1, dt * 1.5);          // (it noses about, but stays where it was left: it does not graze off over the headland)
+        want = c.wa; speed = d < H.calm ? 0.5 : 0.9;
         if (Math.random() < dt * 0.15) speed = 0;
       }
       // the nearest heading to the wanted one that has ground to go to
