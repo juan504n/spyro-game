@@ -140,7 +140,8 @@
         window.__hd = { found, want: +want.toFixed(2), tgt: [Math.round(tgt.x), Math.round(tgt.z)], far: Math.round(far), behind };
         return { dx: ax, dz: az, mag: !found && h.grounded ? 0 : behind && far < 7 ? 0.45 : 1 };
       }, () => O.done, o.T ?? 400);
-      return { ok: O.done, ...r, penned: O.penned };
+      const g = G(), P = g.player;
+      return { ok: O.done, ...r, penned: O.penned, hero: [+P.x.toFixed(1), +P.y.toFixed(1), +P.z.toFixed(1)], dead: P.dead, locked: !!g.locked, mode: g.mode, hd: window.__hd, crabs: O.crabs.map((c) => [Math.round(c.x), Math.round(c.z)]) };
     },
   };
 
