@@ -140,7 +140,7 @@
     if (O.kind === 'duel') { x = O.spec.arena[0]; z = O.spec.arena[1] - O.spec.arenaR + 4; yaw = 0; }
     if (O.kind === 'storm') { x = O.route[0][0]; z = O.route[0][1] + 5; yaw = 0; }
     if (O.kind === 'herd') {
-      const c = O.crabs[0], u = hyp(c.x - O.pen[0], c.z - O.pen[1]) || 1;
+      const c = O.crabs.find((q) => !q.penned) || O.crabs[0], u = hyp(c.x - O.pen[0], c.z - O.pen[1]) || 1;
       for (const k of [14, 11, 8]) { x = c.x + (c.x - O.pen[0]) / u * k; z = c.z + (c.z - O.pen[1]) / u * k; if (g.collision.heightAt(x, z) > (g.waterHi ?? 0) + 1.5) break; }
     }
     const y = g.collision.support(x, z, g.collision.heightAt(x, z) + 3, 0.5).y;
