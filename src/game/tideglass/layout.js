@@ -79,7 +79,7 @@ function layoutHarbour(ctx) {
     { yaw: yawTo(1, 0.9), y: 3.4, len: 2.4, tint: [0.6, 0.95, 0.85] },             // south-east: the low road, the flats
     { yaw: yawTo(-0.1, -1), y: 2.4, len: 2.4, tint: [1.0, 0.86, 0.5] },            // north: the high road
   ] }, 1.5);
-  gp.hints.push({ x: sp.x + 6, z: sp.z, r: 9, text: 'WELCOME TO TIDEGLASS REACH! THE TIDE HAS LOST ITS WAY. BRING TIDE PEARLS TO THE LENSES', dur: 7 });
+  gp.hints.push({ x: sp.x + 6, z: sp.z, r: 9, text: 'WELCOME TO TIDEGLASS REACH! THE TIDE HAS LOST ITS WAY AND THE LIGHTHOUSE IS DARK. FIND THE LANTERN CRABS ON THE HEADLAND', dur: 7 });
   gp.hints.push({ x: -184, z: 34, r: 8, text: 'THE TIDE POST: GREEN BAND LOW TIDE, WHITE THE MEAN, RED HIGH TIDE. THE GAUGE ON YOUR SCREEN SAYS THE SAME', dur: 8 });
   gp.hints.push({ x: -160, z: 17, r: 11, text: 'TWO ROADS EAST: THE LOW ROAD ACROSS THE FLATS, BARE AT LOW TIDE, OR THE HIGH ROAD ALONG THE CLIFFS, ALWAYS DRY', dur: 8 });
   // the Salvage Store: a walled court with one doorway, shut with a cracked wall (the first secret)
@@ -156,7 +156,7 @@ function layoutPearl(ctx) {
   fit(ctx, 'flower_patch', g.x - 5, g.z + 6, flowers(2.4, 8), 3, { path: 2 });
   ctx.scatter('crystal_cluster', 3, regionBand(ctx, 'pearl', 0.5, 0.9), { r: 2.4, path: 2.5, maxSlope: 0.4 }, () => ({ color: 'cyan', count: 4 }));
   ctx.scatter('rock_cluster', 3, regionBand(ctx, 'pearl', 0.7, 1.0), { r: 3.4, path: 3, maxSlope: 0.4 });
-  gp.hints.push({ x: -40, z: 42, r: 9, text: 'PEARL ROCK IS AN ISLAND WHEN THE TIDE IS IN. THE LENS WAITS ON ITS TOP', dur: 7 });
+  gp.hints.push({ x: -40, z: 42, r: 9, text: 'PEARL ROCK IS AN ISLAND WHEN THE TIDE IS IN. THE VIEW FROM ITS TOP IS WORTH THE CLIMB', dur: 7 });
   for (const [x, z, gv] of [[-24, 36, [1, 1, 2]], [-30, 34, [2, 5]]]) ctx.addVase(x, z, gv);
 }
 
@@ -229,7 +229,7 @@ function layoutWeeping(ctx) {
   // torches either side of the mouth, the beach's rocks
   for (const k of [-1, 1]) { const p = WEEPING.at('mouth', 0, k * 8.4); put('torch_stand', p.x, p.z, {}, 1.4); }
   ctx.scatter('rock_cluster', 5, ctx.inCircle(98, 20, 18), { r: 3.4, path: 3, maxSlope: 0.4, minH: -0.9 });
-  gp.hints.push({ x: 98, z: 14, r: 12, text: 'THE WEEPING CLIFF. THE LENS HANGS IN THE CAVE BEHIND THE FALL. THE SEA FLOODS ITS MOUTH AT HIGH TIDE', dur: 8 });
+  gp.hints.push({ x: 98, z: 14, r: 12, text: 'THE WEEPING CLIFF. THE CAVE BEHIND THE FALL HIDES A SECRET. THE SEA FLOODS ITS MOUTH AT HIGH TIDE', dur: 8 });
   // inside: crystals along the way, a glow, the skylight over the lens
   for (const [s, k] of [[12, -3.2], [12, 3.2], [20, -3.2], [20, 3.2], [27, 3.0]]) { const p = WEEPING.at('mouth', s, k); put('crystal_cluster', p.x, p.z, { color: 'cyan', count: 4 }, 0); }
   for (const s of [9, 17, 25]) { const p = WEEPING.at('mouth', s, 0); ctx.addGem(p.x, p.z, 1, p.y + 1.0); }
@@ -266,7 +266,7 @@ function layoutHeadland(ctx) {
   const gate = ctx.anchor('gate_pillars', 'barrier', GATE.x, GATE.z, { rot: GATE.yaw });
   gp.barrier = { x: gate ? gate[0] : GATE.x, y: gate ? gate[1] - 5.75 : h(GATE.x, GATE.z), z: gate ? gate[2] : GATE.z, yaw: GATE.yaw, opts: { tint: [0.4, 1.7, 1.3] } };       // (the field is sea-glass green, not the Dawn Gate's violet)
   gp.soundSources.push({ name: 'portal_hum', x: gp.barrier.x, y: gp.barrier.y + 4, z: gp.barrier.z, range: 38, vol: 1.2, when: 'barrier' });
-  gp.hints.push({ x: 116, z: -70, r: 12, text: 'THE SEA GATE IS SHUT. IT OPENS WHEN FOUR LENSES SHINE', dur: 8 });
+  gp.hints.push({ x: 116, z: -70, r: 12, text: 'THE SEA GATE IS SHUT. IT OPENS WHEN YOU HAVE CROSSED THE GLASS BRIDGES', dur: 8 });
   lampsAlong(ctx, 'ridge', 26, 16, 220, 1.8, 'torch_stand');
   // the lighthouse, and the Tideglass in front of it: torches, a ring of gems, flowers, a vane
   put('lighthouse', LIGHTHOUSE.x, LIGHTHOUSE.z, { rot: faceTo(LIGHTHOUSE.x, LIGHTHOUSE.z, g.x, g.z) }, 12);

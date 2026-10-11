@@ -4,7 +4,7 @@
 // A wound shuts the hatch for a moment, so a vent is worth two wounds at the most. As it is worn down it walks faster, its slam throws a QUAKE out over the floor (a ring that races out to the wall: jump it) and,
 // at the end, it slams twice. Nine wounds take it down. A hero who leaves the caldera is not followed: it goes home, and keeps its wounds.
 //
-//   spec { kind: 'duel', final: the Heartforge, arena: [x, z] (the middle of the caldera), arenaR, home: [x, z]? (where it stands, 6 m from the middle by default), wounds: 9 }
+//   spec { kind: 'duel', final: the Heartforge, arena: [x, z] (the middle of the caldera), arenaR, home: [x, z]? (where it stands, 13 m from the middle by default), wounds: 9 }
 import { Objective } from './base.js';
 import { makeModel } from '../models/fallback.js';
 
@@ -19,7 +19,7 @@ export class Duel extends Objective {
   constructor(game, spec) {
     super(game, spec);
     const g = game, [ax, az] = spec.arena;
-    this.home = spec.home || [ax, az + 6];
+    this.home = spec.home || [ax, az + 13];                                     // (beside the Heartforge, not on it: among the stones of the ring)
     this.wounds = 0;
     this.need = spec.wounds;
     this.state = 'sleep';                          // sleep | roar | advance | raise | vent | home | dead
@@ -35,6 +35,7 @@ export class Duel extends Objective {
     this.group.add(this.model.root);
     this.mark = g.fx.decal({ pool: 'add', sprite: 'ring', x: 0, z: 0, r: 1, color: [1, 0.45, 0.16], alpha: 0, lift: 0.14 });
     this.quakeMark = g.fx.decal({ pool: 'add', sprite: 'ring', x: 0, z: 0, r: 1, color: [1, 0.7, 0.3], alpha: 0, lift: 0.15 });
+    this.hatch = g.fx.billboard({ pool: 'add', sprite: 'glow', size: 4.4, color: [1.0, 0.58, 0.2], alpha: 0 });          // (the hatch in its chest, glowing while it stands open)
     this.told = {};
   }
 
@@ -145,7 +146,7 @@ export class Duel extends Objective {
     else if (this.wounds === Math.ceil(this.need * 0.33) || this.wounds === Math.ceil(this.need * 0.66)) g.hud.hint(this.phase === 0 ? 'IT IS ANGRY NOW: ITS SLAM SHAKES THE FLOOR! JUMP THE QUAKE TOO' : 'NEARLY DONE: IT SLAMS TWICE! KEEP HITTING THE HATCH', 5);
   }
 
-  _hide() { this.model.root.visible = false; this.mark.alpha = 0; this.quakeMark.alpha = 0; }
+  _hide() { this.model.root.visible = false; this.mark.alpha = 0; this.quakeMark.alpha = 0; this.hatch.alpha = 0; }
 
   _frame(dt) {
     const e = this.e, D = DUEL, m = this.model;
@@ -156,6 +157,8 @@ export class Duel extends Objective {
     m.update(dt, { speed: this.state === 'advance' || this.state === 'home' ? (this.speedNow || 0) : 0, attack: this.state === 'raise' ? 0.4 * raise : this.state === 'vent' ? 0.6 + 0.4 * clamp(this.st / D.vent[this.phase]) : 0, alert: this.state === 'roar' ? 1 : 0, stun: this.state === 'vent' ? 0.4 : 0, vent: this.state === 'vent' && this.shutT <= 0 ? 1 : 0, wounds: 3 * this.wounds / this.need, raise, dead: dying, t: this.t });
     if (this.state === 'dead') { m.root.position.y = e.y - dying * 2.2; if (Math.random() < dt * 30) this.game.fx.sparkle(e.x + (Math.random() - 0.5) * 4, e.y + Math.random() * 6, e.z + (Math.random() - 0.5) * 4, [1, 0.6, 0.2], 0.8); }
     this.speedNow = 0;
+    const c = this.chest, open = this.state === 'vent' && this.shutT <= 0;
+    this.hatch.x = c.x; this.hatch.y = c.y; this.hatch.z = c.z; this.hatch.alpha = open ? 0.8 + 0.2 * Math.sin(this.t * 14) : 0;
     // the tell (a ring that grows at its feet) and the quake (a ring racing out)
     if (this.state === 'raise') { this.mark.x = e.x; this.mark.z = e.z; this.mark.r = D.slamR * (0.35 + 0.65 * raise) / RING_K; this.mark.alpha = 0.3 + 0.7 * raise; } else this.mark.alpha = 0;
     if (this.quake) { this.quakeMark.x = this.quake.x; this.quakeMark.z = this.quake.z; this.quakeMark.r = this.quake.r / RING_K; this.quakeMark.alpha = 0.8 * clamp(1 - (this.quake.r - D.slamR) / (D.quakeR - D.slamR) * 0.7); } else this.quakeMark.alpha = 0;
@@ -176,7 +179,7 @@ export class Duel extends Objective {
 
   dispose() {
     this.model.dispose?.();
-    this.mark.dead = true; this.quakeMark.dead = true;
+    this.mark.dead = true; this.quakeMark.dead = true; this.hatch.dead = true;
     super.dispose();
   }
 }

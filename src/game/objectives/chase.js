@@ -8,7 +8,7 @@
 import { Objective } from './base.js';
 import { makeModel } from '../models/fallback.js';
 
-export const CHASE = { height: 1.7, runSpeed: 10.2, fleeR: 26, slowSpeed: 3.6, lagR: 38, catchR: 3.3, touchR: 1.8, waitR: 20, stunT: 1.3, cornerT: 40, gems: [2, 2, 1, 1, 5] };
+export const CHASE = { height: 2.8, scale: 3.0, runSpeed: 10.2, fleeR: 26, slowSpeed: 3.6, lagR: 38, catchR: 3.3, touchR: 1.8, waitR: 20, stunT: 1.3, cornerT: 40, gems: [2, 2, 1, 1, 5] };
 
 const dist2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
@@ -28,10 +28,12 @@ export class Chase extends Objective {
     this.cornerWait = 0;
     const g = game;
     this.model = makeModel(g.assets, 'bloomsprite', {});
+    this.model.root.scale.setScalar(CHASE.scale);
     this.group.add(this.model.root);
-    this.beam = makeModel(g.assets, 'light_beam', { height: 46, radius: 0.8 });
-    this.beam.setColor?.([0.7, 0.95, 1.0]);
-    this.beam.setIntensity?.(0.55);
+    this.glow = g.fx.billboard({ pool: 'add', sprite: 'glow', size: 8, color: [1.0, 0.72, 0.6], alpha: 0.85 });         // (a small bright thing on white ice: it must be seen from 40 m)
+    this.beam = makeModel(g.assets, 'light_beam', { height: 60, radius: 1.3 });
+    this.beam.setColor?.([1.0, 0.7, 0.86]);          // (warm: the only warm light on the white ice)
+    this.beam.setIntensity?.(1.0);
     this.group.add(this.beam.root);
     this.pos = { x: this.route[0][0], y: 0, z: this.route[0][1], yaw: 0 };
     this._place(0);
@@ -54,7 +56,8 @@ export class Chase extends Objective {
     p.x = x; p.z = z; p.yaw = yaw;
     this.model.root.position.set(x, p.y, z);
     this.model.root.rotation.y = yaw;
-    this.beam.root.position.set(x, gy + 22, z);
+    this.beam.root.position.set(x, gy + 28, z);
+    this.glow.x = x; this.glow.y = p.y + 0.4; this.glow.z = z; this.glow.alpha = 0.7 + 0.2 * Math.sin(this.t * 6);
   }
 
   /** the end of the leg the sprite is on: the route point of the next catch */
@@ -74,6 +77,7 @@ export class Chase extends Objective {
       g.hud.hint('THE SPRITE GIVES THE SPRING BACK', 4);
       this.state = 'done';
       this.model.setPose?.({});
+      this.beam.root.visible = false; this.glow.alpha = 0;
       this.complete();
       return;
     }
@@ -117,10 +121,10 @@ export class Chase extends Objective {
     const speed = this.state === 'run' ? CHASE.runSpeed : this.state === 'corner' ? 0.5 : 0;
     this.model.update(dt, { speed, bloom: this.state === 'stun' ? 1 : 0, t: this.t });
     this.beam.update?.(dt, { t: this.t });
-    if ((this.state === 'run' || this.state === 'corner') && Math.random() < dt * 14) game.fx.sparkle(this.pos.x + (Math.random() - 0.5) * 0.8, this.pos.y - 0.2, this.pos.z + (Math.random() - 0.5) * 0.8, [0.75, 0.95, 1.0], 0.5);
+    if ((this.state === 'run' || this.state === 'corner') && Math.random() < dt * 14) game.fx.sparkle(this.pos.x + (Math.random() - 0.5) * 0.8, this.pos.y - 0.2, this.pos.z + (Math.random() - 0.5) * 0.8, [1.0, 0.8, 0.7], 0.6);
   }
 
-  _hide() { this.model.root.visible = false; this.beam.root.visible = false; }
+  _hide() { this.model.root.visible = false; this.beam.root.visible = false; this.glow.alpha = 0; }
 
   hudState() {
     if (this.done) return null;
@@ -139,6 +143,7 @@ export class Chase extends Objective {
   dispose() {
     this.model.dispose?.();
     this.beam.dispose?.();
+    this.glow.dead = true;
     super.dispose();
   }
 }

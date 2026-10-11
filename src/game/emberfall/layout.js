@@ -44,7 +44,7 @@ function layoutForgeGate(ctx) {
     { yaw: 0, y: 2.6, len: 2.2, tint: [0.9, 0.9, 0.9] },                      // east: the Rift
   ] }, 1.5);
   lampsAlong(ctx, 'trunk', 26, 14, 150, 1.8, 'torch_stand');
-  ctx.gp.hints.push({ x: sp.x + 6, z: sp.z, r: 9, text: 'WELCOME TO EMBERFALL CRAGS! THE FORGES ARE COLD. THE SLAG BRUTES HOLD THE STONES: BEAT THEM', dur: 7 });
+  ctx.gp.hints.push({ x: sp.x + 6, z: sp.z, r: 9, text: 'WELCOME TO EMBERFALL CRAGS! THE FORGES ARE COLD AND THE SLAG COLOSSUS HOLDS THE HEARTFORGE. FIGHT YOUR WAY NORTH-EAST TO IT', dur: 7 });
   gp.hints.push({ x: -100, z: 30, r: 12, text: 'THE STAIR CLIMBS TO THE RIM OF THE RIFT. THE ASHWAY ROUNDS ITS SOUTH END', dur: 7 });
   for (const [x, z, g] of [[-168, 50, [1, 1, 2]], [-150, 20, [2, 5]], [-110, 48, [1, 1, 1]]]) ctx.addVase(x, z, g);
 }
@@ -196,7 +196,7 @@ function layoutPlateau(ctx) {
     { yaw: -Math.PI / 2, y: 2.6, len: 2.2, tint: [0.9, 0.9, 0.9] },            // north: the causeway
     { yaw: Math.PI / 2, y: 1.8, len: 2.1, tint: [0.9, 0.9, 0.9] },             // south: the Ashway
   ] }, 1.5);
-  gp.hints.push({ x: 70, z: 22, r: 14, text: 'THE ANVIL PLATEAU. THE MAW LIES TO THE EAST: A WARD OF FIRE SHUTS IT UNTIL THREE EMBERSTONES BURN', dur: 8 });
+  gp.hints.push({ x: 70, z: 22, r: 14, text: 'THE ANVIL PLATEAU. THE MAW LIES TO THE EAST: A WARD OF FIRE SHUTS IT UNTIL THE RINGS OVER THE RIFT ARE FLOWN', dur: 8 });
   lampsAlong(ctx, 'shelf', 36, 12, 330, 1.8, 'torch_stand');
   ctx.scatter('basalt_columns', 8, regionBand(ctx, 'shelf', 0.7, 1.3), { r: 5, path: 3.5, maxSlope: 0.35 }, () => ({ rings: rng.int(1, 2), h: rng.float(3, 6.5) }));
   ctx.scatter('rock_spire', 8, regionBand(ctx, 'shelf', 0.8, 1.4), { r: 3.4, path: 4, maxSlope: 0.4 }, () => spire(rng));
@@ -215,7 +215,7 @@ function layoutMaw(ctx) {
   const gate = ctx.anchor('dragon_maw', 'barrier', MAW.x, MAW.z, { rot: MAW.rot });
   gp.barrier = { x: gate ? gate[0] : GATE.x, y: gate ? gate[1] : h(GATE.x, GATE.z), z: gate ? gate[2] : GATE.z, yaw: GATE.yaw, opts: { tint: [1.8, 1.45, 0.16], w: 6.3, wTop: 6.3, h: 6.2, arch: 1.4 } };      // (the field is fire, not the Dawn Gate's violet)
   gp.soundSources.push({ name: 'portal_hum', x: gp.barrier.x, y: gp.barrier.y + 3, z: gp.barrier.z, range: 38, vol: 1.2, when: 'barrier' });
-  gp.hints.push({ x: MAW.x - 12, z: MAW.z, r: 12, text: 'THE WARD OF FIRE OPENS WHEN THREE EMBERSTONES BURN', dur: 7 });
+  gp.hints.push({ x: MAW.x - 12, z: MAW.z, r: 12, text: 'THE WARD OF FIRE OPENS WHEN THE RINGS OVER THE RIFT ARE FLOWN', dur: 7 });
   for (const side of [-1, 1]) {
     put('torch_stand', MAW.x - 9, MAW.z + side * 9, {}, 1.5);
     put('crystal_cluster', MAW.x - 6, MAW.z + side * 12, { color: 'ember', count: 5 }, 2.4);
@@ -316,7 +316,7 @@ function layoutCaldera(ctx) {
   for (let k = 0; k < 8; k++) { const a = (k / 8) * TAU + 0.2; put('ember_vent', CALDERA.x + Math.cos(a) * 17, CALDERA.z + Math.sin(a) * 17, { rot: a }, 2); }
   for (const [dx, dz, g] of [[-14, 8, [2, 5]], [14, 9, [2, 5]], [-6, 16, [1, 2, 5]], [8, -15, [5, 5]]]) ctx.addVase(CALDERA.x + dx, CALDERA.z + dz, g);
   gp.purple.push([CALDERA.x - 8, h(CALDERA.x - 8, CALDERA.z + 6) + 1.3, CALDERA.z + 6], [CALDERA.x + 8, h(CALDERA.x + 8, CALDERA.z + 6) + 1.3, CALDERA.z + 6]);
-  gp.hints.push({ x: CALDERA.x, z: CALDERA.z + 22, r: 12, text: 'THE HEARTFORGE! LIGHT IT TO BRING THE FORGES BACK', dur: 7 });
+  gp.hints.push({ x: CALDERA.x, z: CALDERA.z + 22, r: 12, text: 'THE HEARTFORGE! IT BURNS AGAIN WHEN THE COLOSSUS FALLS', dur: 7 });
   ctx.scatter('rock_spire', 6, regionBand(ctx, 'caldera', 0.0, 0.9), { r: 3.4, path: 3, maxSlope: 0.5 }, () => spire(ctx.rng));
 }
 

@@ -40,7 +40,7 @@ function layoutThawGate(ctx) {
     { yaw: -Math.PI / 2, y: 1.8, len: 2.1, tint: [1.0, 0.8, 0.9] },             // north: the lake and the ridge
   ] }, 1.5);
   lampsAlong(ctx, 'trunk', 26, 14, 150);
-  gp.hints.push({ x: sp.x, z: sp.z - 6, r: 9, text: 'WELCOME TO FROSTBLOOM HOLLOW! THE BLOSSOMS ARE ASLEEP IN THE ICE. FREE THE SPRITES SLEEPING IN THEM: RAM A BLOOM', dur: 7 });
+  gp.hints.push({ x: sp.x, z: sp.z - 6, r: 9, text: 'WELCOME TO FROSTBLOOM HOLLOW! A SPRITE HAS BOLTED WITH THE SPRING. FOLLOW IT UP THE ROAD AND RAM IT WHEN IT IS CORNERED', dur: 7 });
   gp.hints.push({ x: 8, z: 120, r: 11, text: 'WEST LIES RIMEWOOD, EAST THE ICEFALL, AND NORTH THE FROZEN LAKE AND THE RIDGE', dur: 7 });
   ctx.addBunnies(-14, 150, 3, 7); ctx.addBunnies(18, 118, 2, 6);
   for (const [x, z, g] of [[-10, 160, [1, 1, 2]], [16, 150, [2, 5]], [-6, 112, [1, 1, 1]]]) ctx.addVase(x, z, g);
@@ -197,7 +197,7 @@ function layoutHollow(ctx) {
   const gate = ctx.anchor('gate_pillars', 'barrier', GATE.x, GATE.z, { rot: GATE.yaw });
   gp.barrier = { x: gate ? gate[0] : GATE.x, y: gate ? gate[1] - 5.75 : h(GATE.x, GATE.z), z: gate ? gate[2] : GATE.z, yaw: GATE.yaw, opts: { tint: [0.5, 2.1, 1.1] } };       // (the field is ice teal, not the Dawn Gate's violet)
   gp.soundSources.push({ name: 'portal_hum', x: gp.barrier.x, y: gp.barrier.y + 4, z: gp.barrier.z, range: 38, vol: 1.2, when: 'barrier' });
-  gp.hints.push({ x: GATE.x, z: GATE.z + 12, r: 10, text: 'THE ICE GATE MELTS WHEN FOUR FROSTBLOOMS HAVE BLOOMED', dur: 7 });
+  gp.hints.push({ x: GATE.x, z: GATE.z + 12, r: 10, text: 'THE ICE GATE MELTS WHEN YOU HAVE CAUGHT THE SPRITE TWICE', dur: 7 });
   for (const side of [-1, 1]) {
     put('torch_stand', GATE.x + side * 7.5, GATE.z + 10, {}, 1.5);
     put('crystal_cluster', GATE.x + side * 9.5, GATE.z + 12.5, { color: 'cyan', count: 5 }, 2.4);
