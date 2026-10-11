@@ -81,7 +81,7 @@ export const BRIEF = defineBrief({
   },
   environment: EMBER_ENVIRONMENT,
   words: {
-    goals: 'EMBERSTONES', lit: 'LIT!', finale: 'THE FORGES BURN AGAIN!',
+    goals: 'EMBERSTONES', lit: 'LIT!', done: 'THE SLAG COLOSSUS HAS FALLEN', finale: 'THE FORGES BURN AGAIN!',
     portalOpened: ['A PORTAL HAS OPENED', 'ABOVE THE HEARTFORGE'],
     saved: ['THE CRAGS ARE SAVED', 'THANK YOU, SPYRO'],
     results: 'REALM RESTORED!', portalResults: 'THE PORTAL TO DAWNHAVEN IS OPEN',
@@ -117,14 +117,15 @@ export const BRIEF = defineBrief({
 
   // ---- the goals: five Emberstones, each in a different kind of place -------------------------------------------------------------------------------
   goals: [
-    { id: 'gate', name: 'FORGE STONE', situation: 'landing', x: -146, z: 28, hint: 'THE EMBERSTONE IS COLD AND THE WISPS OF THE FORGE SEAL IT: BREATHE FIRE AT THE WISPS', hintAt: [-156, 34], hintR: 10, trial: { kind: 'wisps', at: [-146, 44], r: 4.4 }, ...STONE },
-    { id: 'grove', name: 'GROVE STONE', situation: 'clearing', x: -124, z: -56, hint: 'A SLAG BRUTE HOLDS THE STONE IN THE CINDER GROVE: BEAT IT AND THE STONE WILL BURN', hintAt: [-124, -34], hintR: 14, ...STONE },
-    { id: 'anvil', name: 'ANVIL STONE', situation: 'glide', x: ANVIL.x, z: ANVIL.z, pad: false, hint: 'THE RINGS OVER THE RIFT SEAL THE ANVIL STONE: LEAP FROM THE LEDGE TO THE NORTH AND GLIDE THROUGH THEM', hintAt: [-58, 4], hintR: 14, trial: { kind: 'rings', at: [-46, -30], toward: [ANVIL.x, ANVIL.z], len: 28, pad: false }, ...STONE },
-    { id: 'smelter', name: 'SMELTER STONE', situation: 'cave', x: FURNACE.x, z: FURNACE.z, pad: false, hint: 'THE FURNACE: A SLAG BRUTE STANDS OVER THE COLD EMBERSTONE. THE MIRRORS SEAL IT TOO', hintAt: [140, 24], hintR: 14, trial: { kind: 'mirrors', at: [84, 24], w: 4, h: 4, k: 2 }, ...STONE },
-    { id: 'heart', name: 'HEARTFORGE', situation: 'crater', x: CALDERA.x, z: CALDERA.z, big: true, hint: 'THE HEARTFORGE WAITS IN THE CALDERA, AND THE LAST BRUTE WITH IT. THE PLATES SEAL IT', hintAt: [150, -146], hintR: 14, trial: { kind: 'plates', at: [142, -174], r: 5.2 }, ...STONE },
+    // (the first four are STATIONS: places of the crags, not things to light (objectives/index.js). The fifth is the Heartforge: the exit, which the death of the Slag Colossus opens)
+    { id: 'gate', name: 'FORGE FLATS', situation: 'landing', x: -146, z: 28, hint: 'THE CRAGS HAVE GONE COLD. BREATHE FIRE AT THE WISPS OF THE FORGE: THEY PAY IN GEMS. THE SLAG COLOSSUS HOLDS THE HEARTFORGE FAR TO THE NORTH-EAST', hintAt: [-156, 34], hintR: 10, trial: { kind: 'wisps', at: [-146, 44], r: 4.4 } },
+    { id: 'grove', name: 'CINDER GROVE', situation: 'clearing', x: -124, z: -56, hint: 'THE CINDER GROVE: A CLEARING OF OBSIDIAN SPIRES. A SLAG BRUTE STANDS OVER IT: ITS COAT CRACKS AFTER A SLAM', hintAt: [-124, -34], hintR: 14 },
+    { id: 'anvil', name: 'ANVIL STONE', situation: 'glide', x: ANVIL.x, z: ANVIL.z, pad: false, hint: 'THE RINGS OVER THE RIFT: LEAP FROM THE LEDGE TO THE NORTH AND GLIDE THROUGH THEM. THE MAW OPENS WHEN YOU HAVE', hintAt: [-58, 4], hintR: 14, trial: { kind: 'rings', at: [-46, -30], toward: [ANVIL.x, ANVIL.z], len: 28, pad: false } },
+    { id: 'smelter', name: 'THE FURNACE', situation: 'cave', x: FURNACE.x, z: FURNACE.z, pad: false, hint: 'THE FURNACE: A SLAG BRUTE STANDS OVER THE COLD STONE. THE MIRRORS PAY IN GEMS', hintAt: [140, 24], hintR: 14, trial: { kind: 'mirrors', at: [84, 24], w: 4, h: 4, k: 2 } },
+    { id: 'heart', name: 'HEARTFORGE', situation: 'crater', x: CALDERA.x, z: CALDERA.z, big: true, hint: 'THE SLAG COLOSSUS HOLDS THE HEARTFORGE. JUMP ITS SLAM, THEN RAM THE HATCH IN ITS CHEST WHILE IT VENTS', hintAt: [150, -146], hintR: 14, ...STONE },
   ],
-  // the realm's own errand (missions/hunt.js): a Slag Brute holds each of three stones; the wisps and the rings light the other two
-  mission: { kind: 'hunt', goals: ['grove', 'smelter', 'heart'], brutes: [{ goal: 'grove', at: [-129, -62] }, { goal: 'smelter', at: [162, 33] }, { goal: 'heart', at: [158, -165] }] },
+  // the realm's own task (objectives/duel.js): the way to the Heartforge, and a fight with the Slag Colossus that holds it (nine wounds in the hatch of its chest). The Maw opens when the rings over the rift are flown
+  objective: { kind: 'duel', final: 'heart', arena: [CALDERA.x, CALDERA.z], arenaR: 20, wounds: 9, gateAfter: 'anvil-rings', guards: [[-129, -62], [162, 33], [60, 20]] },
   exit: { name: 'DAWNHAVEN', tag: 'HOMEWORLD OF THE LANTERN KEEPERS', color: [1.0, 0.7, 0.4], target: 'home' },
   gate: GATE,
   secrets: [

@@ -131,7 +131,7 @@ export const BRIEF = defineBrief({
   },
   environment: TIDE_ENVIRONMENT,
   words: {
-    goals: 'LENSES', lit: 'SHINES!', finale: 'THE TIDE IS TRUE!',
+    goals: 'LENSES', lit: 'SHINES!', finale: 'THE TIDE IS TRUE!', done: 'THE CRABS ARE HOME',
     gate: ['THE SEA GATE OPENS!', 'THE LIGHTHOUSE IS OPEN'],
     portalOpened: ['A PORTAL HAS OPENED', 'ABOVE THE TIDEGLASS'],
     saved: ['THE REACH IS SAVED', 'THANK YOU, SPYRO'],
@@ -169,14 +169,15 @@ export const BRIEF = defineBrief({
 
   // ---- the goals: five Tide Lenses, each in a different kind of place -----------------------------------------------------------------------------------
   goals: [
-    { id: 'quay', name: 'QUAY LENS', situation: 'landing', x: -178, z: 10, hint: 'THE LENS IS DARK: CARRY A TIDE PEARL TO IT. WATCH THE TIDE GAUGE: THE SEA COMES AND GOES', hintAt: [-186, 14], hintR: 9, ...LENS },
-    { id: 'pearl', name: 'PEARL LENS', situation: 'island', x: -18, z: 32, hint: 'THE CAUSEWAY IS BARE AT LOW TIDE. TAKE A PEARL TO PEARL ROCK AND CLIMB', hintAt: [-52, 60], hintR: 12, ...LENS },
-    { id: 'court', name: 'COURT LENS', situation: 'bridge', x: 21, z: -18, hint: 'THE GLASS BRIDGES CARRY YOU OUT OVER THE REACH TO THE GLASS COURT', hintAt: [12, -99], hintR: 12, trial: { kind: 'circuit', pylons: [[-87, -117], [-65, -118], [-43, -118], [-21, -115], [1, -112], [23, -107]] }, ...LENS },
-    { id: 'weeping', name: 'WEEPING LENS', situation: 'cave', x: GROTTO.x, z: GROTTO.z, y: GROTTO.floorY, pad: false, hint: 'THE LENS HANGS IN THE CAVE BEHIND THE FALL. THE SEA FLOODS ITS MOUTH AT HIGH TIDE: CARRY A PEARL IN AT LOW TIDE', hintAt: [98, 14], hintR: 12, ...LENS },
-    { id: 'light', name: 'TIDEGLASS', situation: 'summit', x: 140, z: -134, big: true, hint: 'THE TIDEGLASS HANGS BEFORE THE LIGHTHOUSE. CARRY THE LAST PEARL UP TO IT AND THE TIDE IS TRUE AGAIN', hintAt: [150, -118], hintR: 14, ...LENS },
+    // (the first four are STATIONS: places of the Reach, not things to light (objectives/index.js). The fifth is the Tideglass at the lighthouse: the exit, which the herd of lantern crabs opens)
+    { id: 'quay', name: 'THE HARBOUR QUAY', situation: 'landing', x: -178, z: 10, hint: 'THE LIGHTHOUSE LAMPS ARE OUT AND THE LANTERN CRABS HAVE SCATTERED UP THE HEADLAND. WATCH THE TIDE GAUGE: THE SEA COMES AND GOES', hintAt: [-186, 14], hintR: 9 },
+    { id: 'pearl', name: 'PEARL ROCK', situation: 'island', x: -18, z: 32, hint: 'THE CAUSEWAY IS BARE AT LOW TIDE. PEARL ROCK STANDS AT ITS FAR END: CLIMB IT FOR THE VIEW', hintAt: [-52, 60], hintR: 12 },
+    { id: 'court', name: 'THE GLASS COURT', situation: 'bridge', x: 21, z: -18, hint: 'THE GLASS BRIDGES CARRY YOU OUT OVER THE REACH TO THE GLASS COURT. THE SEA GATE OPENS WHEN YOU HAVE CROSSED THEM', hintAt: [12, -99], hintR: 12, trial: { kind: 'circuit', pylons: [[-87, -117], [-65, -118], [-43, -118], [-21, -115], [1, -112], [23, -107]] } },
+    { id: 'weeping', name: 'THE WEEPING CAVE', situation: 'cave', x: GROTTO.x, z: GROTTO.z, y: GROTTO.floorY, pad: false, hint: 'THE CAVE BEHIND THE FALL. THE SEA FLOODS ITS MOUTH AT HIGH TIDE: GO IN AT LOW TIDE', hintAt: [98, 14], hintR: 12 },
+    { id: 'light', name: 'TIDEGLASS', situation: 'summit', x: 140, z: -134, big: true, hint: 'THE LANTERN CRABS ARE ON THE HEADLAND: DRIVE THEM INTO THE RING BELOW THE LIGHTHOUSE, AND THE TIDEGLASS WILL BE TRUE AGAIN', hintAt: [150, -118], hintR: 14, ...LENS },
   ],
-  // the realm's own errand (missions/deliver.js): a tide pearl lights a lens; the glass bridges (the circuit) light the court lens
-  mission: { kind: 'deliver', goals: ['quay', 'pearl', 'weeping', 'light'], pearls: [{ goal: 'quay', at: [-123, 23] }, { goal: 'pearl', at: [-60, 60] }, { goal: 'weeping', at: [86, 29] }, { goal: 'light', at: [72, 45] }] },
+  // the realm's own task (objectives/herd.js): five shy lantern crabs on the headland, driven up the ridge into the ring of the pen at the lighthouse. The Sea Gate opens when the glass bridges have been crossed
+  objective: { kind: 'herd', final: 'light', crabs: [[142, -91], [149, -99], [153, -105], [150, -112], [156, -111]], pen: [156, -128], penR: 6.5, gateAfter: 'court-circuit' },
   exit: { name: 'DAWNHAVEN', tag: 'HOMEWORLD OF THE LANTERN KEEPERS', color: [0.6, 1.0, 0.9], target: 'home' },
   gate: GATE,
   secrets: [

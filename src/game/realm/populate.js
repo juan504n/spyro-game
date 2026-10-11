@@ -52,25 +52,30 @@ export function makePopulate(brief, steps, { seed = 4417 } = {}) {
 export function goalsStage(ctx) {
   const { gp, brief, h } = ctx;
   const look = lookOf(brief);
+  const O = brief.objective;
   for (const g of brief.goals) {
+    const station = !!O && g.id !== O.final;                       // (a goal of a realm whose objective is a task of its own, other than the exit it opens, is a place: a station)
     const rec = { id: g.id, name: g.name, x: g.x, y: g.y !== undefined ? g.y : h(g.x, g.z), z: g.z, yaw: g.yaw || 0 };
     for (const k of ['big', 'model', 'beam', 'glow', 'wisp', 'flame', 'spark', 'sparkle', 'sfx']) if (g[k] !== undefined) rec[k] = g[k];
+    if (station) rec.station = true;
     gp.beacons.push(rec);
     ctx.occ.add(g.x, g.z, g.big ? 7 : 4.5);                    // (nothing grows where a goal stands)
     if (g.hint) gp.hints.push({ x: g.hintAt ? g.hintAt[0] : g.x, z: g.hintAt ? g.hintAt[1] : g.z, r: g.hintR || 10, text: g.hint, dur: 6 });
-    // the trial that seals this goal's lantern (trials/place.js): its parts on the ground, and the ground it needs kept clear of scatter (the level made it a pad: realm/level.js)
+    // the trial that seals this goal's lantern (trials/place.js): its parts on the ground, and the ground it needs kept clear of scatter (the level made it a pad: realm/level.js). A station's trial seals nothing: a challenge of its own that pays where it stands
     if (g.trial) {
       const spec = buildTrial({ ...g, y: rec.y }, g.trial, { h, look });
+      if (station) { delete spec.goal; spec.station = g.id; }
       gp.trials.push(spec);
       const f = footprint(spec);
       if (f) ctx.occ.add(f.x, f.z, f.r);
       else for (const q of spec.pylons || []) ctx.occ.add(q.x, q.z, 3);
     }
   }
-  // the realm's own errand (missions/, docs/DESIGN.md round thirty-nine): the data the game builds it from, and what it needs placed with the realm (the Slag Brute that holds each stone)
-  if (brief.mission) {
-    gp.mission = JSON.parse(JSON.stringify(brief.mission));
-    for (const q of brief.mission.brutes || []) { ctx.addEnemy(q.at[0], q.at[1], 'brute', 3); ctx.occ.add(q.at[0], q.at[1], 3); }
+  // the realm's own task (objectives/, docs/DESIGN.md round forty-one): the data the game builds it from, and what it needs placed with the realm
+  if (O) {
+    gp.objective = JSON.parse(JSON.stringify(O));
+    if (O.kind === 'duel') { ctx.occ.add(O.arena[0], O.arena[1], O.arenaR); for (const q of O.guards || []) { ctx.addEnemy(q[0], q[1], 'brute', 3); ctx.occ.add(q[0], q[1], 3); } }
+    if (O.kind === 'herd') ctx.occ.add(O.pen[0], O.pen[1], O.penR + 1);
   }
 }
 

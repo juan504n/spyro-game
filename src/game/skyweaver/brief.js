@@ -71,6 +71,9 @@ export const LOOM = { x: 74, z: -136 };
 /** What every Windbell looks like (models/objects/windbell.js): a bronze and glass bell in a frame of marble, dull and silent until it is rung, then golden, swinging, ringing out in rings of light. */
 const BELL = { model: 'windbell', sfx: 'windbell_ring', beam: { off: [0.45, 0.5, 0.7], on: [1.0, 0.9, 0.62] }, glow: [1.0, 0.86, 0.5], wisp: [0.8, 0.9, 1.0], flame: false, spark: { c0: [1.0, 0.95, 0.7, 1], c1: [0.7, 0.85, 1.0, 0] }, sparkle: [1.0, 0.9, 0.6] };
 
+/** The way the storm follows and the hero takes: the Skygate, the slabs to the Cloud Islet, the glide to the Lowfield, the Lowfield and its whirlwind, the Orchard, the whirlwind to the Spires, the slabs between them, the whirlwind to the Loom Isle */
+const STORM_ROUTE = [[-191, 151], [-164, 154], [-146, 139], [-138, 136], [-110, 126], [-83, 116], [-73, 111], [-65, 107], [-38, 76], [-26, 66], [-12, 62], [6, 54], [16, 47], [18, 44], [46, 34], [62, 21], [86, 9], [106, 4], [108, 2], [104, -26], [110, -33], [134, -48], [135, -57], [125, -80], [128, -88], [92, -120], [93, -129]];
+
 export const BRIEF = defineBrief({
   id: 'skyweaver',
   name: 'SKYWEAVER SPIRES',
@@ -97,7 +100,7 @@ export const BRIEF = defineBrief({
   },
   environment: SKY_ENVIRONMENT,
   words: {
-    goals: 'WINDBELLS', lit: 'RINGS!', finale: 'THE WINDS RETURN!',
+    goals: 'WINDBELLS', lit: 'RINGS!', done: 'THE STORM BREAKS', finale: 'THE WINDS RETURN!',
     portalOpened: ['A PORTAL HAS OPENED', 'ABOVE THE LOOM BELL'],
     saved: ['THE SPIRES ARE SAVED', 'THANK YOU, SPYRO'],
     results: 'REALM RESTORED!', portalResults: 'THE PORTAL TO DAWNHAVEN IS OPEN',
@@ -128,14 +131,15 @@ export const BRIEF = defineBrief({
 
   // ---- the goals: five Windbells, each in a different kind of place -----------------------------------------------------------------------------------
   goals: [
-    { id: 'gate', name: 'GATE BELL', situation: 'landing', x: -164, z: 154, hint: 'THE WINDBELL TAKES NO FIRE: JUMP INTO IT AND IT RINGS', hintAt: [-170, 150], hintR: 9, ...BELL },
-    { id: 'isle', name: 'ISLE BELL', situation: 'island', x: -73, z: 111.5, hint: 'HOP THE SLABS ACROSS THE CLOUD TO THE ISLET, THEN JUMP INTO THE BELL', hintAt: [-132, 133], hintR: 12, ...BELL },
-    { id: 'field', name: 'FIELD BELL', situation: 'glide', x: -33, z: 79, hint: 'GLIDE FROM THE ISLET DOWN TO THE LOWFIELD AND INTO THE BELL', hintAt: [-66, 106], hintR: 9, ...BELL },
-    { id: 'spire', name: 'SPIRE BELL', situation: 'lift', x: 114, z: -88, hint: 'A WHIRLWIND CARRIES YOU UP TO THE SPIRES: GLIDE OUT AT THE TOP, INTO THE BELL', hintAt: [104, -4], hintR: 12, ...BELL },
-    { id: 'loom', name: 'LOOM BELL', situation: 'summit', x: 93, z: -129, big: true, hint: 'THE LOOM BELL HANGS AT THE TOP OF THE WORLD. FLY INTO IT TO BRING THE WINDS BACK', hintAt: [90, -114], hintR: 14, ...BELL },
+    // (the first four are STATIONS: places of the Spires, not things to ring (objectives/index.js). The fifth is the Loom Bell: the end of the run, which rings when the hero reaches it)
+    { id: 'gate', name: 'THE SKYGATE LAWN', situation: 'landing', x: -164, z: 154, hint: 'THE WEAVERS\' WIND HAS TURNED: A STORM COMES UP BEHIND YOU. RUN FOR THE LOOM AT THE TOP OF THE WORLD', hintAt: [-170, 150], hintR: 9 },
+    { id: 'isle', name: 'THE CLOUD ISLET', situation: 'island', x: -73, z: 111.5, hint: 'HOP THE SLABS ACROSS THE CLOUD TO THE ISLET. FROM ITS LEDGE, GLIDE DOWN TO THE LOWFIELD', hintAt: [-132, 133], hintR: 12 },
+    { id: 'field', name: 'THE LOWFIELD', situation: 'glide', x: -33, z: 79, hint: 'THE WHIRLWIND AT THE END OF THE LOWFIELD CARRIES YOU UP: GLIDE OUT AT ITS TOP', hintAt: [-66, 106], hintR: 9 },
+    { id: 'spire', name: 'THE HIGH SPIRE', situation: 'lift', x: 114, z: -88, hint: 'A WHIRLWIND CARRIES YOU UP TO THE SPIRES: GLIDE OUT AT THE TOP. THE LOOM IS NEAR', hintAt: [104, -4], hintR: 12 },
+    { id: 'loom', name: 'LOOM BELL', situation: 'summit', x: 93, z: -129, big: true, hint: 'THE LOOM BELL HANGS AT THE TOP OF THE WORLD. REACH IT BEFORE THE STORM DOES', hintAt: [90, -114], hintR: 14, ...BELL },
   ],
-  // the realm's own errand (missions/chime.js): the windbells ring when the hero flies into them
-  mission: { kind: 'chime', goals: ['gate', 'isle', 'field', 'spire', 'loom'] },
+  // the realm's own task (objectives/storm.js): a squall comes up behind the hero from the Skygate along the way the islands go; the Loom rings when he gets there ahead of it
+  objective: { kind: 'storm', final: 'loom', speed: 4.6, route: STORM_ROUTE, refuges: [7, 11, 16, 20, 23] },
   exit: { name: 'DAWNHAVEN', tag: 'HOMEWORLD OF THE LANTERN KEEPERS', color: [1.0, 0.82, 0.94], target: 'home' },
   secrets: [
     { id: 'vault', name: 'THE WEAVERS\' VAULT' },

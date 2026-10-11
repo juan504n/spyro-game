@@ -964,7 +964,7 @@ class App {
     drawText(pix, g.words.results, W >> 1, y + 9, { style: 'grad', scale: 2, align: 'center', colors: GOLD, outlineColor: INK });
     const rows = [
       ['GEMS', `${st.gems} / ${st.gemsTotal}`],
-      [g.words.goals, `${st.beacons} / ${st.beaconsTotal}`],
+      ...(g.objective ? [] : [[g.words.goals, `${st.beacons} / ${st.beaconsTotal}`]]),
       ['SNUFFERS', String(st.enemies)],
       ['BUNNIES', String(st.bunnies)],
       ['SECRETS', String(st.walls + st.chests)],

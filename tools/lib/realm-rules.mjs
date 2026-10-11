@@ -233,7 +233,7 @@ export function checkRealm(which, { log = () => {} } = {}) {
     // a longer one runs off both sides (the first screenshots of Frostbloom Hollow showed two of them), and the lines under a banner, at the font's own size, must fit as well
     if (brief) {
       const words = { ...DEFAULT_WORDS, ...(brief.words || {}) }, px = (t, k = 1) => measureText(t, { style: 'grad' }).w * k;
-      const titles = [...brief.goals.map((g) => [`goal ${g.id}`, `${g.name} ${words.lit}`]), ['finale', words.finale], ['gate', words.gate[0]], ['portal', words.portalOpened[0]], ['saved', words.saved[0]], ['results', words.results], ['name', brief.name]];
+      const titles = [...brief.goals.filter((g) => !brief.objective || g.id === brief.objective.final).map((g) => [`goal ${g.id}`, `${g.name} ${words.lit}`]), ['finale', words.finale], ['gate', words.gate[0]], ['portal', words.portalOpened[0]], ['saved', words.saved[0]], ['results', words.results], ['name', brief.name]];
       const subs = [['gate', words.gate[1]], ['portal', words.portalOpened[1]], ['saved', words.saved[1]], ['freeRoam', words.freeRoam], ['restored', words.restored]];
       const wide = [...titles.filter(([, t]) => px(t, 2) > 310).map(([k, t]) => `${k} ${px(t, 2)} px`), ...subs.filter(([, t]) => px(t) > 310).map(([k, t]) => `${k} (the line under) ${px(t)} px`)];
       rule('hud.banners', 'every banner of the realm (a goal lit, the finale, the gate, the portal, the saved realm, the results) fits the screen (at most 310 of 320 px at the size it is drawn)', wide.length === 0, wide.join(' '));
@@ -363,22 +363,21 @@ export function checkRealm(which, { log = () => {} } = {}) {
   // the trials: the asks that stand in front of the lanterns (src/game/trials/, docs/DESIGN.md round twenty-nine): a realm is not the same ask five times, and each ask can be done where it stands
   if (isRealm) {
     const T = gp.trials || [];
-    const order = goals.map((g) => { const t = T.find((q) => q.goal === g.id); return t ? t.kind : null; });
+    const order = goals.map((g) => { const t = T.find((q) => q.goal === g.id || q.station === g.id); return t ? t.kind : null; });
     const mix = trialMix(order);
-    const mine = brief && brief.mission ? new Set([...brief.mission.goals, brief.mission.final].filter(Boolean)) : null;
-    if (mine) {
-      // a world with a mission (missions/, docs/DESIGN.md round thirty-nine): every goal is asked by the mission or by a trial (no goal is lit by the flame), and no kind of trial stands twice running
-      const unasked = goals.filter((g, i) => !mine.has(g.id) && !order[i]).map((g) => g.id);
+    const O = brief && brief.objective;
+    if (O) {
+      // a world with an objective (objectives/, docs/DESIGN.md round forty-one): its task is one of its own kind and is not a row of lanterns; the trials at its stations are side challenges, and no kind of them stands twice running
       const twice = order.some((k, i) => k && order[i - 1] === k);
-      rule('trials.mix', `the asks vary: every goal is asked by the mission (${brief.mission.kind}) or by a trial, and no kind of trial stands twice running`, unasked.length === 0 && !twice, `(${order.map((k, i) => (mine.has(goals[i].id) ? (k ? `${brief.mission.kind}+${k}` : brief.mission.kind) : k || 'NOTHING')).join(' > ')})`);
+      rule('trials.mix', `the asks vary: the realm's task is its ${O.kind} objective, and no kind of trial stands twice running at its stations`, !twice, `(${order.map((k, i) => (goals[i].id === O.final ? O.kind : k || 'place')).join(' > ')})`);
     } else rule('trials.mix', 'the asks vary: the first lantern is the plain one (it teaches the lantern), at least three different kinds of trial stand in front of the others (fewer in a realm of fewer goals) and no kind stands twice running', mix.ok, `(${order.map((k) => k || 'plain').join(' > ')}: ${mix.kinds} kinds, ${mix.want} wanted)`);
     // each trial stands on level, dry, clear ground that the hero can walk to, near enough to its lantern to be found
     const problems = [];
     const ringPts = (cx, cz, r) => { const out = [[cx, cz]]; for (const k of [0.4, 0.75, 1]) for (let a = 0; a < 12; a++) out.push([cx + Math.cos((a / 12) * Math.PI * 2) * r * k, cz + Math.sin((a / 12) * Math.PI * 2) * r * k]); return out; };
     const standable = (x, z) => h(x, z) > sea1 + 0.35 && !collision.blocking(x, h(x, z) + 0.7, z, 0.35);
     for (const t of T) {
-      const g = goals.find((q) => q.id === t.goal), tag = `${t.id}`;
-      if (!g) { problems.push(`${tag}: its goal '${t.goal}' is not one of the goals`); continue; }
+      const g = goals.find((q) => q.id === (t.goal || t.station)), tag = `${t.id}`;
+      if (!g) { problems.push(`${tag}: its goal '${t.goal || t.station}' is not one of the goals`); continue; }
       const f = footprint(t);
       if (f) {
         let pts = ringPts(f.x, f.z, f.r);

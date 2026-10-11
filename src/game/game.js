@@ -24,7 +24,7 @@ import { Ambient } from './systems/ambient.js';
 import { NpcSystem } from './systems/npc.js';
 import { PortalSystem } from './systems/portals.js';
 import { BossSystem } from './systems/boss.js';
-import { makeMission } from './missions/index.js';
+import { makeObjective } from './objectives/index.js';
 import { realmsDone } from './progress.js';
 import { WATER_LEVEL } from './level.js';
 import { tideLevel, tideLow, tideHigh, drownDepth } from './realm/tide.js';
@@ -138,7 +138,7 @@ export class Game {
       this.beacons = new BeaconSystem(this, gp.beacons || []);
       this.enemies = new EnemySystem(this, gp.enemies || []);
       this.trials = new TrialSystem(this, gp.trials || []);                                         // (the asks that stand in front of a realm's lanterns: systems/trials.js; they need the beacons and the foes)
-      this.mission = gp.mission ? makeMission(this, gp.mission) : null;                          // (the realm's own errand: missions/, docs/DESIGN.md round thirty-nine; it needs the goals, the foes and the trials)
+      this.objective = gp.objective ? makeObjective(this, gp.objective) : null;                  // (the realm's own task: objectives/, docs/DESIGN.md round forty-one; it needs the goals, the foes and the trials)
       this.critters = new CritterSystem(this, gp.bunnies || []);
       this.objects = new ObjectSystem(this, { vases: gp.vases, chests: gp.chests, walls: gp.walls, braziers: gp.braziers, portcullis: gp.portcullis, barrier: gp.barrier, mushrooms: gp.mushrooms, sails: gp.sails, islands: gp.islands, whirlwinds: gp.whirlwinds });
       this.ambient = new Ambient(this, this.world.lights || [], this.world.emitters || []);
@@ -146,7 +146,7 @@ export class Game {
       this.portals = new PortalSystem(this, gp.portals || []);
       this.boss = gp.boss ? new BossSystem(this, gp.boss, { freed: !!this.freed }) : null;               // (the Guardian's Court: systems/boss.js)
       // step order: abilities/AI first, then pickups
-      this.systems = [this.sparx, this.beacons, this.trials, ...(this.mission ? [this.mission] : []), this.enemies, this.critters, this.objects, this.gems, this.ambient, this.npcs, this.portals, ...(this.boss ? [this.boss] : [])];
+      this.systems = [this.sparx, this.beacons, this.trials, ...(this.objective ? [this.objective] : []), this.enemies, this.critters, this.objects, this.gems, this.ambient, this.npcs, this.portals, ...(this.boss ? [this.boss] : [])];
       this.on('beacon', (b, n) => this.onBeacon(b, n));
       if (this.restored) this._restore();
       if (this.realm.kind === 'homeworld') this._gateAtBuild();
@@ -164,7 +164,7 @@ export class Game {
   _restore() {
     this.day = this.dayTarget = 1;
     this.trials?.restore();                                // (before the lanterns: they are unsealed, then they burn)
-    this.mission?.restore();
+    this.objective?.restore();
     this.beacons?.restore();
     this.objects?.restore();
     this.portals?.restore();
@@ -299,11 +299,19 @@ export class Game {
     const total = this.beacons.list.length, isLast = n >= total;
     this.note(`LANTERN ${n} OF ${total}`);
     this.hud.pulse('beacons');
-    this.hud.banner(`${b.def.name} ${this.words.lit}`, `${n} OF ${total} ${this.words.goals}`, 3.4);
+    this.hud.banner(`${b.def.name} ${this.words.lit}`, this.objective ? (this.words.done || '') : `${n} OF ${total} ${this.words.goals}`, 3.4);        // (the exit of a realm with a task is not one of five: it says the task is done)
     // (a realm with a gate that the lanterns open: it opens when `level.goal.gateAt` goals are lit (Gloaming Vale's Dawn Gate: four) and says `words.gate`)
-    if (n === (this.level.goal?.gateAt ?? 4) && this.objects?.barrier) { this.after(1.4, () => this.objects.openBarrier()); this.after(3.6, () => this.hud.banner(this.words.gate[0], this.words.gate[1], 4)); }
+    if (n === (this.level.goal?.gateAt ?? 4) && !this.objective) this.openRealmGate();
     if (isLast) this.emit('finale');
     else this.audio?.stinger?.('lantern');
+  }
+
+  /** The realm's gate opens (the lanterns open it in the Vale: n goals lit; a realm with a task of its own opens it at a stage of the task: objectives/): the barrier lifts, and the banner says so. */
+  openRealmGate() {
+    if (!this.objects?.barrier || this._gateOpening) return;
+    this._gateOpening = true;
+    this.after(1.4, () => this.objects.openBarrier());
+    this.after(3.6, () => this.hud.banner(this.words.gate[0], this.words.gate[1], 4));
   }
 
   // ---- dialogue & locks --------------------------------------------------------------------------------------------------

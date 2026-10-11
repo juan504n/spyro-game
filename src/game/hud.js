@@ -92,8 +92,8 @@ export class Hud {
         pix.rect(x + 1, 29, 2, 2, on ? (hp >= 3 ? '#ffe060' : hp === 2 ? '#6aa0ff' : '#70ff80') : '#3a2a60');
       }
     }
-    // ---- beacons ---------------------------------------------------------------------------------------------------
-    {
+    // ---- beacons (a realm whose task is its own has no row of them: its objective says how far it has got, below) ---------------------------------------------
+    if (!g.objective) {
       const total = st.beaconsTotal || 5, [onKey, offKey] = this.game.words.icons;
       const w = total * 14 + 8;
       const x0 = W - w - 4;
@@ -110,8 +110,8 @@ export class Hud {
     // ---- the trial he is in (systems/trials.js): what it asks of him now, and how far he has got ----------------------------------------
     let top = 4;
     if (g.trials && g.mode === 'play') top = this._drawTrial(pix, W) || 4;
-    // ---- the realm's own errand (missions/): what it asks now, and how far he has got ------------------------------------------------------
-    if (g.mission && g.mode === 'play') this._drawMission(pix, W, top);
+    // ---- the realm's own task (objectives/): what it asks now, and how far he has got ------------------------------------------------------
+    if (g.objective && g.mode === 'play') this._drawObjective(pix, W, top);
     // ---- the Guardian (the Court's boss) ---------------------------------------------------------------------------------------
     if (g.boss) { this._drawBoss(pix, W); this._drawThreats(pix, W, H); }
     // ---- banner ------------------------------------------------------------------------------------------------------
@@ -203,7 +203,7 @@ export class Hud {
   /** The tide's gauge, under the goals: the water's height between its low and its high (a notch at the mean), and an arrow for the way it is going: orange up while it comes in, green down while it goes out. */
   _drawTide(pix, W) {
     const g = this.game, st = g.stats;
-    const w = (st.beaconsTotal || 5) * 14 + 8, x0 = W - w - 4, y0 = 30;
+    const w = (g.objective ? 5 : (st.beaconsTotal || 5)) * 14 + 8, x0 = W - w - 4, y0 = g.objective ? 4 : 30;
     drawPanel(pix, x0, y0, w, 14, { style: 'hud' });
     const k = Math.max(0, Math.min(1, (g.waterY - g.waterLo) / ((g.waterHi - g.waterLo) || 1)));
     const bx = x0 + 6, bw = w - 12 - 9, by = y0 + 5, fill = Math.round(bw * k);
@@ -236,15 +236,19 @@ export class Hud {
     return y + (bar || pips ? 25 : 17) + 3;                                                  // (where the next line may begin)
   }
 
-  /** The mission's line (a sprite freed, a brute's wounds, a bell rung, a pearl carried): one line of text and a pip for each part done, under the trial's if one is on. */
-  _drawMission(pix, W, y) {
-    const s = this.game.mission.hudState();
+  /** The objective's line (a chase, a duel, a course of rings, a herd): one line of text and, under it, a gauge (`bar`, 0..1) or a pip for each part done, under the trial's if one is on. */
+  _drawObjective(pix, W, y) {
+    const s = this.game.objective.hudState();
     if (!s) return;
     const tw = measureText(s.text, { style: 'grad' }).w, w = Math.max(96, tw + 16), x = (W - w) >> 1;
-    const pips = s.of >= 2 && s.of <= 12;
-    drawPanel(pix, x, y, w, pips ? 25 : 17, { style: 'hud' });
+    const bar = s.bar !== undefined, pips = !bar && s.of >= 2 && s.of <= 12;
+    drawPanel(pix, x, y, w, bar || pips ? 25 : 17, { style: 'hud' });
     drawText(pix, s.text, x + (w >> 1), y + 4, { style: 'grad', align: 'center', colors: GOLD, outlineColor: INK });
-    if (pips) {
+    if (bar) {
+      const bw = w - 14, bx = x + 7, f = Math.round(bw * Math.max(0, Math.min(1, s.bar)));
+      pix.rect(bx - 1, y + 15, bw + 2, 7, INK); pix.rect(bx, y + 16, bw, 5, '#3a2a60');
+      if (f > 0) pix.rect(bx, y + 16, f, 5, s.bar < 0.25 ? '#ff5a40' : '#ffc03c');
+    } else if (pips) {
       const step = Math.min(10, Math.floor((w - 12) / s.of)), x0 = x + ((w - step * s.of + 2) >> 1);
       for (let i = 0; i < s.of; i++) { pix.rect(x0 + i * step, y + 16, step - 2, 5, INK); pix.rect(x0 + i * step + 1, y + 17, step - 4, 3, i < s.n ? '#ffc03c' : '#3a2a60'); }
     }

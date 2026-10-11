@@ -92,3 +92,11 @@ addChest / addWall / addBunnies / addGem / gemArc / roadGems`; from the kit: `fa
 ## The kit's files (`src/game/realm/`)
 `brief.js` (`defineBrief`, `ptsOf`, `RULES`, `SITUATION_IDS`), `tide.js` (the tide, pure), `whirl.js` (whirlwinds, pure), `country.js` (`makeCountry`, `regionAt`, landforms: `basin`, `mound`, `dryLand`, `flatten`, `glade`, `ravine`, `pointOn`), `level.js` (`makeLevel`,
 `NO_LAKE`), `rockmass.js` (`rockMass`: a mountain with caves from data), `populate.js` (`makePopulate`, `goalsStage`, `exitStage`, `gemsStage`), `helpers.js`, `situations.js` (`SITUATIONS`, `glideReach`), `index.js` (re-exports + `realmEntry`), `starter/` (the golden example).
+
+## The realm's task: `brief.objective` (src/game/objectives/)
+
+A realm is not five lanterns with a new verb (rounds thirty-nine and forty tried it and were refused: "no more light up these five things"). Gloaming Vale keeps the lanterns; every other realm says one **task of a kind of its own**
+and one exit object that the task opens: `objective: { kind, final: <id of the exit goal>, ...the kind's data, gateAfter?: <trial id> }`. Kinds: `chase` (route, catches, gate), `duel` (arena, arenaR, wounds, guards),
+`storm` (route, speed, refuges), `herd` (crabs, pen, penR). `objectiveProblems` (objectives/problems.js, pure) holds the brief; a new kind is a class in `objectives/` that extends `Objective` (base.js: `complete()`, `progress(f)`,
+`hudState()`, `restore()`), a branch in `objectives/index.js` and `problems.js`, a play in `tools/lib/objective-driver.js`, and a place in `tools/objective-check.mjs` / `objective-test.mjs`. The goals that are not the exit become
+**stations**: places (hints, TRAVEL, trials) that are lit from the start and draw nothing. Do not design a task as "go to N things and set each off".

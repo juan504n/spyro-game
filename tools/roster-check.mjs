@@ -1,7 +1,7 @@
 // WHICH FOES LIVE WHERE, held across all the worlds (src/game/foes/roster.js, docs/DESIGN.md round thirty-eight): a kind of foe is one world's own, and no other world has it.
 //   - every kind of KINDS belongs to exactly one roster (the Guardian's Court, the Snuffers' own stronghold, is the one world that shares: the three Snuffers the game began with)
 //   - every roster names kinds that exist; every realm has a roster of at least three kinds
-//   - every world BUILT headlessly places only foes of its roster: the placed ones, the waves of its sieges, the foes its briefed missions bring (and nothing in Dawnhaven)
+//   - every world BUILT headlessly places only foes of its roster: the placed ones, the waves of its sieges, the foes its briefed objective brings (the guards of a duel) (and nothing in Dawnhaven)
 //   - a Smokecaller calls one of its own world's foes; a foe the roster maps for a tool (foeOf) is in the roster
 //   node tools/roster-check.mjs
 import { KINDS, KIND_IDS } from '../src/game/foes/kinds.js';

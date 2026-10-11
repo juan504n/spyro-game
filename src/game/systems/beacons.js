@@ -26,11 +26,14 @@ export class BeaconSystem {
     this.game = game;
     this.steps = daySteps(defs.length, game.level);
     this.list = defs.map((d, i) => this._make(d, i));
-    this.lit = 0;
+    this.lit = this.list.filter((b) => b.station).length;                 // (the stations of a realm with an objective are places, never lit: they count as burning so that the exit's is the last)
+    if (this.lit) game.stats.beacons = this.lit;
   }
 
   _make(d, index) {
     const g = this.game;
+    // a STATION (a goal of a realm whose objective is a task of its own, see objectives/index.js) is a place on the map and nothing in the world: no object, no beam, no flame, nothing to light
+    if (d.station) return { def: d, index, station: true, x: d.x, y: d.y, z: d.z, scale: 1, radius: 0, lit: 1, litFlag: true, noFire: true, wisps: [], model: { setLit() {}, update() {} }, beam: { setColor() {}, setIntensity() {}, update() {} } };
     const model = makeModel(g.assets, d.model || 'beacon', { big: !!d.big });
     model.root.position.set(d.x, d.y, d.z);
     model.root.rotation.y = d.yaw || 0;
@@ -80,6 +83,7 @@ export class BeaconSystem {
   update(dt, game) {
     const p = game.player;
     for (const b of this.list) {
+      if (b.station) continue;
       b.t += dt;
       if (!b.litFlag) {
         // ignition by fire breath (or a friendly nudge of a charge hit); a lantern that a trial seals (systems/trials.js) takes none until the trial is solved
@@ -116,6 +120,7 @@ export class BeaconSystem {
     const t = game.time;
     const day = game.day;
     for (const b of this.list) {
+      if (b.station) continue;
       const L = b.lit;
       b.model.setLit?.(L);
       b.model.update?.(dt, { t });

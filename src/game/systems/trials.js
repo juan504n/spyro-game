@@ -124,11 +124,14 @@ export class TrialSystem {
     if (!quiet) {
       g.audio?.sfx('trial_break', { vol: 1 });
       g.cam.shake(0.25, 0.4);
-      if (b && r.spec.gems && r.spec.gems.length) g.gems.burst(b.x, b.y + 2.2, b.z, r.spec.gems, 1.2);
+      if (r.spec.gems && r.spec.gems.length) {                                       // (a trial that seals nothing (a station's) pays where it stands)
+        const at = b ? { x: b.x, y: b.y + 2.2, z: b.z } : { x: r.spec.x, y: (r.spec.y ?? g.collision.heightAt(r.spec.x, r.spec.z)) + 2.2, z: r.spec.z };
+        g.gems.burst(at.x, at.y, at.z, r.spec.gems, 1.2);
+      }
     }
     if (b && !b.litFlag) {
       if (quiet) g.beacons.ignite(b);
-      else if (b.mission && !b.missionDone) { /* the seal is down; the mission lights the goal when its own condition is met (missions/base.js complete) */ }
+      else if (b.objective && !b.objective.done) { /* the seal is down; the objective opens the exit when its task is done (objectives/base.js complete) */ }
       else if (b.noFire || Math.hypot(g.player.x - b.x, g.player.z - b.z) < NEAR) g.after(0.9, () => g.beacons.ignite(b));        // (the seal falls, and then the lantern is lit: at once wherever he stands when nothing else could light it, no flame lights a goal of a world with a mission)
       else {                                                                        // (a lantern far from the trial: its seal is broken, and it waits for his fire; its column pulses so that it is seen)
         b.ready = true;

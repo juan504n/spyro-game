@@ -52,6 +52,9 @@ export const REGIONS = [
 /** What every Frostbloom looks like (the model is models/objects/frostbloom.js): icy before it is thawed, blossom pink after; no flame over it, it glows itself. */
 const BLOOM = { model: 'frostbloom', beam: { off: [0.5, 0.82, 1.0], on: [1.0, 0.74, 0.88] }, glow: [1.0, 0.72, 0.86], wisp: [0.62, 0.92, 1.0], flame: false, spark: { c0: [1.0, 0.84, 0.92, 1], c1: [1.0, 0.5, 0.76, 0] }, sparkle: [1.0, 0.82, 0.92] };
 
+/** The runaway's road: the trunk, the ring road round Glasswater by the west, Aurora Ridge, the gorge, the Hollow (indexes 9, 15 and 17 are where it is cornered) */
+const CHASE_ROUTE = [[0, 150], [-4, 130], [0, 104], [0, 88], ...ring(1.5, 0, 0, 12).slice(1, 7).map((p) => [p[0], p[1]]), [-30, -40], [12, -60], [-28, -80], [14, -98], [0, -112], [0, -128], [0, -142], [0, -158]];
+
 export const BRIEF = defineBrief({
   id: 'frostbloom',
   name: 'FROSTBLOOM HOLLOW',
@@ -77,7 +80,7 @@ export const BRIEF = defineBrief({
   },
   environment: FROST_ENVIRONMENT,
   words: {
-    goals: 'FROSTBLOOMS', lit: 'THAWED!', finale: 'SPRING RETURNS!',
+    goals: 'FROSTBLOOMS', lit: 'THAWED!', done: 'THE SPRITE GAVE THE SPRING BACK', finale: 'SPRING RETURNS!',
     portalOpened: ['A PORTAL HAS OPENED', 'ABOVE THE HEARTBLOOM'],
     saved: ['THE HOLLOW IS SAVED', 'THANK YOU, SPYRO'],
     results: 'REALM RESTORED!', portalResults: 'THE PORTAL TO DAWNHAVEN IS OPEN',
@@ -108,14 +111,15 @@ export const BRIEF = defineBrief({
 
   // ---- the goals: five Frostblooms, each in a different kind of place -------------------------------------------------------------------------------
   goals: [
-    { id: 'gate', name: 'GATE BLOOM', situation: 'landing', x: 14, z: 140, hint: 'A SPRITE SLEEPS IN THE ICE: RAM THE FROSTBLOOM TO FREE IT. FIRE WILL NOT WAKE IT', hintAt: [8, 148], hintR: 10, ...BLOOM },
-    { id: 'rime', name: 'RIMEWOOD BLOOM', situation: 'clearing', x: -122, z: 20, hint: 'A FROSTBLOOM SLEEPS IN A CLEARING OF RIMEWOOD: RAM IT TO FREE THE SPRITE', hintAt: [-100, 38], hintR: 14, ...BLOOM },
-    { id: 'glass', name: 'GLASSWATER BLOOM', situation: 'island', x: 2, z: 50, pad: false, hint: 'HOP THE ICE FLOES OUT TO THE ISLET. THE PUCK SEALS THE BLOOM', hintAt: [0, 76], hintR: 12, trial: { kind: 'puck', at: [4, 90], yaw: Math.PI / 2 }, ...BLOOM },
-    { id: 'ice', name: 'ICEFALL BLOOM', situation: 'cave', x: HEART.x, z: HEART.z, pad: false, hint: 'A FROSTBLOOM SLEEPS IN THE ICE BEHIND THE ICEFALL: RAM IT', hintAt: [150, 6], hintR: 14, ...BLOOM },
-    { id: 'heart', name: 'HEARTBLOOM', situation: 'crater', x: HOLLOW.x, z: HOLLOW.z, big: true, hint: 'THE HEARTBLOOM WAITS IN THE HOLLOW. LEAD THE FOUR SPRITES TO IT AND IT WILL OPEN', hintAt: [0, -138], hintR: 14, ...BLOOM },
+    // (the first four are STATIONS: places of the Hollow, not things to light (objectives/index.js). The fifth is the Heartbloom: the exit, which the chase opens)
+    { id: 'gate', name: 'THAW GATE LAWN', situation: 'landing', x: 14, z: 140, hint: 'A SPRITE HAS BOLTED WITH THE SPRING OF THE HOLLOW! RUN IT DOWN AND RAM IT. IT KEEPS TO THE ROAD', hintAt: [8, 148], hintR: 10 },
+    { id: 'rime', name: 'RIMEWOOD CLEARING', situation: 'clearing', x: -122, z: 20, hint: 'A QUIET CLEARING OF RIMEWOOD. THE RUNAWAY KEEPS TO THE ROAD: THE GLADE WALL HIDES A SECRET', hintAt: [-100, 38], hintR: 14 },
+    { id: 'glass', name: 'GLASSWATER ISLET', situation: 'island', x: 2, z: 50, pad: false, hint: 'HOP THE ICE FLOES OUT TO THE ISLET: THE PUCK PAYS IN GEMS', hintAt: [0, 76], hintR: 12, trial: { kind: 'puck', at: [4, 90], yaw: Math.PI / 2 } },
+    { id: 'ice', name: 'ICEFALL CAVE', situation: 'cave', x: HEART.x, z: HEART.z, pad: false, hint: 'THE ICEFALL: THE GLACIER CAVE BEHIND IT HOLDS A VAULT', hintAt: [150, 6], hintR: 14 },
+    { id: 'heart', name: 'HEARTBLOOM', situation: 'crater', x: HOLLOW.x, z: HOLLOW.z, big: true, hint: 'THE HEARTBLOOM WAITS IN THE HOLLOW. THE RUNAWAY SPRITE BRINGS THE SPRING BACK TO IT', hintAt: [0, -138], hintR: 14, ...BLOOM },
   ],
-  // the realm's own errand (missions/rescue.js): a sprite sleeps in the ice of each of four blooms; ram a bloom to free it, lead them all to the Heartbloom
-  mission: { kind: 'rescue', goals: ['gate', 'rime', 'glass', 'ice'], final: 'heart', need: 4 },
+  // the realm's own task (objectives/chase.js): a runaway sprite, one road. It is cornered three times (the end of the ring road, the gorge, the Hollow); the ice gate melts after the second
+  objective: { kind: 'chase', final: 'heart', route: CHASE_ROUTE, catches: [9, 15, 17], gate: 2 },
   exit: { name: 'DAWNHAVEN', tag: 'HOMEWORLD OF THE LANTERN KEEPERS', color: [0.7, 0.88, 1.0], target: 'home' },
   gate: GATE,
   secrets: [

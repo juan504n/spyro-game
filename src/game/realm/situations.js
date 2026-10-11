@@ -160,7 +160,8 @@ export const SITUATIONS = {
     check(g, e) {
       let high = 0;
       for (let k = 0; k < 16; k++) { const a = (k * Math.PI) / 8; if (e.h(g.x + Math.cos(a) * 30, g.z + Math.sin(a) * 30) > g.y + 4) high++; }
-      const guards = e.gp.enemies.filter((q) => Math.hypot(q.x - g.x, q.z - g.z) < 30).length;
+      const O = e.gp.objective, boss = O && O.kind === 'duel' && Math.hypot(O.arena[0] - g.x, O.arena[1] - g.z) < 30 ? 2 : 0;          // (the Slag Colossus of a duel guards its crater)
+      const guards = e.gp.enemies.filter((q) => Math.hypot(q.x - g.x, q.z - g.z) < 30).length + boss;
       return { ok: high >= 11 && guards >= 2, detail: `the rim is higher than the floor by 4 m in ${high} of 16 directions at 30 m, ${guards} Snuffers within 30 m` };
     },
   },
