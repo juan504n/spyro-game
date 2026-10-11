@@ -99,7 +99,7 @@ export const CREATURES = {
   bloomsprite: {
     create: createBloomsprite,
     size: 0.9,
-    note: 'The runaway sprite of Frostbloom's chase. See the file for the pose.',
+    note: 'The runaway sprite of the Frostbloom chase. See the file for the pose.',
   },
   elder: {
     create: createElder,
