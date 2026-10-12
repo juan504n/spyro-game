@@ -510,13 +510,13 @@ const check = (name, ok, detail) => { checks.push(ok); console.log(ok ? 'PASS' :
 
 // ---- the realm's terrain mesh is what the rules chose --------------------------------------------------------------------------------
 {
-  // A level that names its steep slope (the homeworld) has the border of its rock cut along a contour, which makes more triangles than the rules chose; the realm names none, and its mesh must be
-  // exactly what the picker says: two triangles for each cell, each with its own texture.
+  // A level that names its steep slope (the homeworld) has the border of its rock cut along a contour, which makes more triangles than the rules chose; the realm names none, and its mesh is what the picker says:
+  // two triangles for each cell, each with its own texture - except that a STEEP face of rock (slope over 0.95) is cut into cells of about 5 m and each is pushed a little in or out (a wall of low-poly rock, not one plane)
   const group = buildTerrainMeshes(grid, lighting, { mat: (nm) => ({ name: nm }) }).group, byTex = {};
   let tris = 0;
   for (const m of group.children) { if (!m.name.startsWith('terrain:')) continue; const c = m.geometry.getAttribute('position').count / 3; byTex[m.name.slice('terrain:'.length)] = c; tris += c; }          // (the soft blend's overlays are meshes of their own: terrain-blend:*)
-  const picker = terrainPicker(grid), want = {};
-  for (let j = 0; j < grid.n; j++) for (let i = 0; i < grid.n; i++) for (const t of picker.tris(i, j)) want[t.tex] = (want[t.tex] || 0) + 1;
-  check('the realm\'s terrain mesh is exactly what the rules chose (no triangle is cut: only a level with a steep slope of its own cuts its borders)', grid.level.steepSlope === undefined && tris === grid.n * grid.n * 2 && Object.keys(want).every((k) => want[k] === byTex[k]), `(${tris} triangles for ${grid.n * grid.n} cells)`);
-}
+  const picker = terrainPicker(grid), want = {}, steepOf = {};
+  for (let j = 0; j < grid.n; j++) for (let i = 0; i < grid.n; i++) for (const t of picker.tris(i, j)) { want[t.tex] = (want[t.tex] || 0) + 1; if (t.slope > 0.95) steepOf[t.tex] = (steepOf[t.tex] || 0) + 1; }
+  const flatOk = Object.keys(want).every((k) => { const base = want[k] - (steepOf[k] || 0), got = byTex[k] || 0; return got >= base && got <= base + (steepOf[k] || 0) * 36; });          // (the flat triangles are all there; the steep ones are cut into at most 36 each)
+  check('the realm\'s terrain mesh is what the rules chose (a triangle is cut only on a steep face of rock, into cells of about 5 m)', grid.level.steepSlope === undefined && tris >= grid.n * grid.n * 2 && flatOk, `(${tris} triangles for ${grid.n * grid.n} cells)`);}
 process.exitCode = checks.every(Boolean) ? 0 : 1;
