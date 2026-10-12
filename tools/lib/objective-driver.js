@@ -152,9 +152,15 @@
     if (O.kind === 'chase') { const a = O._at(Math.max(0, O.s - 12)); x = a[0] ?? a.x; z = a[1] ?? a.z; }
     if (O.kind === 'duel') { x = O.spec.arena[0]; z = O.spec.arena[1] - O.spec.arenaR + 4; yaw = 0; }
     if (O.kind === 'storm') { x = O.route[0][0]; z = O.route[0][1] + 5; yaw = 0; }
-    if (O.kind === 'herd') {
-      const c = O.crabs.find((q) => !q.penned) || O.crabs[0], u = hyp(c.x - O.pen[0], c.z - O.pen[1]) || 1;
-      for (const k of [14, 11, 8]) { x = c.x + (c.x - O.pen[0]) / u * k; z = c.z + (c.z - O.pen[1]) / u * k; if (g.collision.heightAt(x, z) > (g.waterHi ?? 0) + 1.5) break; }
+    if (O.kind === 'herd') {                                                    // (on the pen's far side of the crab, on ground at the crab's own height: the foot of the headland's cliff is no place to begin)
+      const c = O.crabs.find((q) => !q.penned) || O.crabs[0], u0 = Math.atan2(c.x - O.pen[0], c.z - O.pen[1]);
+      let done = false;
+      for (const k of [14, 11, 8, 5]) for (const off of [0, 0.5, -0.5, 1.0, -1.0]) {
+        if (done) break;
+        const qx = c.x + Math.sin(u0 + off) * k, qz = c.z + Math.cos(u0 + off) * k, qy = g.collision.heightAt(qx, qz);
+        if (Math.abs(qy - c.y) < 3.5 && qy > (g.waterHi ?? 1.4) + 2) { x = qx; z = qz; done = true; }
+      }
+      if (!done) { x = c.x + 2.5; z = c.z + 2.5; }
     }
     const y = g.collision.support(x, z, g.collision.heightAt(x, z) + 3, 0.5).y;
     P.place(x, y + 0.05, z, yaw); g.cam.snapBehind(P); P.invulnT = 3;
