@@ -283,32 +283,39 @@ export function buildTerrainMeshes(grid, lighting, assets) {
   // ---- rock faces: a steep triangle of the grid is 2.4 m wide and as tall as the cliff (30-50 m for a spire), two rows of vertices for the whole wall, and a wall of that is ONE flat plane to the eye. Steep faces are cut
   // into cells of about 5 m and each cell is pushed in or out by a noise, more in the middle of the original triangle than at its edges (nothing moves ON an edge of the grid's triangle: the neighbours, cut
   // or not, always meet along the same straight line, so no crack opens), and lit by its own face: a wall of low-poly rock, as the old games drew them. The hero's collision is still the grid's.
-  const ROCK_SUB_SLOPE = 0.95, ROCK_CELL = 5, ROCK_BUMP = 0.9, ROCK_MAXN = 6;
+  const ROCK_SUB_SLOPE = 0.85, ROCK_CELL = 5, ROCK_BUMP = 0.7, ROCK_MAXN = 6;
   const steepParts = (va, vb, vc, faceN, al) => {
     const e = Math.max(Math.hypot(vb[0] - va[0], vb[1] - va[1], vb[2] - va[2]), Math.hypot(vc[0] - vb[0], vc[1] - vb[1], vc[2] - vb[2]), Math.hypot(va[0] - vc[0], va[1] - vc[1], va[2] - vc[2]));
     const N = Math.min(ROCK_MAXN, Math.max(2, Math.ceil(e / ROCK_CELL)));
     const hl = Math.hypot(faceN[0], faceN[2]) || 1, hx = faceN[0] / hl, hz = faceN[2] / hl;       // (the way the wall faces, level)
     const pt = new Map();
-    const at = (i, j) => {                                                                        // barycentric (u at va, v at vb, w at vc) = (N-i-j, i, j) / N
+    // the displaced surface as a function of the (fractional) grid coordinates i, j of the cell lattice: barycentric (u at va, v at vb, w at vc) = (N-i-j, i, j) / N
+    const surf = (i, j) => {
+      const u = (N - i - j) / N, v = i / N, w = j / N;
+      const x = u * va[0] + v * vb[0] + w * vc[0], y = u * va[1] + v * vb[1] + w * vc[1], z = u * va[2] + v * vb[2] + w * vc[2];
+      const bubble = Math.sqrt(Math.max(0, 27 * u * v * w));                                      // (0 on the three edges, 1 in the middle)
+      const d = ROCK_BUMP * (fbm(nBank, (x + z) * 0.19 + 13, y * 0.17 + 5, 2) - 0.5) * 2 * bubble;
+      return [x + hx * d, y, z + hz * d];
+    };
+    const at = (i, j) => {
       const key = i * 64 + j;
       let q = pt.get(key);
       if (!q) {
-        const u = (N - i - j) / N, v = i / N, w = j / N;
-        const x = u * va[0] + v * vb[0] + w * vc[0], y = u * va[1] + v * vb[1] + w * vc[1], z = u * va[2] + v * vb[2] + w * vc[2];
-        const bubble = Math.sqrt(Math.max(0, 27 * u * v * w));                                    // (0 on the three edges, 1 in the middle)
-        const d = ROCK_BUMP * (fbm(nBank, (x + z) * 0.31 + 13, y * 0.27 + 5, 2) - 0.5) * 2 * bubble;
-        q = { p: [x + hx * d, y, z + hz * d], a: al ? u * al[0] + v * al[1] + w * al[2] : 0 };
+        const u = (N - i - j) / N, v = i / N, w = j / N, h = 0.35;
+        // the normal of the displaced surface at this vertex (the cross of its two tangents), so that the wall is lit smoothly across the cells: lumpy rock, not a sheet of shards
+        const a = surf(i + h, j), b = surf(i - h, j), c = surf(i, j + h), d = surf(i, j - h);
+        const t1 = [a[0] - b[0], a[1] - b[1], a[2] - b[2]], t2 = [c[0] - d[0], c[1] - d[1], c[2] - d[2]];
+        let n = [t1[1] * t2[2] - t1[2] * t2[1], t1[2] * t2[0] - t1[0] * t2[2], t1[0] * t2[1] - t1[1] * t2[0]];
+        const l = Math.hypot(n[0], n[1], n[2]) || 1;
+        n = [n[0] / l, n[1] / l, n[2] / l];
+        if (n[0] * faceN[0] + n[1] * faceN[1] + n[2] * faceN[2] < 0) n = [-n[0], -n[1], -n[2]];
+        q = { p: surf(i, j), n, a: al ? u * al[0] + v * al[1] + w * al[2] : 0 };
         pt.set(key, q);
       }
       return q;
     };
     const out = [];
-    const push = (A, B, C) => {
-      const nn = triangleNormal(A.p, B.p, C.p), l = Math.hypot(nn[0], nn[1], nn[2]) || 1;
-      let n = [nn[0] / l, nn[1] / l, nn[2] / l];
-      if (n[0] * faceN[0] + n[1] * faceN[1] + n[2] * faceN[2] < 0) n = [-n[0], -n[1], -n[2]];
-      out.push({ p: [A.p, B.p, C.p], n, a: [A.a, B.a, C.a] });
-    };
+    const push = (A, B, C) => { out.push({ p: [A.p, B.p, C.p], n: [A.n, B.n, C.n], a: [A.a, B.a, C.a] }); };
     for (let i = 0; i < N; i++) for (let j = 0; j < N - i; j++) {
       push(at(i, j), at(i + 1, j), at(i, j + 1));                                                  // (the cell's "up" triangle)
       if (i + j < N - 1) push(at(i + 1, j), at(i + 1, j + 1), at(i, j + 1));                      // (and its "down" triangle)
@@ -325,7 +332,7 @@ export function buildTerrainMeshes(grid, lighting, assets) {
     const faceN = [fn[0][0] + fn[1][0] + fn[2][0], fn[0][1] + fn[1][1] + fn[2][1], fn[0][2] + fn[1][2] + fn[2][2]];
     const mode = uvProjection(name, slope, faceN, triangleNormal(va, vb, vc));
     if (slope > ROCK_SUB_SLOPE) {
-      for (const q of steepParts(va, vb, vc, faceN, null)) b.tri(q.p[0], q.p[1], q.p[2], uvScale(name, projectUV(q.p[0], mode)), uvScale(name, projectUV(q.p[1], mode)), uvScale(name, projectUV(q.p[2], mode)), optsFor(name), [q.n, q.n, q.n]);
+      for (const q of steepParts(va, vb, vc, faceN, null)) b.tri(q.p[0], q.p[1], q.p[2], uvScale(name, projectUV(q.p[0], mode)), uvScale(name, projectUV(q.p[1], mode)), uvScale(name, projectUV(q.p[2], mode)), optsFor(name), q.n);
       return;
     }
     b.tri(va, vb, vc, uvScale(name, projectUV(va, mode)), uvScale(name, projectUV(vb, mode)), uvScale(name, projectUV(vc, mode)), optsFor(name), fn);
