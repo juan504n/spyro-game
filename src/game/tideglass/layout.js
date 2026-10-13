@@ -149,7 +149,7 @@ function layoutPearl(ctx) {
   const spine = pts('pearl');
   // a rock arch the road goes through, lower on the spine; torches either side of the way up
   const a = spine[1];
-  put('rock_arch', a[0] + 1, a[1] - 1, { rot: faceTo(a[0], a[1], spine[2][0], spine[2][1]) + Math.PI, w: 7.5, h: 5.4 }, 6);
+  put('rock_arch', a[0] + 1, a[1] - 1, { rot: faceTo(a[0], a[1], spine[2][0], spine[2][1]) + Math.PI, w: 10, h: 6.8 }, 6);
   lampsAlong(ctx, 'pearl', 16, 8, 60, 1.6, 'torch_stand');
   fit(ctx, 'bench', g.x + 5, g.z + 3, { rot: faceTo(g.x + 5, g.z + 3, -40, 40) }, 1.6, { path: 1.6 });
   fit(ctx, 'flower_patch', g.x + 6, g.z - 4, flowers(2.6, 9), 3, { path: 2 });

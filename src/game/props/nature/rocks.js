@@ -171,38 +171,57 @@ export function steppingStone(kit, { x, z, rot = 0, scale = 1, y, h, top: topR, 
   });
 }
 
-/** Natural rock arch ~9 wide: a bent hexagonal rock tube standing on two chunky feet, moss on top. */
+/**
+ * Natural rock arch ~9 wide: two piers of faceted rock leaning together, a thick lintel of rock between them, buttresses and fallen boulders outside, moss on the crown. The way through is CLEAR: its
+ * half-width is 0.31 of `w` (a 9 m arch leaves 5.6 m) and its crown 0.7 of `h` over the ground (4.3 m at 6.2), whatever the rock round it: nothing is placed inside it, and the colliders stay out of it.
+ * Walk through along local z. Anchor `gap` is the middle of the opening.
+ */
 export function rockArch(kit, { x, z, rot = 0, scale = 1, y, warm, w, h }) {
-  warm = !!warm; w = num(w, 9, 6, 14); h = num(h, 6.2, 4, 10);
+  warm = !!warm; w = num(w, 9, 6, 16); h = num(h, 6.2, 4, 12);
   const r = kit.rng(x, z, 83);
   const pal = stonePal(warm);
+  const O = w * 0.31, Hc = h * 0.7;                                     // (the opening: half-width, and height of its crown)
   kit.at(x, z, { rot, scale, y }, () => {
     const b = kit.b(stoneTex(warm));
-    const a = w / 2 - 1.3, n = 9;
-    const pts = [], rad = [];
+    const col = shade(-0.6, pal.dark, h * 1.05, pal.light, 0.05);
+    // the lintel: a ring of rock round the opening, thick at the piers and thinner at the crown, its inner edge on the ellipse (O, Hc); faceted, not smooth
+    const n = 11, pts = [], rad = [];
     for (let i = 0; i < n; i++) {
-      const th = Math.PI - (i / (n - 1)) * Math.PI;
-      const t = Math.sin(th);                                            // 0 at the feet, 1 at the crown
-      pts.push([Math.cos(th) * a + r.float(-0.12, 0.12), Math.sin(th) * h * 0.9 + (i === 0 || i === n - 1 ? -0.4 : 0), r.float(-0.25, 0.25) * t]);
-      rad.push(lerp(1.75, 1.15, Math.pow(t, 0.8)) * r.float(0.9, 1.1));
+      const th = Math.PI - (i / (n - 1)) * Math.PI, t = Math.sin(th);
+      const rr = lerp(1.7, 1.05, Math.pow(t, 0.7)) * r.float(0.88, 1.12);
+      rad.push(rr);
+      pts.push([Math.cos(th) * (O + rr * 0.92) + r.float(-0.08, 0.08), Math.max(Math.sin(th) * (Hc + rr * 0.92), 0) + (i === 0 || i === n - 1 ? -0.5 : 0) + (i === 0 || i === n - 1 ? 0 : 0), r.float(-0.3, 0.3) * t]);
     }
-    tube(b, pts, rad, { segs: 6, tile: 3, aspect: 1, smooth: 0, color: shade(-0.4, pal.dark, h * 0.95, pal.light, 0.05), rot0: r.float(0, 1) });
-    // chunky feet
+    tube(b, pts, rad, { segs: 7, tile: 3, aspect: 1, smooth: 0, color: col, rot0: r.float(0, 1) });
+    // piers: a heavy faceted column under each end of the lintel with its inner face standing at the edge of the opening, and two lower buttresses behind it on the outside
     for (const sd of [-1, 1]) {
-      for (let i = 0; i < 3; i++) {
-        const Rk = i === 0 ? r.float(2.0, 2.4) : r.float(0.9, 1.5);
-        const ang = r.float(0, TAU), d = i === 0 ? 0 : 1.7 + r.float(0, 0.6);
-        rock(kit, r, [sd * a + Math.cos(ang) * d, Rk * 0.3, Math.sin(ang) * d], Rk, { warm, moss: true, detail: i === 0 ? 1 : 'o1', sy: 0.8 });
+      const px = sd * (O + 1.55), top = Hc * 0.92;
+      // (the pier is a stack of three heavy boulders, the lowest the widest, with the inner side of each kept out of the opening)
+      for (const [i, yy, R, sy] of [[0, 1.3, 2.15, 1.15], [1, top * 0.52, 1.9, 1.0], [2, top * 0.86, 1.55, 0.95]]) {
+        const cx = px + sd * (0.18 - 0.2 * i) + (i === 2 ? sd * 0.1 : 0);
+        rock(kit, r, [cx, yy, r.float(-0.25, 0.25)], R, { warm, moss: false, detail: 1, noise: 0.3, sy, sx: 0.95, sz: 1.1 });
       }
-      kit.cyl(sd * a, 0, 1.9, 0, h * 0.5);
+      for (const [k, dz] of [[0, -1.6], [1, 1.5]]) {
+        const bx = sd * (O + 3.2 + k * 0.5), hh = Hc * (0.62 - 0.18 * k) * r.float(0.9, 1.1), R = 1.5 + 0.3 * (1 - k);
+        rock(kit, r, [bx, R * 0.55, dz], R, { warm, moss: false, detail: 1, noise: 0.32, sy: 1.0, sx: 0.95, sz: 1.0 });
+        rock(kit, r, [bx - sd * 0.15, hh * 0.78, dz], R * 0.72, { warm, moss: k === 1, detail: 'o1', noise: 0.3, sy: 0.95 });
+      }
+      // fallen blocks on the outside (never within reach of the opening)
+      for (let i = 0; i < 3; i++) {
+        const Rk = i === 0 ? r.float(1.3, 1.7) : r.float(0.7, 1.1);
+        const ox = sd * (O + 3.4 + Rk + (i === 0 ? 0.6 : r.float(0.6, 1.8))), oz = (i === 0 ? 0.2 : (i % 2 ? 1 : -1) * r.float(1.8, 2.8));
+        rock(kit, r, [ox, Rk * 0.3, oz], Rk, { warm, moss: true, detail: i === 0 ? 1 : 'o1', sy: 0.85, noise: 0.34 });
+      }
+      kit.cyl(px, 0, 1.5, 0, top);
+      kit.cyl(sd * (O + 3.5), 0, 1.5, 0, Hc * 0.55);
     }
-    // moss on the crown (sits on the tube's top surface)
+    // moss on the crown (sits on the lintel's top surface)
     const moss = kit.b('moss');
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {
       const j = 3 + i, p = pts[j];
-      lump(moss, r, [p[0], p[1] + rad[j] * 0.72, p[2]], r.float(0.9, 1.25), { detail: 'o1', noise: 0.15, sy: 0.34, sx: 1.2, tile: 3, smooth: 0.3, skipDown: 0.05, color: (kit.skin && kit.skin.palettes && kit.skin.palettes.mossTop) || [0.9, 1.02, 0.8] });
+      lump(moss, r, [p[0], p[1] + rad[j] * 0.45, p[2]], r.float(0.85, 1.15), { detail: 'o1', noise: 0.2, sy: 0.55, sx: 1.0, tile: 3, smooth: 0.3, skipDown: 0.05, color: (kit.skin && kit.skin.palettes && kit.skin.palettes.mossTop) || [0.9, 1.02, 0.8] });
     }
-    kit.caster(0, 0, a * 0.7, h * 0.8, 0.3);
+    kit.caster(0, 0, O + 2.4, h * 0.8, 0.3);
   });
 }
 
@@ -236,6 +255,6 @@ export const ROCKS = {
   boulder_big: { fn: boulderBig, size: 9, note: 'big 5-7 wide boulder with satellites', defaults: {} },
   rock_spire: { fn: rockSpire, size: 8, note: 'tall jagged rock spire 10-16 (h param) with shards', defaults: {} },
   stepping_stone: { fn: steppingStone, size: 5, note: 'rock pillar with flat mossy top at y=h (walkable, radius param top = 1.7 by default; Mirrormere\'s lily-pad crossing uses 3.4); origin at the bed', defaults: { h: 4.6 }, anchors: { top: [0, 4.6, 0] } },
-  rock_arch: { fn: rockArch, size: 12, note: 'natural rock arch ~9 wide (w, h, warm); walk through along local z', defaults: { w: 9, h: 6.2 }, anchors: { gap: [0, 0, 0] } },
+  rock_arch: { fn: rockArch, size: 12, note: 'natural rock arch ~9 wide (w, h, warm): faceted piers and lintel, a clear opening 0.62 w wide and 0.7 h high; walk through along local z', defaults: { w: 9, h: 6.2 }, anchors: { gap: [0, 0, 0] } },
   cliff_outcrop: { fn: cliffOutcrop, size: 14, note: 'wall of faceted rock columns; len, h, warm', defaults: { len: 14, h: 6 } },
 };
