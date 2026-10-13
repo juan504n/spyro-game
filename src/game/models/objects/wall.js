@@ -5,10 +5,22 @@ import { Rig, exposure, setExposure } from './common.js';
 import { litBuilder, clamp } from './geo.js';
 import { derivedTexture } from './recolor.js';
 import { RNG } from '../../../engine/textures/pix.js';
+import { HD } from '../../../engine/textures/hd/index.js';
+import { crackedWall } from '../../../engine/textures/hd/wall.js';
 
 const TEXEL = 8;    // texels per world unit (== brick at tile 4)
 
+// the smooth look paints the panel again at the density of the HD tiles (engine/textures/hd/wall.js); the PS1 look keeps these pixels
+function giveHD(p, src, w, h) {
+  let made = null;
+  const mean = [0, 0, 0], n = src.w * src.h;
+  for (let i = 0; i < n; i++) { mean[0] += src.data[i * 4]; mean[1] += src.data[i * 4 + 1]; mean[2] += src.data[i * 4 + 2]; }
+  const m = mean.map((v) => v / n);
+  Object.defineProperty(p, 'hd', { value: () => made || (made = crackedWall(w, h, { size: HD.size, mean: m, seed: 1000 }).toPix()), enumerable: false, configurable: true });
+}
+
 function paintCracks(p, src, w, h) {
+  giveHD(p, src, w, h);
   const W = p.w, H = p.h;
   // tile the brick texture across the panel (aligned to the bottom edge so courses sit on the ground)
   for (let y = 0; y < H; y++) {

@@ -1,6 +1,6 @@
 // Contact sheet of an actor from several angles (dev models scene) — for reviewing character models.
 //   node tools/model-sheet.mjs out.png [--only spyro] [--pose idle] [--views front,front34,side,back34] [--res 480] [--day 0]
-//        [--cols 2] [--scale 1] [--dist 1] [--opts '{"still":1}']      (--scale: the picture upscaled; --dist: the camera's distance, x1 for Spyro, x3 for a 5 m object)     needs the dev server on :5173 (GV_HMR=0 recommended)
+//        [--look smooth|ps1] [--cols 2] [--scale 1] [--dist 1] [--opts '{"still":1}']      (--scale: the picture upscaled; --dist: the camera's distance, x1 for Spyro, x3 for a 5 m object)     needs the dev server on :5173 (GV_HMR=0 recommended)
 // Views (Spyro faces +z; centre c = model height * 0.5):
 //   front front34 side back34 back top head head34 headside game (the chase camera's distance/FOV at 240p, x3)
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
@@ -19,6 +19,7 @@ const dist = +opt('dist', 1);
 const views = opt('views', 'front,front34,side,back34').split(',');
 const poses = opt('poses', '') ? opt('poses', '').split(',') : null;   // one shot per pose (first view), instead of one per view
 const hy = +opt('hy', 0.85);          // vertical centre of the model
+const look = opt('look', '');            // smooth | ps1 (the page's look; default the page's own)
 const opts = opt('opts', '{"still":1}');   // creation options (still = no idle blink / look-around, so renders are repeatable)
 
 const deg = (a) => (a * Math.PI) / 180;
@@ -42,7 +43,7 @@ const logs = [];
 page.on('console', (m) => { if (m.type() === 'error') logs.push(`[error] ${m.text().slice(0, 200)}`); });
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message.slice(0, 300)}`));
 const base = process.env.GV_URL || 'http://127.0.0.1:5173/';
-await page.goto(`${base}?test=models&only=${only}&pose=${pose}&res=${res}&day=${day}&opts=${encodeURIComponent(opts)}&preserve=1`);
+await page.goto(`${base}?test=models&only=${only}&pose=${pose}&res=${res}&day=${day}&opts=${encodeURIComponent(opts)}${look ? '&look=' + look : ''}&preserve=1`);
 await page.waitForFunction(() => window.__ready || window.__error, null, { timeout: 90000 });
 const err = await page.evaluate(() => window.__error);
 if (err) { console.error('BOOT ERROR', err); await browser.close(); process.exit(1); }
