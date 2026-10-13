@@ -1,5 +1,5 @@
-// The places the TRAVEL menu can take the hero to: a debugging tool, to get at once to any part of either world and look at it. The menu (app.js) lists the worlds, then the groups of
-// places of a world (a page of a phone's menu holds about six rows), then the places; a place is picked, the menu asks ARE YOU SURE?, and YES takes the hero there.
+// The places the TRAVEL menu can take the hero to: a debugging tool, to get at once to any part of either world and look at it. The menu (app.js) lists the levels, one row each, and
+// a row takes the hero to the start of its level (the first place of its first group); the other places are not in the menu, they are what the tools (travel-check, arrival-test, realm-test) go to.
 //
 // A place is { id, name, x, z, yaw, y? }: where the hero is put, the way he faces (yaw 0 looks south, +z; PI looks north; PI / 2 looks east) and, when the ground there is not the terrain
 // (a pier, a floating isle, a summit's slab, a tower's floor), the height of the floor. `tools/travel-check.mjs` holds every place to the same standard: it is somewhere the hero can

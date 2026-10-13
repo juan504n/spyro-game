@@ -543,7 +543,7 @@ class App {
     return !!(sealed && g.objects && g.objects.openBarrierAtOnce());
   }
 
-  /** YES on the TRAVEL menu's ARE YOU SURE?: take the hero to the place, from the title menu or the pause menu (a different world is a trip like a portal's, a fresh build of it). */
+  /** a row of the TRAVEL menu: take the hero to the place, from the title menu or the pause menu (a different world is a trip like a portal's, a fresh build of it). */
   warpTo(place) {
     if (this.state === 'traveling') return;
     const wasPaused = this.state === 'paused';
@@ -640,49 +640,23 @@ class App {
     this.game.hud.hint(['DEBUG MODE: OFF', 'DEBUG MODE: COMPACT (F3 FOR FULL)', 'DEBUG MODE: FULL (F3 TO TURN OFF)'][next], 2.4);
   }
 
-  // ---- TRAVEL (title and pause menus): a debugging tool, to get at once to any part of either world and look at it ---------------------------------------------------------------
-  /** the worlds, then the groups of places of a world, then its places (a page of a phone's menu holds about six rows), then ARE YOU SURE? */
+  // ---- TRAVEL (title and pause menus): one row a level, one click: the start of it ---------------------------------------------------------------------------------------------
+  /** the start of a level: the first place of its first group (travel.js: the start of Gloaming Vale, the landing of Dawnhaven, the gate lawn of a realm, the door of the Court) */
+  travelStart(w) { return { ...w.groups[0].places[0], world: w.world }; }
+
+  /**
+   * The levels, one row each: a click takes the hero to its start (no groups of places, no ARE YOU SURE?: a trip to another world is a fresh build of it, as through a portal, and what was done
+   * in the old one is kept as it was saved). The places inside a level are still in travel.js for the tools; THE FIGHT AGAIN of the Court is a row of its own once he is free.
+   */
   travelPage() {
+    const rematch = this.progress.guardian && this.progress.guardian.freed ? TRAVEL.flatMap((w) => w.groups.flatMap((g) => g.places.filter((p) => p.rematch).map((p) => ({ ...p, world: w.world })))) : [];
     return {
       title: 'TRAVEL TO', width: 230, closable: true, dense: true,
       items: [
-        ...TRAVEL.map((w) => ({ type: 'action', label: w.name, more: true, action: (m) => m.open(this.travelWorldPage(w)) })),
+        ...TRAVEL.map((w) => ({ type: 'action', label: w.name, action: () => this.warpTo(this.travelStart(w)) })),
+        ...rematch.map((p) => ({ type: 'action', label: p.name, action: () => this.warpTo(p) })),
         { type: 'action', label: 'BACK', hidden: this._touchOnly(), action: (m) => m.close() },
       ],
-    };
-  }
-
-  travelWorldPage(w) {
-    return {
-      title: w.name, width: 230, closable: true,
-      items: [
-        ...w.groups.map((g) => ({ type: 'action', label: g.name, more: true, action: (m) => m.open(this.travelGroupPage(w, g)) })),
-        { type: 'action', label: 'BACK', hidden: this._touchOnly(), action: (m) => m.close() },
-      ],
-    };
-  }
-
-  travelGroupPage(w, g) {
-    return {
-      title: g.name, width: 230, closable: true,
-      items: [
-        ...g.places.map((p) => ({ type: 'action', label: p.name, more: true, action: (m) => m.open(this.travelConfirmPage(w, { ...p, world: w.world })) })),
-        { type: 'action', label: 'BACK', hidden: this._touchOnly(), action: (m) => m.close() },
-      ],
-    };
-  }
-
-  /** ARE YOU SURE? YES or NO: it starts on NO (a trip to another world leaves this one, and what was done in it is not kept). */
-  travelConfirmPage(w, place) {
-    const away = w.world !== this.game.realm.id;
-    const lines = [`TRAVEL TO ${place.name}`, `IN ${w.name}?`, ...(away ? ['YOU LEAVE THIS WORLD.', 'WHAT YOU DID IN IT IS NOT KEPT.'] : [])];
-    return {
-      title: 'ARE YOU SURE?', width: 236, closable: true, sel: 1, extraHead: true,
-      items: [
-        { type: 'action', label: 'YES', action: () => this.warpTo(place) },
-        { type: 'action', label: 'NO', action: (m) => m.close() },
-      ],
-      extra: lines,
     };
   }
 

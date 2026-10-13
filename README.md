@@ -112,20 +112,17 @@ back, yellow = the nearest or the one the crosshair is on. The last errors and w
 
 ### Travel menu (to look at any part of the game)
 
-**Travel** is a row of the title menu (`Esc`, or the **MENU** button on a phone) and of the pause menu. It lists the worlds (Gloaming Vale, Dawnhaven, Frostbloom Hollow, Emberfall Crags, Skyweaver Spires, Tideglass Reach, the Guardian's Court), then groups of places (the vale, the heights, sky and
-summit; the country, lake and canyon, inside the crag, up and away; the goals, the country, the secrets), then the places: 107 of them in all (Mirrormere dock, Windmill Hill, the four sky isles, the observatory, the Great Beacon's room,
-Dawnhaven's cove, the Echo Hall, the Frost Grotto, the crystal vault, the Forge, the summit, Frostbloom Hollow's Thaw Gate, its frozen lake, the glacier's heart chamber, the ice vault, the Hollow, Emberfall Crags' Cinder Flats, the stack in the lava, the Maw, the Furnace, the caldera, Skyweaver Spires' Skygate, the Lowfield, the Kite Isle, the Spindle Spires, the Loom, Tideglass Reach's quay, Pearl Rock, the glass stacks, the Weeping Cliff, the headland, the Guardian's gorge road, the mouth of the court, the dais, THE FIGHT AGAIN ...). A place asks **ARE YOU SURE? YES / NO** (the cursor starts on NO; `Esc`, the BACK button or a tap outside the panel is NO too),
-and YES takes the hero there:
+**Travel** is a row of the title menu (`Esc`, or the **MENU** button on a phone) and of the pause menu. It lists the levels, one row each (Gloaming Vale, Dawnhaven, Frostbloom Hollow, Emberfall Crags, Skyweaver Spires, Tideglass Reach, the Guardian's Court; **THE FIGHT AGAIN** is a row of its own once the Guardian is free), and **one choice takes the hero to the start of that level**: no groups of places, no confirmation. (The 100-odd places inside the levels, a spot in front of every goal and so on, are still in `src/game/travel.js` for the tools; the menu no longer lists them.)
 
 * **in the world he is in** the screen blinks white and nothing is rebuilt: what he did there stays (gems, broken vases, lit lanterns);
-* **in the other world** it is a trip like a portal's: this world is let go of (what was done in it is not kept: the prompt says so) and the other is built as the game generates it, fresh;
-* **from the title menu** a place in the vale starts play there at once (no intro, with the line of controls PLAY would show); a place in Dawnhaven builds Dawnhaven.
+* **in the other world** it is a trip like a portal's: this world is let go of (what was done in it is not kept) and the other is built as the game generates it, fresh;
+* **from the title menu** the vale starts play at once (no intro, with the line of controls PLAY would show); another level is built.
 
 He arrives on the floor the place names, facing the way it says, the camera behind him, the place's name on the banner, and the place is his checkpoint (a fall or a death brings him back there). He blinks untouchable
 for 3 seconds, as after a respawn, so a Snuffer that notices him on arrival gets no free blow (nor one while the old place fades out). The vale's summit is sealed by a ward until the Dawn Gate opens, and the ward would
 throw him out of the observatory and the Great Beacon's room again: a place inside it opens the Dawn Gate for him, and a hint says so (a place beyond Frostbloom Hollow's ice gate, the Hollow, or beyond Emberfall's ward of fire, the Furnace and the caldera, opens that gate the same way). `tools/travel-check.mjs` holds every place to a standard (headless: a floor under it, clear of
 props, rock and colliders, out of the water and off a slope he would slide down, 6 m from the Snuffers and from a door that is awake, in no pocket, and in the walkable country with the realm's gate open); `tools/travel-test.mjs`
-goes to every one of them through the real menu pages, then does it with the mouse and with taps on a phone held either way.
+goes to the start of every level through the real menu, then does it with the mouse and with taps on a phone held either way.
 
 ### The original, too: open-spyro in the browser
 
