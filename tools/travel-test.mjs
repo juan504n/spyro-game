@@ -1,5 +1,5 @@
 // The TRAVEL menu, end to end in the running game, through real input: the keyboard and the mouse on a desktop window, taps (CDP touch events) on a phone held either way. The title menu and the
-// pause menu both lead to ONE page of levels, a row each: one choice takes the hero to the start of the level (no groups, no ARE YOU SURE?). In the level he is already in the screen blinks and
+// pause menu both lead to ONE page of levels, a row each: one choice takes the hero to the start of the level (no groups; a game in play asks ARE YOU SURE? only before it is left for another level). In the level he is already in the screen blinks and
 // nothing is rebuilt (what he did there stays); in another a trip is made like a portal's and the level is built fresh. Every level's start is gone to through the pause menu, and he must stand
 // on it: grounded, alive, unhurt, facing the way the place says with the camera behind him, the place's name on the banner, the place his checkpoint (a death brings him back there).
 //   node tools/travel-test.mjs      (needs the dev server on :5173, GV_HMR=0 recommended; GV_URL=file:///.../docs/index.html tests a built file instead;
@@ -193,12 +193,29 @@ if (wanted('pause')) {
   r = await here(ev, place);
   check('a death brings him back to the start he travelled to (his checkpoint), alive', r.deaths === 1 && !r.dead && r.off < 1.2 && r.realm === 'gloaming', describe(r) + ` deaths ${r.deaths}`);
 
-  // another level: a trip like a portal's, and the new world is fresh
+  // another level: asked first (ARE YOU SURE? on NO), then a trip like a portal's, and the new world is fresh
   await key('Escape');
   await pick(t, 'TRAVEL');
+  s = await pick(t, 'DAWNHAVEN');
+  const fits = s.extra && s.extra.every((l) => measureText(l).w <= s.width - 20);
+  check('pause: another level asks ARE YOU SURE? (YES / NO, the cursor on NO, the level named, the loss said), nothing has begun', s.title === 'ARE YOU SURE?' && s.labels.join() === 'YES,NO' && s.sel === 1 && s.extra.join(' ').includes('DAWNHAVEN') && s.extra.join(' ').includes('NOT KEPT') && !s.travel && s.state === 'paused', `(${s.title}: ${s.labels.join('/')}, on ${s.labels[s.sel]}; ${(s.extra || []).join(' | ')})`);
+  check('... the text fits the panel', fits, `(${(s.extra || []).map((l) => measureText(l).w).join(', ')} px of ${s.width - 20})`);
+  await t.shot('confirm');
+  s = await pick(t, 'NO');
+  check('NO: back on the levels, still paused, in the same world, no trip', s.title === 'TRAVEL TO' && s.state === 'paused' && !s.travel && (await ev(() => window.__keep === __game)), `(${s.title}, ${s.state})`);
   await pick(t, 'DAWNHAVEN');
+  await key('Enter');
+  s = await menuNow(ev);
+  check('Enter at once on ARE YOU SURE? is NO: a stray press cannot send him away', s.title === 'TRAVEL TO' && !s.travel && s.state === 'paused', `(${s.title}, ${s.state})`);
+  await pick(t, 'DAWNHAVEN');
+  await key('Escape');
+  s = await menuNow(ev);
+  check('Esc on ARE YOU SURE? is NO, too', s.title === 'TRAVEL TO' && !s.travel && s.state === 'paused', `(${s.title}, ${s.state})`);
+  await pick(t, 'DAWNHAVEN');
+  await key('ArrowUp');
+  await key('Enter');
   st = await ev(() => ({ state: __app.state, hop: __app.travel && __app.travel.hop, id: __app.travel && __app.travel.id }));
-  check('pause: DAWNHAVEN from the vale is a trip, not a hop', st.state === 'traveling' && st.hop === false && st.id === 'home', JSON.stringify(st));
+  check('YES (one row up from NO): a trip, not a hop', st.state === 'traveling' && st.hop === false && st.id === 'home', JSON.stringify(st));
   await arrived(t, 'home');
   await t.frame(60, 1 / 30);
   const hp = startOf('home');
@@ -220,7 +237,8 @@ if (wanted('sweep')) {
     const s0 = await menuNow(ev);
     if (s0.state !== 'paused') { bad.push(`${place.level}: the pause menu did not open (${s0.state})`); break; }
     await pick(t, 'TRAVEL');
-    await pick(t, place.level);
+    const c = await pick(t, place.level);
+    if (c.title === 'ARE YOU SURE?') { await key('ArrowUp'); await key('Enter'); }      // (another level than the one he is in asks first)
     await arrived(t, place.world);
     await t.frame(90, 1 / 30);
     const r = await here(ev, place);
@@ -310,7 +328,15 @@ async function phone(label, vp, shotName) {
   R = await rowsOf(ev);
   check(`${label}: the pause menu has TRAVEL and is tappable (six rows)`, R.title === 'PAUSED' && R.labels.includes('TRAVEL') && R.labels.length === 6 && tappable(R), rowLine(R));
   R = await press('TRAVEL');
-  R = await press('DAWNHAVEN');
+  R = await press('GLOAMING VALE');
+  check(`${label}: another level asks ARE YOU SURE?: YES and NO finger-sized and inside the picture, clear of the button`, R.title === 'ARE YOU SURE?' && R.labels.join() === 'YES,NO' && tappable(R), rowLine(R));
+  await t.shot(`${shotName}-confirm`);
+  R = await press('NO');
+  check(`${label}: a tap on NO goes back to the levels, no trip`, R.title === 'TRAVEL TO' && !R.travel && R.state === 'paused', `(${R.title}, ${R.state})`);
+  R = await press('GLOAMING VALE');
+  R = await outside();
+  check(`${label}: a tap outside the panel on ARE YOU SURE? is NO, too`, R.title === 'TRAVEL TO' && !R.travel && R.state === 'paused', `(${R.title}, ${R.state})`);
+  R = await press('DAWNHAVEN');                                          // (the level he is in: no question, a hop that keeps the world)
   await arrived(t, 'home');
   await t.frame(60, 1 / 30);
   r = await here(ev, place);

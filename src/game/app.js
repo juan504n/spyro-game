@@ -644,17 +644,36 @@ class App {
   /** the start of a level: the first place of its first group (travel.js: the start of Gloaming Vale, the landing of Dawnhaven, the gate lawn of a realm, the door of the Court) */
   travelStart(w) { return { ...w.groups[0].places[0], world: w.world }; }
 
+  /** a row: in the level he is in (or from the title, where nothing has been done yet) the trip is at once; from a game in play to another level it asks first */
+  _travelRow(m, w, place) {
+    const leaving = this.state === 'paused' && place.world !== this.game.realm.id;
+    if (leaving) m.open(this.travelConfirmPage(w, place)); else this.warpTo(place);
+  }
+
+  /** ARE YOU SURE? YES or NO, only when a game in play would be left for another level (what was done in it is not kept): it starts on NO, and Esc or a tap outside is NO too */
+  travelConfirmPage(w, place) {
+    return {
+      title: 'ARE YOU SURE?', width: 236, closable: true, sel: 1, extraHead: true,
+      items: [
+        { type: 'action', label: 'YES', action: () => this.warpTo(place) },
+        { type: 'action', label: 'NO', action: (m) => m.close() },
+      ],
+      extra: [`TRAVEL TO ${place.name}`, `IN ${w.name}?`, 'YOU LEAVE THIS WORLD.', 'WHAT YOU DID IN IT IS NOT KEPT.'],
+    };
+  }
+
   /**
-   * The levels, one row each: a click takes the hero to its start (no groups of places, no ARE YOU SURE?: a trip to another world is a fresh build of it, as through a portal, and what was done
-   * in the old one is kept as it was saved). The places inside a level are still in travel.js for the tools; THE FIGHT AGAIN of the Court is a row of its own once he is free.
+   * The levels, one row each: a click takes the hero to its start (no groups of places). The level he is in, or any from the title, is at once; from a game in play another level asks ARE YOU SURE?
+   * first (a trip to another world is a fresh build of it, as through a portal, and what was done in the old one is not kept). The places inside a level are still in travel.js for the tools;
+   * THE FIGHT AGAIN of the Court is a row of its own once he is free.
    */
   travelPage() {
     const rematch = this.progress.guardian && this.progress.guardian.freed ? TRAVEL.flatMap((w) => w.groups.flatMap((g) => g.places.filter((p) => p.rematch).map((p) => ({ ...p, world: w.world })))) : [];
     return {
       title: 'TRAVEL TO', width: 230, closable: true, dense: true,
       items: [
-        ...TRAVEL.map((w) => ({ type: 'action', label: w.name, action: () => this.warpTo(this.travelStart(w)) })),
-        ...rematch.map((p) => ({ type: 'action', label: p.name, action: () => this.warpTo(p) })),
+        ...TRAVEL.map((w) => ({ type: 'action', label: w.name, action: (m) => this._travelRow(m, w, this.travelStart(w)) })),
+        ...rematch.map((p) => ({ type: 'action', label: p.name, action: (m) => this._travelRow(m, TRAVEL.find((w) => w.world === p.world), p) })),
         { type: 'action', label: 'BACK', hidden: this._touchOnly(), action: (m) => m.close() },
       ],
     };
