@@ -4,6 +4,7 @@ import { U, setTextureSmoothing } from './materials.js';
 import { QUANT_FRAG, OUT_FRAG, FULLSCREEN_VERT } from './shaders.js';
 import { Pix } from './textures/pix.js';
 import { isTouchDevice } from './device.js';
+import { UiLayer } from './uilayer.js';
 
 const STORE_KEY = 'gloaming-vale/settings/v2';
 
@@ -191,9 +192,13 @@ export class Gfx {
         uSmooth: { value: 1 },
         uRect: { value: new THREE.Vector4(0, 0, 640, 480) },
         uCRT: { value: 0 },
+        uUi: { value: null },
+        uUiOn: { value: 0 },
       },
       depthTest: false, depthWrite: false,
     });
+    this.ui = new UiLayer();                  // (what plays over the game: the HUD proper, at the window's resolution)
+    this.ui.onTexture = (t) => { this.outMat.uniforms.uUi.value = t; };
     this.quantScene = new THREE.Scene();
     this.quantQuad = new THREE.Mesh(quadGeo, this.quantMat);
     this.quantQuad.frustumCulled = false;
@@ -290,6 +295,7 @@ export class Gfx {
     }
     this.rect = rect;
     this.outMat.uniforms.uRect.value.set(rect[0], rect[1], rect[2], rect[3]);
+    this.ui.resize(rect[2], rect[3]);
     if (W !== this.W || H !== this.H || this._samples !== (s.filter === 'smooth' ? 4 : 0)) {
       this.W = W; this.H = H;
       this._allocTargets(W, H);
@@ -334,7 +340,7 @@ export class Gfx {
     this.resize();
   }
 
-  clearHud() { this.hud.data.fill(0); }
+  clearHud() { this.hud.data.fill(0); this.ui.start(); }
 
   /**
    * Render `scene` from `camera` through the whole PS1 pipeline to the canvas. `overlay` ({ scene, camera }) is an optional
@@ -358,7 +364,9 @@ export class Gfx {
     r.setRenderTarget(this.rtFinal);
     r.setViewport(0, 0, this.W, this.H);
     r.render(this.quantScene, this.quadCam);
-    // pass 3: upscale to the canvas
+    // pass 3: upscale to the canvas (and the UI layer over it)
+    this.ui.finish();
+    this.outMat.uniforms.uUiOn.value = this.ui.on ? 1 : 0;
     r.setRenderTarget(null);
     r.setViewport(0, 0, this.devW, this.devH);
     r.setClearColor(0x000000, 1);

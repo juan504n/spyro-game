@@ -416,6 +416,6 @@ export class Game {
     f.a += Math.sign(f.target - f.a) * Math.min(Math.abs(f.target - f.a), f.speed * dt);
     this.gfx.fade.set(f.color[0], f.color[1], f.color[2], f.a);
     this.counter.update(paused ? 0 : dt, this.hud.visible);
-    this.hud.draw(this.gfx.hud);
+    this.hud.draw(this.gfx.ui);
   }
 }

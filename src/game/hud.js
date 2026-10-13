@@ -1,17 +1,19 @@
-// HUD & on-screen text, drawn into the internal-resolution overlay every frame (so it is pixelated and dithered-free
-// like PS1 sprites). Layout adapts to the internal width (4:3 = 320, wide modes = more columns).
-import { drawText, measureText, wrapText } from '../engine/textures/font.js';
-import { generateUI, drawPanel, drawBar } from '../engine/textures/ui.js';
+// THE HUD: what plays over the game, drawn on the UI layer (engine/uilayer.js) at the window's own resolution, in a layout space 720 dp high: translucent glass panels, thin light borders, slim pill
+// gauges, a clean sans type. (The menus, the title and the end screens are the retro pixel HUD still: engine/textures/ui.js.) The gems and Sparx's health are not here while playing: they are on the
+// pause screen's card (and the gems pop up in 3D when picked up: gemcounter.js); what stays is what the hero is doing now - the realm's task, the trial, the tide, the Guardian - and the words the game says.
+import { drawText } from '../engine/textures/font.js';
+import { generateUI, drawBar } from '../engine/textures/ui.js';
 import { tideDir } from './realm/tide.js';
+import { T, font, clamp01, ease, rr, panel, gauge, txt, measure, wrap, gemIcon, sparxIcon, flameIcon } from '../engine/uikit.js';
+import { touchClear } from './menu.js';
 
 const GOLD = ['#fff4b0', '#ffc03c', '#e07818'];
-const LILAC = ['#f4eeff', '#b8a8e8'];
 const INK = '#120c1c';
 
 export class Hud {
   constructor(game) {
     this.game = game;
-    this.icons = generateUI();
+    this.icons = generateUI();                    // (the retro icon atlas: the results screens still use it)
     this.pulses = { gems: 0, sparx: 0, beacons: 0 };
     this.bannerState = null;
     this.hintState = null;
@@ -62,121 +64,133 @@ export class Hud {
     }
   }
 
-  /** Draw everything into the overlay `pix` (gfx.hud). */
-  draw(pix) {
-    if (!this.visible) return;
-    const g = this.game;
-    const W = pix.w, H = pix.h;
-    const st = g.stats;
-    const I = this.icons;
-
-    // ---- gems -------------------------------------------------------------------------------------------------
-    {
-      const bump = this.pulses.gems > 0 ? 1 : 0;
-      drawPanel(pix, 4, 4, 78, 17, { style: 'hud' });
-      pix.blit(I.gem_gold, 8, 6 - bump);
-      const n = String(st.gems);
-      const w = drawText(pix, n, 23, 7 - bump, { style: 'grad', colors: this.pulses.gems > 0.4 ? ['#ffffff', '#fff4b0', '#ffc03c'] : GOLD, outlineColor: INK }).w;
-      drawText(pix, '/' + st.gemsTotal, 23 + w + 2, 9, { style: 'outline', color: '#c8bce8', outlineColor: INK });
-    }
-    // ---- Sparx health ---------------------------------------------------------------------------------------------
-    {
-      const hp = g.sparx ? g.sparx.hp : 0;
-      drawPanel(pix, 4, 23, 40, 15, { style: 'hud' });
-      const icon = hp >= 3 ? I.sparx_yellow : hp === 2 ? I.sparx_blue : I.sparx_green;      // gold (full), then blue, then green, then gone
-      if (hp > 0) pix.blit(icon, 7, 24 - (this.pulses.sparx > 0 ? 1 : 0));
-      for (let i = 0; i < 3; i++) {
-        const on = i < hp;
-        const x = 24 + i * 6;
-        pix.rect(x, 28, 4, 4, INK);
-        pix.rect(x + 1, 29, 2, 2, on ? (hp >= 3 ? '#ffe060' : hp === 2 ? '#6aa0ff' : '#70ff80') : '#3a2a60');
-      }
-    }
-    // ---- beacons (a realm whose task is its own has no row of them: its objective says how far it has got, below) ---------------------------------------------
-    if (!g.objective) {
-      const total = st.beaconsTotal || 5, [onKey, offKey] = this.game.words.icons;
-      const w = total * 14 + 8;
-      const x0 = W - w - 4;
-      drawPanel(pix, x0, 4, w, 24, { style: 'hud' });
-      for (let i = 0; i < total; i++) {
-        const lit = i < st.beacons;
-        const ic = lit ? I[onKey] : I[offKey];
-        const bob = lit && this.pulses.beacons > 0 && i === st.beacons - 1 ? -2 : 0;
-        pix.blit(ic, x0 + 6 + i * 14, 8 + bob);
-      }
-    }
-    // ---- the tide (a realm that has one) -----------------------------------------------------------------------------------
-    if (g.tide) this._drawTide(pix, W);
-    // ---- the trial he is in (systems/trials.js): what it asks of him now, and how far he has got ----------------------------------------
-    let top = 4;
-    if (g.trials && g.mode === 'play') top = this._drawTrial(pix, W) || 4;
-    // ---- the realm's own task (objectives/): what it asks now, and how far he has got ------------------------------------------------------
-    if (g.objective && g.mode === 'play') this._drawObjective(pix, W, top);
-    // ---- the Guardian (the Court's boss) ---------------------------------------------------------------------------------------
-    if (g.boss) { this._drawBoss(pix, W); this._drawThreats(pix, W, H); }
-    // ---- banner ------------------------------------------------------------------------------------------------------
-    if (this.bannerState) {
-      const b = this.bannerState;
-      const k = Math.min(1, b.t / 0.18);
-      const out = b.t > b.dur - 0.4 ? Math.max(0, (b.dur - b.t) / 0.4) : 1;
-      if (out > 0.05) {
-        const sc = k < 1 ? 1 : 2;
-        const y = Math.round(H * 0.24) - (k < 1 ? 6 : 0);
-        drawText(pix, b.title, W >> 1, y, { style: 'grad', scale: sc, align: 'center', colors: GOLD, outlineColor: INK, clip: out < 1 ? { x: 0, y: 0, w: W, h: Math.round(H * 0.24 + 40 * out) } : undefined });
-        if (b.sub && out > 0.4) drawText(pix, b.sub, W >> 1, y + (sc === 2 ? 22 : 14), { style: 'grad', align: 'center', colors: LILAC, outlineColor: INK });
-      }
-    }
-    // ---- hint ----------------------------------------------------------------------------------------------------------
-    if (this.hintState && !this.dlg) {
-      const h = this.hintState;
-      // long hints wrap onto extra lines instead of running off the screen
-      const lines = wrapText(h.text, W - 30, { style: 'outline' });
-      let lw = 0;
-      for (const ln of lines) lw = Math.max(lw, measureText(ln, { style: 'outline' }).w);
-      const w = lw + 12, ph = 5 + lines.length * 10;
-      const x = ((W - w) >> 1);
-      const y = H - 11 - ph - (h.t < 0.2 ? Math.round((0.2 - h.t) * 60) : 0);
-      drawPanel(pix, x, y, w, ph, { style: 'hud' });
-      lines.forEach((ln, i) => drawText(pix, ln, W >> 1, y + 4 + i * 10, { style: 'outline', color: '#fff4ff', outlineColor: INK, align: 'center' }));
-    }
-    // ---- dialogue ------------------------------------------------------------------------------------------------------
-    if (this.dlg) this._drawDialogue(pix);
+  /** Draw everything that plays over the game onto the UI layer `ui` (gfx.ui). The pixel overlay (menus, title) is not touched. */
+  draw(ui) {
+    const c = ui.get();
+    if (!c || !this.visible) return;
+    if (this._drawAll(c, ui.W, 720)) ui.used = true;
   }
 
-  /**
-   * The Guardian's bar, top centre, while he is awake: his two fists (a block of stone each: lit while it floats, dark once the ram has broken it), and when he stoops the two things that matter for nine
-   * seconds: how long the crown stays down (gold, red when it is nearly gone) and how far the flame has taken the lantern (white-hot).
-   */
-  _drawBoss(pix, W) {
+  _drawAll(c, W, H) {
+    const g = this.game;
+    let drew = false;
+    // on a touch screen the MENU button may sit on the frame's top edge: the middle column starts below it
+    let midTop = 20;
+    if (g.input && g.input.menuBtn && g.input.menuBtn.style.display !== 'none') {          // (the touch MENU button is there)
+      try { midTop = Math.max(midTop, touchClear(g.gfx.frameCss()) * 3 + 8); } catch (e) { /* no frame yet */ }
+    }
+    // ---- the lanterns of a realm whose task is lighting them (a realm with a task of its own has no row of them) ---------------------------------------------------------------------
+    let right = 20;
+    if (!g.objective && g.stats && !g.paused) { right = this._drawBeacons(c, W, 20) + 12; drew = true; }
+    // ---- the tide (a realm that has one) ------------------------------------------------------------------------------------------------------------------------------------------------
+    if (g.tide) { this._drawTide(c, W, right); drew = true; }
+    // ---- the trial he is in, and the realm's own task, in the middle column -----------------------------------------------------------------------------------------------------------
+    let y = midTop;
+    if (g.trials && g.mode === 'play') { const y2 = this._drawTrial(c, W, y); if (y2) { y = y2; drew = true; } }
+    if (g.objective && g.mode === 'play') { const y2 = this._drawObjective(c, W, y); if (y2) { y = y2; drew = true; } }
+    // ---- the Guardian (the Court's boss) -------------------------------------------------------------------------------------------------------------------------------------------------
+    if (g.boss) { drew = this._drawBoss(c, W, midTop) || drew; this._drawThreats(c, W, H); drew = true; }
+    // ---- the banner, the hint and the dialogue ------------------------------------------------------------------------------------------------------------------------------------
+    if (this.bannerState) { this._drawBanner(c, W, H); drew = true; }
+    if (this.hintState && !this.dlg) { this._drawHint(c, W, H); drew = true; }
+    if (this.dlg) { this._drawDialogue(c, W, H); drew = true; }
+    return drew;
+  }
+
+  // ---- the lanterns --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  /** top right: a ring for each lantern, a flame where it burns; returns the panel's left edge's distance from the right edge */
+  _drawBeacons(c, W, top) {
+    const st = this.game.stats, total = st.beaconsTotal || 5, step = 30, w = total * step + 22, h = 48, x0 = W - 20 - w;
+    panel(c, x0, top, w, h, { r: 24 });
+    for (let i = 0; i < total; i++) {
+      const lit = i < st.beacons, pulse = lit && this.pulses.beacons > 0 && i === st.beacons - 1 ? this.pulses.beacons : 0;
+      flameIcon(c, x0 + 11 + step / 2 + i * step, top + h / 2 + 1 - pulse * 3, 15, lit, pulse);
+    }
+    return w + 20;
+  }
+
+  // ---- the tide ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  /** the water's height between its low and its high (a notch at the mean) and an arrow for the way it is going: orange up while it comes in, green down while it goes out */
+  _drawTide(c, W, right) {
+    const g = this.game, w = 214, h = 48, x0 = W - 20 - w, y0 = g.objective ? 20 : (g.stats ? 20 + 48 + 12 : 20);
+    panel(c, x0, y0, w, h, { r: 24 });
+    // a wave
+    c.save(); c.strokeStyle = T.teal0; c.lineWidth = 2.5; c.lineCap = 'round'; c.beginPath();
+    for (let i = 0; i <= 18; i++) { const px = x0 + 20 + i, py = y0 + h / 2 + Math.sin(i * 0.5 + this.t * 2) * 4; if (i) c.lineTo(px, py); else c.moveTo(px, py); }
+    c.stroke(); c.restore();
+    const k = clamp01((g.waterY - g.waterLo) / ((g.waterHi - g.waterLo) || 1));
+    gauge(c, x0 + 52, y0 + h / 2 - 4, w - 52 - 46, 8, k, { c0: T.teal0, c1: T.teal1, glow: 'rgba(53,201,192,0.6)', notch: 0.5 });
+    const up = tideDir(g.tide, g.time) > 0, ax = x0 + w - 26, ay = y0 + h / 2;
+    c.save(); c.fillStyle = up ? T.amber : '#70f0c0'; c.beginPath();
+    if (up) { c.moveTo(ax - 8, ay + 5); c.lineTo(ax + 8, ay + 5); c.lineTo(ax, ay - 7); } else { c.moveTo(ax - 8, ay - 5); c.lineTo(ax + 8, ay - 5); c.lineTo(ax, ay + 7); }
+    c.closePath(); c.fill(); c.restore();
+  }
+
+  // ---- the trial and the task ------------------------------------------------------------------------------------------------------------------------------------------------------
+  /** the card: one line of what is asked now, under it a gauge or a pip for each part done; returns where the next card may begin */
+  _card(c, W, y, s, o) {
+    const size = 20, tw = measure(c, s.text, size, 700, 1.2), bar = o.bar !== undefined, pips = o.pips;
+    const w = Math.min(W - 40, Math.max(300, tw + 64)), h = bar || pips ? 70 : 46, x = (W - w) / 2;
+    panel(c, x, y, w, h, { r: 18, accent: o.accent });
+    txt(c, s.text, W / 2, y + 30, { size, weight: 700, align: 'center', track: 1.2, max: w - 48 });
+    const bx = x + 28, bw = w - 56, by = y + 46;
+    if (bar) {
+      const k = clamp01(o.bar), low = k < 0.25, flash = low && (Math.floor(this.t * 6) & 1) === 0;
+      gauge(c, bx, by, bw, 9, k, low ? { c0: flash ? '#ffffff' : '#ff9a80', c1: T.hot, glow: 'rgba(255,106,79,0.6)' } : {});
+    } else if (pips) {
+      const n = s.of, gap = 6, pw = Math.min(30, (bw - gap * (n - 1)) / n), x0 = x + (w - (pw * n + gap * (n - 1))) / 2;
+      for (let i = 0; i < n; i++) {
+        const on = i < s.n;
+        rr(c, x0 + i * (pw + gap), by, pw, 9, 4.5);
+        if (on) { const g = c.createLinearGradient(0, by, 0, by + 9); g.addColorStop(0, T.gold0); g.addColorStop(1, T.gold1); c.save(); c.shadowColor = 'rgba(255,184,58,0.5)'; c.shadowBlur = 8; c.fillStyle = g; c.fill(); c.restore(); } else { c.fillStyle = T.track; c.fill(); }
+      }
+    }
+    return y + h + 10;
+  }
+
+  _drawTrial(c, W, y) {
+    const s = this.game.trials.hudState();
+    if (!s) return 0;
+    const clock = s.clock !== null && s.clock !== undefined, pips = !clock && s.of >= 2 && s.of <= 12 && s.kind !== 'mirrors';
+    return this._card(c, W, y, s, { bar: clock ? clamp01(s.clock / (s.total || 1)) : undefined, pips, accent: T.gold1 });
+  }
+
+  _drawObjective(c, W, y) {
+    const s = this.game.objective.hudState();
+    if (!s) return 0;
+    const bar = s.bar !== undefined, pips = !bar && s.of >= 2 && s.of <= 12;
+    return this._card(c, W, y, s, { bar: bar ? s.bar : undefined, pips, accent: T.gold1 });
+  }
+
+  // ---- the Guardian -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  /** his two fists (a block of stone each: lit while it floats, dark once the ram has broken it), and when he stoops the two things that matter: how long the crown stays down and how far the flame has taken the lantern */
+  _drawBoss(c, W, top) {
     const s = this.game.boss.hudState();
-    if (!s.show) return;
-    const w = 122, x = (W - w) >> 1, y = 4, windowOn = s.windowOn, fight = s.mode === 'fight' || s.mode === 'waking';
-    drawPanel(pix, x, y, w, windowOn ? 40 : fight ? 28 : 17, { style: 'hud' });
-    drawText(pix, 'THE GUARDIAN', x + (w >> 1), y + 4, { style: 'grad', align: 'center', colors: GOLD, outlineColor: INK });
+    if (!s.show) return false;
+    const w = 380, x = (W - w) / 2, y = top, windowOn = s.windowOn, fight = s.mode === 'fight' || s.mode === 'waking';
+    const h = windowOn ? 104 : fight ? 84 : 46;
+    panel(c, x, y, w, h, { r: 18, accent: '#b08cff' });
+    txt(c, 'THE GUARDIAN', W / 2, y + 30, { size: 19, weight: 800, align: 'center', track: 3, color: '#efe6ff' });
     if (fight) {
       const pulse = (Math.floor(this.t * 4) & 1) === 0;
       s.fists.forEach((alive, i) => {
-        const px = x + (w >> 1) - 15 + i * 18, py = y + 15;
-        pix.rect(px - 1, py - 1, 14, 10, INK);
-        if (alive) { pix.rect(px, py, 12, 8, '#5a4aa8'); pix.rect(px + 1, py + 1, 10, 3, '#8a78d8'); pix.rect(px + 5, py + 3, 2, 3, pulse ? '#e8e0ff' : '#9ae8e0'); } else { pix.rect(px, py, 12, 8, '#241a40'); pix.rect(px + 2, py + 3, 8, 1, '#4a3a78'); }
+        const px = W / 2 - 46 + i * 56, py = y + 44;
+        rr(c, px, py, 36, 26, 8);
+        if (alive) { const g = c.createLinearGradient(0, py, 0, py + 26); g.addColorStop(0, '#9a86ee'); g.addColorStop(1, '#4f3fa8'); c.save(); c.shadowColor = pulse ? 'rgba(200,190,255,0.9)' : 'rgba(120,230,220,0.7)'; c.shadowBlur = 12; c.fillStyle = g; c.fill(); c.restore(); } else { c.fillStyle = 'rgba(255,255,255,0.1)'; c.fill(); }
       });
     } else if (windowOn) {
-      const bx = x + 8, bw = w - 16, bar = (by, k, fill, back) => {
-        pix.rect(bx - 1, by - 1, bw + 2, 7, INK); pix.rect(bx, by, bw, 5, back);
-        const f = Math.round(bw * Math.max(0, Math.min(1, k)));
-        if (f > 0) pix.rect(bx, by, f, 5, fill);
-        if (f > 1) pix.rect(bx + f - 1, by, 1, 5, '#ffffff');
-      };
-      bar(y + 15, s.window, s.window < 0.3 ? ((Math.floor(this.t * 6) & 1) ? '#ff5a40' : '#ffa060') : '#ffc03c', '#3a2a60');
-      bar(y + 26, s.flame, s.flame > 0.7 ? '#fff4b0' : '#ff8a30', '#3a2a60');
+      const bx = x + 28, bw = w - 56;
+      gauge(c, bx, y + 46, bw, 10, s.window, s.window < 0.3 ? { c0: '#ffa060', c1: T.hot, glow: 'rgba(255,106,79,0.6)' } : {});
+      gauge(c, bx, y + 72, bw, 10, s.flame, s.flame > 0.7 ? { c0: '#ffffff', c1: '#fff0a0', glow: 'rgba(255,255,200,0.7)' } : { c0: '#ffb060', c1: '#ff7a2e', glow: 'rgba(255,122,46,0.6)' });
     }
+    return true;
   }
 
   /**
-   * Arrows at the edge of the screen for the Guardian's dangers that are not on it (hud state `threats`: the circles that will fall, the rings that run, the bolts): in the direction of each from the way the
-   * camera looks, amber while it is coming and red, bigger and blinking, when it is about to land. A danger in front of the hero is on the floor for him to see, and has no arrow.
+   * Arrows at the edge of the screen for the Guardian's dangers that are not on it (hud state `threats`): in the direction of each from the way the camera looks, amber while it is coming and red, bigger and
+   * blinking, when it is about to land. A danger in front of the hero is on the floor for him to see, and has no arrow.
    */
-  _drawThreats(pix, W, H) {
+  _drawThreats(c, W, H) {
     const g = this.game, s = g.boss.hudState();
     if (!s.show || !s.threats || !s.threats.length || g.player.dead || g.mode !== 'play') return;
     const p = g.player, yaw = g.cam.yaw, fx = Math.sin(yaw), fz = Math.cos(yaw), rx = -Math.cos(yaw), rz = Math.sin(yaw);
@@ -184,105 +198,79 @@ export class Hud {
     let n = 0;
     for (const t of s.threats) {
       const dx = t.x - p.x, dz = t.z - p.z, d = Math.hypot(dx, dz);
-      if (d < 1.5) continue;                                                              // (he is standing in it: the floor says so)
-      const th = Math.atan2(dx * rx + dz * rz, dx * fx + dz * fz);                      // 0 straight ahead, positive to the right
-      if (Math.abs(th) < 0.8 && d < 26) continue;                                         // (in front of him, near: he sees it)
+      if (d < 1.5) continue;
+      const th = Math.atan2(dx * rx + dz * rz, dx * fx + dz * fz);
+      if (Math.abs(th) < 0.8 && d < 26) continue;
       if (++n > 6) break;
-      const ex = W / 2 + Math.sin(th) * (W / 2 - 20), ey = H / 2 - Math.cos(th) * (H / 2 - 56) + 4;       // (an ellipse inside the screen: the hint panel lives at the bottom edge)
-      const col = t.hot ? (blink ? '#ffffff' : '#ff3a2a') : '#ffb030', size = t.hot ? 9 : 7;
-      const ux = Math.sin(th), uy = -Math.cos(th);                                        // (the way it points: out of the screen's middle)
-      for (let j = -14; j <= 14; j++) for (let i = -14; i <= 14; i++) {
-        const a = (i * ux + j * uy) / size, b = (-i * uy + j * ux) / size;                // (a: along the arrow, b: across it)
-        if (a < -0.9 || a > 1.0 || Math.abs(b) > (1.0 - a) * 0.8 + 0.05) continue;
-        const edge = a < -0.75 || a > 0.85 || Math.abs(b) > (1.0 - a) * 0.8 - 0.1;
-        pix.rect(Math.round(ex + i), Math.round(ey + j), 1, 1, edge ? INK : col);
-      }
+      const ex = W / 2 + Math.sin(th) * (W / 2 - 64), ey = H / 2 - Math.cos(th) * (H / 2 - 170) + 12;
+      const col = t.hot ? (blink ? '#ffffff' : '#ff3a2a') : '#ffb030', size = t.hot ? 26 : 20;
+      c.save(); c.translate(ex, ey); c.rotate(Math.atan2(Math.sin(th), -Math.cos(th)) + Math.PI / 2);
+      c.shadowColor = col; c.shadowBlur = 14; c.fillStyle = col; c.strokeStyle = 'rgba(0,0,0,0.5)'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(0, -size); c.lineTo(size * 0.8, size * 0.7); c.lineTo(0, size * 0.28); c.lineTo(-size * 0.8, size * 0.7); c.closePath(); c.stroke(); c.fill();
+      c.restore();
     }
   }
 
-  /** The tide's gauge, under the goals: the water's height between its low and its high (a notch at the mean), and an arrow for the way it is going: orange up while it comes in, green down while it goes out. */
-  _drawTide(pix, W) {
-    const g = this.game, st = g.stats;
-    const w = (g.objective ? 5 : (st.beaconsTotal || 5)) * 14 + 8, x0 = W - w - 4, y0 = g.objective ? 4 : 30;
-    drawPanel(pix, x0, y0, w, 14, { style: 'hud' });
-    const k = Math.max(0, Math.min(1, (g.waterY - g.waterLo) / ((g.waterHi - g.waterLo) || 1)));
-    const bx = x0 + 6, bw = w - 12 - 9, by = y0 + 5, fill = Math.round(bw * k);
-    pix.rect(bx - 1, by - 1, bw + 2, 6, INK);
-    pix.rect(bx, by, bw, 4, '#1c3050');
-    if (fill > 0) pix.rect(bx, by, fill, 4, '#5ae0d0');
-    if (fill > 1) pix.rect(bx + fill - 1, by, 1, 4, '#d8fff8');
-    pix.rect(bx + (bw >> 1), by + 4, 1, 1, '#fff4b0');                                     // (the mean level)
-    const up = tideDir(g.tide, g.time) > 0, ax = x0 + w - 9, ay = y0 + 4, col = up ? '#ffb060' : '#70f0c0';
-    pix.rect(ax - 1, ay - 1, 7, 7, INK);
-    for (let r = 0; r < 3; r++) pix.rect(ax + (up ? 2 - r : r), ay + r, up ? 1 + 2 * r : 5 - 2 * r, 1, col);
+  // ---- words -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  _drawBanner(c, W, H) {
+    const b = this.bannerState, k = ease(b.t / 0.28), out = b.t > b.dur - 0.45 ? clamp01((b.dur - b.t) / 0.45) : 1;
+    if (out < 0.02) return;
+    const a = k * out, cy = H * 0.27, size0 = 58, maxW = W - 80;
+    c.save();
+    c.globalAlpha = a;
+    // a soft dark bloom behind the words, so that they read on any sky
+    const g = c.createRadialGradient(W / 2, cy, 10, W / 2, cy, Math.min(W * 0.5, 520));
+    g.addColorStop(0, 'rgba(8,10,24,0.5)'); g.addColorStop(1, 'rgba(8,10,24,0)');
+    c.fillStyle = g; c.fillRect(0, cy - 190, W, 380);
+    c.translate(W / 2, cy + (1 - k) * 14); const s = 0.94 + 0.06 * k; c.scale(s, s); c.translate(-W / 2, -cy);
+    const px = txt(c, b.title, W / 2, cy, { size: size0, weight: 800, align: 'center', track: 1.5, max: maxW, blur: 22 });
+    // the rule under the title
+    const tw = Math.min(maxW, measure(c, b.title, px, 800, 1.5)), lw = Math.min(tw, 260);
+    const lg = c.createLinearGradient(W / 2 - lw / 2, 0, W / 2 + lw / 2, 0); lg.addColorStop(0, 'rgba(255,184,58,0)'); lg.addColorStop(0.5, T.gold0); lg.addColorStop(1, 'rgba(255,184,58,0)');
+    c.fillStyle = lg; c.fillRect(W / 2 - lw / 2, cy + 16, lw, 3);
+    if (b.sub && out > 0.4) txt(c, b.sub, W / 2, cy + 52, { size: 24, weight: 500, align: 'center', color: 'rgba(236,240,255,0.88)', track: 1.2, max: maxW });
+    c.restore();
   }
 
-  /** The trial he is in, top centre: one line of what it asks now (BELLS 2 OF 4, PYLONS 3 OF 6 and the seconds left...), a pip for each part done, or the clock as a bar that runs down (red in its last quarter). */
-  _drawTrial(pix, W) {
-    const s = this.game.trials.hudState();
-    if (!s) return 0;
-    const tw = measureText(s.text, { style: 'grad' }).w, w = Math.max(96, tw + 16), x = (W - w) >> 1, y = 4;
-    const bar = s.clock !== null && s.clock !== undefined, pips = !bar && s.of >= 2 && s.of <= 12 && s.kind !== 'mirrors';
-    drawPanel(pix, x, y, w, bar || pips ? 25 : 17, { style: 'hud' });
-    drawText(pix, s.text, x + (w >> 1), y + 4, { style: 'grad', align: 'center', colors: GOLD, outlineColor: INK });
-    if (bar) {
-      const bx = x + 8, bw = w - 16, k = Math.max(0, Math.min(1, s.clock / (s.total || 1))), f = Math.round(bw * k), hot = k < 0.25 && (Math.floor(this.t * 6) & 1) === 0;
-      pix.rect(bx - 1, y + 15, bw + 2, 7, INK); pix.rect(bx, y + 16, bw, 5, '#3a2a60');
-      if (f > 0) pix.rect(bx, y + 16, f, 5, k < 0.25 ? (hot ? '#ffffff' : '#ff5a40') : '#ffc03c');
-    } else if (pips) {
-      const step = Math.min(10, Math.floor((w - 12) / s.of)), x0 = x + ((w - step * s.of + 2) >> 1);
-      for (let i = 0; i < s.of; i++) { pix.rect(x0 + i * step, y + 16, step - 2, 5, INK); pix.rect(x0 + i * step + 1, y + 17, step - 4, 3, i < s.n ? '#ffc03c' : '#3a2a60'); }
-    }
-    return y + (bar || pips ? 25 : 17) + 3;                                                  // (where the next line may begin)
+  _drawHint(c, W, H) {
+    const h = this.hintState, k = ease(h.t / 0.25), out = h.t > h.dur - 0.4 ? clamp01((h.dur - h.t) / 0.4) : 1;
+    if (out < 0.02) return;
+    const size = 21, maxW = Math.min(W - 120, 820), lines = wrap(c, h.text, maxW - 56, size, 500), lh = 29;
+    let lw = 0; for (const ln of lines) lw = Math.max(lw, measure(c, ln, size, 500));
+    const w = lw + 56, ph = 26 + lines.length * lh, x = (W - w) / 2, y = H - 36 - ph + (1 - k) * 26;
+    c.save(); c.globalAlpha = k * out;
+    panel(c, x, y, w, ph, { r: 20, accent: T.gold1 });
+    lines.forEach((ln, i) => txt(c, ln, x + 30, y + 13 + lh * (i + 0.72), { size, weight: 500, shadow: false }));
+    c.restore();
   }
 
-  /** The objective's line (a chase, a duel, a course of rings, a herd): one line of text and, under it, a gauge (`bar`, 0..1) or a pip for each part done, under the trial's if one is on. */
-  _drawObjective(pix, W, y) {
-    const s = this.game.objective.hudState();
-    if (!s) return;
-    const tw = measureText(s.text, { style: 'grad' }).w, w = Math.max(96, tw + 16), x = (W - w) >> 1;
-    const bar = s.bar !== undefined, pips = !bar && s.of >= 2 && s.of <= 12;
-    drawPanel(pix, x, y, w, bar || pips ? 25 : 17, { style: 'hud' });
-    drawText(pix, s.text, x + (w >> 1), y + 4, { style: 'grad', align: 'center', colors: GOLD, outlineColor: INK });
-    if (bar) {
-      const bw = w - 14, bx = x + 7, f = Math.round(bw * Math.max(0, Math.min(1, s.bar)));
-      pix.rect(bx - 1, y + 15, bw + 2, 7, INK); pix.rect(bx, y + 16, bw, 5, '#3a2a60');
-      if (f > 0) pix.rect(bx, y + 16, f, 5, s.bar < 0.25 ? '#ff5a40' : '#ffc03c');
-    } else if (pips) {
-      const step = Math.min(10, Math.floor((w - 12) / s.of)), x0 = x + ((w - step * s.of + 2) >> 1);
-      for (let i = 0; i < s.of; i++) { pix.rect(x0 + i * step, y + 16, step - 2, 5, INK); pix.rect(x0 + i * step + 1, y + 17, step - 4, 3, i < s.n ? '#ffc03c' : '#3a2a60'); }
-    }
-  }
-
-  _drawDialogue(pix) {
-    const d = this.dlg;
-    const W = pix.w, H = pix.h;
-    const bw = Math.min(W - 16, 300), bh = 54;
-    const x = (W - bw) >> 1, y = H - bh - 8;
-    // name plate
-    const nm = measureText(d.speaker, { style: 'grad' });
-    drawPanel(pix, x + 6, y - 11, nm.w + 12, 14, { style: 'menu' });
-    drawText(pix, d.speaker, x + 12, y - 8, { style: 'grad', colors: GOLD, outlineColor: INK });
-    const inner = drawPanel(pix, x, y, bw, bh, { style: 'dialog' });
-    const text = d.pages[d.page].slice(0, Math.floor(d.chars));
-    const full = d.pages[d.page];
-    // wrap on the full text so words don't jump lines while typing
-    const lines = wrapText(full, inner.w - 8, { style: 'shadow' });
+  _drawDialogue(c, W, H) {
+    const d = this.dlg, full = d.pages[d.page], size = 23, lh = 33;
+    const bw = Math.min(W - 80, 940), x = (W - bw) / 2;
+    const lines = wrap(c, full, bw - 70, size, 500), bh = 40 + Math.max(2, lines.length) * lh, y = H - bh - 34;
+    panel(c, x, y, bw, bh, { r: 24 });
+    // the name plate
+    c.font = font(17, 800); const nw = measure(c, d.speaker, 17, 800, 2) + 36;
+    c.save();
+    rr(c, x + 24, y - 18, nw, 36, 18);
+    const g = c.createLinearGradient(0, y - 18, 0, y + 18); g.addColorStop(0, T.gold0); g.addColorStop(1, T.gold1);
+    c.shadowColor = 'rgba(0,0,0,0.4)'; c.shadowBlur = 10; c.shadowOffsetY = 3; c.fillStyle = g; c.fill(); c.restore();
+    txt(c, d.speaker, x + 24 + nw / 2, y + 6, { size: 17, weight: 800, align: 'center', color: '#2a1a08', track: 2, shadow: false });
+    // the words, typed (wrapped on the full text so that a word does not jump line while it is typed)
+    const text = full.slice(0, Math.floor(d.chars));
     let shown = 0;
-    let ty = inner.y + 5;
-    for (const ln of lines) {
+    lines.forEach((ln, i) => {
       const part = text.slice(shown, shown + ln.length);
       shown += ln.length + (full[shown + ln.length] === ' ' ? 1 : 0);
-      if (part) drawText(pix, part, inner.x + 5, ty, { style: 'shadow', color: '#fff8ff', shadowColor: INK });
-      ty += 10;
-    }
+      if (part) txt(c, part, x + 35, y + 44 + i * lh, { size, weight: 500, shadow: false });
+    });
     if (d.chars >= full.length && Math.floor(this.t * 3) % 2 === 0) {
-      const tx = x + bw - 14, tyy = y + bh - 12;
-      pix.rect(tx, tyy, 5, 1, '#ffc03c'); pix.rect(tx + 1, tyy + 1, 3, 1, '#ffc03c'); pix.rect(tx + 2, tyy + 2, 1, 1, '#ffc03c');
+      const tx = x + bw - 40, ty = y + bh - 26;
+      c.save(); c.fillStyle = T.gold1; c.beginPath(); c.moveTo(tx - 8, ty - 5); c.lineTo(tx + 8, ty - 5); c.lineTo(tx, ty + 6); c.closePath(); c.fill(); c.restore();
     }
   }
 
-  /** Boot / loading bar. */
+  /** Boot / loading bar (the retro overlay: nothing else is drawn yet). */
   static drawLoading(pix, frac, label = 'LOADING') {
     const W = pix.w, H = pix.h;
     pix.rect(0, 0, W, H, '#000000');

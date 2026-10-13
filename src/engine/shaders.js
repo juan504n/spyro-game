@@ -207,6 +207,8 @@ uniform vec2 uInRes;
 uniform vec4 uRect;     // x, y, w, h of the picture inside the canvas (device px, origin bottom-left)
 uniform float uCRT;
 uniform float uSmooth;   // 1 = plain bilinear upscale, 0 = crisp "sharp bilinear" (pixels stay square)
+uniform sampler2D uUi;   // the UI layer (engine/uilayer.js): drawn at the window's resolution, over the finished picture
+uniform float uUiOn;
 varying vec2 vUv;
 
 void main() {
@@ -229,6 +231,7 @@ void main() {
     c *= mix(vec3(1.0), mask, uCRT * 0.6);
     c = min(c * (1.0 + 0.10 * uCRT), vec3(1.0));
   }
+  if (uUiOn > 0.5) { vec4 u = texture2D(uUi, uv); c = mix(c, u.rgb, u.a); }
   gl_FragColor = vec4(c, 1.0);
 }
 `;

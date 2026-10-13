@@ -155,7 +155,7 @@ export class Input {
     const stick = new FloatingStick();
     const t = (this.touch = { stick: null, look: null, active: false, pad: stick });
     const root = document.createElement('div');
-    root.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:5;touch-action:none;font-family:monospace';
+    root.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:5;touch-action:none;font-family:"SF Pro Display","Segoe UI","Helvetica Neue",Roboto,Inter,system-ui,-apple-system,Arial,sans-serif';
     // every thumb control lives in one group, so a menu or a cutscene can hide them all at once (see setTouchUI)
     const pads = document.createElement('div');
     pads.style.cssText = 'position:absolute;inset:0;pointer-events:none';
@@ -165,7 +165,7 @@ export class Input {
     const mk = (label, right, bottom, size, action, color) => {
       const b = document.createElement('div');
       b.textContent = label;
-      b.style.cssText = `position:absolute;${inset('right', right, 'right')}${inset('bottom', bottom, 'bottom')}width:${size}px;height:${size}px;border-radius:50%;background:${color};border:3px solid rgba(255,255,255,.55);color:#fff;font:bold ${size * 0.3}px monospace;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none;opacity:.72;user-select:none;-webkit-user-select:none;text-shadow:0 2px 0 #000`;
+      b.style.cssText = `position:absolute;${inset('right', right, 'right')}${inset('bottom', bottom, 'bottom')}width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,.42);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);box-shadow:0 6px 18px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.35);color:#fff;font:700 ${size * 0.25}px "SF Pro Display","Segoe UI","Helvetica Neue",Roboto,Inter,system-ui,-apple-system,Arial,sans-serif;letter-spacing:.06em;text-shadow:0 1px 6px rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none;opacity:.72;user-select:none;-webkit-user-select:none;text-shadow:0 2px 0 #000`;
       if (action) {
         const down = (e) => { e.preventDefault(); this.lastDevice = 'touch'; this.anyKey = true; this._press(action); b.style.opacity = '1'; };
         const up = (e) => { e.preventDefault(); this._release(action); b.style.opacity = '.72'; };
@@ -198,9 +198,9 @@ export class Input {
     const menu = document.createElement('div');
     menu.setAttribute('role', 'button');
     menu.setAttribute('aria-label', 'Menu');
-    menu.style.cssText = `position:absolute;left:50%;transform:translateX(-50%);top:8px;min-width:104px;height:${MENU_BTN_H}px;box-sizing:border-box;padding:0 18px;border-radius:22px;background:rgba(36,20,72,.86);border:2px solid #ffc03c;color:#fff4b0;font:bold 16px monospace;letter-spacing:.08em;display:flex;align-items:center;justify-content:center;gap:9px;pointer-events:auto;touch-action:none;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;text-shadow:0 2px 0 #000;box-shadow:0 2px 0 rgba(0,0,0,.55)`;
+    menu.style.cssText = `position:absolute;left:50%;transform:translateX(-50%);top:8px;min-width:104px;height:${MENU_BTN_H}px;box-sizing:border-box;padding:0 18px;border-radius:22px;background:linear-gradient(rgba(30,36,64,.72),rgba(12,15,30,.8));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.22);color:#f5f7ff;font:700 15px "SF Pro Display","Segoe UI","Helvetica Neue",Roboto,Inter,system-ui,-apple-system,Arial,sans-serif;letter-spacing:.14em;display:flex;align-items:center;justify-content:center;gap:9px;pointer-events:auto;touch-action:none;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;text-shadow:0 1px 6px rgba(0,0,0,.5);box-shadow:0 6px 18px rgba(0,0,0,.4)`;
     const bars = document.createElement('span');
-    const bar = 'linear-gradient(#fff4b0,#fff4b0)';
+    const bar = 'linear-gradient(#ffe08a,#ffe08a)';
     bars.style.cssText = `width:18px;height:14px;flex:none;background:${bar} 0 0/100% 3px no-repeat,${bar} 0 50%/100% 3px no-repeat,${bar} 0 100%/100% 3px no-repeat`;
     const label = document.createElement('span');
     label.textContent = 'MENU';

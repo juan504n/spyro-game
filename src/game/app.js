@@ -597,7 +597,7 @@ class App {
 
   pausePage() {
     return {
-      title: 'PAUSED', width: 210, closable: true, onBack: () => this.closePause(),
+      title: 'PAUSED', width: 230, closable: true, stats: true, onBack: () => this.closePause(),
       items: [
         { type: 'action', label: 'RESUME', hidden: this._touchOnly(), action: () => this.closePause() },
         this._cameraRow(),
@@ -684,13 +684,12 @@ class App {
     const away = w.world !== this.game.realm.id;
     const lines = [`TRAVEL TO ${place.name}`, `IN ${w.name}?`, ...(away ? ['YOU LEAVE THIS WORLD.', 'WHAT YOU DID IN IT IS NOT KEPT.'] : [])];
     return {
-      title: 'ARE YOU SURE?', width: 236, closable: true, sel: 1,
+      title: 'ARE YOU SURE?', width: 236, closable: true, sel: 1, extraHead: true,
       items: [
         { type: 'action', label: 'YES', action: () => this.warpTo(place) },
         { type: 'action', label: 'NO', action: (m) => m.close() },
       ],
       extra: lines,
-      draw: (pix, x, y) => lines.forEach((l, i) => drawText(pix, l, pix.w >> 1, y + i * 10, i === 0 ? { style: 'grad', colors: GOLD, outlineColor: INK, align: 'center' } : { style: 'outline', color: i === 1 ? '#e8e0ff' : '#ffb0a0', outlineColor: INK, align: 'center' })),
     };
   }
 
@@ -704,7 +703,6 @@ class App {
     return {
       title: 'CONTROLS', width: 280, items: [{ type: 'action', label: 'BACK', action: (m) => m.close() }], footer: '',
       extra: lines,
-      draw: (pix, x, y) => lines.forEach((l, i) => drawText(pix, l, x, y + i * 10, { style: 'outline', color: '#e8e0ff', outlineColor: INK })),
     };
   }
 
@@ -797,7 +795,6 @@ class App {
         { type: 'action', label: 'BACK', hidden: this._touchOnly(), action: (m) => m.close() },
       ],
       extra: lines,
-      draw: (pix, x, y) => lines.forEach((l, i) => drawText(pix, l, x, y + i * 10, { style: 'outline', color: '#e8e0ff', outlineColor: INK })),
       footer: this._changeHint(),
     };
   }
@@ -916,11 +913,6 @@ class App {
   _drawMenus() {
     const pix = this.gfx.hud;
     this.menu.draw(pix);
-    const page = this.menu.stack[this.menu.stack.length - 1];
-    if (page && page.draw) {
-      const L = this.menu.layout(pix.w, pix.h, page, page.items.filter((it) => !it.hidden || !it.hidden()));      // (the rows actually showing: the same layout Menu.draw uses)
-      page.draw(pix, L.x + 12, L.y + 24);
-    }
   }
 
   _drawTitle(dim = false) {
