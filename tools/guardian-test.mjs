@@ -106,7 +106,7 @@ await check('the-hud-and-the-stone', async () => {
       amber: (r, g, b) => r > 235 && g > 150 && g < 205 && b < 90,               // (an arrow at the edge: a danger that is coming)
       red: (r, g, b) => r > 235 && g < 95 && b < 85,                              // (... and one about to land)
       white: (r, g, b) => r > 250 && g > 250 && b > 250,
-      gold: (r, g, b) => r > 240 && g > 170 && g < 235 && b < 130,               // (the window's bar)
+      gold: (r, g, b) => r > 140 && r - b > 70 && g > 100 && g - b > 35 && b < 130 && r > g,          // (the window's bar: gold, or gold seen through the veil of a results card that an earlier check left up)
       warm: (r, g, b) => r > 200 && g > 120 && b < 170,
     };
     window.__hudCount = (kinds, x0, y0, x1, y1) => {
