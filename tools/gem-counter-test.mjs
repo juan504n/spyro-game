@@ -32,11 +32,11 @@ const frame = async (overlay) => {         // the finished picture after two rea
   const s = await page.evaluate(() => __gv.snapshot());
   return { w: s.w, h: s.h, d: Buffer.from(s.b64, 'base64') };
 };
-const changed = (a, b) => {                // pixels in the counter's corner (HUD px x 80..190, y 4..50) that differ clearly
+const changed = (a, b) => {                // pixels in the counter's corner (HUD px x 8..130, y 4..50) that differ clearly
   const k = a.h / 240;
   let n = 0;
   for (let y = Math.floor(4 * k); y < Math.ceil(50 * k); y++) {
-    for (let x = Math.floor(80 * k); x < Math.ceil(190 * k); x++) {
+    for (let x = Math.floor(8 * k); x < Math.ceil(130 * k); x++) {
       const i = (y * a.w + x) * 4;
       if (Math.abs(a.d[i] - b.d[i]) + Math.abs(a.d[i + 1] - b.d[i + 1]) + Math.abs(a.d[i + 2] - b.d[i + 2]) > 90) n++;
     }
