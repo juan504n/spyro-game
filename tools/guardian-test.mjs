@@ -165,6 +165,7 @@ await check('the-hud-and-the-stone', async () => {
     out.sub = B.sub;
     out.gold = count('gold', 290, 60, 670, 108);                       // (the window's bar)
     out.shown = S.hudState().windowOn;
+    { const hs = S.hudState(); out.win = [+(hs.window || 0).toFixed(2), +(hs.flame || 0).toFixed(2)]; const ui = window.__app.gfx.ui; out.ui = [ui.W, ui.k, ui.canvas.width, ui.canvas.height]; }
     // let him sleep again (he is left behind), as the fight check begins it afresh
     p.place(0, g.collision.heightAt(0, 70) + 0.05, 70, Math.PI); p.invulnT = 0;
     upd(30);
