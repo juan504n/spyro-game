@@ -107,6 +107,7 @@ await check('the-hud-and-the-stone', async () => {
       red: (r, g, b) => r > 235 && g < 95 && b < 85,                              // (... and one about to land)
       white: (r, g, b) => r > 250 && g > 250 && b > 250,
       gold: (r, g, b) => r > 240 && g > 170 && g < 235 && b < 130,               // (the window's bar)
+      warm: (r, g, b) => r > 200 && g > 120 && b < 170,
     };
     window.__hudCount = (kinds, x0, y0, x1, y1) => {
       const ui = window.__app.gfx.ui; window.__app.gfx.clearHud(); window.__appUpdate(1 / 60);
@@ -165,7 +166,7 @@ await check('the-hud-and-the-stone', async () => {
     out.sub = B.sub;
     out.gold = count('gold', 290, 60, 670, 108);                       // (the window's bar)
     out.shown = S.hudState().windowOn;
-    { const hs = S.hudState(); out.win = [+(hs.window || 0).toFixed(2), +(hs.flame || 0).toFixed(2)]; const ui = window.__app.gfx.ui; out.ui = [ui.W, ui.k, ui.canvas.width, ui.canvas.height]; }
+    { const hs = S.hudState(); out.win = [+(hs.window || 0).toFixed(2), +(hs.flame || 0).toFixed(2)]; const ui = window.__app.gfx.ui; out.ui = [ui.W, ui.k, ui.canvas.width, ui.canvas.height]; out.warm = count('warm', 0, 0, 960, 140); out.warmBox = count('warm', 290, 60, 670, 108); const d = ui.ctx.getImageData(Math.round(480 * ui.k), Math.round(71 * ui.k), 1, 1).data; out.mid = Array.from(d); }
     // let him sleep again (he is left behind), as the fight check begins it afresh
     p.place(0, g.collision.heightAt(0, 70) + 0.05, 70, Math.PI); p.invulnT = 0;
     upd(30);
