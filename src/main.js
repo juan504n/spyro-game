@@ -73,6 +73,7 @@ async function boot() {
       acc30 += dt;
       if (acc30 < 1 / 30 - 0.002) doRender = false; else acc30 = Math.max(0, acc30 - 1 / 30);
     }
+    gfx.ui.throttle = true;
     gfx.clearHud();
     scene.update?.(dt, clock.t);
     if (doRender) gfx.render(scene.scene, scene.camera, scene.overlay);

@@ -23,11 +23,11 @@ export function panel(c, x, y, w, h, o = {}) {
   const r = o.r ?? 16, a = o.alpha ?? 1;
   c.save();
   c.globalAlpha *= a;
-  c.shadowColor = 'rgba(0,0,0,0.38)'; c.shadowBlur = 22; c.shadowOffsetY = 6;
+  // (a soft drop shadow made of a few stacked translucent rounded rects: a blurred shadow is far dearer to rasterise)
+  for (let i = 3; i >= 1; i--) { rr(c, x - i * 2.5, y + 3 + i * 2, w + i * 5, h + i * 2, r + i * 2.5); c.fillStyle = `rgba(0,0,0,${0.07 + (4 - i) * 0.015})`; c.fill(); }
   const g = c.createLinearGradient(0, y, 0, y + h);
   g.addColorStop(0, T.glassTop); g.addColorStop(1, T.glassBot);
   rr(c, x, y, w, h, r); c.fillStyle = g; c.fill();
-  c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetY = 0;
   rr(c, x + 0.5, y + 0.5, w - 1, h - 1, r); c.lineWidth = 1; c.strokeStyle = T.edge; c.stroke();
   c.beginPath(); c.moveTo(x + r, y + 1.5); c.lineTo(x + w - r, y + 1.5); c.lineWidth = 1; c.strokeStyle = T.hi; c.stroke();
   if (o.accent) { rr(c, x + 10, y + 9, 4, h - 18, 2); c.fillStyle = o.accent; c.fill(); }
@@ -43,7 +43,7 @@ export function gauge(c, x, y, w, h, k, o = {}) {
     c.save();
     const g = c.createLinearGradient(x, 0, x + w, 0);
     g.addColorStop(0, o.c0 || T.gold0); g.addColorStop(1, o.c1 || T.gold1);
-    c.shadowColor = o.glow || 'rgba(255,184,58,0.55)'; c.shadowBlur = 10;
+    c.globalAlpha = 0.28; rr(c, x - 2.5, y - 2.5, fw + 5, h + 5, h / 2 + 2.5); c.fillStyle = (o.glow || 'rgba(255,184,58,1)').replace(/,\s*[\d.]+\)$/, ',1)'); c.fill(); c.globalAlpha = 1;          // (the glow: a wider, fainter pill behind it; a blurred shadow is far dearer to rasterise)
     rr(c, x, y, fw, h, h / 2); c.fillStyle = g; c.fill();
     c.restore();
   }
@@ -57,11 +57,13 @@ export function txt(c, s, x, y, o = {}) {
   if (o.max) { const w = c.measureText(s).width; if (w > o.max) { px = Math.max(10, Math.floor(px * o.max / w)); c.font = font(px, o.weight ?? 600); } }
   c.textAlign = o.align || 'left';
   if ('letterSpacing' in c) c.letterSpacing = o.track ? `${o.track}px` : '0px';
-  c.save();
-  if (o.shadow !== false) { c.shadowColor = 'rgba(0,0,0,0.55)'; c.shadowBlur = o.blur ?? 8; c.shadowOffsetY = 2; }
+  if (o.shadow !== false) {                                      // (a drop shadow: the words again, darker, a little lower and, for the big ones, a little wider; a blurred shadow is far dearer to rasterise)
+    c.fillStyle = 'rgba(0,0,0,0.5)';
+    c.fillText(s, x, y + 2);
+    if (px >= 40) { c.fillStyle = 'rgba(0,0,0,0.22)'; c.fillText(s, x, y + 4); c.fillText(s, x + 1.5, y + 3); c.fillText(s, x - 1.5, y + 3); }
+  }
   c.fillStyle = o.color || T.text;
   c.fillText(s, x, y);
-  c.restore();
   if ('letterSpacing' in c) c.letterSpacing = '0px';
   return px;
 }

@@ -142,7 +142,7 @@ export class Hud {
       for (let i = 0; i < n; i++) {
         const on = i < s.n;
         rr(c, x0 + i * (pw + gap), by, pw, 9, 4.5);
-        if (on) { const g = c.createLinearGradient(0, by, 0, by + 9); g.addColorStop(0, T.gold0); g.addColorStop(1, T.gold1); c.save(); c.shadowColor = 'rgba(255,184,58,0.5)'; c.shadowBlur = 8; c.fillStyle = g; c.fill(); c.restore(); } else { c.fillStyle = T.track; c.fill(); }
+        if (on) { const g = c.createLinearGradient(0, by, 0, by + 9); g.addColorStop(0, T.gold0); g.addColorStop(1, T.gold1); c.fillStyle = g; c.fill(); } else { c.fillStyle = T.track; c.fill(); }
       }
     }
     return y + h + 10;

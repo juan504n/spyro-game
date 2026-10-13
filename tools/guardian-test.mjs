@@ -101,6 +101,7 @@ await check('the-hud-and-the-stone', async () => {
   await installDriver(page, root);
   const asleepBar = await ev(() => {
     /** how many pixels of a kind are in a box of the HUD (the UI layer, in dp: 720 high), as ONE update draws it (the page's own frame clears the layer before the app's update; here that is done by hand, once, before the frame counted). A kind is a colour test: the HUD is vector art with gradients and glows, not flat colours */
+    window.__app.gfx.ui.throttle = false;                          // (every frame drawn: this test steps the game by hand)
     window.__kinds = {
       violet: (r, g, b) => b > 140 && r < 175 && g < 150 && b > r + 30,          // (the fists of the boss bar: stone blocks, lit)
       amber: (r, g, b) => r > 235 && g > 150 && g < 205 && b < 90,               // (an arrow at the edge: a danger that is coming)
