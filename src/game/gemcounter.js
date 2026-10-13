@@ -12,7 +12,7 @@ import { gemGeometry } from './systems/gems.js';
 const S = 24;                          // digit height in HUD pixels
 const STROKE = 0.2, DEPTH = 0.34;      // stroke thickness and extrusion depth (fractions of S)
 const ADV = 0.6 * S + 3.5;             // advance between digits
-const ANCHOR = { x: 98, y: 30 };       // icon centre (HUD pixels): just right of the gem panel, hanging a little below it
+const ANCHOR = { x: 30, y: 30 };       // icon centre (HUD pixels): the top left corner (the gem panel that used to be there is gone: the gems are on the pause screen)
 const FOV = 24;
 const CAM_D = 120 / Math.tan((FOV / 2) * (Math.PI / 180));
 const HOLD = 2.6;                      // seconds the counter stays up after the last pickup

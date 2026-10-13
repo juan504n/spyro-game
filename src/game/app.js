@@ -16,6 +16,7 @@ import { introShot, finaleShot, gateShot, makeOpening } from './cinematics.js';
 import { makeTitleArt, drawLogo, drawPressStart, drawDusk, ditherOut, OPEN } from './titlescreen.js';
 import { SPEECH, creditsLines, lineHeight, endingShot } from './ending.js';
 import { drawPanel } from '../engine/textures/ui.js';
+import { T, rr, panel, txt, measure } from '../engine/uikit.js';
 import { drawText } from '../engine/textures/font.js';
 import { U, setTextureHD } from '../engine/materials.js';
 import { HD } from '../engine/textures/hd/index.js';
@@ -361,30 +362,22 @@ class App {
 
   /** the results of the whole game: the places restored, every gem of the six, what the fight cost */
   _drawEndResults() {
-    const pix = this.gfx.hud, W = pix.w, H = pix.h, g = this.game, st = g.stats, B = g.boss, pr = this.progress;
+    const g = this.game, st = g.stats, B = g.boss, pr = this.progress;
     const realms = Object.values(pr.realms).filter((r) => r.done);
     const gems = realms.reduce((n, r) => n + r.gems, 0) + st.gems, total = realms.reduce((n, r) => n + r.gemsTotal, 0) + st.gemsTotal;
-    const w = 236, h = 150, x = (W - w) >> 1, y = (H - h) >> 1;
-    drawPanel(pix, x, y, w, h, { style: 'menu' });
-    drawText(pix, 'THE DAWN', W >> 1, y + 9, { style: 'grad', scale: 2, align: 'center', colors: GOLD, outlineColor: INK });
-    const rows = [
-      ['REALMS RESTORED', `${realmsDone(pr)} / ${DOORS.filter((d) => d.target).length}`],
-      ['GEMS OF ALL SIX PLACES', `${gems} / ${total}`],
-      ['THE GUARDIAN', 'FREE'],
-      ['TIMES SET BACK', String(st.deaths)],
-      ['HITS TAKEN', String(B ? B.hitsTaken : 0)],
-      ['THE FIGHT', fmtTime(B ? B.fightTime : 0)],
-    ];
-    rows.forEach(([k, v], i) => {
-      drawText(pix, k, x + 20, y + 34 + i * 12, { style: 'outline', color: '#c8bce8', outlineColor: INK });
-      drawText(pix, v, x + w - 20, y + 34 + i * 12, { style: 'outline', color: '#fff4b0', outlineColor: INK, align: 'right' });
+    const stars = st.deaths === 0 && (B ? B.hitsTaken : 0) <= 3 ? 3 : st.deaths <= 2 ? 2 : 1;
+    this._resultsCard({
+      title: 'THE DAWN',
+      rows: [
+        ['REALMS RESTORED', `${realmsDone(pr)} / ${DOORS.filter((d) => d.target).length}`],
+        ['GEMS OF ALL SIX PLACES', `${gems} / ${total}`],
+        ['THE GUARDIAN', 'FREE'],
+        ['TIMES SET BACK', String(st.deaths)],
+        ['HITS TAKEN', String(B ? B.hitsTaken : 0)],
+        ['THE FIGHT', fmtTime(B ? B.fightTime : 0)],
+      ],
+      stars,
     });
-    const stars = st.deaths === 0 && (B ? B.hitsTaken : 0) <= 3 ? 3 : st.deaths <= 2 ? 2 : 1, icons = g.hud.icons;
-    for (let i = 0; i < 3; i++) {
-      const on = i < stars && this.resultsT > 0.5 + i * 0.4, ic = icons.star;
-      if (ic) { if (!this._dimStar) this._dimStar = dimIcon(ic); pix.blit(on ? ic : this._dimStar, W / 2 - 24 + i * 16, y + h - 28); }
-    }
-    if (this.resultsT > 1.2 && Math.floor(this.t * 2) % 2 === 0) drawText(pix, `${confirmName(g.input)}: KEEP EXPLORING`, W >> 1, y + h - 11, { style: 'outline', align: 'center', color: '#ffe27a', outlineColor: INK });
   }
 
   /** the Court is the hero's again: free roam, the Guardian quiet on his dais with his crown alight, the door at the foot of the gorge leads home */
@@ -948,35 +941,60 @@ class App {
   }
 
   _drawResults() {
-    const pix = this.gfx.hud, W = pix.w, H = pix.h;
     const g = this.game, st = g.stats;
     const exit = this._exitPortal(g), portal = !!(exit && g.portals.isOpen(exit.def.id));            // (the light above the last goal: a line more tells the way on)
-    const w = 220, h = portal ? 152 : 138, x = (W - w) >> 1, y = (H - h) >> 1;
-    drawPanel(pix, x, y, w, h, { style: 'menu' });
-    drawText(pix, g.words.results, W >> 1, y + 9, { style: 'grad', scale: 2, align: 'center', colors: GOLD, outlineColor: INK });
-    const rows = [
-      ['GEMS', `${st.gems} / ${st.gemsTotal}`],
-      ...(g.objective ? [] : [[g.words.goals, `${st.beacons} / ${st.beaconsTotal}`]]),
-      ['SNUFFERS', String(st.enemies)],
-      ['BUNNIES', String(st.bunnies)],
-      ['SECRETS', String(st.walls + st.chests)],
-      ['TIME', fmtTime(st.time)],
-    ];
-    rows.forEach(([k, v], i) => {
-      drawText(pix, k, x + 22, y + 34 + i * 12, { style: 'outline', color: '#c8bce8', outlineColor: INK });
-      drawText(pix, v, x + w - 22, y + 34 + i * 12, { style: 'outline', color: '#fff4b0', outlineColor: INK, align: 'right' });
+    this._resultsCard({
+      title: g.words.results,
+      rows: [
+        ['GEMS', `${st.gems} / ${st.gemsTotal}`],
+        ...(g.objective ? [] : [[g.words.goals, `${st.beacons} / ${st.beaconsTotal}`]]),
+        ['SNUFFERS', String(st.enemies)],
+        ['BUNNIES', String(st.bunnies)],
+        ['SECRETS', String(st.walls + st.chests)],
+        ['TIME', fmtTime(st.time)],
+      ],
+      note: portal ? g.words.portalResults : '',
+      stars: this.results.stars,
     });
-    if (portal) drawText(pix, g.words.portalResults, W >> 1, y + 34 + rows.length * 12 + 2, { style: 'outline', align: 'center', color: '#d6b8ff', outlineColor: INK });
-    const icons = g.hud.icons;
+  }
+
+  /** the results card (a realm restored, the whole game): a glass card on the UI layer, rows of a small label and a bold value, stars that light one after another, and a pulsing line at the foot once it can be dismissed */
+  _resultsCard({ title, rows, note = '', stars = 0, foot = null }) {
+    const ui = this.gfx.ui, c = ui.get();
+    if (!c) return;
+    ui.used = true;
+    const W = ui.W, H = 720, w = 560, rh = 42, h = 130 + rows.length * rh + (note ? 44 : 0) + 84 + (foot ? 0 : 0);
+    const x = (W - w) / 2, y = (H - h) / 2, K = Math.min(1, this.resultsT / 0.35), ease = 1 - Math.pow(1 - K, 3);
+    c.save();
+    c.fillStyle = `rgba(6,8,20,${0.4 * ease})`; c.fillRect(0, 0, W, H);
+    c.globalAlpha = ease; c.translate(0, (1 - ease) * 18);
+    panel(c, x, y, w, h, { r: 26 });
+    txt(c, title, W / 2, y + 62, { size: 40, weight: 800, align: 'center', track: 2, color: T.gold0, max: w - 60, blur: 14 });
+    const lg = c.createLinearGradient(W / 2 - 130, 0, W / 2 + 130, 0); lg.addColorStop(0, 'rgba(255,184,58,0)'); lg.addColorStop(0.5, T.gold0); lg.addColorStop(1, 'rgba(255,184,58,0)');
+    c.fillStyle = lg; c.fillRect(W / 2 - 130, y + 80, 260, 2);
+    rows.forEach(([k, v], i) => {
+      const ry = y + 104 + i * rh;
+      if (i > 0) { c.fillStyle = 'rgba(255,255,255,0.07)'; c.fillRect(x + 36, ry - 2, w - 72, 1); }
+      txt(c, k, x + 40, ry + 28, { size: 15, weight: 800, track: 2.5, color: T.dim, shadow: false, max: w * 0.5 });
+      txt(c, v, x + w - 40, ry + 29, { size: 24, weight: 800, align: 'right', shadow: false });
+    });
+    let by = y + 104 + rows.length * rh + 8;
+    if (note) { txt(c, note, W / 2, by + 22, { size: 17, weight: 600, align: 'center', color: '#d6b8ff', shadow: false, max: w - 60 }); by += 44; }
+    // the stars
     for (let i = 0; i < 3; i++) {
-      const on = i < this.results.stars && this.resultsT > 0.5 + i * 0.4;
-      const ic = icons.star;
-      if (ic) {
-        if (!this._dimStar) this._dimStar = dimIcon(ic);
-        pix.blit(on ? ic : this._dimStar, W / 2 - 24 + i * 16, y + h - 26);
-      }
+      const on = i < stars && this.resultsT > 0.5 + i * 0.4, cx = W / 2 + (i - 1) * 52, cy = by + 30, pop = on ? Math.max(0, 1 - (this.resultsT - (0.5 + i * 0.4)) * 4) : 0, r = 20 + pop * 8;
+      c.save();
+      c.beginPath();
+      for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rad = k % 2 ? r * 0.46 : r; c.lineTo(cx + Math.cos(a) * rad, cy + Math.sin(a) * rad); }
+      c.closePath();
+      if (on) { const g = c.createLinearGradient(0, cy - r, 0, cy + r); g.addColorStop(0, '#fff0a0'); g.addColorStop(1, '#ffa82e'); c.shadowColor = 'rgba(255,184,58,0.7)'; c.shadowBlur = 14; c.fillStyle = g; c.fill(); } else { c.fillStyle = 'rgba(255,255,255,0.1)'; c.fill(); }
+      c.restore();
     }
-    if (this.resultsT > 1.2 && Math.floor(this.t * 2) % 2 === 0) drawText(pix, `${confirmName(this.game.input)}: KEEP EXPLORING`, W >> 1, y + h - 10, { style: 'outline', align: 'center', color: '#ffe27a', outlineColor: INK });
+    if (this.resultsT > 1.2) {
+      const a = 0.55 + 0.45 * Math.sin(this.t * 4);
+      txt(c, foot || `${confirmName(this.game.input)}: KEEP EXPLORING`, W / 2, y + h - 22, { size: 16, weight: 700, align: 'center', track: 2, color: `rgba(255,224,138,${a})`, shadow: false });
+    }
+    c.restore();
   }
 }
 
