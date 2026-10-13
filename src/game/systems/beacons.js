@@ -52,8 +52,11 @@ export class BeaconSystem {
     halo.x = d.x; halo.y = flameY; halo.z = d.z;
     const wisps = [];
     for (let k = 0; k < 3; k++) {
-      const w = g.fx.billboard({ pool: 'cut', sprite: 'snuffer_wisp', size: 1.5, color: d.wisp || WISP });
-      wisps.push({ h: w, a: (k / 3) * 6.28 + index, r: 2.6 * scale + k * 0.3, s: 0.8 + k * 0.25, y: 1.4 + k * 1.1 });
+      // (a shadow in 3D, not a sprite: it drifts round the lantern facing the way it goes; `h` is its root, so `h.visible` still hides it)
+      const m = makeModel(g.assets, 'snufflewisp', { tint: d.wisp || WISP });
+      m.root.scale.setScalar(scale > 1 ? 1.3 : 0.8);
+      g.dyn.add(m.root);
+      wisps.push({ h: m.root, m, a: (k / 3) * 6.28 + index, r: 2.6 * scale + k * 0.3, s: 0.8 + k * 0.25, y: 1.4 + k * 1.1 });
     }
     return { def: d, index, model, beam, colors, x: d.x, y: d.y, z: d.z, scale, flameY, lit: 0, litFlag: false, pool, halo, wisps, t: Math.random() * 6, radius: 1.9 * scale };
   }
@@ -141,8 +144,9 @@ export class BeaconSystem {
       for (const w of b.wisps) {
         if (!w.h.visible) continue;
         w.a += dt * w.s;
-        w.h.x = b.x + Math.cos(w.a) * w.r; w.h.z = b.z + Math.sin(w.a) * w.r;
-        w.h.y = b.y + w.y + Math.sin(t * 2 + w.a) * 0.35;
+        w.h.position.set(b.x + Math.cos(w.a) * w.r, b.y + w.y + Math.sin(t * 2 + w.a) * 0.35, b.z + Math.sin(w.a) * w.r);
+        w.h.rotation.y = Math.atan2(-Math.cos(w.a), -Math.sin(w.a));       // (it eyes the lantern as it circles it, hands out to snuff it)
+        w.m.update(dt, { speed: 2.5 });
       }
     }
   }

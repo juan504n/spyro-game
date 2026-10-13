@@ -7,6 +7,7 @@
 // sparx    the dragonfly companion and health meter (gold / blue / green)
 // ramhog   the boar with a brow of bone (foes/charge.js); dustmole  the mole that lives in soft ground (foes/burrow.js); duskmoth  the moth that hangs over the hero (foes/swoop.js)
 // shiverling shellback drifter urchin slagbrute galespirit  the foes that are one world's own (foes/roster.js); bloomsprite  the runaway sprite of Frostbloom's chase (objectives/chase.js)
+// snufflewisp  the shadows that circle a lantern that is out (systems/beacons.js)
 // butterfly  the blue butterflies (ambient ones and the healing ones), looks azure | cyan | violet | sky | pearl | shiny
 import { createSpyro } from './creatures/spyro.js';
 import { createSnuffer } from './creatures/snuffer.js';
@@ -24,6 +25,7 @@ import { createShellback } from './creatures/shellback.js';
 import { createDrifter } from './creatures/drifter.js';
 import { createUrchin } from './creatures/urchin.js';
 import { createBloomsprite } from './creatures/bloomsprite.js';
+import { createSnufflewisp } from './creatures/snufflewisp.js';
 
 export const CREATURES = {
   spyro: {
@@ -100,6 +102,11 @@ export const CREATURES = {
     create: createBloomsprite,
     size: 0.9,
     note: 'The runaway sprite of the Frostbloom chase. See the file for the pose.',
+  },
+  snufflewisp: {
+    create: createSnufflewisp,
+    size: 1.4,
+    note: 'The shadow that circles a lantern while it is out: a hooded teardrop with a swaying three-part tail, glowing slits for eyes and clawed hands held out. opts { tint [r, g, b] }. Pose { speed, t }. anchors: eyes, top.',
   },
   elder: {
     create: createElder,
