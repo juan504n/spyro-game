@@ -19,7 +19,7 @@ page.on('console', (m) => { if (m.type() === 'error' && !/GPU stall|GL Driver/.t
 const ev = (fn, arg) => page.evaluate(fn, arg);
 const ff = (sec) => ev((s) => { for (let t = 0; t < s; t += 1 / 30) window.__app.update(1 / 30); }, sec);
 const load = async (query) => {
-  await page.goto(BASE + query + (query.includes('?') ? '&' : '?') + 'preserve=1');
+  await page.goto(BASE + query + (query.includes('?') ? '&' : '?') + 'preserve=1', { timeout: 120000 });          // (the old page's frames are 300 ms each in a software-rendered browser: leaving it can take half a minute)
   await page.waitForFunction(() => window.__ready || window.__error, null, { timeout: 180000 });
   const err = await ev(() => window.__error);
   if (err) throw new Error('boot error: ' + String(err).slice(0, 300));
