@@ -8,7 +8,7 @@
 import { Objective } from './base.js';
 import { makeModel } from '../models/fallback.js';
 
-export const DUEL = { scale: 2.2, wake: 34, roar: 1.5, walk: [3.2, 4.0, 4.8], turn: 1.1, near: 6.4, raise: [1.15, 1.0, 0.85], slamR: 8.6, jumpOver: 1.1, vent: [2.7, 2.4, 2.1], shut: 1.0, quakeSpeed: 15, quakeR: 21, quakeBand: 1.8, chestY: 3.3, hitR: 3.4, dieT: 2.4, leave: 8 };
+export const DUEL = { superWounds: 3, scale: 2.2, wake: 34, roar: 1.5, walk: [3.2, 4.0, 4.8], turn: 1.1, near: 6.4, raise: [1.15, 1.0, 0.85], slamR: 8.6, jumpOver: 1.1, vent: [2.7, 2.4, 2.1], shut: 1.0, quakeSpeed: 15, quakeR: 21, quakeBand: 1.8, chestY: 3.3, hitR: 3.4, dieT: 2.4, leave: 8 };
 
 const RING_K = 0.875;
 const clamp = (v, a = 0, b = 1) => (v < a ? a : v > b ? b : v);
@@ -135,7 +135,10 @@ export class Duel extends Objective {
       if (ram) { g.audio?.sfx('armor_clang', { vol: 0.9 }); p.shove?.(p.x - this.e.x, p.z - this.e.z, 9); p.chargeT = 0; p.chargeCd = 0.4; }
       return;
     }
-    this.wounds++; this.shutT = D.shut;
+    // (a SUPERCHARGED ram - off a ramp of the crags, systems/ramps.js - is a brute's three wounds at once, and the charge is spent)
+    const big = ram && p.superT > 0;
+    this.wounds = Math.min(this.need, this.wounds + (big ? D.superWounds : 1)); this.shutT = D.shut;
+    if (big) p.superT = 0;
     g.audio?.sfx('trial_break', { vol: 1 });
     g.cam.shake(0.4, 0.35);
     g.fx.hitSpark(c.x, c.y, c.z, 1.4);

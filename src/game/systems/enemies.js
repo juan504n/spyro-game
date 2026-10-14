@@ -327,6 +327,18 @@ export class EnemySystem {
         if (attack === 'ram') { p.vx *= 0.35; p.vz *= 0.35; game.audio?.sfx('charge_hit', { vol: 1 }); }
         break;
       case 'ring': this._ring(e, p, attack); break;
+      case 'smash': {                                                   // a supercharged ram through a Slag Brute's coat: the whole charge goes in at once, and the charge is spent
+        const ex = e.x - Math.sin(p.yaw) * 0.4, ez = e.z - Math.cos(p.yaw) * 0.4;
+        game.fx.hitSpark(ex, e.y + e.K.cy, ez, 2.6);
+        game.fx.shards(e.x, e.y + e.K.cy, e.z, [[1, 0.6, 0.2], [0.3, 0.2, 0.2], [1, 0.85, 0.5]], 18);
+        game.cam.shake(0.55, 0.45);
+        game.audio?.sfx('trial_break', { vol: 1 });
+        game.audio?.sfx('charge_hit', { vol: 1 });
+        p.superT = 0; p.chargeT = 0; p.chargeCd = 0.4;
+        p.vx *= 0.3; p.vz *= 0.3;
+        this.damage(e, 1, p.x, p.z, 'charge');
+        break;
+      }
       case 'wound': {                                                   // a Slag Brute's open hatch takes a blow: sparks, a groan, the hatch shuts for a moment
         game.fx.hitSpark(e.x + Math.sin(e.yaw) * 0.9, e.y + e.K.cy + 0.5, e.z + Math.cos(e.yaw) * 0.9, 1.6);
         game.audio?.sfx('foe_wound', { vol: 1 });

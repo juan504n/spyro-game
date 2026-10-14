@@ -45,7 +45,7 @@ export { DRIFT } from './drift.js';
 export { MANNER, mannerIdle, mannerPose, hasManners } from './manner.js';
 export { ROSTERS, rosterOf, foeOf, summonOf } from './roster.js';
 
-/** The brains by name. Each: init(e), step(e, dt, ctx), struck(e, attack, side) -> 'kill' | 'ring' | 'ignore' | 'boom' | 'wound' | 'flip', pose(e), and `front`: the half angle of what it guards. */
+/** The brains by name. Each: init(e), step(e, dt, ctx), struck(e, attack, side) -> 'kill' | 'ring' | 'ignore' | 'boom' | 'wound' | 'smash' | 'flip', pose(e), and `front`: the half angle of what it guards. */
 export const BRAINS = { sling, charge, burrow, ward, fuse, swoop, call, flee, orbit, brute, gust, shell, drift };
 
 export const hasBrain = (K) => !!BRAINS[K.brain];
@@ -62,10 +62,10 @@ export function makeFoe(id, s = {}) {
   return e;
 }
 
-/** What the hero's attack does to foe `e` (`attack`: 'flame' or 'ram'; the hero at (hx, hz)): 'kill' | 'ring' | 'ignore' | 'boom' | 'wound' (a Slag Brute's hatch) | 'flip' (a Shellback turned over). */
-export function struckBy(e, attack, hx, hz) {
+/** What the hero's attack does to foe `e` (`attack`: 'flame' or 'ram'; the hero at (hx, hz)): 'kill' | 'ring' | 'ignore' | 'boom' | 'wound' (a Slag Brute's hatch) | 'smash' (a supercharged ram through a Slag Brute's coat: it is down at once) | 'flip' (a Shellback turned over). `power`: the hero is supercharged (a ramp of Emberfall Crags). */
+export function struckBy(e, attack, hx, hz, power = false) {
   const B = BRAINS[e.K.brain];
-  return B.struck(e, attack, sideOf(e, hx, hz, B.front ?? 0.96));
+  return B.struck(e, attack, sideOf(e, hx, hz, B.front ?? 0.96), power);
 }
 
 /**
@@ -75,7 +75,7 @@ export function struckBy(e, attack, hx, hz) {
 export function hitsOn(e, p) {
   const out = [];
   if (p.flameT > 0 && !(e.flameCd > 0) && p.flameHits(e.x, e.y + e.cy, e.z, e.r)) { e.flameCd = 0.3; out.push({ attack: 'flame', out: struckBy(e, 'flame', p.x, p.z) }); }
-  if (p.chargeT > 0 && !(e.chargeCd > 0) && p.chargeHits(e.x, e.y + e.cy, e.z, e.r)) { e.chargeCd = 0.5; out.push({ attack: 'ram', out: struckBy(e, 'ram', p.x, p.z) }); }
+  if (p.chargeT > 0 && !(e.chargeCd > 0) && p.chargeHits(e.x, e.y + e.cy, e.z, e.r)) { e.chargeCd = 0.5; out.push({ attack: 'ram', out: struckBy(e, 'ram', p.x, p.z, p.superT > 0) }); }
   return out;
 }
 

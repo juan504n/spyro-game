@@ -98,6 +98,26 @@ const check = (name, ok, detail) => { if (!ok) own++; console.log(ok ? 'PASS' : 
     check('the mountains are walls: the only high ground (over 30 m) he can walk to is the gorge and the caldera', high > 20 && stray.length === 0, `(${high} walkable cells over 30 m, ${stray.length} elsewhere${stray.length ? `: ${stray.slice(0, 4).join(' ')}` : ''})`);
   }
 
+  // the supercharge ramps: one for each Slag Brute, a run-up from it, aimed at it, on level ground, and walkable (its treads are colliders that climb 1.7 m)
+  {
+    const brutes = gp.enemies.filter((e) => e.variant === 'brute'), ramps = gp.ramps || [];
+    const aimed = (r, e) => { const d = Math.hypot(e.x - r.x, e.z - r.z), ang = Math.abs(Math.atan2(Math.sin(Math.atan2(e.x - r.x, e.z - r.z) - r.rot), Math.cos(Math.atan2(e.x - r.x, e.z - r.z) - r.rot))); return d < 32 && d > 8 && ang < 0.2; };
+    const lonely = brutes.filter((e) => !ramps.some((r) => aimed(r, e)));
+    check('every Slag Brute has a supercharge ramp: 8 to 32 m from it and aimed at it', brutes.length >= 4 && ramps.length >= brutes.length && lonely.length === 0, `(${brutes.length} brutes, ${ramps.length} ramps${lonely.length ? `; none for ${lonely.map((e) => `${e.x | 0},${e.z | 0}`).join(' ')}` : ''})`);
+    check('the ramps are only in Emberfall (the prop is of this realm\'s own kit, no other world places it)', gp.placed.filter((q) => q.name === 'supercharge_ramp').length === ramps.length, '');
+    const bad = [];
+    for (const r of ramps) {
+      const dx = Math.sin(r.rot), dz = Math.cos(r.rot), ys = [];
+      for (let t = -3.7; t <= 3.7; t += 0.6) ys.push(env.collision.support(r.x + dx * t, r.z + dz * t, r.y + 4, 0.4).y - r.y);
+      const rises = ys.every((y, i) => i === 0 || y >= ys[i - 1] - 0.3), top = ys[ys.length - 1];
+      if (!rises || top < 1.3 || top > 2.0 || ys[0] > 0.5) bad.push(`${r.x | 0},${r.z | 0}: ${ys.map((y) => y.toFixed(1)).join(' ')}`);
+      const tread = Math.max(...ys.map((y, i) => (i ? y - ys[i - 1] : 0)));
+      if (tread > 0.5) bad.push(`${r.x | 0},${r.z | 0}: a step of ${tread.toFixed(2)} m`);
+    }
+    check('each ramp is walkable up its length: the treads climb to 1.3-2.0 m without a step over 0.5 m (the hero\'s step-up is 0.62 m)', ramps.length > 0 && bad.length === 0, bad.join(' | '));
+    check('no two ramps touch', ramps.every((a, i) => ramps.every((b, j) => j <= i || Math.hypot(a.x - b.x, a.z - b.z) > 10)), '');
+  }
+
   // the sky is the realm's own: both moods carry smoke-dark and ember-lit clouds and their own distant mountains (sky.js), the lights come from the west behind the hero as he walks east
   const [A, B] = EMBER_ENVIRONMENT.sky;
   check('both skies paint their own clouds and distant mountains (the vale\'s lavender would be wrong over ash)', [A, B].every((s) => s.cloudTop && s.cloudBot && s.ridge), '');

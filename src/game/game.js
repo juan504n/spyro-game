@@ -20,6 +20,7 @@ import { TrialSystem } from './systems/trials.js';
 import { EnemySystem } from './systems/enemies.js';
 import { CritterSystem } from './systems/critters.js';
 import { ObjectSystem } from './systems/objects.js';
+import { RampSystem } from './systems/ramps.js';
 import { Ambient } from './systems/ambient.js';
 import { NpcSystem } from './systems/npc.js';
 import { PortalSystem } from './systems/portals.js';
@@ -141,12 +142,13 @@ export class Game {
       this.objective = gp.objective ? makeObjective(this, gp.objective) : null;                  // (the realm's own task: objectives/, docs/DESIGN.md round forty-one; it needs the goals, the foes and the trials)
       this.critters = new CritterSystem(this, gp.bunnies || []);
       this.objects = new ObjectSystem(this, { vases: gp.vases, chests: gp.chests, walls: gp.walls, braziers: gp.braziers, portcullis: gp.portcullis, barrier: gp.barrier, mushrooms: gp.mushrooms, sails: gp.sails, islands: gp.islands, whirlwinds: gp.whirlwinds });
+      this.ramps = new RampSystem(this, gp.ramps || []);                                             // (the supercharge ramps of Emberfall Crags: systems/ramps.js)
       this.ambient = new Ambient(this, this.world.lights || [], this.world.emitters || []);
       this.npcs = new NpcSystem(this, gp.npcs || [], gp.hints || []);
       this.portals = new PortalSystem(this, gp.portals || []);
       this.boss = gp.boss ? new BossSystem(this, gp.boss, { freed: !!this.freed }) : null;               // (the Guardian's Court: systems/boss.js)
       // step order: abilities/AI first, then pickups
-      this.systems = [this.sparx, this.beacons, this.trials, ...(this.objective ? [this.objective] : []), this.enemies, this.critters, this.objects, this.gems, this.ambient, this.npcs, this.portals, ...(this.boss ? [this.boss] : [])];
+      this.systems = [this.sparx, this.beacons, this.trials, ...(this.objective ? [this.objective] : []), this.enemies, this.critters, this.objects, this.ramps, this.gems, this.ambient, this.npcs, this.portals, ...(this.boss ? [this.boss] : [])];
       this.on('beacon', (b, n) => this.onBeacon(b, n));
       if (this.restored) this._restore();
       if (this.realm.kind === 'homeworld') this._gateAtBuild();

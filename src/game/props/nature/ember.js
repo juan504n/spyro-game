@@ -160,10 +160,47 @@ export function giantAnvil(kit, { x, z, rot = 0, scale = 1, y }) {
   });
 }
 
+/**
+ * A SUPERCHARGE RAMP (Emberfall Crags): a wedge of black basalt 4.4 m wide and 8 m long that climbs 1.7 m, three chevrons of ember across it pointing the way up, a glow at the high lip. Ram up it (systems/ramps.js) and
+ * the hero is supercharged. ORIGIN = the ground at the middle of its foot, local +z = the way up (the way he runs). Walkable: its steps are colliders under the slope.
+ */
+export function superchargeRamp(kit, { x, z, rot = 0, scale = 1, y }) {
+  const W = 2.2, L = 8, H = 1.7, STEPS = 8;
+  const yAt = (zz) => ((zz + L / 2) / L) * H;
+  kit.at(x, z, { rot, scale, y }, () => {
+    const b = kit.b('cliff_basalt'), c = (hh) => basalt(hh), o = (hh) => ({ color: c(hh), tile: 3 });
+    // the slope, the two flanks (stepped like the rock they are cut from) and the back
+    b.quad([-W, 0, -L / 2], [-W, H, L / 2], [W, H, L / 2], [W, 0, -L / 2], o(2.6));
+    b.quad([-W, -1, -L / 2], [-W, -1, L / 2], [-W, H, L / 2], [-W, 0, -L / 2], o(1.2));
+    b.quad([W, -1, L / 2], [W, -1, -L / 2], [W, 0, -L / 2], [W, H, L / 2], o(1.2));
+    b.quad([-W, -1, L / 2], [W, -1, L / 2], [W, H, L / 2], [-W, H, L / 2], o(1.0));
+    b.quad([W, -1, -L / 2], [-W, -1, -L / 2], [-W, 0, -L / 2], [W, 0, -L / 2], o(0.4));
+    // a kerb of heavy blocks along each edge, so that it reads as built and not as a heap
+    for (const sd of [-1, 1]) for (let i = 0; i < 4; i++) {
+      const zz = -L / 2 + 1 + i * 2, hh = yAt(zz) + 0.28;
+      b.box(sd * (W + 0.2), hh / 2, zz, 0.42, hh, 1.8, o(hh + 1));
+    }
+    // the chevrons: ember, laid just over the slope, each a V whose point leads up the ramp
+    const lava = kit.b('lava');
+    const arm = (xa, za, xb, zb) => {
+      const t = 0.42, A0 = [xa, yAt(za) + 0.05, za], A1 = [xa, yAt(za + t) + 0.05, za + t], B1 = [xb, yAt(zb + t) + 0.05, zb + t], B0 = [xb, yAt(zb) + 0.05, zb];
+      if (xb > xa) lava.quad(A0, A1, B1, B0, { emissive: 1, color: [1.0, 0.82, 0.5], tile: 1 });
+      else lava.quad(B0, B1, A1, A0, { emissive: 1, color: [1.0, 0.82, 0.5], tile: 1 });
+    };
+    for (const zc of [-2.4, -0.4, 1.6]) { arm(-1.55, zc - 0.9, 0, zc + 0.5); arm(1.55, zc - 0.9, 0, zc + 0.5); }
+    // the walk: eight treads under the slope (the hero's step-up takes each one as part of a ramp)
+    for (let i = 0; i < STEPS; i++) { const z0 = -L / 2 + (i * L) / STEPS, z1 = z0 + L / STEPS; kit.box(0, (z0 + z1) / 2, W, (z1 - z0) / 2 + 0.06, -1, yAt(z0 + (z1 - z0) * 0.45), { top: true, tag: 'ramp' }); }
+    kit.caster(0, 0, 3.6, H + 0.4, 0.4);
+    kit.glow(0, H + 0.9, L / 2 - 0.4, { color: [1.0, 0.55, 0.18], size: 5, pool: 7, flicker: 0.22 });
+    kit.glow(0, 0.9, -L / 2 + 0.3, { color: [1.0, 0.6, 0.2], size: 3.2, pool: 4, flicker: 0.2 });
+  });
+}
+
 export const EMBER = {
   basalt_columns: { fn: basaltColumns, size: 8, note: 'columns of basalt like a giant\'s causeway: hexagonal prisms shoulder to shoulder, tallest in the middle (rings 1-3, h 1.5-12, r 0.5-1.6)', defaults: { rings: 2, h: 4.5 } },
   dragon_maw: { fn: dragonMaw, size: 14, note: 'the head of a stone dragon cut into a cliff, its mouth (6.4 x 6.4 m) the mouth of a cave; local +z = the way out; anchors.barrier = the middle of the mouth, on the ground', defaults: {}, anchors: { barrier: [0, 0, 0.4] } },
   ember_vent: { fn: emberVent, size: 3, note: 'a crack in the ground that glows and smokes, a lip of black rock round it (harmless)', defaults: {} },
   dead_tree: { fn: deadTree, size: 5, note: 'a charred dead tree with a few bare branches (size s|m|l or a factor)', defaults: { size: 'm' } },
+  supercharge_ramp: { fn: superchargeRamp, size: 6, note: 'a wedge of basalt 4.4 x 8 m that climbs 1.7 m, chevrons of ember pointing up it: ram up it and the hero is supercharged (systems/ramps.js); local +z = the way up; walkable', defaults: {} },
   giant_anvil: { fn: giantAnvil, size: 9, note: 'a block of basalt in the shape of a smith\'s anvil, 9 m long, horn towards +x, a crack of ember along its face', defaults: {} },
 };

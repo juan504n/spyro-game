@@ -63,7 +63,7 @@ export const KINDS = {
   },
   brute: {
     name: 'SLAG BRUTE', brain: 'brute', model: 'slagbrute', look: 'brute', hp: 1, speed: 3.2, notice: 20, reach: 0, r: 1.5, h: 3.2, cy: 1.5, drops: D.brute, flameDmg: 1, chargeDmg: 1, danger: 4,
-    hint: 'A SLAG BRUTE! JUMP ITS SLAM, THEN HIT THE OPEN HATCH IN ITS CHEST: THREE TIMES',
+    hint: 'A SLAG BRUTE! JUMP ITS SLAM, THEN HIT THE OPEN HATCH IN ITS CHEST: THREE TIMES. OR RAM IT SUPERCHARGED OFF A RAMP: ONCE',
   },
   gale: {
     name: 'GALE SPIRIT', brain: 'gust', model: 'galespirit', look: 'gale', hp: 1, speed: 3.5, notice: 22, reach: 0, r: 0.8, h: 1.6, cy: 0.8, drops: D.gale, flameDmg: 1, chargeDmg: 1, danger: 4, flies: true,

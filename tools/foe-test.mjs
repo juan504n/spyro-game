@@ -72,6 +72,25 @@ const sum = (a) => a.reduce((x, y) => x + y, 0);
     if (a !== fl || b !== rm) bad.push(`${kind}/${state}/${side}: flame ${a} (want ${fl}) ram ${b} (want ${rm})`);
   }
   check(`the matrix of what a flame and a ram do to each foe, from each side, in each state (${rows.length} cases)`, bad.length === 0, bad.join(' | '));
+  // the supercharge (the ramps of Emberfall Crags): a ram with the whole charge in it goes through a Slag Brute's coat, in any state and from any side, and one blow is the three wounds; the flame never does; every other foe is as before
+  {
+    const smash = [];
+    for (const state of ['idle', 'advance', 'raise', 'vent']) for (const side of ['front', 'back', 'side']) {
+      const e = makeFoe('brute', { x: 0, z: 0 }); e.state = state; e.shutT = state === 'vent' ? 0.6 : 0;
+      const r = struckBy(e, 'ram', ...at[side], true);
+      if (r !== 'smash' || e.wounds !== BRUTE.wounds) smash.push(`${state}/${side}: ${r}, ${e.wounds} wounds`);
+    }
+    check('a supercharged ram smashes a Slag Brute in one blow, whatever it is doing and from whichever side (12 cases)', smash.length === 0, smash.join(' | '));
+    const f = makeFoe('brute', { x: 0, z: 0 }); f.state = 'vent'; f.shutT = 0;
+    check('... a supercharged flame is only a flame (the hatch, shut or open, as ever): the supercharge is a ram\'s', struckBy(f, 'flame', ...at.front, true) === 'wound' && f.wounds === 1);
+    const q = makeFoe('brute', { x: 0, z: 0 }); q.state = 'advance';
+    check('... an ordinary ram off a ramp-less hero still rings off the shut coat, and three hatch hits still kill', struckBy(q, 'ram', ...at.front, false) === 'ring' && (() => { const v = makeFoe('brute', { x: 0, z: 0 }); v.state = 'vent'; const o = []; for (let i = 0; i < 3; i++) { v.shutT = 0; o.push(struckBy(v, 'ram', ...at.front, false)); } return o.join() === 'wound,wound,kill'; })());
+    const others = ['hog', 'warden', 'mole', 'pup', 'slinger', 'crab', 'shiver'].filter((k) => { const a = makeFoe(k, { x: 0, z: 0 }), b = makeFoe(k, { x: 0, z: 0 }); a.state = b.state = KINDS[k].brain === 'charge' ? 'stalk' : KINDS[k].brain === 'burrow' ? 'dazed' : 'advance'; return struckBy(a, 'ram', ...at.front, true) !== struckBy(b, 'ram', ...at.front, false); });
+    check('... and no other foe is changed by it', others.length === 0, others.join(','));
+    const hero = (sup) => ({ x: 0, y: 0, z: 1.2, flameT: 0, chargeT: 0.2, superT: sup, mouth: { x: 0, z: 1.5 }, dirx: 0, dirz: -1, flameHits: () => false, chargeHits: () => true });
+    const g1 = makeFoe('brute', { x: 0, z: 0 }), g2 = makeFoe('brute', { x: 0, z: 0 });
+    check('... it is the hero who is supercharged (superT > 0) that the table sees', hitsOn(g1, hero(5))[0]?.out === 'smash' && hitsOn(g2, hero(0))[0]?.out === 'ring');
+  }
   const deg = (d) => [Math.sin((d * Math.PI) / 180) * 6, Math.cos((d * Math.PI) / 180) * 6];
   const hog = makeFoe('hog', { x: 0, z: 0 }); hog.state = 'stalk';
   const brow = (d) => struckBy(hog, 'ram', ...deg(d));

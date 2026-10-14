@@ -2,7 +2,7 @@
 // 3.2 m/s (turning slowly, 1.6 rad/s), stops, RAISES both fists for 1.0 s (a ring of heat grows on the ground at its feet: the tell), and SLAMS: everything on the ground within 4.6 m of it is
 // hurt, a hero who is more than 1.1 m off the ground (a jump) goes over it. The slam cracks its coat, and for 2.8 s after it the furnace VENTS: the hatch in its chest stands open and anything that
 // reaches it wounds it. A wound shuts the hatch for 1.2 s (a second blow in that time rings off), so one vent is two wounds at the most; three wounds take it down. A brute that is struck while it is
-// shut rings off the flame and the ram alike (the ram throws the hero back, as off a bell).
+// shut rings off the flame and the ram alike (the ram throws the hero back, as off a bell). A ram that comes off a supercharge ramp (the ramps of Emberfall) goes through the coat: one blow kills it, shut or open.
 //
 //   idle -> alert -> advance -> raise (1.0 s: the ring grows) -> slam -> vent (2.8 s: wounds) -> advance ...                       (wounds: 3)
 import { hyp, bearing, turnTo, clamp, loiter, startAlert, stepAlert, goHome, steer } from './core.js';
@@ -53,8 +53,12 @@ export const brute = {
     }
   },
 
-  /** Shut, it rings off both attacks. With the hatch open a blow wounds it (and shuts the hatch for a moment); the third wound kills it. */
-  struck(e) {
+  /**
+   * Shut, it rings off both attacks. With the hatch open a blow wounds it (and shuts the hatch for a moment); the third wound kills it. The other way is a SUPERCHARGED ram (the ramps of the crags): it goes
+   * through the coat whatever the hatch is doing, and one blow is the three wounds.
+   */
+  struck(e, attack, side, power) {
+    if (power && attack === 'ram') { e.wounds = BRUTE.wounds; return 'smash'; }
     if (e.state !== 'vent' || e.shutT > 0) return 'ring';
     e.wounds++; e.shutT = BRUTE.shut;
     return e.wounds >= BRUTE.wounds ? 'kill' : 'wound';

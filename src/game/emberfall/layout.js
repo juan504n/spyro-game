@@ -18,9 +18,9 @@ const flameTree = (rng) => ({ canopy: 'leaves_autumn', size: rng.pick(['s', 'm',
 export const MAW = { x: 102, z: 20, rot: -Math.PI / 2 };
 
 export const populate = makePopulate(BRIEF, [
-  goalsStage,
+  goalsStage, layoutGuardRamps,
   layoutForgeGate, layoutFlats, layoutGrove, layoutAshGlade, layoutStair, layoutRift, layoutNorthway, layoutAshway, layoutPlateau, layoutMaw, layoutSmelter, layoutGorge, layoutCaldera,
-  layoutDanger, layoutScatter,
+  layoutDanger, layoutRamps, layoutScatter,
   exitStage,
   gemsStage,
 ], { seed: 7417 });
@@ -327,7 +327,7 @@ function layoutDanger(ctx) {
   const marks = [
     ['trunk', 0.8, 'mole'], ['ashway', 0.3, 'mole'], ['stair', 0.5, 'mole'], ['stair', 0.85, 'mole'], ['rim', 0.4, 'mole'],
     ['ashway', 0.55, 'pup'], ['ashway', 0.8, 'mole'], ['shelf', 0.25, 'pup'], ['shelf', 0.5, 'hog'], ['shelf', 0.75, 'pup'], ['forecourt', 0.6, 'hog'],
-    ['northway', 0.3, 'hog'], ['northway', 0.6, 'pup'], ['northway', 0.85, 'pup'],
+    ['northway', 0.3, 'hog'], ['northway', 0.6, 'pup'], ['northway', 0.85, 'brute'],
     ['gorge', 0.1, 'mole'], ['gorge', 0.22, 'pup'], ['gorge', 0.34, 'hog'], ['gorge', 0.48, 'pup'], ['gorge', 0.6, 'pup'], ['gorge', 0.72, 'hog'], ['gorge', 0.86, 'brute'],
   ];
   // (a Snuffer stands where nothing else does: the first of the offsets from the road that is clear)
@@ -344,6 +344,43 @@ function layoutDanger(ctx) {
     for (const r of [15, 13, 17, 19]) { const x = CALDERA.x + Math.cos(a) * r, z = CALDERA.z + Math.sin(a) * r; if (ctx.ok(x, z, { r: 1.6, path: 0, maxSlope: 0.5 })) { ctx.addEnemy(x, z, ['pup', 'pup', 'hog', 'hog', 'pup'][k], 3); break; } }
   }
   ctx.gp.hints.push({ x: -96, z: 34, r: 10, text: 'THE FORGE FOES: A FUSEPUP GOES OFF, A RAMHOG RUNS A LINE, A DUSTMOLE BURSTS UP. THE SLAG BRUTES ARE WORSE', dur: 7 });
+}
+
+// ---- the supercharge ramps: one for each Slag Brute, a run-up from it and aimed at it. Ram up one and the hero is supercharged for seven seconds (systems/ramps.js): one ram breaks a Slag Brute's coat. The last
+// one stands by the gorge's mouth: the charge it gives lasts across the caldera's way in to the Colossus (a supercharged ram into its open hatch is three wounds) ---------------------------------
+/** the Slag Brutes that guard the goals stand where the goals are: their ramps are laid first, before the trees and the stones take the room */
+function layoutGuardRamps(ctx) { rampsFor(ctx); }
+function layoutRamps(ctx) { rampsFor(ctx); }
+function rampsFor(ctx) {
+  const { gp, put } = ctx;
+  gp.ramps = gp.ramps || [];
+  const fits = (x, z, rot, foot, sl, pd) => ctx.ok(x, z, { r: foot, path: pd, maxSlope: sl })
+    && [-3.6, 3.6].every((d) => ctx.ok(x + Math.sin(rot) * d, z + Math.cos(rot) * d, { r: 2.4, path: 0, maxSlope: sl + 0.06 }));
+  const flat = (x, z, rot, dy) => Math.abs(ctx.h(x + Math.sin(rot) * 4, z + Math.cos(rot) * 4) - ctx.h(x - Math.sin(rot) * 4, z - Math.cos(rot) * 4)) < dy;       // (the wedge climbs 1.7 m itself: the ground under it is level along its length)
+  const place = (x, z, rot, text) => {
+    const y = ctx.h(x, z);
+    put('supercharge_ramp', x, z, { rot, y }, 6.5);
+    gp.ramps.push({ x, y, z, rot });
+    gp.hints.push({ x, z, r: 11, text, dur: 7 });
+  };
+  /** the first spot on a ring of 13 to 24 m round (fx, fz) where a ramp fits, aimed at the foe; the ones nearest a road first (the hero comes along one) */
+  const spot = (fx, fz, text, skip = () => false) => {
+    for (const [sl, dy, radii, foot, pd] of [[0.2, 0.6, [15, 18, 21, 13, 24], 4.6, 3.4], [0.3, 1.4, [14, 17, 20, 23, 26, 29], 3.6, 3.0], [0.42, 2.2, [12, 15, 18, 21, 24, 28], 2.8, 2.8]]) {
+      const cands = [];
+      for (const r of radii) for (let k = 0; k < 24; k++) {
+        const a = (k / 24) * TAU, x = fx + Math.cos(a) * r, z = fz + Math.sin(a) * r;
+        if (!skip(x, z)) cands.push({ x, z, rot: Math.atan2(fx - x, fz - z), sc: ctx.pathDist(x, z) + r * 0.2 });
+      }
+      cands.sort((a, b) => a.sc - b.sc);
+      for (const c of cands) if (flat(c.x, c.z, c.rot, dy) && fits(c.x, c.z, c.rot, foot, sl, pd)) { place(c.x, c.z, c.rot, text); return true; }
+    }
+    return false;
+  };
+  const far = (x, z) => gp.ramps.some((q) => Math.hypot(q.x - x, q.z - z) < 14);
+  const served = (e) => gp.ramps.some((q) => { const d = Math.hypot(e.x - q.x, e.z - q.z); return d < 32 && Math.abs(Math.atan2(Math.sin(Math.atan2(e.x - q.x, e.z - q.z) - q.rot), Math.cos(Math.atan2(e.x - q.x, e.z - q.z) - q.rot))) < 0.2; });
+  for (const e of gp.enemies.filter((q) => q.variant === 'brute' && !served(q))) {
+    spot(e.x, e.z, 'A SUPERCHARGE RAMP! RAM UP IT, THEN RAM THE SLAG BRUTE: ONE SUPERCHARGED BLOW BREAKS IT (OR HIT ITS OPEN HATCH THREE TIMES)', far);
+  }
 }
 
 // ---- trees, flowers, rocks: dead trees and black spires, a few flame trees ------------------------------------------------------------------------------------

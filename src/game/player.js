@@ -15,6 +15,7 @@ export const P = {
   gravity: 40, jumpV: 15.2, maxFall: 42, coyote: 0.11, jumpBuffer: 0.13,
   glideSpeed: 13.5, glideFall: 3.1, glideAccel: 7,
   chargeSpeed: 24, chargeCooldown: 0.12,       // (a charge lasts exactly as long as the button is held)
+  superSpeed: 1.55, superTime: 7, superLaunch: 11,       // (a supercharge ramp: for superTime seconds the charge runs superSpeed times as fast and what it hits it hits with all of it; the ramp throws him up at superLaunch)
   flameTime: 0.42, flameCooldown: 0.10, flameRange: 6.6, flameHalfAngle: 0.68,
   turnGround: 17, turnAir: 9, turnGlide: 2.7, turnCharge: 1.5, turnFlame: 6,
   hurtStun: 0.38, invuln: 1.9,
@@ -35,7 +36,7 @@ export class Player {
     this.gnx = 0; this.gny = 1; this.gnz = 0;
     this.coyoteT = 0; this.bufferT = 0;
     this.gliding = false;
-    this.chargeT = 0; this.chargeCd = 0;
+    this.chargeT = 0; this.chargeCd = 0; this.superT = 0;
     this.flameT = 0; this.flameCd = 0; this.flameTick = 0;
     this.hurtT = 0; this.invulnT = 0;
     this.landPulse = 0;
@@ -101,9 +102,24 @@ export class Player {
 
   kill() {
     if (this.dead) return;
-    this.dead = true; this.deadT = 0; this.chargeT = 0; this.flameT = 0; this.gliding = false;
+    this.dead = true; this.deadT = 0; this.chargeT = 0; this.superT = 0; this.flameT = 0; this.gliding = false;
     this.vx *= 0.3; this.vz *= 0.3;
     this.emit('die');
+  }
+
+  /**
+   * A supercharge ramp (systems/ramps.js): he is charged for P.superTime seconds, thrown up and forward along the ramp (dirx, dirz); a hero who is ramming keeps ramming, at the new speed, through the air.
+   * Returns true the first time (not while he is already charged).
+   */
+  supercharge(dirx, dirz) {
+    const fresh = this.superT <= 0;
+    this.superT = P.superTime;
+    const sp = P.chargeSpeed * P.superSpeed;
+    this.vx = dirx * sp; this.vz = dirz * sp;
+    this.yaw = Math.atan2(dirx, dirz);
+    this.vy = P.superLaunch; this.grounded = false; this.gliding = false; this.jumpsUsed = 1; this.coyoteT = 0;
+    this.emit('super', { fresh });
+    return fresh;
   }
 
   /** Launch (mushroom pads, springs). */
@@ -125,6 +141,7 @@ export class Player {
     this.invulnT = Math.max(0, this.invulnT - dt);
     this.hurtT = Math.max(0, this.hurtT - dt);
     this.chargeCd = Math.max(0, this.chargeCd - dt);
+    this.superT = Math.max(0, this.superT - dt);
     this.flameCd = Math.max(0, this.flameCd - dt);
     this.landPulse = Math.max(0, this.landPulse - dt * 4.5);
     this.coyoteT = Math.max(0, this.coyoteT - dt);
@@ -189,8 +206,9 @@ export class Player {
       this.vx *= k; this.vz *= k;
     } else if (this.chargeT > 0) {
       this.chargeT += dt;
-      this.vx = lerp(this.vx, fx * P.chargeSpeed, Math.min(1, dt * 14));
-      this.vz = lerp(this.vz, fz * P.chargeSpeed, Math.min(1, dt * 14));
+      const cs = P.chargeSpeed * (this.superT > 0 ? P.superSpeed : 1);
+      this.vx = lerp(this.vx, fx * cs, Math.min(1, dt * 14));
+      this.vz = lerp(this.vz, fz * cs, Math.min(1, dt * 14));
     } else if (this.gliding) {
       const t = 1 - Math.exp(-P.glideAccel * dt);
       this.vx = lerp(this.vx, fx * P.glideSpeed, t);
@@ -487,11 +505,11 @@ export class Player {
     const hv = this.speed;
     m.update(dt, {
       speed: hv, grounded: this.grounded, vy: this.vy,
-      glide: this.gliding, charge: this.chargeT > 0, flame: this.flameT > 0,
+      glide: this.gliding, charge: this.chargeT > 0, flame: this.flameT > 0, super: this.superT > 0,
       turn: clamp(turn, -1, 1), hurt: this.hurtT > 0 ? this.hurtT / P.hurtStun : 0, land: this.landPulse,
       dead: this.dead, cheer: this.cheer, look: this.lookT, t: this.time,
     });
-    if (m.flash) m.flash(this.hurtT > 0 ? 0.75 * (this.hurtT / P.hurtStun) : 0);
+    if (m.flash) m.flash(this.hurtT > 0 ? 0.75 * (this.hurtT / P.hurtStun) : this.superT > 0 ? 0.28 + 0.16 * Math.sin(this.time * 22) : 0);          // (a supercharged hero glows, and the glow flickers faster as it runs out)
   }
 
   /** Copy the (interpolated) transform onto the model root. */
