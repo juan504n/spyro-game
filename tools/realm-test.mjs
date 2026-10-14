@@ -77,17 +77,22 @@ await check('the roads wear the textures the level names (its own, or cobble and
   return { ok: r.meshes.length > 0 && bad.length === 0, ...r };
 });
 
-// a realm that paints its own sky (its palette's cloudTop / cloudBot / ridge): the clouds and the distant mountains wear it, not the vale's lavender
+// a realm that paints its own sky (its palette's cloudTop / cloudBot / ridge): the clouds and the distant mountains wear it, not the vale's lavender; a realm with a PAINTED sky (skybox/) has its two
+// panoramas on the dome, and under the horizon each is the fog of its mood
 await check('the sky wears the realm\'s palette', async () => {
   const r = await ev(() => {
     const g = window.__game, W = g.world, env = g.level.environment, own = env && env.sky && env.sky[0], s = W.atm.sky;
+    if (W.sky.painted) {
+      const near = (tex, fog) => { const d = tex.image.data, w = tex.image.width, h = tex.image.height, y = Math.round(((-11 + 14) / 104) * h - 0.5), i = (y * w + (w >> 1)) * 4; return fog.every((v, c) => Math.abs(d[i + c] - v * 255) <= 10); };
+      return { own: true, painted: true, a: near(W.sky.texA, env.sky[0].fog), b: near(W.sky.texB, env.sky[1].fog), clouds: true, ridge: true };
+    }
     if (!own || (!own.cloudTop && !own.ridge)) return { own: false };
     const c = W.sky.clouds[0].geo.attributes.aCol.array, m = W.sky.mtn[0], pk = m.geo.attributes.aCol.array;
     const near = (a, want, k) => want.every((v, i) => Math.abs(a[i] - Math.min(1, v * k) * 255) <= 3);
     const peak = s.ridge ? s.fog.map((f, i) => f + (s.ridge[i] - f) * m.mixK * 1.15) : null;
     return { own: true, day: +g.day.toFixed(2), clouds: !own.cloudTop || (!!s.cloudTop && near(c.slice(8, 11), s.cloudTop, 0.575)), ridge: !own.ridge || (!!s.ridge && near(pk.slice(4, 7), peak, 0.5)) };
   });
-  return { ok: !r.own || (r.clouds && r.ridge), ...r };
+  return { ok: !r.own || (r.clouds && r.ridge && (!r.painted || (r.a && r.b))), ...r };
 });
 
 // a realm with a TIDE (level.tide, realm/tide.js: Tideglass Reach): the sea of the real game rises and falls on the game's clock - the water, the surface that is drawn and the tint of its shallows - and the high

@@ -2,6 +2,7 @@
 // and violet to a pale icy horizon) and B, a blossom dawn (a low rose-gold sun in the east, pink-lit snow, a sky of cornflower, blossom pink and gold). Each lantern that blooms moves the realm along
 // from A to B (the day: realms.js, systems/beacons.js). Two or three base hues in each: ice teal, snow white and blossom pink, the glow colour the accent. (Shape: engine/lighting.js DEFAULT_ENVIRONMENT.)
 import { dirAzEl } from '../../engine/lighting.js';
+import { FROSTBLOOM } from '../skybox/specs.js';
 
 export const FROST_ENVIRONMENT = {
   name: 'frostbloom',
@@ -28,6 +29,7 @@ export const FROST_ENVIRONMENT = {
     { zenith: [0.02, 0.04, 0.16], high: [0.04, 0.14, 0.34], mid: [0.06, 0.38, 0.46], low: [0.28, 0.3, 0.6], horizon: [0.56, 0.74, 0.84], fog: [0.2, 0.36, 0.52], glow: [0.35, 0.95, 0.7] },
     { zenith: [0.3, 0.5, 0.86], high: [0.52, 0.68, 0.95], mid: [0.9, 0.78, 0.9], low: [1.0, 0.8, 0.74], horizon: [1.0, 0.88, 0.76], fog: [0.93, 0.84, 0.88], glow: [1.0, 0.72, 0.62] },
   ],
+  skybox: FROSTBLOOM,                    // (painted: skybox/specs.js)
   sun: { az: 12, el: [-9, 30] },
   moon: { az: 300, el: 46 },
 };

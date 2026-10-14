@@ -156,6 +156,8 @@ Gloaming Vale is a valley that has been stuck in twilight ever since the Snuffer
 Lantern Keeper, asks you to relight the five Beacon Lanterns. Each one you ignite pushes the sky a step towards dawn —
 the whole valley is lit twice (dusk and daybreak) and the world cross-fades between the two as you progress.
 
+**The skies are painted**, the way the PS1 game's are: each world has two panoramas (the gloom before its lanterns, the dawn they bring), painted in code (`src/game/skybox/`: `paint.js` is the painter, `specs.js` the skies) and faded one into the other with the day. A sky is a gradient that swings round the horizon, soft washes of colour, long smeared clouds lit gold and pink on their tops, and something to remember the place by: the Vale's coral-and-violet dusk and lavender daybreak, Frostbloom's aurora over pastel snow peaks, Emberfall's gold-streaked furnace sunset over dark crags, Skyweaver's twin moons over a sea of pink cloud, Tideglass' green night with a ringed planet, the Court's eclipse. The painter puts each sky through the inverse of the screen's colour grade and meets the ground's fog under the horizon, so that what is painted is what is seen and there is no seam. `node tools/sky-sheet.mjs out.png FROSTBLOOM` paints a world's skies and shows them (no server needed); `node tools/sky-check.mjs` holds every sky to the rules (finite, deterministic, seamless round the back, joined to the fog, neither black nor blown out). A world with no `environment.skybox` has the old gradient sky with sprite clouds.
+
 | # | Beacon | Where | What it asks of you |
 | - | --- | --- | --- |
 | I | Hearth | Hearth Village, spawn | Tutorial: jump, glide, fire. |

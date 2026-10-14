@@ -7,6 +7,8 @@ import { buildTerrainMeshes } from './terrain-mesh.js';
 import { buildWater } from './water.js';
 import { buildRoads, ROAD_DECAL } from './roads.js';
 import { Sky } from './sky.js';
+import { GLOAMING } from './skybox/specs.js';
+import { HD } from '../engine/textures/hd/index.js';
 import { Kit } from './kit.js';
 
 const _dl = {};
@@ -110,8 +112,13 @@ export function* buildWorldSteps(assets, populate, level) {
   world.timings.props = performance.now() - t;
   world.timings.propTris = kit.triangleCount();
 
-  world.sky = new Sky(assets);
+  // the painted sky (skybox/): the world's own, or the Vale's for the world that has the default environment (Dawnhaven, the title)
+  yield [0.97, 'PAINTING THE SKY'];
+  t = performance.now();
+  const specs = env.skybox || (env === DEFAULT_ENVIRONMENT ? GLOAMING : null);
+  world.sky = new Sky(assets, specs ? { specs, fogs: env.sky.map((p) => p.fog), size: HD.size <= 128 ? 128 : 256 } : null);
   world.scene.add(world.sky.group);
+  world.timings.sky = performance.now() - t;
   world.day = 0;
 
   /** Per-frame environment: sky, fog and dynamic-light uniforms from `day`. */

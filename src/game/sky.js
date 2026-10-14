@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { makeMaterial, whiteTexture } from '../engine/materials.js';
 import { RNG, valueNoise, fbm } from '../engine/textures/pix.js';
+import { paintSky, EL_MIN, EL_MAX } from './skybox/paint.js';
 
 const clamp = (v, a = 0, b = 1) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -11,6 +12,8 @@ const mix3 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], 
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 
 const DOME_R = 1000;
+const PAINT_GAIN = 128;
+const GRADE = 0.6;                 // (the screen's colour grade, engine/gfx.js `color`: the painted sky is put through its inverse so that it shows in the colours it was painted in)
 const SEG = 48;
 const ELEVS = [-14, -6, 0, 3, 6, 10, 15, 21, 28, 36, 46, 58, 72, 90];   // ring elevations in degrees
 
@@ -27,18 +30,68 @@ function setColor(arr, i, c, k = 0.5, a = 1) {
 }
 
 export class Sky {
-  constructor(assets) {
+  /**
+   * `skybox` (optional): { specs: [A, B], fogs: [fogA, fogB], size } the painted sky of a world (skybox/paint.js: two panoramas, the gloom and the dawn, one painted over the other as the
+   * day goes from 0 to 1). A world without one has the gradient dome with its sun, moon, stars, sprite clouds and ranges of the palette (the code below).
+   */
+  constructor(assets, skybox = null) {
     this.group = new THREE.Group();
     this.group.name = 'sky';
     this.assets = assets;
     this.rng = new RNG(4242);
     this._lastDay = -1;
     this._starT = 0;
+    this.painted = !!skybox;
+    if (skybox) { this._buildPainted(skybox); return; }
     this._buildDome();
     this._buildCelestials();
     this._buildStars();
     this._buildClouds();
     this._buildMountains();
+  }
+
+  /** the two painted panoramas on the dome: A under, B over it with the day as its opacity */
+  _buildPainted(sb) {
+    const [w, h] = sb.size === 128 ? [768, 192] : [1024, 256];
+    const tex = (spec, fog) => {
+      const img = paintSky(spec, { w, h, fog, grade: GRADE });
+      const t = new THREE.DataTexture(img.data, img.w, img.h, THREE.RGBAFormat);
+      t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping;
+      t.magFilter = t.minFilter = THREE.LinearFilter;
+      t.generateMipmaps = false; t.flipY = false; t.colorSpace = THREE.NoColorSpace;
+      t.userData.owned = true;
+      t.needsUpdate = true;
+      return t;
+    };
+    this.texA = tex(sb.specs[0], sb.fogs[0]);
+    this.texB = tex(sb.specs[1] || sb.specs[0], sb.fogs[1] || sb.fogs[0]);
+    const pos = [], uv = [], idx = [];
+    for (let r = 0; r < ELEVS.length; r++) {
+      const el = (ELEVS[r] * Math.PI) / 180;
+      for (let s = 0; s <= SEG; s++) {
+        const az = (s / SEG) * Math.PI * 2;
+        pos.push(Math.cos(el) * Math.cos(az) * DOME_R, Math.sin(el) * DOME_R, Math.cos(el) * Math.sin(az) * DOME_R);
+        uv.push(s / SEG, (ELEVS[r] - EL_MIN) / (EL_MAX - EL_MIN));
+      }
+    }
+    for (let r = 0; r < ELEVS.length - 1; r++) for (let s = 0; s < SEG; s++) { const a = r * (SEG + 1) + s, b = a + 1, c = a + SEG + 1, d = c + 1; idx.push(a, b, d, a, d, c); }
+    const geo = this._dynGeo(pos, uv, idx);
+    geo.attributes.aCol.array.fill(PAINT_GAIN);                  // (the texture is the colour: half of 255 is 1 once the shader doubles it)
+    geo.attributes.aCol.array.forEach((v, i) => { if (i % 4 === 3) geo.attributes.aCol.array[i] = 255; });
+    geo.attributes.aCol.needsUpdate = true;
+    this.domeGeo = geo;
+    const a = new THREE.Mesh(geo, this._skyMat({ map: this.texA }));
+    a.renderOrder = -100; a.frustumCulled = false;
+    this.matB = this._skyMat({ map: this.texB, mode: 'half' });
+    this.matB.transparent = false;                               // (drawn with the opaque sky layers, in the order given, not after the whole world)
+    this.matB.uniforms.uAlpha.value = 0;
+    const b = new THREE.Mesh(geo, this.matB);
+    b.renderOrder = -99; b.frustumCulled = false;
+    this.group.add(a, b);
+  }
+
+  dispose() {
+    for (const t of [this.texA, this.texB]) t?.dispose();
   }
 
   _skyMat(o = {}) {
@@ -250,6 +303,7 @@ export class Sky {
 
   update(camera, atm, t, dt) {
     this.group.position.copy(camera.position);
+    if (this.painted) { this.matB.uniforms.uAlpha.value = 2 * atm.ease; return; }
     if (Math.abs(atm.dayKey - this._lastDay) > 0.0015) { this.refresh(atm); this._lastDay = atm.dayKey; }
     this._starT -= dt;
     if (this._starT <= 0) { this.twinkle(t, atm.starAlpha); this._starT = 0.12; }

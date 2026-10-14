@@ -202,6 +202,7 @@ export class Game {
     const walk = (root) => root && root.traverse((o) => { if (o.geometry) geos.add(o.geometry); });
     walk(this.scene); walk(this.overlay?.scene);
     for (const g of geos) g.dispose();
+    this.world?.sky?.dispose?.();
     this.fx?.dispose();
     this.counter?.dispose();
     this.atlas?.dispose();

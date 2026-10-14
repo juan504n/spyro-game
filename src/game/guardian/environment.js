@@ -3,6 +3,7 @@
 // an amber horizon). Each lantern that is lit moves the Court a third of the way from A to B (the world's `day` is lanterns lit over three, as in every realm); the third is the sunrise. Violet, stone
 // grey and the gold of the lanterns: the accent. (Shape: engine/lighting.js DEFAULT_ENVIRONMENT.)
 import { dirAzEl } from '../../engine/lighting.js';
+import { GUARDIAN } from '../skybox/specs.js';
 
 export const GUARDIAN_ENVIRONMENT = {
   name: 'guardian',
@@ -29,6 +30,7 @@ export const GUARDIAN_ENVIRONMENT = {
     { zenith: [0.04, 0.02, 0.15], high: [0.14, 0.07, 0.3], mid: [0.34, 0.14, 0.44], low: [0.6, 0.2, 0.46], horizon: [0.9, 0.4, 0.5], fog: [0.3, 0.14, 0.36], glow: [0.9, 0.36, 0.6], cloudTop: [0.3, 0.2, 0.4], cloudBot: [0.8, 0.35, 0.5], ridge: [0.14, 0.08, 0.24] },
     { zenith: [0.26, 0.42, 0.8], high: [0.5, 0.62, 0.9], mid: [0.9, 0.76, 0.74], low: [1.0, 0.74, 0.46], horizon: [1.0, 0.86, 0.5], fog: [0.9, 0.74, 0.6], glow: [1.0, 0.8, 0.4], cloudTop: [1.0, 0.95, 0.9], cloudBot: [1.0, 0.78, 0.5], ridge: [0.5, 0.42, 0.52] },
   ],
+  skybox: GUARDIAN,                    // (painted: skybox/specs.js)
   sun: { az: 62, el: [-8, 26] },
   moon: { az: 225, el: 40 },
 };

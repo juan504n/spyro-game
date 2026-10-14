@@ -3,6 +3,7 @@
 // sky of aqua and pale gold, the sea green). Each lens that shines moves the realm along from A to B (the day: realms.js, systems/beacons.js): the light has come back to the glass.
 // Two or three base hues in each: sea-glass teal, pale sand and brass, the gold of the dawn the accent. (Shape: engine/lighting.js DEFAULT_ENVIRONMENT; az 0 is east, 90 south, 270 north.)
 import { dirAzEl } from '../../engine/lighting.js';
+import { TIDEGLASS } from '../skybox/specs.js';
 
 export const TIDE_ENVIRONMENT = {
   name: 'tideglass',
@@ -29,6 +30,7 @@ export const TIDE_ENVIRONMENT = {
     { zenith: [0.03, 0.1, 0.22], high: [0.06, 0.24, 0.38], mid: [0.12, 0.44, 0.52], low: [0.3, 0.64, 0.64], horizon: [0.7, 0.86, 0.72], fog: [0.2, 0.46, 0.5], glow: [0.5, 0.95, 0.8], cloudTop: [0.42, 0.66, 0.74], cloudBot: [0.2, 0.42, 0.52], ridge: [0.12, 0.3, 0.38] },
     { zenith: [0.2, 0.52, 0.74], high: [0.4, 0.74, 0.84], mid: [0.7, 0.92, 0.88], low: [0.98, 0.92, 0.72], horizon: [1.0, 0.84, 0.6], fog: [0.68, 0.88, 0.84], glow: [1.0, 0.86, 0.56], cloudTop: [1.0, 0.97, 0.92], cloudBot: [0.99, 0.8, 0.72], ridge: [0.42, 0.68, 0.72] },
   ],
+  skybox: TIDEGLASS,                    // (painted: skybox/specs.js)
   sun: { az: 335, el: [-6, 26] },
   moon: { az: 215, el: 44 },
 };
