@@ -51,7 +51,7 @@ async function trip(page, go) {
   check('... the treasure found is what he found: 137', seen.treasure === 137, `(${seen.treasure})`);
   const up = seen.shown.every((v, i) => i === 0 || v >= seen.shown[i - 1]);
   check('... the count climbs, never falls, and reaches 137 (before he goes)', up && Math.max(...seen.shown) === 137 && seen.shown[0] < 137, `(${seen.shown.slice(0, 6).join(',')} ... ${Math.max(...seen.shown)})`);
-  check('... gems are in the air and the chest fills (the gems that land lie in it)', seen.gems > 0 && seen.pile > 0, `(${seen.gems} in the air, ${seen.pile} in the chest)`);
+  check('... gems are in the air and the chest fills (the gems that land lie in it)', seen.gems > 0 && seen.pile > 9, `(${seen.gems} in the air, ${seen.pile} in the chest)`);
   check('... it stays long enough for the gems to be seen (at least 2 s with treasure) and ends in white', seen.maxT >= 2 && seen.fadeEnd > 0.5, `(${seen.maxT.toFixed(1)} s, fade ${seen.fadeEnd.toFixed(2)})`);
   const now = await page.evaluate(() => ({ state: window.__app.state, realm: window.__game.realm.id, scene: window.__app.scene === window.__game.scene, travel: !!window.__app.travel }));
   check('... and then he is in Dawnhaven, playing, with the world\'s own scene again', now.state === 'play' && now.realm === 'home' && now.scene && !now.travel, JSON.stringify(now));

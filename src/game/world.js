@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { U } from '../engine/materials.js';
 import { Lighting, atmosphere, dynamicLight, DEFAULT_ENVIRONMENT } from '../engine/lighting.js';
 import { generateTerrain } from './terrain.js';
-import { buildTerrainMeshes } from './terrain-mesh.js';
+import { buildTerrainMeshesSteps } from './terrain-mesh.js';
 import { buildWater } from './water.js';
 import { buildRoads, ROAD_DECAL } from './roads.js';
 import { Sky } from './sky.js';
@@ -56,11 +56,15 @@ export function* buildWorldSteps(assets, populate, level) {
   yield [0.27, label[2] || 'PAINTING THE GLOAMING'];
 
   t = performance.now();
-  const terr = buildTerrainMeshes(grid, lighting, assets);
+  const itTerr = buildTerrainMeshesSteps(grid, lighting, assets);
+  let rT;
+  while (!(rT = itTerr.next()).done) yield [0.28, label[2] || 'PAINTING THE GLOAMING'];            // (a chance to paint a frame of the loading screen between the pieces of the longest stall)
+  const terr = rT.value;
   world.terrain = terr.group;
   world.terrainStats = terr.stats; world.blendStats = terr.blendStats;
   world.scene.add(terr.group);
   world.timings.terrainMesh = performance.now() - t;
+  yield [0.3, label[3] || 'RAISING HILLS'];                  // (the same words: a chance to paint a frame of the loading screen between the long pieces)
   if (world.massifs.length) {
     t = performance.now();
     world.massifMeshes = new THREE.Group();
@@ -70,6 +74,7 @@ export function* buildWorldSteps(assets, populate, level) {
       const b = m.build(assets, grid, kit.lights);              // (after the dry pass: the glow lights the props registered light the rock round them)
       world.massifMeshes.add(b.group);
       world.massifStats[m.id] = b.stats;
+      yield [0.31, label[3] || 'RAISING HILLS'];
     }
     world.scene.add(world.massifMeshes);
     world.timings.massifMesh = performance.now() - t;

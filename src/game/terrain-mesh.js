@@ -204,7 +204,17 @@ export function cutByContour(corner) {
   return { rock: rock.length >= 3 ? rock : [], soft: soft.length >= 3 ? soft : [] };
 }
 
+/** The terrain's meshes, in one go (tools, tests). */
 export function buildTerrainMeshes(grid, lighting, assets) {
+  const it = buildTerrainMeshesSteps(grid, lighting, assets);
+  for (;;) { const r = it.next(); if (r.done) return r.value; }
+}
+
+/**
+ * The same, as a generator that yields now and then (every few rows of the grid, every few thousand triangles of the blend) so that a page that is showing a loading screen can paint a frame between
+ * the pieces: the whole of it is the longest single stall of building a world.
+ */
+export function* buildTerrainMeshesSteps(grid, lighting, assets) {
   const { n, cell, half, heights: H } = grid;
   const L = grid.level;
   const s = n + 1;
@@ -354,6 +364,7 @@ export function buildTerrainMeshes(grid, lighting, assets) {
   };
 
   for (let j = 0; j < n; j++) {
+    if (j % 12 === 11) yield;
     for (let i = 0; i < n; i++) {
       for (const t of picker.tris(i, j)) {
         if (steepL !== undefined) {
@@ -405,7 +416,9 @@ export function buildTerrainMeshes(grid, lighting, assets) {
         if (!b) { b = new Builder({ lighting }); b.defaults.tile = GROUND_TILE; blendB.set(name, b); }
         return b;
       };
+      let tn = 0;
       for (const t of softTris) {
+        if (++tn % 4000 === 0) yield;
         for (const name of names) {
           if (name === t.tex) continue;
           const f = wf.get(name);

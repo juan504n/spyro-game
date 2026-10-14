@@ -374,6 +374,19 @@ export class Gfx {
     r.render(this.outScene, this.quadCam);
   }
 
+  /** Compile every shader `scene` uses and upload what it draws, with one frame that is not shown (a loading screen's first frame would stall the page for it: this takes the stall where the screen is blank). */
+  warm(scene, camera) {
+    const r = this.renderer, was = [];
+    try {
+      scene.traverse((o) => { if (o.frustumCulled) { was.push(o); o.frustumCulled = false; } });
+      r.compile(scene, camera);
+      r.setRenderTarget(this.rtScene);
+      r.setViewport(0, 0, this.W, this.H);
+      r.render(scene, camera);
+    } catch (e) { console.warn('warm failed', e); }
+    finally { r.setRenderTarget(null); for (const o of was) o.frustumCulled = true; }
+  }
+
   /** Exact internal-resolution frame (post-dither, HUD included) as RGBA rows top-to-bottom. */
   readInternal() {
     const { W, H } = this;

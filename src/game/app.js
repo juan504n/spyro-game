@@ -420,7 +420,7 @@ class App {
     // `at` is a place of the TRAVEL menu (travel.js) to arrive on instead of where the way from the old world comes out; in the world he is already in that is a hop: the screen blinks,
     // nothing is rebuilt and what he did there stays
     const hop = !!at && id === g.realm.id && !at.rematch;
-    this.travel = { id, from, phase: 'out', color, t: 0, at, hop, ls: hop ? null : this._makeLoadScreen(id, from) };
+    this.travel = { id, from, phase: 'out', color, t: 0, at, hop, ls: null };                 // (the loading screen is made once the screen is white: _updateTravel)
     this.state = 'traveling';
     g.player.locked = true;
     g.locked = true;
@@ -433,7 +433,7 @@ class App {
 
   /**
    * The loading screen of a trip to another world (loadscreen.js): the sky of the place he goes to, the hero gliding over it, the gems he found in the place he leaves arcing into a chest, and the
-   * count. Made while the old world is still fading out (it has to paint its sky); null if it cannot be made (the black screen with a bar is the fallback).
+   * count. Made when the old world has faded out to white (painting the sky and compiling the shaders stalls the page for a moment, which the white hides); null if it cannot be made (the black screen with a bar is the fallback).
    */
   _makeLoadScreen(id, from) {
     try {
@@ -460,7 +460,7 @@ class App {
       g.update(dt);
       if (g.fade.a >= 0.995 && tr.t > (tr.hop ? 0.15 : 0.4)) {
         if (tr.hop) this._arrive(g, tr);                 // (the same world: the hero is put on his place under the white and the screen clears)
-        else { tr.phase = 'load'; this._swap(tr); }
+        else { tr.phase = 'load'; tr.ls = this._makeLoadScreen(tr.id, tr.from); this._swap(tr); }          // (blank white: the sky is painted, the models made and every shader of the loading screen compiled now, where no one sees the stall)
       }
     } else if (tr.ls) tr.ls.update(dt, this.load);
     else Hud.drawLoading(gfx.hud, this.load.frac, this.load.label);
@@ -470,7 +470,7 @@ class App {
   async _swap(tr) {
     const old = this.game;
     this.scene = tr.ls ? tr.ls.scene : new THREE.Scene();                     // (the loading screen's own little scene while the new world is built, or nothing but the loading bar)
-    if (tr.ls) this.camera = tr.ls.camera;
+    if (tr.ls) { this.camera = tr.ls.camera; tr.ls.warm(); }
     this.overlay = null;
     old.dispose();
     this.load = { frac: 0, label: REALMS[tr.id].kind === 'homeworld' ? 'ENTERING DAWNHAVEN' : 'ENTERING THE REALM' };

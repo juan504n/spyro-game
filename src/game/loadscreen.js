@@ -14,7 +14,7 @@ import { GLOAMING } from './skybox/specs.js';
 
 const GOLD = ['#fff4b0', '#ffc03c', '#e07818'];
 const INK = '#120c1c';
-const POOL = 48;
+const POOL = 48, PILE = 26;
 const FADE_IN = 0.55, FADE_OUT = 0.5;
 const smooth = (t) => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
 const dummy = new THREE.Object3D();
@@ -24,26 +24,13 @@ const color = new THREE.Color();
 const Z = -16;
 const SPYRO = new THREE.Vector3(-3.8, 1.5, Z);
 const CHEST = new THREE.Vector3(2.6, -4.6, Z);
-const MOUTH = new THREE.Vector3(2.6, -3.3, Z + 0.4);
 
-/** an open chest of pale gold: four walls, a floor, and the lid thrown back on its hinge */
-function chestGeometry() {
+const CHEST_S = 2.7;                                       // (the game's own chest model, 1.7 m wide, made big enough to be a prize)
+
+/** a square of light (one quad facing the camera) for the glow and the sparkles: the texture does the rest */
+function glowGeometry() {
   const b = new Builder({ lit: false });
-  const W = 3.6, H = 1.9, D = 2.2, t = 0.16;
-  const front = [0.9, 0.84, 0.56], side = [0.64, 0.56, 0.34], top = [0.96, 0.93, 0.76], dark = [0.34, 0.24, 0.14], back = [0.62, 0.52, 0.3];
-  b.box(0, H / 2, 0, W, H, D, { faces: ['+z', '+x', '-x', '-z', '-y'], colors: { '+z': front, '+x': side, '-x': side, '-z': back, '-y': dark } });
-  // the inside: the walls' inner faces and a dark floor a little below the rim
-  b.box(0, H / 2, 0, W - 2 * t, H - 0.04, D - 2 * t, { faces: ['+z', '-z', '+x', '-x'], colors: { '+z': back, '-z': front, '+x': side, '-x': side }, flip: true });
-  b.quad([-W / 2 + t, H * 0.82, D / 2 - t], [W / 2 - t, H * 0.82, D / 2 - t], [W / 2 - t, H * 0.82, -D / 2 + t], [-W / 2 + t, H * 0.82, -D / 2 + t], { color: dark });
-  // the rim
-  b.quad([-W / 2, H, D / 2], [W / 2, H, D / 2], [W / 2 - t, H, D / 2 - t], [-W / 2 + t, H, D / 2 - t], { color: top });
-  b.quad([W / 2, H, -D / 2], [-W / 2, H, -D / 2], [-W / 2 + t, H, -D / 2 + t], [W / 2 - t, H, -D / 2 + t], { color: top });
-  b.quad([W / 2, H, D / 2], [W / 2, H, -D / 2], [W / 2 - t, H, -D / 2 + t], [W / 2 - t, H, D / 2 - t], { color: top });
-  b.quad([-W / 2, H, -D / 2], [-W / 2, H, D / 2], [-W / 2 + t, H, D / 2 - t], [-W / 2 + t, H, -D / 2 + t], { color: top });
-  // the lid, hinged along the back edge and thrown open past upright
-  b.push().translate(0, H, -D / 2).rotateX(-1.95);
-  b.box(0, 0.12, D / 2, W, 0.24, D, { colors: { '+y': top, '-y': dark, '+z': front, '-z': back, '+x': side, '-x': side } });
-  b.pop();
+  b.quad([-0.5, -0.5, 0], [0.5, -0.5, 0], [0.5, 0.5, 0], [-0.5, 0.5, 0], { uv: [0, 0, 1, 1], color: [0.5, 0.5, 0.5] });
   return b.build();
 }
 
@@ -87,21 +74,39 @@ export class LoadScreen {
     this.hero.root.position.copy(SPYRO);
     this.hero.root.rotation.y = -0.9;
     this.rig.add(this.hero.root);
-    // the chest
-    const chestMat = assets.mat(null, { day: false, fog: false, unique: true, double: true });
-    this.chest = new THREE.Mesh(chestGeometry(), chestMat);
+    // the chest: the game's own (planks, iron bands, brass lock, a heap of gold in it), the lid flung open at the start; light pours out of it
+    this.chestM = makeModel(assets, 'chest');
+    this.chest = this.chestM.root;
+    this.chest.scale.setScalar(CHEST_S);
     this.chest.position.copy(CHEST);
-    this.chest.rotation.set(0.28, -0.42, 0);
-    this.chest.frustumCulled = false;
+    this.chest.rotation.set(0.3, -0.42, 0);
+    this.chest.updateMatrix();
+    this.mouth = new THREE.Vector3(0, 0.58, 0).applyMatrix4(this.chest.matrix);
     this.rig.add(this.chest);
-    this.chestMat = chestMat;
-    // what has landed in it lies in the chest
+    this.glowGeo = glowGeometry();
+    this.glowMat = assets.mat('sun_glow', { lit: false, day: false, fog: false, mode: 'add', unique: true, double: true });
+    this.glow = new THREE.Mesh(this.glowGeo, this.glowMat);
+    this.glow.position.set(this.mouth.x, this.mouth.y + 0.7, this.mouth.z - 0.6);
+    this.glow.frustumCulled = false;
+    this.glow.renderOrder = 9;
+    this.rig.add(this.glow);
+    this.sparks = Array.from({ length: 12 }, (_, i) => {
+      const m = new THREE.Mesh(this.glowGeo, this.glowMat);
+      m.frustumCulled = false; m.renderOrder = 10;
+      this.rig.add(m);
+      return { m, ph: i / 12, x: (((i * 0.618) % 1) - 0.5) * 3.2, sp: 0.55 + (i % 4) * 0.12 };
+    });
+    // what has landed in it heaps up above its rim
     this.gemMat = assets.mat(null, { gem: true, day: false, unique: true, fog: false });
-    this.pile = new THREE.InstancedMesh(gemGeometry(), this.gemMat, 16);
+    this.pile = new THREE.InstancedMesh(gemGeometry(), this.gemMat, PILE);
     this.pile.frustumCulled = false;
-    this.pile.count = 0;
     this.chest.add(this.pile);
-    this.pileSeed = Array.from({ length: 16 }, (_, i) => ({ x: ((i * 0.618) % 1 - 0.5) * 2.1, z: (((i * 0.37) % 1) - 0.5) * 0.9, y: 1.62 + (i % 3) * 0.16, r: i * 1.9, c: [GEM_TYPES[1], GEM_TYPES[2], GEM_TYPES[5], GEM_TYPES[1], GEM_TYPES[10]][i % 5].color }));
+    this.pileSeed = Array.from({ length: PILE }, (_, i) => {
+      const x = (((i * 0.618) % 1) - 0.5) * 1.3, z = (((i * 0.37) % 1) - 0.5) * 0.45;
+      return { x, z, y: 0.5 + 0.12 * (1 - Math.pow(x / 0.7, 2)) + (i % 3) * 0.025, r: i * 1.9, c: [GEM_TYPES[1], GEM_TYPES[2], GEM_TYPES[5], GEM_TYPES[1], GEM_TYPES[10]][i % 5].color };
+    });
+    this.pile.count = 0;
+    for (let i = 0; i < 9; i++) this._lay(i);                                  // (it holds some already)
     // the gems
     this.gems = new THREE.InstancedMesh(gemGeometry(), this.gemMat, POOL);
     this.gems.frustumCulled = false;
@@ -116,6 +121,15 @@ export class LoadScreen {
     this.seed = 7;
   }
 
+  /** lay the pile's n-th gem in the chest */
+  _lay(n) {
+    const k = this.pileSeed[n];
+    dummy.position.set(k.x, k.y, k.z); dummy.rotation.set(0.3, k.r, 0.4); dummy.scale.setScalar(0.62 / CHEST_S); dummy.updateMatrix();
+    this.pile.setMatrixAt(n, dummy.matrix); this.pile.setColorAt(n, color.setRGB(k.c[0], k.c[1], k.c[2]));
+    this.pile.count = n + 1; this.pile.instanceMatrix.needsUpdate = true;
+    if (this.pile.instanceColor) this.pile.instanceColor.needsUpdate = true;
+  }
+
   _rnd() { this.seed = (Math.imul(this.seed, 1664525) + 1013904223) >>> 0; return this.seed / 4294967296; }
 
   _spawn() {
@@ -125,10 +139,18 @@ export class LoadScreen {
     const type = T[Math.floor(this._rnd() * T.length)];
     g.alive = true; g.t = 0; g.d = 1.5 + this._rnd() * 0.9;
     g.sx = SPYRO.x + (this._rnd() - 0.5) * 2.4; g.sy = SPYRO.y + (this._rnd() - 0.2) * 2.2; g.sz = Z + (this._rnd() - 0.5) * 2;
-    g.ex = MOUTH.x + (this._rnd() - 0.5) * 1.6; g.ey = MOUTH.y; g.ez = MOUTH.z + (this._rnd() - 0.5) * 0.8;
+    g.ex = this.mouth.x + (this._rnd() - 0.5) * 1.8; g.ey = this.mouth.y + 0.2; g.ez = this.mouth.z + (this._rnd() - 0.5) * 0.8;
     g.h = 1.5 + this._rnd() * 3.6; g.sw = (this._rnd() - 0.5) * 3.2; g.spin = this._rnd() * 6.28; g.ws = 2.5 + this._rnd() * 4;
     g.size = 0.78 + type.size * 0.4; g.type = type;
     void r;
+  }
+
+  /** Compile the shaders and upload the sky, the models and the textures with a frame that is never shown (the app calls it while the screen is blank white: that stall is then not seen). */
+  warm() {
+    this.update(0.001, null);
+    this.gfx.warm(this.scene, this.camera);
+    this.t = 0;
+    this.spawnT = 0.15;
   }
 
   /** (seconds the screen has been up, and the world he comes to may now be shown: it has been up for its minimum) */
@@ -165,7 +187,7 @@ export class LoadScreen {
       const u = Math.min(1, g.t / g.d), e = Math.pow(u, 1.25);
       if (u >= 1) {
         g.alive = false; this.bump = 1; this.landed++;
-        if (this.pile.count < 16) { const k = this.pileSeed[this.pile.count]; dummy.position.set(k.x, k.y, k.z); dummy.rotation.set(0.3, k.r, 0.4); dummy.scale.setScalar(0.62); dummy.updateMatrix(); this.pile.setMatrixAt(this.pile.count, dummy.matrix); this.pile.setColorAt(this.pile.count, color.setRGB(k.c[0], k.c[1], k.c[2])); this.pile.count++; this.pile.instanceMatrix.needsUpdate = true; if (this.pile.instanceColor) this.pile.instanceColor.needsUpdate = true; }
+        if (this.pile.count < PILE) this._lay(this.pile.count);
         dummy.scale.setScalar(0); dummy.updateMatrix(); this.gems.setMatrixAt(i, dummy.matrix);
         if (this.audio && this.treasure > 0 && ++this.sfxN % 4 === 0) this.audio.sfx('gem_red', { vol: 0.28, pitch: 0.9 + this._rnd() * 0.5 });
         continue;
@@ -184,7 +206,18 @@ export class LoadScreen {
     this.gems.instanceMatrix.needsUpdate = true;
     if (this.gems.instanceColor) this.gems.instanceColor.needsUpdate = true;
     this.bump = Math.max(0, this.bump - dt * 5);
-    this.chest.scale.set(1 + this.bump * 0.04, 1 - this.bump * 0.05, 1);
+    this.chest.scale.set(CHEST_S * (1 + this.bump * 0.04), CHEST_S * (1 - this.bump * 0.05), CHEST_S);
+    this.chestM.update(dt, { open: t > 0.2 ? 1 : 0 });
+    // the light that comes up out of it breathes, and flares as a gem lands; sparks of it rise and go out
+    const gl = (0.5 + 0.08 * Math.sin(t * 2.3) + 0.22 * this.bump) * smooth(t / 0.9);
+    this.glowMat.uniforms.uColorMul.value.setRGB(1.0 * gl * 2.6, 0.8 * gl * 2.6, 0.35 * gl * 2.6);
+    this.glow.scale.setScalar(7.5 + this.bump * 1.2);
+    for (const k of this.sparks) {
+      const u = (t * 0.45 * k.sp + k.ph) % 1, a = Math.sin(u * Math.PI) * smooth(t / 1.2);
+      k.m.position.set(this.mouth.x + k.x * 0.5 + Math.sin(t * 1.3 + k.ph * 9) * 0.25, this.mouth.y + 0.3 + u * 4.2, this.mouth.z - 0.2);
+      k.m.scale.setScalar(0.12 + 0.55 * a);
+      k.m.visible = a > 0.02;
+    }
     // white at the start (the trip came in through white) and at the end
     const fin = 1 - smooth(this.t / FADE_IN);
     const fout = this.closing >= 0 ? smooth((this.t - this.closing) / FADE_OUT) : 0;
@@ -225,13 +258,14 @@ export class LoadScreen {
   dispose() {
     this.gems.geometry.dispose();
     this.gems.dispose();
-    this.chest.geometry.dispose();
+    this.chestM.dispose();
+    this.glowGeo.dispose();
+    this.glowMat.dispose();
     this.pile.geometry.dispose();
     this.pile.dispose();
     this.sky?.dispose();
     this.sky?.domeGeo?.dispose();
     this.hero?.dispose?.();
     this.gemMat.dispose();
-    this.chestMat.dispose();
   }
 }
