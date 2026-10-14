@@ -235,6 +235,7 @@ export class FoeFx {
           case 'rear': sfx('foe_screech', { vol: 0.8 }); break;
           case 'call': sfx('foe_call', { vol: 0.9 }); break;
           case 'jeer': sfx('foe_jeer', { vol: 0.8 }); break;
+          case 'bicker': sfx('snuffer_swing', { vol: 0.4, pitch: 1.2 }); sfx('snuffer_hurt', { vol: 0.22, pitch: 1.5 }); break;       // (two Snuffers at their squabble: a swing, a yelp)
           case 'shiver': sfx('foe_shiver', { vol: 0.9 }); break;
           case 'gather': sfx('foe_gather', { vol: 0.9 }); break;
           case 'glow': sfx('foe_glow', { vol: 0.8 }); break;

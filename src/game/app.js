@@ -13,6 +13,7 @@ import { CAM_MODES } from './camera.js';
 import { Hud } from './hud.js';
 import { DebugHud } from './debug.js';
 import { introShot, finaleShot, gateShot, makeOpening } from './cinematics.js';
+import { LoadScreen } from './loadscreen.js';
 import { makeTitleArt, drawLogo, drawPressStart, drawDusk, ditherOut, OPEN } from './titlescreen.js';
 import { SPEECH, creditsLines, lineHeight, endingShot } from './ending.js';
 import { drawPanel } from '../engine/textures/ui.js';
@@ -419,7 +420,7 @@ class App {
     // `at` is a place of the TRAVEL menu (travel.js) to arrive on instead of where the way from the old world comes out; in the world he is already in that is a hop: the screen blinks,
     // nothing is rebuilt and what he did there stays
     const hop = !!at && id === g.realm.id && !at.rematch;
-    this.travel = { id, from, phase: 'out', color, t: 0, at, hop };
+    this.travel = { id, from, phase: 'out', color, t: 0, at, hop, ls: hop ? null : this._makeLoadScreen(id, from) };
     this.state = 'traveling';
     g.player.locked = true;
     g.locked = true;
@@ -428,6 +429,23 @@ class App {
     g.fadeTo(1, hop ? 3.4 : 1.7, color);
     this.audio?.duck?.(hop ? 0.5 : 0.35, hop ? 1.2 : 2.4);
     this.audio?.setMuffled?.(false);
+  }
+
+  /**
+   * The loading screen of a trip to another world (loadscreen.js): the sky of the place he goes to, the hero gliding over it, the gems he found in the place he leaves arcing into a chest, and the
+   * count. Made while the old world is still fading out (it has to paint its sky); null if it cannot be made (the black screen with a bar is the fallback).
+   */
+  _makeLoadScreen(id, from) {
+    try {
+      const g = this.game, dest = REALMS[id], st = g.stats || {};
+      const homeBound = dest.kind === 'homeworld' && from && g.realm.kind !== 'homeworld';
+      const total = Object.values(this.progress.realms || {}).reduce((n, r) => n + ((r && r.gems) | 0), 0);
+      return new LoadScreen(this.assets, this.gfx, {
+        title: homeBound ? 'RETURNING HOME...' : `ENTERING ${dest.name}...`,
+        treasure: from ? st.gems | 0 : 0, total, env: dest.level && dest.level.environment,
+        restored: dest.kind === 'realm' && from === 'home' && !!(this.progress.realms[id] && this.progress.realms[id].done), audio: this.audio,
+      });
+    } catch (e) { console.warn('loading screen failed', e); return null; }
   }
 
   _updateTravel(dt) {
@@ -444,19 +462,23 @@ class App {
         if (tr.hop) this._arrive(g, tr);                 // (the same world: the hero is put on his place under the white and the screen clears)
         else { tr.phase = 'load'; this._swap(tr); }
       }
-    } else Hud.drawLoading(gfx.hud, this.load.frac, this.load.label);
+    } else if (tr.ls) tr.ls.update(dt, this.load);
+    else Hud.drawLoading(gfx.hud, this.load.frac, this.load.label);
   }
 
   /** Replace the world on screen with another: free the old one's GPU memory first (the heaviest thing there is), build the new one, and arrive in it. */
   async _swap(tr) {
     const old = this.game;
-    this.scene = new THREE.Scene();                     // (nothing to draw but the loading bar while the new world is built)
+    this.scene = tr.ls ? tr.ls.scene : new THREE.Scene();                     // (the loading screen's own little scene while the new world is built, or nothing but the loading bar)
+    if (tr.ls) this.camera = tr.ls.camera;
     this.overlay = null;
     old.dispose();
     this.load = { frac: 0, label: REALMS[tr.id].kind === 'homeworld' ? 'ENTERING DAWNHAVEN' : 'ENTERING THE REALM' };
     let game;
     try { game = await this._build(tr.id, tr.from, !!(tr.at && tr.at.rematch)); } catch (e) { console.error(e); window.__error = String((e && e.stack) || e); return; }
+    if (tr.ls) await tr.ls.finish();                    // (it stays until the gems have been seen, then goes to white)
     this._adopt(game);
+    if (tr.ls) { tr.ls.dispose(); tr.ls = null; }
     this._arrive(game, tr);
   }
 

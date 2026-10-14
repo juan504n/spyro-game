@@ -45,11 +45,17 @@ export function steer(e, ctx, heading, speed, dt) {
   return null;
 }
 
-/** A foe that has not noticed the hero loiters round its home (the old Snuffers' idle). True on the step it notices him. */
+let mannerHook = null;
+/** foes/manner.js registers what a foe does with its idle time (squabbles, mooning): it is asked at the head of every loiter */
+export const setMannerHook = (f) => { mannerHook = f; };
+
+/** A foe that has not noticed the hero loiters round its home (the old Snuffers' idle). True on the step it notices him (false while it is busy with a manner of its own: foes/manner.js). */
 export function loiter(e, dt, ctx, speed = e.K.speed * 0.35) {
   const hero = ctx.hero;
   e.speedNow = 0;
-  if (!hero.dead && hyp(hero.x - e.x, hero.z - e.z) < e.K.notice) return true;
+  const near = !hero.dead && hyp(hero.x - e.x, hero.z - e.z) < e.K.notice;
+  if (mannerHook && mannerHook(e, dt, ctx, near)) return false;
+  if (near) return true;
   e.st -= dt;
   const d = hyp(e.tx - e.x, e.tz - e.z);
   if (d < 0.6 || e.st <= -6) {

@@ -315,6 +315,19 @@ export function createSnuffer(assets, opts) {
       shield.position.set(0, 0.1 + 0.02 * Math.sin(S.time * 2) * calm, 0.6 + 0.08 * pulse(0.0, 1.0));
     }
 
+    // the moon (foes/manner.js): bent double with its back to him, the skirt flapping and the behind waggling, looking round over its shoulder, one arm up
+    const moon = S.moon = damp(S.moon ?? 0, clamp(pose.moon || 0), 9, dt);
+    if (moon > 0.01) {
+      const wag = Math.sin(S.time * 15);
+      body.rotation.x += 1.05 * moon;
+      body.rotation.z += 0.22 * wag * moon;
+      body.position.y -= 0.08 * moon;
+      skirt.rotation.x -= 1.2 * moon;
+      skirt.rotation.z += 0.4 * wag * moon;
+      head.rotation.y += 2.35 * moon;
+      head.rotation.x -= 1.0 * moon;
+      armL.rotation.x = lerp(armL.rotation.x, -2.4 + 0.5 * Math.sin(S.time * 11), moon);
+    }
     if (extra) extra.update(dt, pose, { S, move, chase, alert, hurtK, stunK, atk, wind, strike, rec, armL, armR, body, head });
 
     if (pose.flash !== undefined) R.flash(clamp(pose.flash, 0, 1));

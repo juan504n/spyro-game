@@ -6,7 +6,7 @@
 // The others (foes/: the Slinger, the Ramhog, the Dustmole, the Lidwarden, the Fusepup, the Dusk Moth, the Smokecaller, the Pilferling) have a brain of their own, a pure state machine that is
 // stepped with the hero and says what happens as events (foes/index.js); what the hero's attacks do to each is the table of foes/ (hitsOn), and how it shows is systems/foefx.js.
 import { makeModel } from '../models/fallback.js';
-import { KINDS, kindOf, BRAINS, hitsOn, poseOf, stepFoe, explode, summonOf } from '../foes/index.js';
+import { KINDS, kindOf, BRAINS, hitsOn, poseOf, stepFoe, explode, summonOf, mannerIdle, mannerPose, hasManners } from '../foes/index.js';
 import { FoeFx } from './foefx.js';
 
 const wrap = (a) => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
@@ -26,6 +26,8 @@ export class EnemySystem {
       emit: (type, d) => this._on(type, d),
       dismiss: (m) => this.dismiss(m),
       alive: (m) => m.state !== 'dead',
+      manners: true,                                          // (the foes' manners: foes/manner.js)
+      others: (e, r) => this.list.filter((o) => o !== e && o.active !== false && Math.hypot(o.x - e.x, o.z - e.z) < r),          // (the foes near one: for what idle foes do together, foes/manner.js)
     };
     for (const s of spawns) this.list.push(this._make(s));
   }
@@ -223,6 +225,7 @@ export class EnemySystem {
       const canSee = dp < e.V.notice && !p.dead;
       switch (e.state) {
         case 'idle': {
+          if (hasManners(e.K) && mannerIdle(e, dt, this.ctx, canSee)) { speedNow = e.speedNow || 0; break; }          // (a squabble with another, or its back turned on the hero: foes/manner.js)
           if (canSee) { e.state = 'alert'; e.st = 0.42; e.exclaimT = 0.9; game.audio?.sfx('snuffer_alert', { vol: 0.8 }); this.foefx.hint(e); break; }
           e.st -= dt;
           const d = Math.hypot(e.tx - e.x, e.tz - e.z);
@@ -289,7 +292,7 @@ export class EnemySystem {
       // ---- render sync -----------------------------------------------------------------------------------------
       e.model.root.position.set(e.x, e.y, e.z);
       e.model.root.rotation.y = e.yaw;
-      e.model.update(dt, { speed: speedNow, attack: e.state === 'attack' ? e.attack : 0, alert: e.alert, hurt: e.hurt, stun: e.state === 'hurt' ? Math.min(1, e.st * 2) : 0, dead: 0, t: e.t, shell: e.shell });
+      e.model.update(dt, mannerPose(e, { speed: speedNow, attack: e.state === 'attack' ? e.attack : 0, alert: e.alert, hurt: e.hurt, stun: e.state === 'hurt' ? Math.min(1, e.st * 2) : 0, dead: 0, t: e.t, shell: e.shell }));
       e.model.flash?.(e.hurt * 0.8);
       e.shadow.x = e.x; e.shadow.z = e.z;
       e.shadow.visible = true;

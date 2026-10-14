@@ -183,6 +183,10 @@ the whole valley is lit twice (dusk and daybreak) and the world cross-fades betw
   for a couple of seconds.
 * Ending the level shows a results screen (three stars) and drops you back into free roam, with a portal open above the lantern (below).
 
+### The loading screen between worlds
+
+A trip to another world (a portal, the TRAVEL menu) goes through white to the PS1 game's **"Returning Home..."**: the painted sky of the place he is going to, Spyro gliding over it, a stream of gems arcing from him into an open chest that fills, and **TREASURE FOUND** counted up beside it (the gems he found in the world he is leaving; when he found none, the **TOTAL TREASURE** he has saved in all). The title says where he goes: `RETURNING HOME...` into Dawnhaven, `ENTERING <WORLD>...` anywhere else; a thin line at the bottom says what is being built. It is a little 3D scene of its own (`src/game/loadscreen.js`: the real `Sky`, the hero and the gem models, the retro HUD's gold lettering), it stays at least 2 s while there is a count to climb (1 s when there is nothing to show), and goes to white as the new world comes up. The very first load still paints the dusk of the title. `node tools/loadscreen-test.mjs` plays two trips.
+
 ### The portal home
 
 The last beacon does two things: the sun comes up, and a **portal pops open on top of the lantern**: a swirl of violet light that blooms in the lantern room's dome, right above the Great Beacon, while the camera slips in
@@ -443,6 +447,8 @@ Each realm has **its cast** (the foundry holds a realm to at least five kinds of
 <p align="center"><sub>What a foe shows before it hurts, in the game (software-rendered): the ring that follows him and then stays where it is, the lane a hog will run, the ground that cracks for 0.8 s, the moth's shadow, a fuse, the smoke a Snuffer steps out of; and the line the HUD says the first time.</sub></p>
 
 **How they are held** (round twenty-eight): `tools/foe-test.mjs` plays every brain at 60 Hz on a floor of its own against a model of the hero (no browser): the table, what a flame and a ram do to each foe from each side in each state, the warnings and how long they are, how often each attacks, the metres a blow reaches, and some thirty plays, each by a hero who plays it right, wrong or not at all; `tools/foe-bot.mjs` plays the same plays in the running game with the real controller, and checks what the game does with what a foe says (the lesson said once, the sounds asked for, the warning drawn, nothing left behind on the floor, a keg's blast, the aim assist).
+
+**Manners.** The Snuffers have lives of their own when nobody is looking (`src/game/foes/manner.js`, round forty-six): **two that meet bicker**, walking up to each other and swinging their poles at each other every second or two for five to nine seconds (the pole stops short, the one it was meant for staggers, nobody is hurt), and **one that first sees the hero from far off (7 m or more) may turn its back on him and waggle its behind** for a moment, looking round over its shoulder, before it sounds the alarm. A squabble breaks off the moment the hero is in sight; a foe never moons when he is close, ramming, or dead. The Pilferling has its own jeer and the beasts have none; `node tools/manner-test.mjs` plays them in Node.
 
 ## The trials
 

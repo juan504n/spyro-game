@@ -24,6 +24,7 @@ import { gust } from './gust.js';
 import { shell } from './shell.js';
 import { drift } from './drift.js';
 import { kindOf } from './kinds.js';
+import { mannerPose } from './manner.js';
 import { sideOf } from './core.js';
 
 export { KINDS, FOE_IDS, KIND_IDS, DANGER, kindOf } from './kinds.js';
@@ -41,6 +42,7 @@ export { BRUTE } from './brute.js';
 export { GUST } from './gust.js';
 export { SHELL } from './shell.js';
 export { DRIFT } from './drift.js';
+export { MANNER, mannerIdle, mannerPose, hasManners } from './manner.js';
 export { ROSTERS, rosterOf, foeOf, summonOf } from './roster.js';
 
 /** The brains by name. Each: init(e), step(e, dt, ctx), struck(e, attack, side) -> 'kill' | 'ring' | 'ignore' | 'boom' | 'wound' | 'flip', pose(e), and `front`: the half angle of what it guards. */
@@ -78,7 +80,7 @@ export function hitsOn(e, p) {
 }
 
 /** The pose a foe's model is told. */
-export const poseOf = (e) => BRAINS[e.K.brain].pose(e);
+export const poseOf = (e) => mannerPose(e, BRAINS[e.K.brain].pose(e));
 
 /** One step of foe `e`'s brain. */
 export const stepFoe = (e, dt, ctx) => BRAINS[e.K.brain].step(e, dt, ctx);
