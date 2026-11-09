@@ -52,7 +52,7 @@ export class UiLayer {
   start() {
     this.used = false;
     const now = performance.now();
-    this.redraw = !this.throttle || now - this.lastDraw >= 31;
+    this.redraw = !this.hold && (!this.throttle || now - this.lastDraw >= 31);
     if (!this.ready || !this.redraw) return;
     this.lastDraw = now;
     const c = this.ctx;

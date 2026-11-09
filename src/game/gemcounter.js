@@ -226,7 +226,7 @@ export class GemCounter {
           s.flipNext = false; s.wait = -1;
         }
       }
-      s.vy -= G_HOP * dt;
+      if (s.y > 0 || s.vy > 0) s.vy -= G_HOP * dt;                                           // (a digit at rest does not fall: a long frame's worth of gravity would count as a landing and squash it again, every frame under 37 fps)
       s.y += s.vy * dt;
       if (s.y < 0) {
         s.y = 0;

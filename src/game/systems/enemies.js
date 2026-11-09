@@ -264,7 +264,7 @@ export class EnemySystem {
           if (!e.struck && e.st >= 0.66) {
             e.struck = true;
             const fwd = dxp * Math.sin(e.yaw) + dzp * Math.cos(e.yaw);
-            if (dp < e.V.reach + 0.5 && fwd > -0.2) game.playerHurt(e.x, e.z);
+            if (dp < e.V.reach + 0.5 && fwd > -0.2 && p.y < e.y + e.h + 0.6 && p.y + p.h > e.y - 0.6) game.playerHurt(e.x, e.z);       // (a hero on a ledge over its head is out of its reach)
             game.audio?.sfx('snuffer_swing', { vol: 0.8 });
           }
           if (e.st >= 1.35) { e.state = 'chase'; e.attack = 0; }
@@ -279,7 +279,7 @@ export class EnemySystem {
         }
         case 'return': {
           const d = Math.hypot(e.hx - e.x, e.hz - e.z);
-          if (canSee) { e.state = 'chase'; break; }
+          if (canSee && !p.dead && (e.wild || d < 34)) { e.state = 'chase'; break; }       // (not from the end of its leash, 40 m: it would turn back and round again every step, and stand there)
           if (d < 1.2) { e.state = 'idle'; e.st = 1; e.hp = e.V.hp; break; }
           const dir = Math.atan2(e.hx - e.x, e.hz - e.z);
           e.yaw += wrap(dir - e.yaw) * Math.min(1, dt * 6);
@@ -407,7 +407,7 @@ export class EnemySystem {
           if (o === e || o.state === 'dead' || o.untargetable || Math.hypot(o.x - d.x, o.z - d.z) >= d.r + o.r) continue;           // (a mole under the ground is not in the blast)
           if (o.B && o.K.brain === 'fuse') { if (!o.exploded) { const keep = this._cur; this._cur = o; explode(o, this.ctx, false); this._cur = keep; } } else this.damage(o, 1, d.x, d.z, 'blast');
         }
-        if (!d.byHero && e) this.dismiss(e);                              // (a keg that goes off by itself is gone: no gems, not beaten)
+        if (!d.byHero && e) { this.dismiss(e); if (!e.noGems) g.gems.burst(e.x, e.y + 1.0, e.z, e.V.drops, 1); }       // (a keg that goes off by itself is gone, not beaten; its gems are left behind all the same: they are in the realm's count)
         break;
       }
       case 'shove': g.player.shove(d.dx, d.dz, d.power); break;                    // (a Gale Spirit's blast: the foefx plays its sound when it says 'gust')

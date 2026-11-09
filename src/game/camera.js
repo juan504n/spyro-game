@@ -104,6 +104,7 @@ export class GameCamera {
 
     if (this.cine) {
       const c = this.cine;
+      input?.takeLook?.();                 // (the mouse moved while a shot plays is thrown away: it must not swing the camera in one jump when the shot ends)
       c.t += dt;
       const k = clamp(c.t / c.dur, 0, 1);
       const r = c.fn(c.t, k);

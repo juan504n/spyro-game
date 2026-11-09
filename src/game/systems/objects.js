@@ -278,7 +278,7 @@ export class ObjectSystem {
     for (const b of this.braziers) {
       if (b.lit) {
         b.l = Math.min(1, b.l + dt * 2);
-        game.fx.torchFlame(b.x, b.y + 1.45, b.z, true, 0.85);
+        game.fx.torchFlame(b.x, b.y + 1.45, b.z, true, 0.85, dt);
       }
       b.model.setLit?.(b.l);
       b.model.update?.(dt, { t });

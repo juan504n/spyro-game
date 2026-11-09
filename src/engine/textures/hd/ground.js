@@ -108,7 +108,9 @@ export function dunes(n, { seed = 41, R, ripples = 7, sheen = 0, sheenPow = 6, g
 // ---------------------------------------------------------------------------------------------------------------------------------------------
 // Drifts: snow and ash laid in soft drifts, lit from the upper left, with fine wind ripples, hollows tinted by the shadow colour, glints and (for ash) clinker.
 // ---------------------------------------------------------------------------------------------------------------------------------------------
-export function drifts(n, { seed = 51, R, hollow = null, hollowAmount = 0.5, ripples = 22, rippleAmount = 0.15, glints = 10, clinker = 0, clinkerColor = [40, 34, 34], embers = 0, petals = null, mean = null, contrast = 1, grit = 0.03, clump = 0 } = {}) {
+export function drifts(n, { seed = 51, R, hollow = null, hollowAmount = 0.5, ripples = 22, rippleAmount = 0.15, glints = 10, clinker = 0, clinkerColor = [40, 34, 34], embers = 0, petals = null, mean = null, contrast = 1, grit = 0.03, clump = 0, broad = 1 } = {}) {
+  // `broad`: how much of the colour the widest drifts carry (1: all of it). On a floor that repeats the tile many times the wide blotches are what the eye finds again and again:
+  // under 1 they are flattened and the middle-sized drifts carry the difference instead.
   const K = n / 256;
   const rng = new RNG(seed);
   const RR = ramp(R);
@@ -119,11 +121,11 @@ export function drifts(n, { seed = 51, R, hollow = null, hollowAmount = 0.5, rip
     for (let x = 0; x < n; x++) {
       const k = y * n + x;
       const ph = (x / n * 0.4 + y / n) * ripples + (warpF[k] - 0.5) * 3;
-      height[k] = big[k] * 1.5 + mid[k] * 0.55 + Math.sin(ph * 2 * Math.PI) * 0.012 * rippleAmount * 4;
-      hollowM[k] = smoothstep(0.5, 0.22, big[k]) * 0.8;
+      height[k] = big[k] * 1.5 * broad + mid[k] * (0.55 + 0.6 * (1 - broad)) + Math.sin(ph * 2 * Math.PI) * 0.012 * rippleAmount * 4;
+      hollowM[k] = smoothstep(0.5, 0.22, broad < 1 ? mix(mid[k], big[k], broad) : big[k]) * 0.8;
     }
   }
-  cv.fillWith((x, y, out) => { const k = y * n + x; RR(clamp(0.58 + ((big[k] - 0.5) * 0.6 + (mid[k] - 0.5) * 0.3) * contrast), out); });
+  cv.fillWith((x, y, out) => { const k = y * n + x; RR(clamp(0.58 + ((big[k] - 0.5) * 0.6 * broad + (mid[k] - 0.5) * (0.3 + 0.4 * (1 - broad))) * contrast), out); });
   cv.shade(height, 3.0);
   if (hollow) cv.tint(hollowM, col(hollow), hollowAmount);
   for (let i = 0; i < cnt(clinker, n); i++) {

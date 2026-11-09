@@ -74,6 +74,7 @@ async function boot() {
       if (acc30 < 1 / 30 - 0.002) doRender = false; else acc30 = Math.max(0, acc30 - 1 / 30);
     }
     gfx.ui.throttle = true;
+    gfx.ui.hold = !doRender;             // (a frame the 30 fps lock does not render uploads no UI either: the layer must not spend its one redraw there, or the menus and the HUD freeze)
     gfx.clearHud();
     scene.update?.(dt, clock.t);
     if (doRender) gfx.render(scene.scene, scene.camera, scene.overlay);

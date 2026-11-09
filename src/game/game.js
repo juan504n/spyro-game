@@ -379,7 +379,7 @@ export class Game {
     // death -> fade -> respawn
     if (p.dead) {
       this.deathT += dt;
-      if (this.deathT > 1.3 && this.fade.target === 0) this.fadeTo(1, 2.6);
+      if (this.deathT > 1.3 && this.fade.target === 0) this.fadeTo(1, 2.6, [0, 0, 0]);       // (to black, whatever colour the last portal left the fade)
       if (this.deathT > 2.2) { this.respawn(); this.fadeTo(0, 2.2); this.deathT = 0; }
     }
     // looping sounds tied to abilities
