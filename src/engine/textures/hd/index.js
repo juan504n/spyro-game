@@ -110,7 +110,7 @@ export const PAINT = {
   // (ice is a sheet: glossy, a few glints and a deep blue in its hollows; it was a floor of hexagonal plates with dark gaps, which read as paving)
   ice: (o, d) => G.drifts(d.n, { seed: 13, R: rampFrom(o, 6), hollow: '#2a62ac', hollowAmount: 0.7, ripples: 9, rippleAmount: 0.9, contrast: 1.9, glints: 48, clump: 0, grit: 0.02, mean: meanOf(o) }),
   // (flagstone is laid in irregular flags, not a square grid with dead-straight joints: a plaza of ruled squares read as a tiled rectangle on the lawn)
-  flagstone: (o, d) => T.cobbles(d.n, { seed: 14, R: RAMPS.pathStone, gap: '#3a3648', moss: '#587a3d', mossAmount: 0.12, cells: 3, rows: 3, stagger: 0.5, jitter: 0.85, relief: 0.7, rim: 8, gapPx: 1.5, gloss: 0.1, crackFrac: 0.2, mean: meanOf(o) }),
+  flagstone: (o, d) => T.cobbles(d.n, { seed: 14, R: RAMPS.pathStone, gap: '#3a3648', moss: '#587a3d', mossAmount: 0.12, cells: 4, rows: 4, stagger: 0.5, jitter: 0.85, relief: 0.7, rim: 8, gapPx: 1.5, gloss: 0.1, crackFrac: 0.45, fine: 0.9, grit: 1100, mean: meanOf(o) }),
   // ---- rock walls
   cliff: (o, d) => T.crag(d.n, { seed: 81, R: RAMPS.cliff, mean: meanOf(o) }),
   cliff_bare: (o, d) => T.crag(d.n, { seed: 81, R: RAMPS.cliff, mean: meanOf(o) }),
@@ -197,6 +197,8 @@ export const PAINT = {
 
 /** the size (px, the longer side) of the textures that are not painted at HD_SIZE; the shape is the twin's */
 export const SIZE = { tuft: 128, flower_pink: 128, flower_yellow: 128, flower_blue: 128, flower_ember: 128, flower_sky: 128, fern: 128, lilypad: 128, reeds: 256, vine: 256, window: 128, crystal_violet: 128, crystal_cyan: 128, crystal_ember: 128, lantern_glass_off: 128, lantern_glass_on: 128, sun_glow: 128, moon: 128, sun_disc: 128, mushroom_stem: 128 };
+/** the tiles painted at twice the HD size: flags two metres across, laid at the ground's 6 m to a tile, are seen from a metre away and were soft at 43 px to the metre */
+export const DOUBLE = new Set(['flagstone']);
 /** the sprites: cut out by their coverage, and mipmapped (as a tile is) so that they do not shimmer at a distance */
 export const SPRITES = new Set(['tuft', 'flower_pink', 'flower_yellow', 'flower_blue', 'flower_ember', 'flower_sky', 'reeds', 'fern', 'lilypad', 'vine', 'moon', 'sun_disc', 'cloud', 'foam']);
 
@@ -208,7 +210,7 @@ export function attachHD(all) {
     let made = null;
     const make = () => {
       const t0 = now();
-      const size = SIZE[name] || HD.size, k = size / Math.max(e.pix.w, e.pix.h), dims = { w: Math.round(e.pix.w * k), h: Math.round(e.pix.h * k), n: HD.size };      // (a texture that is not square is painted square and squeezed to its shape)
+      const n = HD.size * (DOUBLE.has(name) ? 2 : 1), size = SIZE[name] || n, k = size / Math.max(e.pix.w, e.pix.h), dims = { w: Math.round(e.pix.w * k), h: Math.round(e.pix.h * k), n };      // (a texture that is not square is painted square and squeezed to its shape)
       made = PAINT[name](e.pix, dims).toPix(dims.w, dims.h);
       HD_STATS.made++; HD_STATS.ms += now() - t0;
       return made;

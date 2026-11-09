@@ -64,7 +64,7 @@ export const WORLD_TEXTURE_NOTES = {
   sand: 'Beach sand with ripple lines (they run along U) and glints; 32px = 4 units.',
   shore_pebbles: 'Wet grey-blue/brown pebbles for the waterline strip; 32px = 3 units.',
   cobble: 'Warm lavender-grey cobblestone path with mossy gaps; 32px = 3 units (stones ~0.7 unit).',
-  flagstone: 'Plaza slabs, 2x2 per tile with worn corners and cracks; 32px = 4 units (2-unit slabs).',
+  flagstone: 'Plaza slabs, 2x2 per tile (the HD painting: irregular flags, 4 across, at twice the HD size) with worn corners and cracks; 32px = 4 units (2-unit slabs).',
   ice: 'Pale blue ice: 3x3 big plates under a skin of frost with dark blue cracks, a bright lip on each plate\'s lit edge, a few glints; 32px = 4 units (the floor of the homeworld\'s Frost Grotto).',
   cliff: 'Vertical rock face for wall projection: strata run along U, fissures along V, moss hangs from the TOP edge (row 0) with a few specks at the bottom so it wraps; 32px = 4 units, repeat V a whole number of times per wall.',
   cliff_warm: 'Sandstone variant of cliff; same orientation and scale.',

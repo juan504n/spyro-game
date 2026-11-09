@@ -110,7 +110,7 @@ const h01 = (i, s) => { let h = Math.imul(i + 1, 374761393) ^ Math.imul(s + 7, 6
 // ---------------------------------------------------------------------------------------------------------------------------------------------
 // Cobbles: rounded stones, each its own tone, lit from the upper left, with dark gaps (moss in them) and the odd crack and chip.
 // ---------------------------------------------------------------------------------------------------------------------------------------------
-export function cobbles(n, { seed = 5, R, gap = '#2e2c3a', moss = '#587a3d', cells = 6, rows = cells, stagger = 0.5, jitter = 0.8, toneLo = 0.34, toneHi = 0.8, mossAmount = 0.35, warm = [0, 0, 0], crackFrac = 0.25, relief = 0.55, gapPx = 2.4, mean = null, glow = null, gloss = 0, rim = 15, grit = 500 } = {}) {
+export function cobbles(n, { seed = 5, R, gap = '#2e2c3a', moss = '#587a3d', cells = 6, rows = cells, stagger = 0.5, jitter = 0.8, toneLo = 0.34, toneHi = 0.8, mossAmount = 0.35, warm = [0, 0, 0], crackFrac = 0.25, relief = 0.55, gapPx = 2.4, mean = null, glow = null, gloss = 0, rim = 15, grit = 500, fine = 0 } = {}) {
   const K = n / 256;
   const rng = new RNG(seed);
   const RR = ramp(R);
@@ -130,8 +130,9 @@ export function cobbles(n, { seed = 5, R, gap = '#2e2c3a', moss = '#587a3d', cel
   }
   const mortar = col(gap), mossC = col(moss), tmp = [0, 0, 0];
   const surf = fbm(n, seed + 3, 9, 3), spots = fbm(n, seed + 4, 22, 2), mossN = fbm(n, seed + 5, 7, 3);
+  const pit = fine ? fbm(n, seed + 6, 56, 3, 0.6) : null;                        // (`fine`: the tooling of a big flag's face, so that a slab two metres across is not a smooth blur under the hero's feet)
   cv.fillWith((x, y, out) => {
-    const k = y * n + x, id = V.id[k], s = 0.55 * surf[k] + 0.45 * spots[k];
+    const k = y * n + x, id = V.id[k], s = 0.55 * surf[k] + 0.45 * spots[k] + (pit ? (pit[k] - 0.5) * fine - smoothstep(0.66, 0.8, pit[k]) * fine * 0.9 : 0);
     // each stone is a little lighter at its upper left and darker at its lower right, whichever way it is lit from the height below
     const side = -(V.dx[k] + V.dy[k]) * 0.7071 / (R0 * 1.4);
     RR(clamp(tone[id] + (s - 0.5) * 0.26 + side * 0.1), tmp);

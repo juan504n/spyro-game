@@ -13,7 +13,7 @@ import { generateWorldTextures } from '../src/engine/textures/world.js';
 import { dunes } from '../src/engine/textures/hd/ground.js';
 import { crag } from '../src/engine/textures/hd/terrain.js';
 import { RAMPS } from '../src/engine/textures/palette.js';
-import { PAINT, HD, HD_STATS, SIZE, configureHD, rampFrom, withoutHD, attachHD } from '../src/engine/textures/hd/index.js';
+import { PAINT, HD, HD_STATS, SIZE, DOUBLE, configureHD, rampFrom, withoutHD, attachHD } from '../src/engine/textures/hd/index.js';
 import { Pix, RNG } from '../src/engine/textures/pix.js';
 import { setTextureSmoothing, setTextureHD, texFromPix } from '../src/engine/materials.js';
 import { loadSettings, DEFAULT_SETTINGS } from '../src/engine/gfx.js';
@@ -298,7 +298,7 @@ function paintersAt(size) {
     const t1 = performance.now(); const p = e.pix.hd(); const ms = performance.now() - t1;
     total += ms; if (ms > worstMs) { worstMs = ms; worstName = name; }
     if (ms > 800) slow.push(`${name} ${ms.toFixed(0)}ms`);
-    const side = SIZE[name] || size, k = side / Math.max(e.pix.w, e.pix.h);
+    const side = SIZE[name] || size * (DOUBLE.has(name) ? 2 : 1), k = side / Math.max(e.pix.w, e.pix.h);
     if (p.w !== Math.round(e.pix.w * k) || p.h !== Math.round(e.pix.h * k) || p.data.length !== p.w * p.h * 4) dims.push(`${name} ${p.w}x${p.h} (twin ${e.pix.w}x${e.pix.h})`);
     if (e.pix.hd() !== p) twice.push(name);
     // opaque, or cut out
