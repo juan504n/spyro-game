@@ -24,6 +24,8 @@ const CAM = {
   clearance: 0.6,   // m: how far above the ground the line from Spyro to the camera stays
   maxPitch: 1.1,    // rad (63 deg): the highest the camera climbs to look over rising ground; beyond that it comes closer instead
   minPull: 0.62,    // the share of its distance the camera always keeps, whatever gets in the way (it used to come within 1.4 m)
+  caveFov: 60,      // degrees the view widens for each share of its distance the camera is held closer than minPull, in a cave (19 at 0.3 of its distance)
+  caveRise: 3.4,    // metres the camera is raised for each share of its distance it is held closer than minPull, in a cave (1.1 m at 0.3 of its distance)
   minPullCave: 0.3, // ... inside a cave (game.enclosure 1): the walls are close, so it may come much closer
 };
 
@@ -149,6 +151,7 @@ export class GameCamera {
     else if (!player.grounded && (player.airTime || 0) > 0.3) { dTarget = 7.6; }
     else dTarget += 0.9 * smooth(2, 11, player.speed);       // running: sit a little further back (this used to come from the camera lagging behind him)
     this.dist = lerp(this.dist, dTarget, Math.min(1, dt * (dTarget > this.dist ? 2.0 : 1.5)));
+    fTarget += Math.max(0, CAM.minPull - this.pull) * CAM.caveFov * (this.game.enclosure || 0);          // (held close in a cave, it sees wider: the hero does not fill the picture)
     this.fov = lerp(this.fov, fTarget, Math.min(1, dt * 4));
 
     // ---- desired position: over the ground, held back only by big things ----------------------------------------------------------
@@ -172,12 +175,24 @@ export class GameCamera {
     const f = col.rayFraction(ax, ay, az, ax + ox, ay + oy, az + oz, 0.45, true);
     let keep = CAM.minPull + (CAM.minPullCave - CAM.minPull) * (this.game.enclosure || 0);
     if (col.solids.length) { const fs = col.solidFraction(ax, ay, az, ax + ox, ay + oy, az + oz, 0.45); if (fs < keep) keep = Math.max(CAM.minPullCave * 0.7, fs); }      // (a mountain's wall holds it back whatever the minimum is)
-    const want = Math.max(f, keep);
+    let want = Math.max(f, keep);
+    // (3) In a cave the small things count too, for where the camera itself is: it does not sit inside a crystal or a standing stone (it did, and showed the hero through the inside of one).
+    // And a camera held close is raised, to look down on him: at 2.5 m and level he filled the picture.
+    const enc = this.game.enclosure || 0;
+    const rise = (t) => Math.max(0, CAM.minPull - t) * CAM.caveRise * enc;
+    if (enc > 0.3) {
+      let t = want;
+      while (t > 0.2 && col.blocking(ax + ox * t, ay + oy * t, az + oz * t, 0.3, false)) t -= 0.06;
+      want = t;
+    }
     if (this.snapNext) { this.pull = want; this.clearT = 0; }
     if (want < this.pull) { this.pull = lerp(this.pull, want, 1 - Math.exp(-9 * dt)); this.clearT = 0; }
     else if (want < 1 && want < this.pull + 0.02) this.clearT = 0;           // (still up against the same obstruction: keep the distance)
     else { this.clearT += dt; if (this.clearT > 0.5) this.pull = lerp(this.pull, want, 1 - Math.exp(-2.2 * dt)); }
     if (this.pull < 1) { d *= this.pull; ox = -fx * d * cp; oy = sp * d; oz = -fz * d * cp; }
+    let up = rise(this.pull);
+    while (up > 0.05 && col.blocking(ax + ox, ay + oy + up, az + oz, 0.4, false)) up -= 0.2;           // (as far as the cave's roof lets it)
+    if (up > 0.05) oy += up;
     // The camera is smoothed as an OFFSET from the (already smoothed) pivot, not as an absolute position: an absolute lerp trails a
     // running hero by speed / rate metres, and when the rate changed with the obstruction the trailing distance pumped.
     if (this.snapNext) this.off.set(ox, oy, oz);
