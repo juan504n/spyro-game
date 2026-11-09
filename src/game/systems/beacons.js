@@ -140,7 +140,7 @@ export class BeaconSystem {
         const fp = this.flamePos(b, v3);
         game.fx.sparkle(fp.x + (Math.random() - 0.5) * 1.2 * b.scale, fp.y + Math.random() * 1.5, fp.z + (Math.random() - 0.5) * 1.2 * b.scale, b.def.sparkle || [1, 0.85, 0.5], 0.5);
       }
-      if (b.litFlag && b.def.flame !== false) game.fx.torchFlame(b.x, b.flameY - 0.3 * b.scale, b.z, true, 0.7 * b.scale);
+      if (b.litFlag && b.def.flame !== false) game.fx.torchFlame(b.x, b.flameY - 0.3 * b.scale, b.z, true, 0.7 * b.scale, dt);
       for (const w of b.wisps) {
         if (!w.h.visible) continue;
         w.a += dt * w.s;

@@ -242,7 +242,7 @@ export class Input {
         this.ptr.x = tc.clientX; this.ptr.y = tc.clientY; this.ptr.moved = true;
         if (!play) continue;
         const left = tc.clientX < window.innerWidth * 0.45;
-        if (left && !t.stick) { t.stick = tc.identifier; stick.start(tc.clientX, tc.clientY); ring.style.display = 'block'; ring.style.left = tc.clientX - 55 + 'px'; ring.style.top = tc.clientY - 55 + 'px'; own.set(tc.identifier, 'stick'); }
+        if (left && t.stick === null) { t.stick = tc.identifier; stick.start(tc.clientX, tc.clientY); ring.style.display = 'block'; ring.style.left = tc.clientX - 55 + 'px'; ring.style.top = tc.clientY - 55 + 'px'; own.set(tc.identifier, 'stick'); }
         else if (!left && t.look === null) { t.look = tc.identifier; t.lx = tc.clientX; t.ly = tc.clientY; own.set(tc.identifier, 'look'); }
       }
     }, { passive: false });

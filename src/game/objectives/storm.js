@@ -43,11 +43,11 @@ export class Storm extends Objective {
   }
 
   /** the distance along the route of the point of it nearest to (x, z), looked for in a window round `near` (the route may come back near itself: it must not jump); Infinity when the hero is off the route */
-  _project(x, z, near) {
+  _project(x, z, near, anywhere = false) {
     let best = Infinity, bs = near;
     for (let i = 1; i < this.route.length; i++) {
       const lo = this.cum[i - 1], hi = this.cum[i];
-      if (hi < near - STORM.window[0] || lo > near + STORM.window[1]) continue;
+      if (!anywhere && (hi < near - STORM.window[0] || lo > near + STORM.window[1])) continue;
       const a = this.route[i - 1], b = this.route[i], vx = b[0] - a[0], vz = b[1] - a[1], l2 = vx * vx + vz * vz || 1;
       const u = clamp(((x - a[0]) * vx + (z - a[1]) * vz) / l2), d = Math.hypot(x - (a[0] + vx * u), z - (a[1] + vz * u));
       if (d < best) { best = d; bs = lo + u * (hi - lo); }
@@ -58,7 +58,8 @@ export class Storm extends Objective {
   _setBack() {
     if (this.done || this.restored) return;
     const p = this.game.player;
-    const s = this._project(p.x, p.z, this.P);
+    let s = this._project(p.x, p.z, this.P);
+    if (!Number.isFinite(s)) { s = this._project(p.x, p.z, this.P, true); if (s > this.P) s = Infinity; }       // (set back far behind where he fell: the race is taken up where he stands now)
     if (Number.isFinite(s)) this.P = s;
     this.S = this.P - this.lead0;
     this.hurtT = 0;
@@ -76,9 +77,16 @@ export class Storm extends Objective {
       return;
     }
     // how far he has got
+    let onRoute = true;
     if (!p.dead) {
       const s = this._project(p.x, p.z, this.P);
-      if (Number.isFinite(s) && s > this.P) this.P = s;
+      if (Number.isFinite(s)) { if (s > this.P) this.P = s; }
+      else {
+        // he is nowhere near the stretch he was on (the TRAVEL menu, a set-back). Behind it: the race is taken up where he stands, the storm its lead behind him. Ahead of it, or off the route
+        // altogether: the storm cannot reach him there (and a warp ahead is not progress: he has not come by the way)
+        const far = this._project(p.x, p.z, this.P, true);
+        if (Number.isFinite(far) && far < this.P) { this.P = far; this.S = Math.min(this.S, far - this.lead0); } else onRoute = false;
+      }
     }
     const lead = this.P - this.S;
     // the storm's pace: a steady one, pressing when he is near and easing when he is far ahead (so the race is a race for a hero who is quick and for one who is not)
@@ -95,7 +103,7 @@ export class Storm extends Objective {
       }
     });
     // in the storm
-    if (this.S > this.P - 0.01 && !p.dead && this.S > 0) {
+    if (this.S > this.P - 0.01 && !p.dead && this.S > 0 && onRoute) {
       this.hurtT -= dt;
       if (this.hurtT <= 0) {
         this.hurtT = STORM.hurtEvery;

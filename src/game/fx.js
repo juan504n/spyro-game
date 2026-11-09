@@ -265,9 +265,13 @@ export class Fx {
     if (Math.random() < 0.35) this.spawn({ pool: 'add', sprite: 'spark_small', x, y, z, vx: dx * 7 + this.rnd(-1.5, 1.5), vy: this.rnd(0.5, 2.5), vz: dz * 7 + this.rnd(-1.5, 1.5), gravity: -6, life: this.rnd(0.4, 0.8), size: [0.32, 0.12], c0: [1, 0.8, 0.3, 1], c1: [1, 0.3, 0.1, 0] });
   }
 
-  /** Torch / brazier flames: call every frame while lit. */
-  torchFlame(x, y, z, big = false, k = 1) {
-    if (Math.random() > 0.6 * k) return;
+  /** Torch / brazier flames: call every frame while lit, with the frame's `dt` (the fire is as thick at 30 fps as at 240; without it a call counts as one 60 Hz frame). */
+  torchFlame(x, y, z, big = false, k = 1, dt = 1 / 60) {
+    const want = 0.6 * k * Math.min(dt, 0.1) * 60;
+    for (let n = Math.floor(want) + (Math.random() < want % 1 ? 1 : 0); n > 0; n--) this._torchFlame(x, y, z, big);
+  }
+
+  _torchFlame(x, y, z, big) {
     this.spawn({ pool: 'add', frames: big ? ['flame_big_0', 'flame_big_1', 'flame_big_2', 'flame_big_3'] : ['flame_0', 'flame_1', 'flame_2', 'flame_3'], fps: 10,
       x: x + this.rnd(-0.12, 0.12), y, z: z + this.rnd(-0.12, 0.12), vy: this.rnd(0.6, 1.4), vx: this.rnd(-0.2, 0.2), vz: this.rnd(-0.2, 0.2), life: this.rnd(0.35, 0.55),
       size: big ? [1.7, 0.8] : [0.9, 0.4], c0: [1, 0.9, 0.6, 1], c1: [1, 0.4, 0.1, 0] });

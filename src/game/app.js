@@ -86,6 +86,11 @@ class App {
     this.audio = await loadAudio();
     this.assets = new Assets();
     this.input = new Input(gfx.canvas);          // (the page's: the controls and the listeners outlive any one world)
+    // a hidden tab stops drawing: the music stops with it, and the game waits in its pause menu for the player to come back
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { if (this.state === 'play' && this.game && this._canPause()) this.openPause(); this.audio?.suspend?.(); }
+      else if (this.audioReady) this.audio?.resume?.();
+    });
     const q = this.params;
     const first = REALMS[q.get('world')] ? q.get('world') : 'gloaming';          // (?world=home, ?world=frostbloom ...: any world of the game by its id)
     const game = await this._build(first, null);
@@ -157,6 +162,8 @@ class App {
     this.camera = game.camera;
     this.overlay = game.overlay;
     this.menu = new Menu(game);
+    game.camera.aspect = this.gfx.W / this.gfx.H; game.camera.updateProjectionMatrix();       // (the window may have changed while this world was built behind the loading screen)
+    game.counter?.resize(this.gfx.hud.w, this.gfx.W / this.gfx.H);
     if (this.debug) this.debug.rebind(game);
     else this.debug = new DebugHud(this);              // debug mode's readout / crosshair / wireframes (drawn only when the setting is on)
     game.on('finale', () => this.startFinale());
@@ -221,7 +228,9 @@ class App {
 
   beginPlay(instant = false) {
     const g = this.game;
+    this._endOpening();                    // (play begun straight from the title, by a tool or a skipped intro: the opening's script must not go on flying the hero)
     this.state = 'play';
+    g.input.endStep();                     // (the press that skipped the intro is not a jump)
     g.cam.stopCinematic();
     g.cam.snapBehind(g.player);
     g.hud.visible = true;
@@ -283,6 +292,7 @@ class App {
     const g = this.game;
     this.state = 'play';
     g.mode = 'complete';
+    g.input.endStep();                     // (the press that closed the card is not a jump)
     g.cam.stopCinematic();
     g.cam.snapBehind(g.player);
     g.player.locked = false;
@@ -386,6 +396,7 @@ class App {
     const g = this.game;
     this.state = 'play';
     g.mode = 'complete';
+    g.input.endStep();                     // (the press that closed the card is not a jump)
     g.cam.stopCinematic();
     g.cam.snapBehind(g.player);
     g.player.locked = false; g.locked = false;
@@ -485,6 +496,8 @@ class App {
   /** The hero steps out of the portal into the new world: the screen is still white and clears away, the name of the place comes up. (A hop within a world keeps the mode he is in.) */
   _arrive(game, tr) {
     const g = game, p = g.player;
+    const input = g.input || this.input;
+    if (input) { input.snapshot(); input.endStep(); input.takeLook(); input.takeAnyKey(); }       // (what was pressed or moved under the loading screen is not played on arrival: no jump, no flame, no pause menu, no swung camera)
     this.state = 'play';
     this.travel = null;
     const gateOpened = tr.at ? this._placeHero(g, tr.at) : false;
@@ -583,6 +596,9 @@ class App {
     this.audio?.stinger?.('lantern');
     g.hud.banner('SECRET FOUND!', `${def ? def.name : id}  -  ${found} OF ${SECRETS.length}`, 3.6);
   }
+
+  /** no pause (and so no TRAVEL) while he is dying or riding a portal's beam: a trip begun then fights the respawn's fade, or is undone by the ride's own arrival */
+  _canPause() { const g = this.game; return !g.hud.talking && !g.player.dead && !g.portals?.busy; }
 
   openPause() {
     const g = this.game;
@@ -895,7 +911,7 @@ class App {
         break;
       }
       case 'play': {
-        if (snap.pause && !g.hud.talking) this.openPause();
+        if (snap.pause && this._canPause()) this.openPause();
         break;
       }
       case 'finale': break;

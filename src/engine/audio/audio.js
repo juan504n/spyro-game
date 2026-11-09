@@ -711,6 +711,12 @@ export const audio = {
     return tryResume();
   },
 
+  /** the page is hidden: everything stops sounding until resume() (the game's loop stops with the tab, the music must too) */
+  suspend() {
+    try { if (S.ctx && S.ctx.state === 'running') return S.ctx.suspend(); } catch { /* nothing to stop */ }
+    return Promise.resolve();
+  },
+
   /** Play a one-shot. opts: { vol = 1, pitch = 1 (playback rate), pan = 0 (-1..1), jitter = 0 (+/- pitch fraction) } */
   sfx(name, opts) {
     try {

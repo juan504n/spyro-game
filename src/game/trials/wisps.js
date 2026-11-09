@@ -19,6 +19,7 @@ export const wisps = {
     if (t.state === 'solved') { for (const w of t.live) w.age += dt; t.live = t.live.filter((w) => w.age < 1); return; }
     const near = hyp(p.x - t.x, p.z - t.z) < W.wake;
     if (t.state === 'idle') { if (near) { t.state = 'active'; ctx.emit('start', { by: t }); } else return; }
+    if (!near && hyp(p.x - t.x, p.z - t.z) > W.wake * 1.6 && !t.live.some((w) => !w.dead)) { this.sleep(t); return; }       // (he has walked off: the vents wait for him, they do not fail round after round behind his back)
     if (t.pause > 0) { t.pause -= dt; if (t.pause <= 0) { t.nextIn = W.first; } return; }
     // the vents let one go
     if (t.spawned < t.total) {

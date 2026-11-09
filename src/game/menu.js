@@ -35,6 +35,8 @@ export class Menu {
       // would take that old tap as a click, and close it (or press a row) at once
       const P = this.game.input.ptr;
       P.tap = false; P.moved = false;
+      const m = this.game.input.move;                    // (a direction held as the menu opens is not a press: a hero running forward must not find the cursor on the last row, QUIT)
+      this.prev = { up: m.y > 0.6, down: m.y < -0.6, left: m.x < -0.6, right: m.x > 0.6 };
     }
     this.stack.push({ ...page, sel: page.sel || 0 });          // (a page can start with another row chosen: ARE YOU SURE? starts on NO)
     this.game.audio?.sfx('ui_select', { vol: 0.5 });
@@ -130,8 +132,8 @@ export class Menu {
           it.set((it.options.indexOf(it.get()) + dir + it.options.length) % it.options.length, it.options);
           g.audio?.sfx('ui_move', { vol: 0.4 });
         } else if (it.type === 'slider') {
-          const bx = L.x + L.w - 84;
-          it.set(Math.max(0, Math.min(1, ix >= bx - 4 ? Math.round(((ix - bx) / 68) * 10) / 10 : it.get() - 0.1)));
+          const bx = L.x + L.w - 54, bw = 130 / 3;                 // (the gauge as draw() puts it: 130 dp wide, 32 dp from the panel's right edge; 3 dp to a layout unit)
+          it.set(Math.max(0, Math.min(1, ix >= bx - 4 ? Math.round(((ix - bx) / bw) * 10) / 10 : it.get() - 0.1)));
           g.audio?.sfx('ui_move', { vol: 0.4 });
         }
       } else if (!inside && page.closable !== false) { if (page.onBack) page.onBack(this); else this.close(); }

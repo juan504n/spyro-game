@@ -146,7 +146,7 @@ export class Duel extends Objective {
     if (ram) { p.chargeT = 0; p.chargeCd = 0.4; p.shove?.(p.x - this.e.x, p.z - this.e.z, 7); }
     this.progress(this.wounds / this.need);
     if (this.wounds >= this.need) { this.state = 'dead'; this.st = 0; this.quake = null; g.audio?.sfx('foe_bash', { vol: 1 }); g.hud.hint('THE COLOSSUS FALLS! THE HEARTFORGE BURNS AGAIN', 5); g.gems.burst(this.e.x, this.e.y + 2, this.e.z, gems(10, 10, 5, 5, 5, 2, 2, 2), 3); }
-    else if (this.wounds === Math.ceil(this.need * 0.33) || this.wounds === Math.ceil(this.need * 0.66)) g.hud.hint(this.phase === 0 ? 'IT IS ANGRY NOW: ITS SLAM SHAKES THE FLOOR! JUMP THE QUAKE TOO' : 'NEARLY DONE: IT SLAMS TWICE! KEEP HITTING THE HATCH', 5);
+    else if (this.wounds === Math.ceil(this.need * 0.33) || this.wounds === Math.ceil(this.need * 0.66)) g.hud.hint(this.phase === 1 ? 'IT IS ANGRY NOW: ITS SLAM SHAKES THE FLOOR! JUMP THE QUAKE TOO' : 'NEARLY DONE: IT SLAMS TWICE! KEEP HITTING THE HATCH', 5);
   }
 
   _hide() { this.model.root.visible = false; this.mark.alpha = 0; this.quakeMark.alpha = 0; this.hatch.alpha = 0; }

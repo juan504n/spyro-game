@@ -102,7 +102,7 @@ export class Player {
 
   kill() {
     if (this.dead) return;
-    this.dead = true; this.deadT = 0; this.chargeT = 0; this.superT = 0; this.flameT = 0; this.gliding = false;
+    this.dead = true; this.deadT = 0; this.hurtT = 0; this.chargeT = 0; this.superT = 0; this.flameT = 0; this.gliding = false;
     this.vx *= 0.3; this.vz *= 0.3;
     this.emit('die');
   }
@@ -468,6 +468,7 @@ export class Player {
     this.vx = this.vy = this.vz = 0;
     this.gliding = false; this.chargeT = 0; this.flameT = 0; this.waterT = 0; this.inWater = false; this.grounded = false; this.hurtT = 0;
     this.invulnT = Math.max(this.invulnT, 1.2);
+    this.game.sparx?.snapTo?.(this);          // (Sparx is set back with him: he does not streak across the world after him)
     this.emit('respawn', fromHazard);
   }
 
