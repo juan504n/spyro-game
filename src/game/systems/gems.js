@@ -126,6 +126,7 @@ export class GemField {
     const R = 1.55, MR = this.magnetR;
     for (let k = this.items.length - 1; k >= 0; k--) {
       const it = this.items[k];
+      if (it && !it.alive && it.dynamic) { this.items.splice(k, 1); continue; }       // (a burst gem that was picked up is done with: the list does not grow all session; the placed gems, before them in the list, keep their places)
       if (!it || !it.alive) continue;
       if (it.dynamic) {
         it.delay -= dt;
@@ -139,6 +140,8 @@ export class GemField {
           }
         }
         if (it.delay > 0) continue;
+        // a gem that fell where he cannot go (into the deep, the lava, the sea of cloud, off an island: a flying foe dies where it flies) comes to him, Sparx or no Sparx: it is in the realm's count
+        if (!it.magnet && (it.y < game.waterY - 0.6 || it.y < py - 14)) { it.rescue = true; this._launch(it, Math.hypot(px - it.x, py - it.y, pz - it.z)); }
       }
       const dx = px - it.x, dy = py - it.y, dz = pz - it.z;
       const d2 = dx * dx + dy * dy + dz * dz;
@@ -163,7 +166,7 @@ export class GemField {
   _fly(it, dt, px, py, pz, game) {
     const dx = px - it.x, dy = py - it.y, dz = pz - it.z;
     const dist = Math.hypot(dx, dy, dz);
-    if (dist > FLIGHT.cancelDist) {                   // he was teleported (respawn) or outran the pull: let the gem go
+    if (dist > FLIGHT.cancelDist && !it.rescue) {                   // he was teleported (respawn) or outran the pull: let the gem go
       it.magnet = false;
       if (!it.dynamic) { it.x = it.hx; it.y = it.hy; it.z = it.hz; }      // (a placed gem returns to where it hangs; a burst gem just drops)
       return;

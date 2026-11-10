@@ -89,7 +89,7 @@ export class Input {
       if (down) this.keys.add(e.code); else this.keys.delete(e.code);
       const a = KEYMAP[e.code];
       if (a === 'debug') { if (down) { this._press(a); this._release(a); } }          // (a one-shot toggle: never left "held" if the browser swallows the key-up, as it can for F3)
-      else if (a) { if (down) this._press(a); else this._release(a); }
+      else if (a) { if (down) this._press(a); else if (!Object.keys(KEYMAP).some((c) => KEYMAP[c] === a && this.keys.has(c))) this._release(a); }      // (J let go while F is held: the flame is still held)
       if (e.code === 'Enter') { if (down) this._press('talk'); else this._release('talk'); }      // (a click must not start a conversation)
       if (down) { this.anyKey = true; this.lastDevice = 'keyboard'; if (this.onGesture) this.onGesture(); }
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'F3'].includes(e.code)) e.preventDefault();      // (F3 is the browser's "find" otherwise)

@@ -149,7 +149,7 @@ export class Kit {
     group.name = 'props';
     for (const { builder, tex, o } of this.builders.values()) {
       if (builder.triangleCount === 0) continue;
-      const mat = this.assets.mat(tex, o);
+      const mat = this.assets.mat(tex, { ...o, see: true });          // (the scenery is cut away where it hides the hero in a cave: engine/shaders.js SEE)
       const mesh = new THREE.Mesh(builder.build(), mat);
       builder.release();
       mesh.name = 'prop:' + (tex || 'vertex') + (o.mode ? ':' + o.mode : '');

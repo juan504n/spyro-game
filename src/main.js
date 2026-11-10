@@ -21,6 +21,7 @@ function fatal(headline, detail) {
     d.textContent = `${headline}\n\n${detail}`;
   } catch (e) { /* nothing more we can do */ }
 }
+window.__fatal = fatal;            // (the game calls it when a world cannot be built in the middle of a trip: game/app.js _swap)
 const explain = (e) => String((e && (e.message || e)) || e).slice(0, 300);
 
 let gfx = null;

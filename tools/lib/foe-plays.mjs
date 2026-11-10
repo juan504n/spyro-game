@@ -87,7 +87,12 @@ export const pupFlame = (s) => {
   return { dx: -dx, dz: -dz, mag: 1 };                                                                      // (too near: back away)
 };
 /** ... or run from it */
-export const pupRun = (s) => { const [dx, dz] = dirTo(s.foe, s.hero); return { dx, dz, mag: 1 }; };
+// (Both wait for it to light its fuse, as pupFlame does: a pup busy with a manner of its own, or loitering the other way, had not seen a hero who ran off or rammed it at once, and the play
+// then failed for want of a fuse, one run in three)
+export const pupRun = (s) => { if (s.foe.state === 'idle') return { dx: 0, dz: 0, mag: 0 }; const [dx, dz] = dirTo(s.foe, s.hero); return { dx, dz, mag: 1 }; };
+/** ... or ram it (the wrong answer) */
+const rushRam = rush({ ram: 4 });
+export const pupRam = (s) => (s.foe.state === 'idle' ? { dx: 0, dz: 0, mag: 0 } : rushRam(s));
 
 /** the Dusk Moth: jump and breathe fire; ram it when it has landed */
 export const mothPlay = (s) => {
@@ -191,7 +196,7 @@ export const PLAYS = [
   { id: 'warden-still', say: 'Lidwarden: a hero who stands still is bashed', kind: 'warden', policy: still, T: 12, at: 14, want: 'hurt', hears: ['foe_raise', 'foe_bash'] },
   { id: 'warden-open', say: 'Lidwarden: a hero who steps aside from the bash and strikes it while the shield is down wins too', kind: 'warden', policy: wardOpen, T: 12, at: 9, want: 'win1', seeds: [3], hears: ['foe_raise', 'foe_bash'] },
   { id: 'pup-flame', say: 'Fusepup: a hero who flames it from more than 4 m is not in the blast, and wins', kind: 'pup', policy: pupFlame, T: 14, at: 13, want: 'clear', hears: ['foe_fuse', 'foe_boom'], shows: true },
-  { id: 'pup-ram', say: 'Fusepup: a hero who rams it is in the blast of the keg it sets off', kind: 'pup', policy: rush({ ram: 4 }), T: 14, at: 14, want: 'blast', hears: ['foe_fuse', 'foe_boom'] },
+  { id: 'pup-ram', say: 'Fusepup: a hero who rams it is in the blast of the keg it sets off', kind: 'pup', policy: pupRam, T: 14, at: 14, want: 'blast', hears: ['foe_fuse', 'foe_boom'] },
   { id: 'pup-run', say: 'Fusepup: a hero who runs from it is not hurt (a run is quicker, and the fuse burns out behind him)', kind: 'pup', policy: pupRun, T: 8, at: 9, want: 'boomed', hears: ['foe_fuse', 'foe_boom'] },
   { id: 'moth-jump', say: 'Dusk Moth: a hero who jumps and breathes fire, and rams it when it lands, wins', kind: 'moth', policy: mothPlay, T: 30, at: 9, want: 'win', tol: 1 },
   { id: 'moth-still', say: 'Dusk Moth: a hero who stands still is dived on', kind: 'moth', policy: still, T: 12, at: 14, want: 'hurt', hears: ['foe_screech', 'foe_dive', 'foe_flap'], shows: true },

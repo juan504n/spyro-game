@@ -12,6 +12,7 @@
 // behind Spyro makes it climb rather than come in close; only big things (houses, towers, gates, boulders) or ground it cannot climb
 // over hold it back, and then only by a little (never closer than CAM.minPull of its distance), calmly, and released slowly.
 import * as THREE from 'three';
+import { U } from '../engine/materials.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -25,6 +26,7 @@ const CAM = {
   maxPitch: 1.1,    // rad (63 deg): the highest the camera climbs to look over rising ground; beyond that it comes closer instead
   minPull: 0.62,    // the share of its distance the camera always keeps, whatever gets in the way (it used to come within 1.4 m)
   caveFov: 60,      // degrees the view widens for each share of its distance the camera is held closer than minPull, in a cave (19 at 0.3 of its distance)
+  seeR: 1.25,       // metres: the radius of the window cut in a cave's scenery round the line from the camera to the hero
   caveRise: 3.4,    // metres the camera is raised for each share of its distance it is held closer than minPull, in a cave (1.1 m at 0.3 of its distance)
   minPullCave: 0.3, // ... inside a cave (game.enclosure 1): the walls are close, so it may come much closer
 };
@@ -284,6 +286,9 @@ export class GameCamera {
       sx = (Math.random() - 0.5) * a; sy = (Math.random() - 0.5) * a;
       if (this.shakeT <= 0) this.shakeA = 0;
     }
+    // the window on the hero through a cave's scenery (shaders.js SEE): as wide as the cave is deep, none in a shot
+    const see = cine ? 0 : CAM.seeR * Math.max(0, Math.min(1, ((this.game.enclosure || 0) - 0.3) / 0.4));
+    U.uSee.value.set(this.tx, this.ty + 0.45, this.tz, see);
     cam.position.set(this.pos.x + sx, this.pos.y + sy, this.pos.z);
     cam.lookAt(this.look);
     if (Math.abs(cam.fov - this.fov) > 0.01) { cam.fov = this.fov; cam.updateProjectionMatrix(); }

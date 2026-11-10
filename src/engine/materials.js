@@ -20,6 +20,7 @@ export const U = {
   uSunDir: { value: new THREE.Vector3(0.6, 0.6, 0.2).normalize() },
   uSunCol: { value: new THREE.Color(1, 0.9, 0.7) },
   uAmb: { value: new THREE.Color(0.4, 0.4, 0.5) },
+  uSee: { value: new THREE.Vector4(0, 0, 0, 0) },      // the window on the hero through the scenery (SEE materials; set by the game's camera, 0 wide = none)
 };
 
 
@@ -183,6 +184,7 @@ export function makeMaterial(o = {}) {
   if (o.lit) defines.LIT = 1;
   if (o.sprite) defines.SPRITE = 1;
   if (o.sway) defines.SWAY = 1;
+  if (o.see && !o.sprite && mode !== 'half' && mode !== 'add') defines.SEE = 1;       // scenery that is cut away where it hides the hero in a cave (uSee)
   if (o.gem) defines.GEM = 1;       // faceted gems: fixed-light facet shading + specular glint (instanced, per-instance hue)
   if (mode === 'cutout') defines.CUTOUT = 1;
   if (mode === 'half') defines.HALF = 1;
@@ -198,7 +200,7 @@ export function makeMaterial(o = {}) {
     uniforms: {
       map: { value: o.map || whiteTexture() },
       uRes: U.uRes, uSnap: U.uSnap, uAffine: U.uAffine, uDay: U.uDay, uBlend: U.uBlend, uTime: U.uTime, uWind: U.uWind,
-      uFogColor: U.uFogColor, uFogRange: U.uFogRange, uSunDir: U.uSunDir, uSunCol: U.uSunCol, uAmb: U.uAmb,
+      uFogColor: U.uFogColor, uFogRange: U.uFogRange, uSunDir: U.uSunDir, uSunCol: U.uSunCol, uAmb: U.uAmb, uSee: U.uSee,
       uScroll: { value: new THREE.Vector2(...(o.scroll || [0, 0])) },
       uAlpha: { value: o.alpha ?? 1 },
       uColorMul: { value: new THREE.Color(1, 1, 1) },

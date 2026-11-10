@@ -46,6 +46,9 @@ varying float vFog;
 #ifdef GEM
 varying vec3 vSpec;
 #endif
+#ifdef SEE
+varying vec3 vWp;
+#endif
 
 ${SNAP}
 
@@ -70,6 +73,9 @@ void main() {
       // foliage sway: PS1 games did this by nudging vertex positions in the model, so it stays chunky
       float sw = sin(uTime * 1.7 + wp.x * 0.35 + wp.z * 0.27) * uWind * max(position.y, 0.0) * 0.03;
       wp.x += sw; wp.z += sw * 0.6;
+    #endif
+    #ifdef SEE
+      vWp = wp.xyz;
     #endif
     vec4 mv = viewMatrix * wp;
     vec4 clip = projectionMatrix * mv;
@@ -126,8 +132,26 @@ varying float vFog;
 #ifdef GEM
 varying vec3 vSpec;
 #endif
+#ifdef SEE
+uniform vec4 uSee;      // xyz = the hero (his chest), w = how wide the window is, in metres (0: none)
+varying vec3 vWp;
+#endif
 
 void main() {
+  #ifdef SEE
+    // A window on the hero: what stands between the camera and him (a crystal, a standing stone: the scenery made by the prop kit) is cut away round the line of sight, with a dithered edge.
+    // Only in a cave (the camera sets uSee.w there): the camera cannot step aside for every pillar without pumping in and out.
+    if (uSee.w > 0.0) {
+      vec3 ab = uSee.xyz - cameraPosition;
+      float tt = dot(vWp - cameraPosition, ab) / max(dot(ab, ab), 1e-4);
+      if (tt > 0.0 && tt < 0.84) {
+        float dd = length(vWp - (cameraPosition + ab * tt));
+        float k = 1.0 - smoothstep(uSee.w * 0.55, uSee.w, dd);
+        vec2 fc = floor(gl_FragCoord.xy);
+        if (k > fract(52.9829189 * fract(0.06711056 * fc.x + 0.00583715 * fc.y))) discard;
+      }
+    }
+  #endif
   // affine mapping: vUvA holds uv*w; the rasteriser divides by interpolated 1/w, we multiply it back
   vec2 uv = mix(vUvP, vUvA * gl_FragCoord.w, uAffine);
   uv += uScroll * uTime;

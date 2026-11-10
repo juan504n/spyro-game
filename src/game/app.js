@@ -486,7 +486,12 @@ class App {
     old.dispose();
     this.load = { frac: 0, label: REALMS[tr.id].kind === 'homeworld' ? 'ENTERING DAWNHAVEN' : 'ENTERING THE REALM' };
     let game;
-    try { game = await this._build(tr.id, tr.from, !!(tr.at && tr.at.rematch)); } catch (e) { console.error(e); window.__error = String((e && e.stack) || e); return; }
+    try { game = await this._build(tr.id, tr.from, !!(tr.at && tr.at.rematch)); } catch (e) {
+      // (the old world is gone and the new one cannot be built: say so, as a failed start does, and do not leave a loading screen turning for ever; what was won is saved)
+      console.error(e); window.__error = String((e && e.stack) || e);
+      window.__fatal?.('GLOAMING VALE HIT A SNAG WHILE LOADING', `${String((e && (e.message || e)) || e).slice(0, 300)}\n\nReloading the page usually fixes it. Your progress is saved.`);
+      return;
+    }
     if (tr.ls) await tr.ls.finish();                    // (it stays until the gems have been seen, then goes to white)
     this._adopt(game);
     if (tr.ls) { tr.ls.dispose(); tr.ls = null; }
